@@ -10,24 +10,15 @@
 .define public ENABLE 11
 .define public DISKFLAG 10
 
-; The DCD mux will really control the RD line direction.
-; It will ...
-; count the number of strobes and disable RD after 1, 2, or 3 of them
-; it will reset the counter when disable goes high
-; probably at some point should push the strobe counter so the FN can decide which disk image to use
-;
-; combining with Floppy MUX:
-; when disabled, should be in hi-z and waiting for enable
-; when disabled should go back to DCD mode
-; when drive counter == 0 should go to floppy mode
+; Each LSTRB selects the next DCD, X counting down from the number mounted and
+; pushed to the FIFO; at 0 it is floppy mode, RD muxed by the phases. Disable
+; returns to the top: RD hi-z, waiting for enable.
 
 .program mux
 .side_set 3 opt pindirs
-    ; initial state is RD is hi-z and we have 2 DCDs
-    ; we wait to be enabled then RD goes to output
 
 start:    
-    set x, 0                side 0b000      ; put the number of DCD devices in X (0xf020 - last digit is number of DCDs)
+    set x, 0                side 0b000      ; X = number of DCDs, patched in by set_num_dcd()
     wait 0 gpio ENABLE                      ; don't do anything until we're enabled
 .wrap_target
     in x, 32                                ; push X to the FIFO to tell the program a certain drive is selected
@@ -56,14 +47,13 @@ dcd:
     set pins, 1                             ; say to latch we're in DCD mode
     jmp pin start            ; disabled so go back to the beginning!
     mov osr, pins           side 0b001 ; get LSTRB value into osr
-    out null, (LSTRB-MCI_CA0)  ; have to blow some into null first - LSTRB-MCI_CA0 - sort of violates the coding scheme to pass the in_pin
+    out null, (LSTRB-MCI_CA0)  ; skip to LSTRB
     out y, 1                 ; stick it in Y
     jmp !Y dcd             ; not strobing loop
 .wrap
 
 
 % c-sdk {
-// this is a raw helper function for use by the user which sets up the GPIO input and output, and configures the SM to output on a particular pin
 void mux_program_init(PIO pio, uint sm, uint offset, uint in_pin, uint mux_pin)
 {
    
@@ -81,14 +71,12 @@ void mux_program_init(PIO pio, uint sm, uint offset, uint in_pin, uint mux_pin)
    sm_config_set_in_shift(&c, true, true, 32);
    sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_RX);
 
-   //output GPIO's
    for (int i=0; i<3; i++)
       pio_gpio_init(pio, mux_pin + i);
    pio_sm_set_consecutive_pindirs(pio, sm, mux_pin, 3, false);
    pio_gpio_init(pio, DISKFLAG);
    pio_sm_set_consecutive_pindirs(pio, sm, DISKFLAG, 1, true);
    
-   // initialize
    pio_sm_init(pio, sm, offset, &c);
 }
 %}

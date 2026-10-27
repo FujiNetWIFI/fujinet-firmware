@@ -1,36 +1,22 @@
-// TinyUSB CDC transport for fujibus.c's protocol codec. Split out from
-// fujibus.c/.h deliberately: fujibus.c has no hardware or USB dependency
-// and builds/tests on a desktop; this file is RP2040/TinyUSB-only glue on
-// top of it.
+// TinyUSB CDC transport for the fujibus.c codec, kept apart so the codec
+// builds on a host.
 #ifndef FUJIBUS_USB_H
 #define FUJIBUS_USB_H
 
 #include "fujibus.h"
 
-// Registers a handler for INBOUND frames that arrive while fujibus_transact()
-// is waiting on a reply -- specifically, the ESP32-S3 pushing a ROM (and an
-// optional .cfg sibling) to FUJI_DEVICEID_DBC mid-MOUNT_IMAGE-transaction
-// (see fuji_network_boot() in inty_cart.c). fujibus.c/fujibus_usb.c stay
-// protocol-agnostic: the handler decides what counts as "inbound" (by
-// device id or whatever else) and does the actual work; this file only
-// dispatches to it.
-//
-// Called once per complete SLIP frame received during a wait. Return true
-// if the frame was an inbound request and has been fully handled
-// (including sending any reply of its own over the same link) -- the wait
-// for the real reply continues, with a fresh timeout. Return false to
-// treat the frame as the reply fujibus_transact() itself is waiting for.
+// Called for each frame received while fujibus_transact() waits, such as
+// the ESP32-S3's mid-MOUNT_IMAGE ROM push. Return true if the handler
+// consumed it (sending any reply itself); the wait continues with a fresh
+// timeout. Return false to make it the transaction's reply.
 typedef bool (*fujibus_inbound_fn)(const fb_reply_t *frame);
 void fujibus_set_inbound_handler(fujibus_inbound_fn handler);
 
-// Sends one frame built by fujibus_build_request(), with no reply expected.
-// For an inbound handler's reply, from inside fujibus_transact()'s RX wait.
+// Sends one frame with no reply expected, e.g. from an inbound handler.
 void fujibus_send_frame(const uint8_t *frame, size_t len);
 
-// Sends one request and waits up to `timeout_ms` for the SLIP-framed reply.
-// `rx_buf` (capacity `rx_cap`) is used both as the raw USB read buffer and,
-// via fujibus_parse_reply()'s in-place decode, as the storage backing
-// `reply->data` on success -- it must stay valid as long as `reply` is used.
+// rx_buf is the raw read buffer and backs reply->data; keep it alive while
+// reply is in use.
 fb_status_t fujibus_transact(uint8_t device, uint8_t command,
                               const fb_param_t *params, unsigned nparams,
                               const uint8_t *payload, uint16_t payload_len,

@@ -1,7 +1,6 @@
 /* fujis100_rp2354b.h -- board header for the FujiNet S-100 card.
  *
- * Modelled on the SDK's pimoroni_pico_plus2_rp2350.h: pico2.h hard-defines
- * the A variant, so a B board declares itself. The bus pin map lives in
+ * pico2.h hard-defines the A variant, so a B board declares itself. The pin map is in
  * include/s100_card.h; nothing here may claim a GPIO.
  */
 #ifndef FUJIS100_RP2354B_H

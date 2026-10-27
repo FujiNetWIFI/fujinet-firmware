@@ -1,18 +1,7 @@
-// FujiNet mailbox service and ROM-boot receiver -- Minty port of the
-// PiRTO II original (pico/intellivision/firmware/inty_cart.c on the
-// intv-pico-firmware branch of the main fujinet-firmware tree). See
-// fuji_mailbox.h for the wire layout and the SEQ/ACKSEQ interlock, and
-// README.md/PROVENANCE.md for why this exists on top of Minty at all.
-//
-// The one structural difference from the original: Minty describes a
-// cartridge's memory map with mm_map_t (memory.c) -- mm_init()/mm_add()/
-// mm_add_ram() -- rather than PiRTO II's flat mapfrom/mapto/maprom arrays.
-// apply_boot_mapping() below builds an mm_map_t the same way load_cfg()
-// does for a local file, from the bm_plan_t bootmap.c hands it. The
-// mailbox's own RAM claim is NOT part of that map -- see cartridge.c's
-// window branch, driven by cart.FujiSupport -- so, unlike the original,
-// this never needs to re-add the mailbox as its own RAM segment after
-// loading a game.
+// FujiNet mailbox service and ROM-boot receiver, ported to Minty from PiRTO
+// II's inty_cart.c (see PROVENANCE.md). The mailbox layout is in
+// fuji_mailbox.h. A boot builds an mm_map_t as load_cfg() does; the mailbox's
+// RAM is not in it, since cartridge.c's window branch serves it.
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -53,55 +42,28 @@ void fuji_wait_ms_pumped(uint32_t ms)
 //                     ROM boot receiver (FUJI_DEVICEID_DBC)
 ////////////////////////////////////////////////////////////////////////////
 //
-// The ESP32-S3's MediaTypeROM::mount() pushes a ROM -- and, if one exists, a
-// same-named .cfg sibling -- to us over the same USB-CDC link ordinary
-// mailbox transactions use, addressed to FUJI_DEVICEID_DBC, WHILE the
-// Intellivision's own MOUNT_IMAGE mailbox transaction is still outstanding
-// in fuji_mailbox_service()'s fujibus_transact() call below. There is no
-// separate boot command anywhere in this protocol -- MOUNT_IMAGE is
-// forwarded to the ESP32 exactly like any other Fuji-device command, and
-// the ROM push rides the SAME link, mid-transaction. dbc_inbound_handler()
-// is registered as fujibus_transact()'s inbound-frame handler (see
-// Inty_cart_main() in cartridge.c): it intercepts these DBC frames and ACKs
-// each one individually -- the ESP32 side's sendCommand() is a per-frame
-// round trip (one OPEN, then one WRITE per ~512-byte chunk, then CLOSE).
+// The ESP32 pushes the ROM, and any same-named .cfg, to FUJI_DEVICEID_DBC
+// while the console's MOUNT_IMAGE is outstanding in fujibus_transact().
+// dbc_inbound_handler() ACKs each frame: OPEN, a WRITE per 512-byte chunk,
+// CLOSE. bootmap.c does the parsing, decoding straight into cart.ROM[] above
+// FUJI_STAGE_BASE so a failed push leaves the running CONFIG intact.
 //
-// SCOPE NOTE: no staging buffer -- bootmap.c decodes into cart.ROM[] as the
-// data streams, above CONFIG's live offsets (FUJI_STAGE_BASE) so a failed
-// push can't hang the CONFIG image the console is executing meanwhile.
-//
-// All parsing lives in bootmap.c, which knows nothing about USB, the
-// mailbox or the Cartridge: it turns the two streams into a bm_plan_t.
-// This file owns everything around that -- framing and ACK/NAK below,
-// mapping precedence being bootmap_rom_end()'s business, and the mailbox/
-// JLP policy plus the mm_*() commit in apply_boot_mapping().
-//
-// NETCMD_OPEN's payload selects the stream: 1 = the .cfg sibling (pushed
-// first, so its mapping/JLP settings are known before the ROM's own CLOSE
-// triggers the boot), 0 = the ROM itself. Peers from this revision on
-// append the stream's total size as 4 little-endian bytes, which lets an
-// oversized ROM be refused before it's pulled over TNFS and makes the
-// progress bar exact; older peers send the id alone and everything still
-// works, just blind.
+// OPEN's payload is the stream id (1 = .cfg, pushed first; 0 = ROM), then
+// optionally its size as 4 little-endian bytes, which lets an oversized ROM
+// be refused early and makes the progress bar exact.
 
 #define DBC_STREAM_ROM 0
 #define DBC_STREAM_CFG 1
 static int dbc_stream = -1; // stream id currently open, -1 for none
 
-// the plan bootmap_rom_end() produced for this mount -- points into
-// bootmap.c's own storage, valid until the next push starts
+// bootmap_rom_end()'s plan; points into bootmap.c, valid until the next push
 static bm_plan_t *boot_plan;
 
 // failed commit rebuilt CONFIG's map; handler must reset the console into it
 static bool need_config_reset = false;
 
-// Snapshot of the most recent FUJICMD_SET_DEVICE_FULLPATH payload CONFIG
-// sent through the ordinary mailbox (st_boot.bas always sends this
-// immediately before MOUNT_IMAGE -- see fujicmd.bas's fj_set_device_fullpath
-// wrapper). Not part of the wire protocol in any special way; just the only
-// source this side has for a filename to derive a JLP flash .save path
-// from, since a network push otherwise has no filesystem path of its own.
-// Populated in fuji_mailbox_service(), consumed in apply_boot_mapping().
+// The SET_DEVICE_FULLPATH CONFIG sends just before MOUNT_IMAGE: the only
+// filename a pushed ROM has for its JLP flash .save.
 static char last_boot_path[256];
 
 #if CONFIG_SD_STORAGE
@@ -110,7 +72,6 @@ static char last_boot_path[256];
 #define JLP_SAVE_ROOT "/fl"
 #endif
 
-// Sends a bare ACK/NAK reply frame for one DBC command.
 static void dbc_send_frame(uint8_t command)
 {
     uint8_t buf[16];
@@ -120,9 +81,7 @@ static void dbc_send_frame(uint8_t command)
         fujibus_send_frame(buf, len);
 }
 
-// mailbox_overlap: [from, to] (inclusive bus addresses) vs the RAM window
-// this boot would want. Hard rejection only for JLP; otherwise the boot
-// proceeds with the mailbox disabled.
+// [from, to] (inclusive bus addresses) vs the RAM window this boot would use
 static bool mailbox_overlap(unsigned int from, unsigned int to, bool jlp_pending)
 {
     unsigned int lo = jlp_pending ? 0x8000 : FUJI_MB_ADDR_LO;
@@ -130,14 +89,8 @@ static bool mailbox_overlap(unsigned int from, unsigned int to, bool jlp_pending
     return !(to < lo || from > hi);
 }
 
-// apply_boot_mapping: called once the ROM stream's CLOSE arrives.
-// cart.ROM[]'s final bytes are already in place by now (bootmap.c wrote
-// them there live). bootmap_rom_end() picks the mapping source and hands
-// back a finished plan; what's left here is the part that needs to know
-// about this cartridge -- reconciling the plan with the RAM window that
-// will be active once the boot completes, committing an mm_map_t, and
-// turning on JLP (which also moves the window -- see update_ram_window()
-// in intellicart.c).
+// On the ROM's CLOSE: reconcile the plan with the RAM window the game will
+// have, commit the mm_map_t and set up JLP, which moves the window.
 static bool apply_boot_mapping(void)
 {
     int err = bootmap_rom_end(&boot_plan);
@@ -155,21 +108,16 @@ static bool apply_boot_mapping(void)
         if (!boot_plan->fujinet)
             disable_mb = true;
 
-        // JLP claims all of $8000-$9FFF in cartridge.c's RAM-window branch,
-        // ahead of mm_lookup(), so cartridge ROM mapped under it can never
-        // be read. That's also what happens under jzintv, where the JLP
-        // peripheral outranks the cartridge mapping -- so drop the shadowed
-        // segments and boot, rather than refusing a .cfg that pairs `jlp`
-        // with a full-image [mapping] (Pacmanthology does exactly this).
+        // JLP's window covers $8000-$9FFF ahead of mm_lookup(), shadowing any
+        // ROM there, as under jzintv. Drop those segments rather than refuse
+        // a .cfg pairing `jlp` with a full-image [mapping] (Pacmanthology).
         bootmap_shadow_range(boot_plan, 0x8000, 0x9FFF);
         if (boot_plan->nseg == 0) {
             cart.RAM[FUJI_MB_BOOT_ERR] = FUJI_BOOT_ERR_CFGBAD;
             return false;
         }
-        // A [memattr] area under the window is a genuine collision, not
-        // shadowing: mm_add_ram() packs it into the same cart.RAM[] indices
-        // the window branch addresses directly as addr-0x8000. See the
-        // KNOWN LIMITATION note on cartridge.c's write path.
+        // A [memattr] area under the window collides: mm_add_ram() packs it
+        // into the cart.RAM[] indices the window uses (cartridge.c write path).
         for (int i = 0; i < boot_plan->nram; i++) {
             if (mailbox_overlap(boot_plan->ram[i].lo, boot_plan->ram[i].hi, true)) {
                 cart.RAM[FUJI_MB_BOOT_ERR] = FUJI_BOOT_ERR_MAILBOX;
@@ -255,19 +203,15 @@ static bool apply_boot_mapping(void)
     return true;
 }
 
-// dbc_inbound_handler: registered with fujibus_set_inbound_handler().
-// Returns true (frame consumed, keep waiting for the real MOUNT_IMAGE
-// reply) for every FUJI_DEVICEID_DBC frame; false (treat as the actual
-// reply) for anything else, which normally never happens mid-MOUNT_IMAGE
-// but keeps this safe to register unconditionally.
+// Consumes every FUJI_DEVICEID_DBC frame; anything else is the reply
+// fujibus_transact() is waiting for.
 bool dbc_inbound_handler(const fb_reply_t *req)
 {
     if (req->device != FUJI_DEVICEID_DBC)
         return false;
 
     if (req->command == NETCMD_OPEN) {
-        // Payload: stream id, optionally followed by the stream's total
-        // size as 4 little-endian bytes (see this section's banner).
+        // Payload: stream id, then optionally the 4-byte LE total size
         unsigned stream = (req->data_len > 0) ? req->data[0] : 0;
         uint32_t total = 0;
         if (req->data_len >= 5)
@@ -287,10 +231,8 @@ bool dbc_inbound_handler(const fb_reply_t *req)
             cart.RAM[FUJI_MB_BOOT_ERR] = 0;
             int err = bootmap_rom_begin(total);
             if (err) {
-                // Won't fit this board however it's laid out -- say so now
-                // rather than after the ESP32 drags the whole file over
-                // TNFS. push_stream() abandons a failed OPEN without ever
-                // sending CLOSE, so tear the stream down from this side.
+                // Refuse before the whole file comes over TNFS. A failed
+                // OPEN gets no CLOSE, so tear the stream down here.
                 bootmap_rom_abort();
                 dbc_stream = -1;
                 cart.RAM[FUJI_MB_BOOT_STATE] = FUJI_BOOT_FAILED;
@@ -353,18 +295,12 @@ bool dbc_inbound_handler(const fb_reply_t *req)
                     cart.RAM[FUJI_MB_PROTO_VER] = 1;
                     cart.RAM[FUJI_MB_BOOT_STATE] = FUJI_BOOT_IDLE;
                 }
-                // Return (frame consumed) instead of halting here: the real
-                // MOUNT_IMAGE reply still hasn't arrived from the ESP32, so
-                // fujibus_transact()'s wait loop needs control back to keep
-                // reading -- and once that completes, RunGame()'s own
-                // while(1) resumes, which is what keeps tud_task() and
-                // fuji_mailbox_service() alive for the loaded game to use.
+                // Return, not halt: fujibus_transact() still awaits the
+                // MOUNT_IMAGE reply, then RunGame()'s loop services the game.
                 return true;
             }
-            // apply_boot_mapping() already set FUJI_MB_BOOT_ERR to a
-            // specific reason code. NAK (not ACK) so push_stream() on the
-            // ESP32 side sees the CLOSE fail and MediaTypeROM::mount()
-            // reports failure, instead of believing the push succeeded.
+            // apply_boot_mapping() set FUJI_MB_BOOT_ERR. NAK so the ESP32
+            // reports the mount failed.
             cart.RAM[FUJI_MB_BOOT_STATE] = FUJI_BOOT_FAILED;
             dbc_send_frame(FUJICMD_NAK);
             if (need_config_reset) {
@@ -396,10 +332,8 @@ bool dbc_inbound_handler(const fb_reply_t *req)
 //                     FujiNet mailbox
 ////////////////////////////////////////////////////////////////////////////
 
-// Services at most one FujiNet transaction per call: if the Intellivision
-// has bumped FUJI_MB_SEQ since our last reply, run it and publish the
-// result by writing FUJI_MB_ACKSEQ = seq last. See fuji_mailbox.h for the
-// full interlock rationale.
+// At most one transaction per call; see fuji_mailbox.h for the SEQ/ACKSEQ
+// interlock.
 void fuji_mailbox_service(void)
 {
     static uint8_t rxbuf[FUJIBUS_RAW_RX_MAX];
@@ -409,18 +343,8 @@ void fuji_mailbox_service(void)
     if (!cart.MailboxActive)
         return;
 
-    // BOOTSEL doorbell -- see fuji_mailbox.h. Checked every call, independent
-    // of the SEQ/ACKSEQ interlock below. The reset is noreturn: it reboots
-    // straight into BOOTSEL/PICOBOOT over the same internal USB link the
-    // ESP32-S3 already uses, so the cart hangs (from the Inty's point of
-    // view) until either reflashed or power-cycled -- expected for a
-    // deliberate "go flash me" request.
-    //
-    // No activity LED is requested (-1 rather than a pin mask): on RP2350
-    // the SDK works around an erratum by rebooting into RISC-V USB boot
-    // whenever an activity LED is specified, and this cart is an RP2354.
-    // PICOBOOT works either way, but there is no reason to take the
-    // different boot path just to blink.
+    // BOOTSEL doorbell (fuji_mailbox.h); does not return. No activity LED:
+    // with one, the RP2350 SDK's erratum workaround boots RISC-V USB boot.
     if ((uint8_t)cart.RAM[FUJI_MB_BOOTSEL_DOORBELL] == FUJI_MB_BOOTSEL_MAGIC)
         rom_reset_usb_boot_extra(-1, 0, false);
 
@@ -432,13 +356,8 @@ void fuji_mailbox_service(void)
 
     cart.RAM[FUJI_MB_STATUS] = FUJI_MB_STATUS_BUSY;
 
-    // The Intellivision boots (and so bumps FUJI_MB_SEQ) far faster than the
-    // ESP32-S3 boots and enumerates over USB. fujibus_transact() only checks
-    // tud_cdc_connected() once and fails immediately if it's not up yet, so
-    // without this wait, the very first transaction after both power on
-    // together would almost always see FB_ENOLINK even though the ESP32
-    // would have been ready moments later -- and fuji_mailbox_service()
-    // only runs once per SEQ bump, there's no retry above this.
+    // The console's first request beats the ESP32's USB enumeration, and
+    // fujibus_transact() fails at once with no link and nothing retries.
     {
         absolute_time_t link_deadline = make_timeout_time_ms(3000);
         while (!tud_cdc_connected() && !time_reached(link_deadline)) {
@@ -470,18 +389,14 @@ void fuji_mailbox_service(void)
     for (uint16_t i = 0; i < txlen; i++)
         txbuf[i] = (uint8_t)cart.RAM[FUJI_MB_TX + i];
 
-    // See last_boot_path's comment: this is the only source of a filename
-    // for a JLP flash .save path on a network-pushed ROM.
+    // see last_boot_path
     if (device == FUJI_DEVICEID_FUJINET && command == FUJICMD_SET_DEVICE_FULLPATH) {
         uint16_t n = txlen < sizeof(last_boot_path) - 1 ? txlen : sizeof(last_boot_path) - 1;
         memcpy(last_boot_path, txbuf, n);
         last_boot_path[n] = 0;
     }
 
-    // MOUNT_IMAGE can trigger a ROM(+.cfg) push over the same link mid-
-    // transaction (see the "ROM boot receiver" section above) -- a real
-    // transfer over TNFS can easily run past the ordinary 5s budget every
-    // other command gets.
+    // MOUNT_IMAGE carries the ROM push, which can run well past 5s over TNFS
     uint32_t timeout_ms = 5000;
     if (device == FUJI_DEVICEID_FUJINET && command == FUJICMD_MOUNT_IMAGE)
         timeout_ms = 60000;
@@ -498,11 +413,7 @@ void fuji_mailbox_service(void)
 
     cart.RAM[FUJI_MB_ERR] = (uint16_t)st;
     if (st == FB_OK) {
-        // reply.data_len is bounded by sizeof(rxbuf) (FUJIBUS_RAW_RX_MAX),
-        // which is now larger than the mailbox's own RX window -- clamp
-        // before copying into cart.RAM so an oversized reply can't overrun
-        // FUJI_MB_RX_MAX. Real mailbox replies never exceed FUJI_MB_RX_MAX
-        // today; this only guards the address space.
+        // rxbuf is larger than the mailbox's RX window
         uint16_t rxlen = reply.data_len;
         if (rxlen > FUJI_MB_RX_MAX)
             rxlen = FUJI_MB_RX_MAX;

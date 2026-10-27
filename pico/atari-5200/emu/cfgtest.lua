@@ -2,7 +2,6 @@
 -- SD host, into a5200/, pacman.bin, boot. PASS when the cart has swapped the
 -- game in and the screen is not blank. On the way, when the SD has them, it
 -- pages through a7800pg/ (more than one screenful) and reads the info screen.
--- The stick moves, the keypad and fire buttons act, so both are exercised.
 -- Every screen is printed.
 --
 --   A52_SCREEN=0x3C00 ./run.sh config cfgtest   (run.sh sets it for config)

@@ -1,10 +1,5 @@
--- bankprobe.lua: check testrom/fujibank.asm's results, headless.
---
--- fujibank selects every page, calls into one, pokes and reads back both
--- halves of cart RAM, makes stray reads after a closed stream, and times the
--- tick over 60 vblanks; it leaves its results at 18D0H-18DFH (5AH at 18DFH
--- when done). This checks them, then watches the tick against emulated
--- frames for 600 more. Prints exactly one line:
+-- bankprobe.lua: check testrom/fujibank.asm's results at 18D0H-18DFH (5AH at 18DFH when
+-- done), then check the tick against 600 more emulated frames.
 --   bankprobe: PASS | bankprobe: FAIL <why>
 --
 --   BANKPROBE_TIMEOUT  frames to wait for the ROM (default 600)
@@ -33,8 +28,7 @@ local want = {
 local names = { [0] = "page 0", "page 1", "page 2", "page 3", "missing page",
     "page 2 entry", "RAM-L", "RAM-H", "strays", "version", "magic" }
 
--- add_machine_frame_notifier, not the removed emu.register_frame; the handle
--- is kept in a global or it is collected and the callback stops.
+-- Keep the handle in a global or it is collected and the callback stops.
 _G.BANKPROBE_SUB = emu.add_machine_frame_notifier(function()
     if finished then return end
     frames = frames + 1

@@ -1,8 +1,7 @@
 ; a78_tables.pio -- the slot table.
 ;
-; Documentation and a cross-check: the firmware builds the same words from
-; a78_pio.h at run time (so that the host tests and the cartridge share one
-; encoder) and asserts at init that pioasm agrees. Slot instructions are
+; A cross-check: the firmware builds the same words from a78_pio.h, shared
+; with the host tests, and asserts at init that pioasm agrees. Slots are
 ; patched live; `set pins, 0 side 0` is only the power-on value.
 
 .program a78_slot_table

@@ -4,9 +4,6 @@
 
  Sega Master System FujiNet cartridge emulation
 
- See fujinet.h for the design; pico/sms/README.md in fujinet-firmware for the
- bring-up this device serves.
-
  ***********************************************************************************************************/
 
 #include "emu.h"

@@ -3,10 +3,8 @@
 #
 # Usage: ./apply.sh /path/to/mame
 #
-# Copies the device model (fujinet.cpp/h, common's fujitcp.c/h) and the cartridge
-# firmware's own protocol sources (fujimail, fujibus, chfmap, the bus observer
-# and their headers -- MAME then runs the code the cartridge actually ships)
-# into src/devices/bus/chanf/, and makes the shared-file edits:
+# Copies the device model and the cartridge firmware's own sources into
+# src/devices/bus/chanf/, and makes the shared-file edits:
 #
 #   scripts/src/bus.lua          the CHANNELF file list
 #   src/devices/bus/chanf/slot.h   a CF_FUJINET pcb type
@@ -52,12 +50,9 @@ EOF
     echo "apply.sh: slot.h updated"
 fi
 
-# slot.cpp: register the type, and pick it when OUR device is in the slot.
-#
-# call_load() forces CF_CHESS for any fullpath image (it defaults to the Saba
-# Schach PCB because homebrew tends to expect RAM at $2800), which would install
-# the console's own RAM handlers over part of our address space. Keying on the
-# loaded device type instead of the file is the only way to tell it apart.
+# slot.cpp: register the type, and pick it when our device is in the slot.
+# call_load() forces CF_CHESS (RAM handlers at $2800) for any fullpath image,
+# so key on the loaded device type instead.
 if ! grep -q "CF_FUJINET" "$SLOT_C"; then
     python3 - "$SLOT_C" <<'EOF'
 import sys
@@ -94,10 +89,8 @@ fi
 
 # channelf.cpp: include, a selectable slot option, and the write handler.
 #
-# The driver maps $0800-$FFFF read-only, because no stock Videocart needs more.
-# Ours does: ROMC 05 is a real store cycle and both the RAM arena and the whole
-# console -> cart direction ride it. Reads stay on read_rom, so the offsets
-# match ($0800-relative in both directions).
+# The driver maps $0800-$FFFF read-only; the arena and the console -> cart
+# direction need writes. Offsets are $0800-relative in both directions.
 if ! grep -q "CHANF_ROM_FUJINET" "$DRIVER"; then
     python3 - "$DRIVER" <<'EOF'
 import sys

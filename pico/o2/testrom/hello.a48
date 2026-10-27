@@ -50,7 +50,7 @@ next:
     movx @r0,a
     inc r0
     inc r1
-    mov a,r1                ; byte 3: colour + 9th pointer bit
+    mov a,r1                ; byte 3: color + 9th pointer bit
     movp a,@a
     movx @r0,a
     inc r0

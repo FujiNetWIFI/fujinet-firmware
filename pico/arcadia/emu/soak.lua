@@ -1,22 +1,11 @@
--- soak.lua: verify one DBC-streamed cart image, headless.
+-- soak.lua: verify one streamed cart image, run by tools/soak.sh with fujiboot as the cart.
+-- When the 'F','N' magic at 2C09/2C0A vanishes (soak images are claim-less), compare the
+-- served blocks to $SOAK_EXPECT, then report how often the PC is in cart space over 300 frames.
 --
--- Ridden by tools/soak.sh with fujiboot (BOOT_PATH=/soak.bin) as the cart.
--- fujiboot auto-runs at reset (no console menu to press through), so this
--- just watches the boot state at 2C06H, and when the swap happens -- the
--- 'F','N' magic pair at 2C09/2C0A vanishes (every soak image is claim-less)
--- -- reads the served blocks (0000-0FFF and 2000-2FFF) and byte-compares
--- them against the expected mapping in $SOAK_EXPECT (the 8K arcmap output
--- soak.sh precomputes: image bytes then 0xFF fill, == MAME's stock STD
--- mapper). All polled and dumped offsets are side-effect-free once the
--- mailbox is dead. Then sample the 2650 PC for 300 frames -- how often it
--- lands in cart space is reported, but the window compare is the verdict.
+-- Check the magic first: after the swap the mailbox offsets read game bytes. Lua reads fire
+-- the device's read handlers, so pre-swap poll only the $2C00 status page, never $2D00-$2FFF.
 --
--- The magic-vanished test comes FIRST: after the swap every mailbox offset
--- reads game bytes, so interpreting them as a boot state would be a lie.
--- Pre-swap it polls ONLY the status page ($2C00) -- lua reads DO fire the
--- device's read handlers, so it must never touch the $2D00-$2FFF hotspots.
---
--- Prints exactly one line:  soak: PASS pc=N/300 | soak: FAIL <why>
+--   soak: PASS pc=N/300 | soak: FAIL <why>
 --
 --   SOAK_EXPECT   path to the expected 8K image (required)
 --   SOAK_TIMEOUT  emulated-seconds budget (default 60)
@@ -44,15 +33,13 @@ local function done(msg)
     manager.machine:exit()
 end
 
--- served console address for image offset 0..8191: 0000-0FFF is block 1,
--- 1000-1FFF maps to 2000-2FFF (block 2).
+-- image 1000-1FFF is served at 2000-2FFF.
 local function served(off)
     if off < 0x1000 then return off end
     return off + 0x1000
 end
 
--- add_machine_frame_notifier, not the removed emu.register_frame; the handle is kept in
--- a global or it is collected and the callback stops.
+-- Keep the handle in a global or it is collected and the callback stops.
 _G.SOAK_SUB = emu.add_machine_frame_notifier(function()
     if finished then return end
     local t = manager.machine.time.seconds
@@ -86,7 +73,6 @@ _G.SOAK_SUB = emu.add_machine_frame_notifier(function()
         phase = "sample"
     else
         local pc = manager.machine.devices[":maincpu"].state["PC"].value
-        -- cart code executes in block 1 ($0000-$0FFF) or block 2 ($2000-$2FFF)
         if pc < 0x1000 or (pc >= 0x2000 and pc < 0x3000) then
             pc_in_cart = pc_in_cart + 1
         end

@@ -6,8 +6,6 @@
  * deliberately separate from nesmap.c's own helpers. Random write sequences
  * are pushed through both and the resulting slot tables, mirroring and WRAM
  * gates compared. Header parsing gets its own cases.
- *
- * Build: see Makefile.
  */
 
 #include <assert.h>

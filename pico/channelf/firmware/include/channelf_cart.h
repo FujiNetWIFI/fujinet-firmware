@@ -1,23 +1,13 @@
 /* channelf_cart.h -- the F8 bus as seen from inside a Videocart.
  *
- * The Fairchild F8 has NO ADDRESS BUS. Five ROMC control lines encode a
- * 32-state protocol, and every memory device on the bus keeps its own copy of
- * PC0, PC1, DC0 and DC1, updating them on EVERY cycle -- the spec wording is
- * "all devices", not "the addressed device". A cart is therefore a state
- * machine, not a lookup table: fall behind by one cycle and the shadow
- * registers are wrong forever after.
+ * The F8 has no address bus: five ROMC lines encode 32 states, and every
+ * memory device keeps its own PC0/PC1/DC0/DC1, updating them on every cycle.
+ * Miss one cycle and the shadow registers stay wrong.
  *
- * The state transitions below are transcribed from MAME's F8 core
- * (src/devices/cpu/f8/f8.cpp, ROMC_00..ROMC_1F, BSD-3-Clause), which carries
- * the F8 spec wording in its comments. test_romc.c replays golden traces
- * captured from that same core to prove this transcription is faithful.
- *
- * Timing, for scale: a cycle is 4 PHI periods (short, 2.235us) or 6 (long,
- * 3.353us) at 1.7897725 MHz -- roughly six times the slack the ColecoVision
- * port had, so the work here is correctness-bound, not latency-bound.
- *
- * This lives in the header as static inline so core1, the MAME device and the
- * host tests all share one implementation (the ColecoVision pattern).
+ * Transitions are transcribed from MAME's F8 core (src/devices/cpu/f8/f8.cpp,
+ * ROMC_00..ROMC_1F, BSD-3-Clause); test_romc.c replays traces from it.
+ * A cycle is 4 PHI (2.235us) or 6 PHI (3.353us) at 1.7897725 MHz.
+ * Static inline so core1, the MAME device and the host tests share it.
  */
 #ifndef CHANNELF_CART_H
 #define CHANNELF_CART_H
@@ -27,11 +17,8 @@
 
 #include "fuji_mailbox.h"
 
-/* Everything core1 runs per cycle is forced inline. core1's loop is placed in
- * SRAM, but a static inline the compiler chooses NOT to inline is emitted once,
- * at the file's own -Os, into flash -- and reached through a veneer that sits
- * in SRAM, so a check of core1's own code alone passes. One XIP miss there
- * stalls a bus cycle, and with no address bus the cart never resynchronises.
+/* Forced inline: an outlined copy lands in flash behind an SRAM veneer, and
+ * one XIP miss loses a bus cycle the cart never recovers from.
  * fujicart_checksram follows the veneers. */
 #if defined(__GNUC__)
 #define CHF_INLINE static inline __attribute__((always_inline))
@@ -43,9 +30,7 @@
 #define CHF_ROM_BASE 0x0800u
 
 /* I/O ports the cart answers, as a closed range. Historic carts decode their
- * PSU ports at $20/$21 and $24/$25. Default claims nothing so the observer
- * matches a stock cart cycle-for-cycle; a build that wants port-mapped
- * registers overrides these. */
+ * PSU ports at $20/$21 and $24/$25; the default claims none. */
 #ifndef CHF_IO_LO
 #define CHF_IO_LO 0x01u
 #endif
@@ -56,39 +41,23 @@
 typedef struct {
     uint16_t pc0, pc1, dc0, dc1;
     uint8_t io; /* port address latched by the preceding ROMC 03 */
-    /* Set by the cycle just run; the caller drains them. Kept in the state
-     * struct rather than added as out-parameters so chf_bus_cycle's signature
-     * stays the one test_romc.c replays golden traces through. */
+    /* Set by the cycle just run; the caller drains them. */
     uint8_t ev;     /* chf_ev_t */
     uint8_t ev_reg;
     uint8_t ev_val;
 } chf_bus_t;
 
-/* What the cart answers with: a ROM window at $0800 and, when the mailbox is
- * live, a 32K arena at $8000 that is part RAM and part painted mailbox.
- * `ram` NULL models a booted Videocart -- no arena fitted, so $8000 up reads
- * as open bus, exactly as a real cart with no RAM behaves. */
+/* A ROM window at $0800 and, when the mailbox is live, a 32K arena at $8000
+ * that is part RAM and part painted mailbox. `ram` NULL reads as open bus. */
 typedef struct {
     const uint8_t *rom; /* covers CHF_ROM_BASE .. +rom_size-1 */
     uint32_t rom_size;
     uint8_t *ram; /* the arena: ram_base .. +ram_size-1, may be NULL */
     uint16_t ram_base;
     uint32_t ram_size;
-    /* False once a booted image has declined the mailbox: the arena stays,
-     * but its top becomes plain RAM instead of registers and painted pages.
-     *
-     * The arena has to survive, because the swap stub runs out of it. Every
-     * sibling port puts that stub in console RAM -- the ColecoVision has 1K at
-     * $6000, the Astrocade has screen RAM -- but the Channel F has NO RAM of
-     * its own at all, so the cart's arena is the only memory the stub can
-     * execute from. Tearing it down at swap time would pull the ground out
-     * from under the instruction that triggered the swap.
-     *
-     * Killing the DECODE is what actually matters: it stops a booted game's
-     * stray stores from writing registers or triggering another swap. The
-     * side effect is that a booted Videocart inherits 32K of RAM it would not
-     * have on a real cart -- which is accurate for THIS cart, and which no
-     * commercial Videocart looks for. */
+    /* False once a booted image has declined the mailbox: the whole arena
+     * becomes plain RAM. The arena stays because the swap stub runs from it;
+     * the Channel F has no RAM of its own. */
     bool mailbox;
     /* APPBANK (fuji_mailbox.h): the image's 8K pages, laid end to end, and
      * the one currently served at FN_APP_WIN. `bank` NULL serves $FF, which
@@ -123,9 +92,8 @@ CHF_INLINE uint8_t chf_read(const chf_mem_t *m, uint16_t a)
     if (m->ram && a >= m->ram_base) {
         uint32_t off = (uint32_t)(a - m->ram_base);
         if (off < m->ram_size) {
-            /* The register and TX pages are write-only. Reading them is inert
-             * -- no armed register, no TX byte, nothing. That is what deletes
-             * the whole stray-read hazard class the read-hotspot ports carry. */
+            /* The register and TX pages are write-only; reads have no
+             * side effect. */
             if (m->mailbox && off >= FN_H_REGSEL)
                 return 0xFF;
             return m->ram[off];
@@ -161,16 +129,14 @@ CHF_INLINE chf_ev_t chf_write(chf_mem_t *m, uint16_t a, uint8_t v,
     case FN_H_REGSEL: {
         uint8_t n = (uint8_t)(off & 0xFFu);
         if (n < 0x80) {
-            /* One store is a whole register write. The cart synthesises the
-             * REGSEL/REGDATA pair that fujimail.c decodes, so that file stays
-             * byte-identical to the sibling ports. */
+            /* One store is a whole register write; the cart synthesizes the
+             * REGSEL/REGDATA pair fujimail.c decodes. */
             *ev_reg = n;
             *ev_val = v;
             return CHF_EV_REG;
         }
         if (n <= FN_HOT_BANK_LAST) {
-            /* Switched right here, in the shared decode, so the next fetch is
-             * already from the new page -- on core1 and in MAME alike. */
+            /* Switched here so the next fetch is already from the new page. */
             uint8_t pg = (uint8_t)(n - FN_HOT_BANK);
             m->bank = (m->pages && pg < m->npages)
                 ? m->pages + ((uint32_t)pg * FN_APP_PAGE) : NULL;
@@ -182,9 +148,7 @@ CHF_INLINE chf_ev_t chf_write(chf_mem_t *m, uint16_t a, uint8_t v,
         return CHF_EV_NONE; /* other special ops are undefined, not errors */
     }
     case FN_H_REGDATA:
-        /* The raw REGDATA half. Nothing on this console needs it -- a REGSEL
-         * store already carries the value -- but it is decoded so a client
-         * written to the sibling ports' two-step shape still works. */
+        /* Decoded for clients that use the two-step REGSEL/REGDATA shape. */
         *ev_reg = (uint8_t)(off & 0xFFu);
         *ev_val = v;
         return CHF_EV_REG;
@@ -193,8 +157,7 @@ CHF_INLINE chf_ev_t chf_write(chf_mem_t *m, uint16_t a, uint8_t v,
         *ev_val = v;
         return CHF_EV_TX;
     default:
-        /* $F800-$FCFF: the painted reply and status. Cart-owned; a console
-         * store here is dropped rather than allowed to corrupt a reply. */
+        /* $F800-$FCFF: painted reply and status; console stores are dropped. */
         return CHF_EV_NONE;
     }
 }
@@ -204,23 +167,8 @@ CHF_INLINE bool chf_owns_io(uint8_t port)
     return CHF_IO_HI >= CHF_IO_LO && port >= CHF_IO_LO && port <= CHF_IO_HI;
 }
 
-/* Run one bus cycle.
- *
- * romc     the 5-bit code on ROMC0-4
- * dbus_in  what is on the data bus when we are not the one driving it
- * drive    set true if the cart must drive the bus this cycle
- * dval     the byte to drive, valid when *drive
- *
- * Returns the effective bus value, which is what "all devices" then fold into
- * their registers. Ordering matters: several states have the addressed device
- * place a byte that every device -- including the one that placed it -- then
- * consumes (ROMC 01 and 0C are the clearest cases).
- */
-/* Phase 1, on its own: does the cart source the bus this cycle, and with what?
- * Mutates nothing, so the cartridge can call it the instant ROMC is stable,
- * drive the buffer, and only then sample what the CPU put there for the cycles
- * it owns. The combined chf_bus_cycle below is what the tests and the MAME
- * device use. */
+/* Phase 1: whether the cart drives the bus this cycle, and with what.
+ * Mutates nothing, so core1 can call it as soon as ROMC is stable. */
 CHF_INLINE bool chf_bus_source(const chf_bus_t *b, const chf_mem_t *m,
                                   uint8_t romc, uint8_t *dval)
 {
@@ -263,8 +211,8 @@ CHF_INLINE bool chf_bus_source(const chf_bus_t *b, const chf_mem_t *m,
     return dr;
 }
 
-/* Phase 2, on its own: the register updates every device performs, given the
- * value that actually ended up on the bus. */
+/* Phase 2: the register updates every device performs from the bus value.
+ * Some states (ROMC 01, 0C) consume the byte the cart itself drove. */
 CHF_INLINE void chf_bus_commit(chf_bus_t *b, chf_mem_t *m, uint8_t romc,
                                   uint8_t eff)
 {
@@ -305,8 +253,8 @@ CHF_INLINE void chf_bus_commit(chf_bus_t *b, chf_mem_t *m, uint8_t romc,
     }
 }
 
-/* The two phases together: what the host tests replay and what the MAME device
- * calls, where reads and writes arrive already separated. */
+/* Both phases; returns the effective bus value. Used by the host tests and
+ * the MAME device. */
 CHF_INLINE uint8_t chf_bus_cycle(chf_bus_t *b, chf_mem_t *m, uint8_t romc,
                                     uint8_t dbus_in, bool *drive, uint8_t *dval)
 {
@@ -320,10 +268,8 @@ CHF_INLINE uint8_t chf_bus_cycle(chf_bus_t *b, chf_mem_t *m, uint8_t romc,
     return eff;
 }
 
-/* A console reset shows up on the bus as ROMC 08 -- the CPU's device_reset()
- * issues it before the first fetch. This is the hook the mailbox uses to know
- * the console restarted, which every sibling port needed and had to synthesise
- * some other way. */
+/* The console has no reset pin on the cart; a reset shows as ROMC 08 before
+ * the first fetch. */
 CHF_INLINE bool chf_is_reset(uint8_t romc)
 {
     return romc == 0x08;
@@ -333,20 +279,12 @@ CHF_INLINE bool chf_is_reset(uint8_t romc)
 /* --------------------------------------------------------------------------
  * The cartridge connector, as GPIO.
  *
- * 22 pins, of which 16 matter: D0-D7, ROMC0-4, PHI (13), WRITE (15) and
- * /INTREQ (5). +12V on pin 22 goes nowhere -- it fed the 3851's Vgg and we
- * have no use for it. There is no RESET pin at all; a console reset is
- * observed on the bus as ROMC 08.
+ * 22 pins; 16 matter: D0-D7, ROMC0-4, PHI (13), WRITE (15), /INTREQ (5).
+ * +12V on pin 22 (the 3851's Vgg) is unused.
  *
- * That leaves a stock Pico with ten GPIOs spare, which is the roomiest of any
- * cart in this family -- the ColecoVision port needed all 26.
- *
- * PROVISIONAL, and the one thing here that hardware will have to settle: which
- * edge of WRITE to sample on, and how long the cart may hold the bus. The F8
- * User's Guide gives "WRITE to DB stable = 2P(phi) to 2P(phi) + 1.0us" and
- * says ROMC0-4 "assume a state early in each machine cycle and hold that state
- * for the duration of the cycle". The decode itself is proven against MAME's
- * own F8 core (test_romc.c); the timing is not, and cannot be without a board.
+ * Provisional until tested on hardware: which WRITE edge to sample and how
+ * long the cart may hold the bus. The F8 User's Guide gives "WRITE to DB
+ * stable = 2P(phi) to 2P(phi) + 1.0us"; ROMC0-4 hold for the whole cycle.
  * -------------------------------------------------------------------------- */
 #define D0_PIN      0u      /* D0-D7 on GP0-GP7, through a '245 transceiver */
 #define ROMC0_PIN   8u      /* ROMC0-4 on GP8-GP12, inputs                  */

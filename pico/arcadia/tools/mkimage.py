@@ -1,21 +1,12 @@
 #!/usr/bin/env python3
 """mkimage.py -- splice an assembled $0000-$2FFF flat into an 8K cart image.
 
-The 2650 sees the cartridge as two 4K blocks: image 0x0000-0x0FFF at CPU
-$0000 and image 0x1000-0x1FFF at CPU $2000 (A13 picks the block, A12 low is
-the chip select -- see firmware/include/fuji_mailbox.h). The assembler works
-in CPU addresses, so p2bin emits a flat covering $0000-$2FFF and this tool
-folds it: image = flat[0:0x1000] + flat[0x2000:0x3000], zero-padded to 8K.
+The cart is two 4K blocks at CPU $0000 and $2000 (A13 picks the block, A12 low is the
+chip select): image = flat[0:0x1000] + flat[0x2000:0x3000], zero-padded to 8K.
+Rejects code in flat $1000-$1FFF (console RAM/UVI) or $2B00-$2FFF (the mailbox).
 
-Two holes must be empty and are enforced here, not left to checkrom:
-  - flat $1000-$1FFF is console RAM/UVI mirror space; code there is an ORG
-    mistake and would silently vanish from the cart;
-  - flat $2B00-$2FFF is the mailbox (reply/status/hotspot pages); a client
-    that grows into it fails its build, not a debugging session.
-
-An APPBANK image (protocol 2) adds --pages N: the flat then runs on past
-$2FFF, page n (1..N) assembled at flat $3000 + (n-1) * $800 (PHASEd to the
-$0800 window), and the image is the folded 8K plus those N pages.
+--pages N (APPBANK): page n (1..N) is assembled at flat $3000 + (n-1) * $800, PHASEd
+to the $0800 window, and appended to the folded 8K.
 
 Usage: mkimage.py [--pages N] flat.bin image.bin
 """

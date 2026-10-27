@@ -1,16 +1,10 @@
 ; fujiboot.asm -- mount a cartridge image over the network and boot it.
 ;
-; Milestone 2: MOUNT_HOST -> SET_DEVICE_FULLPATH -> MOUNT_IMAGE. The last
-; one makes the ESP32 side stream the image back to the cartridge on the
-; same link, addressed to the DBC device, while MOUNT_IMAGE's own reply is
-; still outstanding; the cartridge stages it and reports BOOT_STATE.
+; MOUNT_HOST -> SET_DEVICE_FULLPATH -> MOUNT_IMAGE. Before MOUNT_IMAGE replies, the ESP32
+; streams the image to the DBC device; the cart stages it and reports BOOT_STATE. Then arm
+; the swap and run the stub at $18E0 that reads FN_HOT_SWAP and jumps to $0000.
 ;
-; The boot itself: arm the swap (BOOTLOCK), run an 11-byte stub from screen
-; RAM ($18E0) that clears the PSW and reads the FN_HOT_SWAP hotspot -- the
-; cart flips to the staged image between that read and the next -- then
-; BCTA $0000. The new image's own header runs.
-;
-; The target host slot and path are baked in by build.sh:
+; The host slot and path are baked in by build.sh:
 ;   BOOT_HOST=0 BOOT_PATH=/game.bin ./build.sh fujiboot
 
         CPU     2650
@@ -132,8 +126,7 @@ STCPY:  LODA,R0 STUBSRC,R3
         STRA,R0 STUB
         BCTA,UN STUB
 
-; The stub, assembled here but run from $18E0. The FNSWAP pointer must land
-; at STBPTA ($18E9), so the load reaches the RAM copy: 9 bytes precede it.
+; Run from $18E0, so the FNSWAP pointer must land at STBPTA ($18E9): 9 bytes precede it.
 STUBSRC:
         EORZ    R0              ; +0
         LPSU                    ; +1  PSU = 0
@@ -145,9 +138,8 @@ STUBLEN EQU     $-STUBSRC
 
 ; ---- helpers -----------------------------------------------------------
 
-; After FNCOMMIT: R0 = FNERR (or FETIMO). R1 = error class. On timeout,
-; error, or NAK, jump to FAIL with R1=class and R2=detail; else return.
-; Calls one down. Clobbers R0,R2.
+; After FNCOMMIT: R0 = FNERR (or FETIMO), R1 = error class. On error or NAK jump to FAIL
+; with R2 = detail. Clobbers R0,R2.
 CHKACK: COMI,R0 0
         BCFR,EQ CKBAD           ; nonzero FNERR (incl FETIMO)
         LODA,R0 *FREPP
@@ -159,8 +151,7 @@ CKBAD:  STRZ    R2              ; detail = FNERR value
 CKNAK:  LODI,R2 $EE             ; detail = NAK marker
         BCTA,UN FAIL
 
-; Draw a 10-cell progress bar on row 3 for percentage R0 (0-100).
-; Leaf. Clobbers R0,R1,R2,R3.
+; Progress bar on row 3 for percentage R0. Leaf. Clobbers R0-R3.
 BAR:    LODI,R1 0               ; filled cells = R0 / 10
 BARDIV: COMI,R0 10
         BCTR,LT BARDRW

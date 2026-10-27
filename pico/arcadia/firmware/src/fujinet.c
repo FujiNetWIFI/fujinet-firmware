@@ -1,16 +1,5 @@
-/* fujinet.c -- the cartridge's side of the mailbox.
- *
- * The protocol itself lives in fujimail.c, which the MAME model drives too,
- * and fuji_port.c binds it to the USB link; this is only the rest of the
- * port: where a published byte goes, and what to do with a committed image.
- *
- * There is no tiered store as on the Astrocade: an image is at most 70K
- * (an APPBANK client), so a push stream lands straight in the slot that is
- * not being served and is staged there in place.
- *
- * NOT YET RUN ON HARDWARE -- there is no Arcadia cartridge board yet.
- * fujimail.c is exercised against a real fujinet-pc through the MAME model,
- * which is why it is shared rather than reimplemented here.
+/* fujinet.c -- the cartridge's port for the shared mailbox protocol. Not yet run on hardware.
+ * An image is at most 70K, so a push lands straight in the unserved slot and is staged in place.
  */
 
 #include <string.h>
@@ -25,9 +14,7 @@
 #include "fuji_mailbox.h"
 #include "arcmap.h"
 
-/* One push stream (stream 0, the ROM image) at a time; the .cfg sibling is
- * ignored. It lands in the slot core1 is not serving, so nothing is
- * overwritten under the client while it still executes. */
+/* Stream 0, the ROM image; the .cfg sibling is ignored. */
 static uint32_t rxlen;
 
 static uint8_t port_rom_open(uint32_t size)
@@ -55,8 +42,7 @@ static uint8_t port_rom_close(uint32_t got, bool aborted, const char *mapper)
     (void) mapper;              /* the .cfg sibling means nothing here */
     if (aborted)
         return 0;
-    /* got counts every byte pushed, rxlen only what fit: planned on got, an image OPEN
-     * gave no size for is refused here rather than staged cut short */
+    /* Plan on got, not rxlen, so an oversized image OPEN gave no size for is refused. */
     switch (arcmap_plan(fuji_cart_stage_slot(), got, &plan)) {
     case ARCMAP_OK:
         break;

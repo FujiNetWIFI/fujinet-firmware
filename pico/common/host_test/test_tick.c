@@ -1,8 +1,5 @@
-/* test_tick.c -- the value the cart paints at FN_R_TICK_LO/HI.
- *
- * Expectations from the prose in fuji_mailbox.h: 60 counts a second from cart
- * power-up, monotonic, wrapping at 65536. Checked against floor(us * 60 / 1e6)
- * computed here in long double, never by calling the code under test twice.
+/* test_tick.c -- the value the cart paints at FN_R_TICK_LO/HI: 60 counts a second from
+ * power-up, monotonic, wrapping at 65536, checked against floor(us * 60 / 1e6) in long double.
  */
 #include <stdint.h>
 #include <stdio.h>
@@ -39,8 +36,7 @@ int main(void)
     CHECK(fuji_tick_value(wrap - 1) == 65535, "last value before the wrap");
     CHECK(fuji_tick_value(wrap + 17) == 0, "wraps to 0");
 
-    /* monotonic in steps of 0 or 1 (mod 65536), across a day at 4167 us,
-     * the repaint period -- and against the long-double expectation */
+    /* steps of 0 or 1 (mod 65536) across a day at the 4167 us repaint period */
     uint16_t prev = 0;
     for (uint64_t micros = 0; micros < 86400ull * 1000000ull; micros += 4167) {
         uint16_t tick = fuji_tick_value(micros);

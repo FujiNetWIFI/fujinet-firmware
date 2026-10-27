@@ -44,9 +44,7 @@
 #define BOARD_TUD_MAX_SPEED   OPT_MODE_DEFAULT_SPEED
 #endif
 
-// FUJINET: older TinyUSB releases -- including the one bundled with the
-// pico-sdk this fork is built against -- still require the pre-BOARD_TUD_RHPORT
-// spelling, and fail a static assert without it.
+// FUJINET: the pico-sdk's bundled TinyUSB still needs the pre-BOARD_TUD_RHPORT spelling.
 #ifndef CFG_TUSB_RHPORT0_MODE
 #define CFG_TUSB_RHPORT0_MODE (OPT_MODE_DEVICE | OPT_MODE_FULL_SPEED)
 #endif

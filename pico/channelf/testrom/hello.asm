@@ -1,9 +1,6 @@
 ; ---------------------------------------------------------------------------
-; hello.asm -- M0: prove the toolchain, the cart header and the text renderer.
-;
-; No mailbox, no cartridge firmware. Runs as a plain Videocart under MAME's
-; stock channelf driver, so it isolates "can we put readable text on this
-; screen" from everything else.
+; hello.asm -- prove the toolchain, the cart header and the text renderer.
+; A plain Videocart: no mailbox, runs under MAME's stock channelf driver.
 ; ---------------------------------------------------------------------------
 	CPU F3850
 

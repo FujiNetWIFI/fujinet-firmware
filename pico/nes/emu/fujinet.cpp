@@ -4,8 +4,7 @@
 
  Nintendo Entertainment System FujiNet cartridge emulation
 
- See fujinet.h for the design; pico/nes/README.md in fujinet-firmware for the
- bring-up this device serves.
+ See fujinet.h; pico/nes/ in fujinet-firmware.
 
  ***********************************************************************************************************/
 
@@ -16,9 +15,8 @@
 #include <cstdlib>
 #include <cstring>
 
-// The cartridge firmware's own protocol sources, compiled in verbatim (copied
-// next to this file by pico/nes/emu/apply.sh -- as C++, to live with MAME's
-// forced C++ precompiled header, so no extern "C").
+// The firmware's own sources, copied in by emu/apply.sh and compiled as C++
+// (MAME's forced precompiled header), so no extern "C".
 #include "fuji_mailbox.h"
 #include "fujimail.h"
 #include "fujitcp.h"
@@ -27,9 +25,7 @@
 
 DEFINE_DEVICE_TYPE(NES_FUJINET, nes_fujinet_device, "nes_fujinet", "NES FujiNet Cartridge")
 
-// fujimail's port interface is C function pointers with no context argument,
-// so the single device instance is reached through this. One cart slot, one
-// cart: the constraint is real hardware's too.
+// fujimail's port callbacks take no context, so the one instance is global.
 static nes_fujinet_device *s_fujinet = nullptr;
 
 /*-------------------------------------------------
@@ -613,8 +609,7 @@ uint8_t nes_fujinet_device::stream_close(int stream, uint32_t got, bool aborted)
 		v.clear();
 		return FN_BOOT_ERR_NOMAP;
 	}
-	// The pushed image stays in m_rx[0] until the load consumes it: the
-	// cart's fuji_store keeps it in RAM or flash the same way.
+	// The pushed image stays in m_rx[0] until the load consumes it.
 	m_staged_base = v.data();
 	m_staged_plan = plan;
 	m_have_staged = true;

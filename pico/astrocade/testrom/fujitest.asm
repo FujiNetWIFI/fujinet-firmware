@@ -1,11 +1,8 @@
 ; fujitest.asm -- FujiNet cartridge link probe for the Bally Astrocade.
 ;
-; Milestone 1 of the bring-up, and the EPROM diagnostic: burned to a plain
-; 27C64 it shows NO FUJINET CART with the two bytes it read instead of the
-; magic, proving the header, toolchain, HVGLIB subset and screen path on
-; real iron with no link hardware at all. On the FujiNet cart (or the MAME
-; model) it runs GET_ADAPTERCONFIG_EXTENDED and prints the SSID, firmware
-; version and IP address.
+; Burned to a plain 27C64 it shows NO FUJINET CART and the two bytes read
+; instead of the magic. On the FujiNet cart (or the MAME model) it runs
+; GET_ADAPTERCONFIG_EXTENDED and prints the SSID, firmware version and IP.
 ;
 ; Assemble: zmac -o fujitest.bin fujitest.asm
 
@@ -87,7 +84,7 @@ FOUND:  SYSSUK  STRDIS
         JR      NZ,LERR
 
 ; Reply slice 0 carries everything we show: ssid at +0, fn_version at +125,
-; sLocalIP at +140 (AdapterConfigExtended, lib/device/fujiDevice/fujiDevice.h).
+; sLocalIP at +140 (the AdapterConfigExtended reply layout).
         LD      HL,FNRDATA+0
         LD      B,32
         CALL    CPYSAN

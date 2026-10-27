@@ -1,9 +1,6 @@
-/* fujines_rp2354b.h -- board header for the FujiNet NES cartridge.
- *
- * Modelled on the SDK's pimoroni_pico_plus2_rp2350.h: pico2.h hard-defines
- * the A variant, so a B board declares itself. The bus pin map lives in
- * include/nes_cart.h; nothing here may claim a GPIO.
- */
+/* fujines_rp2354b.h -- board header for the FujiNet NES cartridge. pico2.h
+ * hard-defines the A variant, so a B board declares itself. The pin map is in
+ * include/nes_cart.h; nothing here may claim a GPIO. */
 #ifndef FUJINES_RP2354B_H
 #define FUJINES_RP2354B_H
 
@@ -42,8 +39,8 @@ pico_board_cmake_set_default(PICO_RP2350_A2_SUPPORTED, 1)
 #define FUJINES_BUS_NO_PULLS 1
 
 // --- CLOCK ---
-// 200 MHz at the stock core voltage, the clock the astrocade RP2354 board ships on.
-// The bus loop needs well under 100 ns of the 350 ns M2-high window at this rate.
+// 200 MHz at the stock core voltage; the bus loop needs well under 100 ns of
+// the 350 ns M2-high window.
 #define FUJI_SYS_CLOCK_KHZ 200000
 
 #endif

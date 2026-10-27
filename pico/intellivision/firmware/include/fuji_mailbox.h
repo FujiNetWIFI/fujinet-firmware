@@ -1,33 +1,20 @@
 #ifndef FUJI_MAILBOX_H
 #define FUJI_MAILBOX_H
 
-// FujiNet mailbox: Intellivision-visible RAM window $9C00-$9F3F, i.e.
-// RAM[0x1C00..0x1F3F] (RAM[] is indexed by addr-0x8000). Every cell holds
-// one byte in the low 8 bits -- writes from the Intellivision side are
-// hardware-truncated to 8 bits regardless (see the DWS handler in
-// core1_main()), so keeping the RP2040->Inty direction byte-wide too keeps
-// jzIntv (narrow RAM) and real hardware consistent.
+// FujiNet mailbox: Intellivision RAM $9C00-$9F3F, i.e. RAM[0x1C00..0x1F3F]
+// (RAM[] is indexed by addr-0x8000). Cells are byte-wide in both directions,
+// since console writes are truncated to 8 bits anyway; this keeps jzIntv
+// (narrow RAM) and hardware consistent.
 //
-// Unlike the original PiRTO II port, this window does NOT claim all of
-// $8000-$9FFF: on a Minty cartridge $8000-$9FFF is JLP RAM, and JLP games
-// need almost all of it. The mailbox is deliberately placed at the *top*
-// of the window so $8000-$9BFF stays a contiguous free block for JLP RAM
-// (7168 of 8192 words, ~87%). See cartridge.c for how the JLP window and
-// this mailbox window share the same RAM-claim branch in the bus loop.
-// A network-booted JLP game gets the mailbox only if its .cfg [vars] sets
-// fujinet = 1; otherwise the mailbox is off for the session.
+// It sits at the top of JLP's $8000-$9FFF so $8000-$9BFF stays contiguous for
+// JLP RAM. A network-booted JLP game gets the mailbox only if its .cfg [vars]
+// sets fujinet = 1.
 //
-// Handshake: Inty fills in DEVICE/CMD/NPARAM/params/TX payload, then bumps
-// SEQ last. The RP2040 notices SEQ != ACKSEQ, runs the transaction, fills
-// in the reply, and publishes it by writing ACKSEQ = SEQ last. This is a
-// sequence-number interlock, not a status flag: re-poking SEQ with the same
-// value while a transaction is in flight is a no-op, so a timed-out Inty
-// retry can never cause the RP2040 to replay a command.
+// Handshake: the console fills DEVICE/CMD/NPARAM/params/TX, then bumps SEQ
+// last; the RP2040 runs it and writes ACKSEQ = SEQ last. Re-poking the same
+// SEQ is a no-op, so a timed-out retry never replays a command.
 //
-// This header is the single source of truth for the RP2040 side. The
-// IntyBASIC side (fujinet-config/intv/fujinet.bas) hardcodes the same
-// offsets as CONSTs -- IntyBASIC has no #include mechanism for sharing this
-// file, so keep the two in sync by hand if this layout ever changes.
+// fujinet-config/intv/fujinet.bas hardcodes these offsets; keep it in sync.
 
 #define FUJI_MB_BASE       0x1C00 // RAM[] index of Intellivision address $9C00
 
@@ -51,28 +38,14 @@
 #define FUJI_MB_PARAM_SIZE (FUJI_MB_BASE + 0x10) // Inty: 8 entries, 1 word each -- size in bytes (1/2/4)
 #define FUJI_MB_PARAM_VAL  (FUJI_MB_BASE + 0x20) // Inty: 8 entries x 4 words, little-endian
 
-// Boot progress, published out-of-band from the ACKSEQ handshake: a
-// MOUNT_IMAGE transaction for a ROM+.cfg pair can run far longer than an
-// ordinary mailbox round trip (the ESP32 pushes the file(s) to us over the
-// same USB-CDC link that mailbox transactions use, mid-transaction -- see
-// the "ROM boot receiver" section and dbc_inbound_handler() in
-// fujinet.c). The Inty's own transact loop can PEEK these cells while
-// it waits on ACKSEQ, so it can draw a progress bar instead of just
-// sitting on a blank "BOOTING" screen. They live in the gap between
-// PARAM_SIZE (8 words, ends at +0x18) and PARAM_VAL (starts at +0x20)
-// that was otherwise unused.
+// Boot progress, outside the ACKSEQ handshake: the console polls these while
+// a long MOUNT_IMAGE (with its mid-transaction ROM push) is outstanding.
 #define FUJI_MB_BOOT_STATE (FUJI_MB_BASE + 0x18) // RP2040: FUJI_BOOT_* below
 #define FUJI_MB_BOOT_PCT   (FUJI_MB_BASE + 0x19) // RP2040: 0-100
 #define FUJI_MB_BOOT_ERR   (FUJI_MB_BASE + 0x1A) // RP2040: reason FUJI_BOOT_FAILED, if it is
 
-// BOOTSEL doorbell: on the single-USB-port board (no external RP2040 flash
-// port), this is how the console side asks the RP2040 to reboot into
-// BOOTSEL/PICOBOOT mode over the internal USB link to the ESP32-S3, which
-// then reflashes it. Independent of the SEQ/ACKSEQ transaction interlock
-// above -- write the exact magic byte to ring the doorbell; anything else
-// is ignored, so a stray write elsewhere in the mailbox can't accidentally
-// reboot the cart mid-game. Serviced by fuji_mailbox_service(); the RP2040
-// does not return from this, so there is no ack to poll for.
+// BOOTSEL doorbell: reboots the RP2040 into BOOTSEL so the ESP32-S3 can
+// reflash it over USB. Only the exact magic triggers it; there is no ack.
 #define FUJI_MB_BOOTSEL_DOORBELL  (FUJI_MB_BASE + 0x1B) // Inty: write FUJI_MB_BOOTSEL_MAGIC to request BOOTSEL
 #define FUJI_MB_BOOTSEL_MAGIC     0xB5
 
@@ -94,29 +67,16 @@
 
 #define FUJI_MB_TX         (FUJI_MB_BASE + 0x40)  // Inty: request payload
 #define FUJI_MB_TX_MAX     256                    // fujicmd.bas sends fixed 256-byte
-                                                   // NUL-padded payloads for several
-                                                   // commands (matches the ESP32's
-                                                   // fixed MAX_FILENAME_LEN=256
-                                                   // transaction_get() buffer) --
-                                                   // do not shrink this one.
+                                                   // payloads; do not shrink
 
 #define FUJI_MB_RX         (FUJI_MB_BASE + 0x140) // RP2040: reply payload
-#define FUJI_MB_RX_MAX      512                   // largest replies in use today: the
-                                                   // 256-byte host-slot block and the
-                                                   // 240-byte AdapterConfigExtended
+#define FUJI_MB_RX_MAX      512                   // largest replies: 256-byte host
+                                                   // slots, 240-byte AdapterConfigExtended
 
-// fujibus_transact()'s raw USB receive buffer (fuji_mailbox_service()'s
-// rxbuf) has to be sized separately from FUJI_MB_RX_MAX above: that constant
-// bounds the mailbox's cart.RAM-resident reply window (a real address-space
-// budget), but the same buffer also has to hold every complete SLIP-encoded
-// frame the ESP32 pushes to FUJI_DEVICEID_DBC mid-MOUNT_IMAGE --
-// push_stream() (lib/device/rs232/disk.cpp) streams ROM/.cfg data
-// in DISK_SECTORBUF_SIZE (512) byte NETCMD_WRITE chunks. Decoded that's a
-// 6-byte header + 512 bytes of payload = 518, and SLIP escaping can double
-// that worst-case plus the two frame-delimiter bytes -- 1038 minimum.
-// Undersizing this silently truncates every ROM push's WRITE frames, which
-// fujibus_transact() and the ESP32 side both see as a timed-out/malformed
-// reply rather than anything pointing at the real cause.
+// fujibus_transact()'s raw USB receive buffer, unlike FUJI_MB_RX_MAX, must
+// hold a whole SLIP-encoded ROM-push WRITE: (6 + 512) bytes doubled by
+// escaping, plus 2 delimiters = 1038. Too small truncates every push, which
+// shows up only as a timeout.
 #define FUJIBUS_RAW_RX_MAX 1088
 
 #define FUJI_MB_STATUS_IDLE  0
@@ -124,9 +84,7 @@
 #define FUJI_MB_STATUS_OK    2
 #define FUJI_MB_STATUS_ERR   3
 
-// Intellivision bus-address bounds of the whole mailbox window (header + TX
-// + RX). cartridge.c uses these -- not FUJI_MB_BASE, which is a RAM[] index
-// -- to decide whether a non-JLP cart should claim this range as RAM.
+// Bus-address bounds of the whole mailbox (FUJI_MB_BASE is a RAM[] index)
 #define FUJI_MB_ADDR_LO    (0x8000 + FUJI_MB_BASE)
 #define FUJI_MB_ADDR_HI    (FUJI_MB_ADDR_LO + 0x140 + FUJI_MB_RX_MAX - 1)
 

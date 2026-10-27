@@ -1,9 +1,6 @@
-// Host-buildable test driver for bootmap.c -- no RP2040/pico-sdk involved.
-// Feeds real cartridge files through the same calls dbc_inbound_handler()
-// makes, in the same 512-byte chunks MediaTypeROM::push_stream() sends, then
-// commits the resulting plan into an mm_map_t and dumps what the bus would
-// actually see. This is the regression gate for the network boot path: the
-// cart itself only needs flashing once the output here is right.
+// Host test for bootmap.c: feeds cartridge files through the calls
+// dbc_inbound_handler() makes, in the ESP32's 512-byte push chunks, commits
+// the plan into an mm_map_t and dumps what the bus would see.
 //
 // Build and run (from this directory):
 //   gcc -Wall -Wextra -I../include -o /tmp/test_bootmap test_bootmap.c ../src/bootmap.c ../src/memory.c ../src/utils.c
@@ -26,8 +23,7 @@
 //   Space Intruders (2026) 3.rom OK 4 segs incl. $2100-$2FFF
 //   unlucky_pony_2024.rom      OK   4 segs incl. $2000-$2FFF
 //
-// On the pirto_ii_default profile Cloudfire and Pacmanthology instead
-// report TOOBIG -- that board's cart.ROM[] cannot hold them.
+// On the pirto_ii_default profile Cloudfire and Pacmanthology report TOOBIG.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -36,8 +32,8 @@
 #include "bootmap.h"
 #include "memory.h"
 
-#define PUSH_CHUNK 512          // DISK_SECTORBUF_SIZE on the ESP32 side
-#define STAGE_BASE 0x2600u      // FUJI_STAGE_BASE
+#define PUSH_CHUNK 512          // the ESP32's push chunk size
+#define STAGE_BASE 0x2600u      // FUJI_STAGE_BASE is 0x3500 on the cart
 #define RAM_WORDS  0x2800u      // RAMSIZE
 
 static uint16_t *rom_buf;
@@ -61,8 +57,7 @@ static const char *err_name(int e)
     }
 }
 
-// Reads a whole file. Returns NULL (without complaint) if it isn't there --
-// a missing .cfg sibling is the normal case for a .rom.
+// Returns NULL silently if the file is missing, the normal case for a .cfg.
 static uint8_t *slurp(const char *path, long *len_out)
 {
     FILE *f = fopen(path, "rb");
@@ -82,7 +77,7 @@ static uint8_t *slurp(const char *path, long *len_out)
     return buf;
 }
 
-// Same-basename .cfg sibling, trying both cases like MediaTypeROM::mount().
+// Same-basename .cfg sibling, trying both cases as the ESP32 does.
 static uint8_t *load_cfg_sibling(const char *rompath, long *len_out, char *namebuf,
                                  size_t namesz)
 {
@@ -103,9 +98,8 @@ static uint8_t *load_cfg_sibling(const char *rompath, long *len_out, char *nameb
     return slurp(namebuf, len_out);
 }
 
-// Walks the committed map through mm_lookup(), coalescing runs that share a
-// kind and stay contiguous in the source. This is what the bus sees, not
-// what the plan said -- which is the point.
+// Walks the committed map through mm_lookup(), coalescing contiguous runs
+// of one kind: what the bus sees, not what the plan said.
 static void dump_coverage(void)
 {
     static const char *kn[] = { "----", "ROM ", "RAM8", "RAM16" };
@@ -200,8 +194,7 @@ static int run_one(const char *path)
            plan->jlp, plan->jlpflash, plan->ecs, plan->voice, plan->fujinet,
            plan->paging ? "yes" : "no");
 
-    // fujinet.c's apply_boot_mapping() does this before committing: the JLP
-    // RAM window shadows any cartridge ROM mapped underneath it.
+    // As apply_boot_mapping() does: the JLP window shadows ROM under it.
     if (plan->jlp || plan->jlpflash) {
         int dropped = bootmap_shadow_range(plan, 0x8000, 0x9FFF);
         if (dropped)

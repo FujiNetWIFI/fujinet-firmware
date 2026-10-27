@@ -4,13 +4,9 @@
 # Usage: tools/soak.sh [romdir]
 #   default romdir: ~/Workspace/arcadia-roms/Emerson - Arcadia 2001
 #
-# For every .bin (loose, or a zip member): drop it into the live fujinet-pc's
-# host-0 root as /soak.bin, boot fujiboot in headless MAME, and let
-# emu/soak.lua verify the whole served image byte-for-byte against the
-# expected arcmap mapping after the swap (linear + 0xFF fill == MAME's stock
-# STD mapper). The pushed stream is also dumped (FUJINET_BOOTDUMP) and
-# byte-compared against the source file. A per-image verdict lands in
-# $SOAK_DIR/report.txt.
+# Each .bin (loose or zipped) is copied to host 0 as /soak.bin and booted by fujiboot in
+# headless MAME; emu/soak.lua checks the served image and the pushed stream dump is compared
+# with the source. Verdicts go to $SOAK_DIR/report.txt.
 #
 #   MAME_DIR      MAME tree with the device applied (default ~/Workspace/mame)
 #   FUJINET_TCP   live fujinet-pc (default 127.0.0.1:9995 -- must be running)
@@ -29,8 +25,7 @@ export FUJINET_TCP=${FUJINET_TCP:-127.0.0.1:9995}
 
 mkdir -p "$SOAK_DIR/roms" "$SOAK_DIR/dump"
 
-# 1. Flatten the corpus into build/soak/roms (spaces -> underscores). Loose
-#    .bin files and zip members are both accepted.
+# Flatten the corpus into build/soak/roms (spaces -> underscores).
 if [ -z "$(ls -A "$SOAK_DIR/roms" 2>/dev/null)" ]; then
     find "$ROMDIR" -maxdepth 1 -type f -iname '*.bin' | while read -r b; do
         cp "$b" "$SOAK_DIR/roms/$(basename "$b" | tr ' ' _)"
@@ -46,10 +41,9 @@ if [ -z "$(ls -A "$SOAK_DIR/roms" 2>/dev/null)" ]; then
     done
 fi
 
-# 2. fujiboot aimed at the fixed name, built once.
 BOOT_HOST=0 BOOT_PATH=/soak.bin ./build.sh fujiboot >/dev/null
 
-expected() {    # the arcmap FLAT mapping: linear copy, 0xFF fill (no mirror)
+expected() {    # linear copy, 0xFF fill (no mirror)
     python3 - "$1" "$2" <<'EOF'
 import sys
 img = open(sys.argv[1], "rb").read()[:8192]

@@ -1,14 +1,12 @@
 ; fujicfg2.inc -- the browser's transaction and drawing helpers.
 ;
-; Included AFTER fujilib.inc, which ends with the character map at $E00, so the
-; location counter is sitting in the data area by then -- hence the explicit org
-; back into the low bank. Everything here must stay below $800: see the banner
-; in fujilib.inc for why.
+; Included after fujilib.inc, whose data ends high, hence the org back into the
+; low bank. Everything here must stay below $800 (see fujilib.inc).
 
     org 640h
 
-; get_hosts: READ_HOST_SLOTS. The reply is 8 records of 32 bytes = 256, which
-; is the one command here that needs both reply slices. Returns A = reply cmd.
+; get_hosts: READ_HOST_SLOTS, 8 records of 32 bytes, the one reply here that
+; spans two slices. Returns A = reply cmd.
 get_hosts:
     mov a,#P1_SEL_XRAM
     outl p1,a
@@ -34,8 +32,8 @@ mount_host:
     ret
 
 ; open_dir: OPEN_DIRECTORY(V_HOST) on "/". The payload is "path\0filter\0"
-; NUL-padded to exactly 256 bytes; the firmware reads it with transaction_get()
-; into a fixed buffer and fails a short read. Returns A = reply cmd.
+; NUL-padded to exactly 256 bytes; the ESP32 fails a short read. Returns
+; A = reply cmd.
 open_dir:
     mov a,#P1_SEL_XRAM
     outl p1,a
@@ -111,11 +109,8 @@ re_put:
 
 ; boot_entry: SET_DEVICE_FULLPATH("/" + the selected entry) then MOUNT_IMAGE.
 ; Returns A = reply cmd.
-;
-; The entry is re-read at full length first. READ_DIR_ENTRY crunches the name to
-; the maxlen it is given, so the 12 characters the browser displays are not a
-; filename -- "K.C. Munchkin (USA).bin" comes back as "K.C....bin" and would
-; never open.
+; The entry is re-read at full length first: READ_DIR_ENTRY crunches the name
+; to its maxlen, so the 12 displayed characters ("K.C....bin") won't open.
 boot_entry:
     mov a,#P1_SEL_XRAM
     outl p1,a
@@ -173,10 +168,8 @@ be_out:
     ret
 
 ; push_entry256: '/' then the directory entry sitting in the reply window,
-; zero-padded to 256. Streamed straight out of the mailbox page rather than
-; through RAM -- the console has 64 bytes of internal RAM and no room for a
-; full-length filename. PATHLEN keeps the name inside the first reply slice, so
-; no slice switching is needed. P1 = P1_SEL_XRAM.
+; zero-padded to 256. Streamed from the mailbox page, since 64 bytes of internal
+; RAM cannot hold the name; PATHLEN keeps it in the first slice. P1 = P1_SEL_XRAM.
 push_entry256:
     mov a,#'/'
     call fn_push
@@ -198,8 +191,7 @@ pe_put:
     djnz r2,pe_l
     ret
 
-; clear_name: fill V_NAME with spaces, which push_name256 treats as "nothing
-; after the slash" -- that is how the root directory path is built.
+; clear_name: fill V_NAME with spaces; push_name256 then builds just "/".
 clear_name:
     mov r0,#V_NAME
     mov r2,#NAMELEN
@@ -230,8 +222,8 @@ pn_l:
 pn_stop:
     mov r5,#0
 pn_skip:
-    clr a                       ; still has to emit a byte -- the payload is a
-    call fn_push                ; fixed 256, and a skipped byte shortens it
+    clr a                       ; the payload is a fixed 256 bytes,
+    call fn_push                ; so every position emits one
 pn_next:
     inc r0
     djnz r2,pn_l
@@ -334,7 +326,7 @@ gfx_off:
     movx @r0,a
     ret
 
-; wait_input: block until the stick is centred, then until it moves. Returns
+; wait_input: block until the stick is centered, then until it moves. Returns
 ; A = 1 up, 2 down, 3 fire.
 wait_input:
 wi_rel:

@@ -1,29 +1,14 @@
 /* fuji_mailbox.h -- FujiNet cartridge mailbox layout for the Magnavox Odyssey 2.
+ * Shared by the cart firmware and the o2em model; hand-mirrored in o2fuji.inc.
  *
- * Single source of truth, shared by the RP2040 cart firmware, the o2em model,
- * and (hand-mirrored) the 8048 console client in o2fuji.inc.
+ * console -> cart: MOVX writes to the external-data window (P14 low + ~WR low).
+ * cart -> console: MOVP reads of a program-window page the cart rewrites. The
+ * connector has no ~RD, so answering a MOVX read can collide on the bus (why
+ * Videopac 31/40 hang on a G7400); a ~PSEN read is plain ROM.
  *
- * The two directions do NOT use the same mechanism, because the O2 cartridge
- * port is asymmetric:
- *
- *   console -> cart   MOVX writes into the external-data window. Fully strobed
- *                     (the cart decodes P14 low + ~WR low), unambiguous, and
- *                     already proven by shipping carts.
- *
- *   cart -> console   reads out of the cartridge PROGRAM window via MOVP. The
- *                     connector carries no ~RD, so a cart answering a MOVX read
- *                     has to drive the bus off a level condition and can collide
- *                     (this is why Videopac 31/40 hang on a G7400). A ~PSEN read
- *                     has no such hazard: it is just ROM, which the cart already
- *                     has to serve. So the reply lives in a page of the ROM
- *                     window that the cart rewrites between transactions.
- *
- * Address choice matters more than it looks: The Voice decodes writes to
- * $80-$DF and $F0-$FF as sound triggers, and $E4/$E8-$EF as bank selects. The
- * only Voice-safe addresses in the whole window are $E0-$E3 and $E5-$E7, so the
- * write side is an indexed register pair rather than a flat file. PicoPAC's
- * menu handshake uses $FE/$FF and that is exactly why it garbles with a Voice
- * attached (its issues #1 and #5).
+ * The Voice decodes writes to $80-$DF and $F0-$FF as sound and $E4/$E8-$EF as
+ * bank selects, leaving only $E0-$E3 and $E5-$E7 safe, hence the indexed
+ * register pair. (PicoPAC's $FE/$FF handshake garbles with a Voice attached.)
  */
 
 #ifndef FUJI_MAILBOX_H
@@ -57,31 +42,20 @@
 
 /* ---------- protocol 2: APPBANK images ----------
  *
- * Four 3K banks behind P10/P11 is the classic ceiling, and a FujiNet client
- * that wants to be a whole game needs more. An APPBANK image is
- *
  *     file offset 0      $400-$7FF   the fixed half: always mapped
  *     1024 + 2048*n      $800-$FFF   page n, mapped at $800-$F1F when selected
  *
- * with N = 2..O2_APP_MAXPAGES pages. The fixed half is the 8048's lower memory
- * bank, and it has to be fixed: an interrupt holds A11 at 0 for its whole
- * service routine, so everything an interrupt runs lives there. It is served
- * from cartridge RAM, and FN_REG_POKE writes into it -- that is how a client
- * keeps tables its interrupt reads with MOVP, which only reaches the current
- * page.
+ * with N = 2..O2_APP_MAXPAGES pages. The fixed half must be fixed because an
+ * interrupt holds A11 at 0 for its whole service routine. It is cartridge RAM,
+ * writable through FN_REG_POKE, so interrupt code can keep MOVP tables there.
  *
- * $F00-$F1F is the selected page's own (each page can carry its own MOVP stub)
- * and $F20-$FFF is the mailbox, as in protocol 1, except that $F30-$FFF shows
- * the reply from byte FN_REG_RXWIN*16 (or FN_REG_RXSLICE*208) and switching it
- * is immediate: the cartridge serves the reply buffer directly rather than
- * publishing a copy, so there is nothing to wait for after selecting one.
- * CODEBANK, POKE, RXWIN and RXSLICE all take effect before the console's next
- * fetch.
+ * $F00-$F1F belongs to the selected page; $F20-$FFF is the mailbox, with
+ * $F30-$FFF showing the reply from byte FN_REG_RXWIN*16 (or FN_REG_RXSLICE*208).
+ * CODEBANK, POKE, RXWIN and RXSLICE take effect before the console's next fetch.
  *
- * Page 0 carries the FUJI claim at $F2C, as every mailbox-keeping image does,
- * and this header at $F30 -- bytes the mailbox covers at run time anyway:
+ * Page 0 carries the FUJI claim at $F2C and this header at $F30:
  *     'A' 'P' 'P' 'B', version (1), N
- * The cartridge publishes FN_R_PROTO_VER = 2. */
+ */
 #define O2_APP_FIXED_BYTES 1024
 #define O2_APP_PAGE_BYTES  2048
 #define O2_APP_PAGE_BASE   0x800      /* console address of a page's first byte */
@@ -95,8 +69,7 @@
 /* The FN_W_DATA stream is, in order:
  *     NPARAM x { size byte (1|2|4), then that many value bytes, little-endian }
  *     then TXLEN raw payload bytes
- * A stream rather than the Intellivision's FN_PARAM_SIZE[8]/FN_PARAM_VAL[8][4]
- * tables, which would cost 40 addresses this window does not have. */
+ */
 #define FN_TX_MAX       320   /* 8 params x 5 bytes + a 256-byte payload + slack */
 
 /* ---------- cart -> console: MOVP reads, program window page $F00 ---------- */
@@ -118,12 +91,9 @@
 #define FN_R_PROTO_VER  0xF2B /* FN_PROTO_VER                                    */
 #define FN_PROTO_VER    2     /* 2: APPBANK images (above)                       */
 
-/* $F2C-$F2F is the only part of the page the cart never publishes over, so it
- * is where a cartridge image declares itself. An image carrying FN_R_CLAIM_SIG
- * there promises two things: $F20-$FFF is reserved for the mailbox, and $E0-$E3
- * is not used to drive The Voice. Both have to hold before the mailbox can
- * survive a boot -- an ordinary game keeps its code in this page and does write
- * The Voice, which is why booting one disables the mailbox for the session. */
+/* The cart never publishes over $F2C-$F2F. An image with FN_R_CLAIM_SIG there
+ * promises $F20-$FFF is free for the mailbox and $E0-$E3 does not drive The
+ * Voice; only then does the mailbox survive its boot. */
 #define FN_R_CLAIM      0xF2C
 #define FN_R_CLAIM_LEN  4
 #define FN_R_CLAIM_SIG  "FUJI"
@@ -134,7 +104,6 @@
 #define FN_R_STATUS_LINK 0x01
 #define FN_R_STATUS_BUSY 0x02
 
-/* FN_R_ERR values; mirrors fb_status_t in fujibus.h. */
 /* FN_R_BOOT_STATE values. */
 #define FN_BOOT_IDLE     0
 #define FN_BOOT_XFER     1
@@ -147,18 +116,16 @@
 #define FN_BOOT_ERR_NOMAP     3
 #define FN_BOOT_ERR_BUSY      4   /* an APPBANK image is live: power-cycle first */
 
+/* FN_R_ERR values; mirrors fb_status_t in fujibus.h. */
 #define FN_ERR_OK        0
 #define FN_ERR_NOLINK    1
 #define FN_ERR_TIMEOUT   2
 #define FN_ERR_BADFRAME  3
 #define FN_ERR_TOOBIG    4
 
-/* CRITICAL: the client must derive its next sequence number from the cart's own
- * persisted FN_R_ACKSEQ + 1, never from a program-local counter. A console RESET
- * restarts the client and re-zeroes its variables but does NOT reset the cart, so
- * a local counter recomputes a value the cart has already acknowledged and no
- * further request is ever sent -- while the screen keeps showing the first
- * reply, looking like a stable success. This cost real debugging time on the
- * Intellivision. Sequence 0 is reserved as "never used". */
+/* The client must take its next sequence number from FN_R_ACKSEQ + 1, never a
+ * local counter: a console RESET does not reset the cart, so a restarted counter
+ * repeats an acknowledged value and the request is silently ignored. Sequence 0
+ * means "never used". */
 
 #endif /* FUJI_MAILBOX_H */

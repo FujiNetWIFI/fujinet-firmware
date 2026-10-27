@@ -3,12 +3,10 @@
 #
 # Usage: tools/soak.sh [romdir]     default: ~/Workspace/mame/roms/astrocde
 #
-# For every .bin inside every zip (and every loose .bin): drop it into the
-# live fujinet-pc's host-0 root as /soak.bin, boot fujiboot in headless
-# MAME, and let emu/soak.lua verify the whole served window byte-for-byte
-# against the expected astromap mapping after the swap (mirror/pad rules).
-# The pushed stream is also dumped (FUJINET_BOOTDUMP) and byte-compared
-# against the source file. A per-image verdict lands in $SOAK_DIR/report.txt.
+# Each .bin (loose or in a zip) becomes /soak.bin on the live fujinet-pc's
+# host-0 root; fujiboot boots it in headless MAME and emu/soak.lua checks the
+# served window. The pushed stream is dumped (FUJINET_BOOTDUMP) and compared
+# with the source. Verdicts go to $SOAK_DIR/report.txt.
 #
 #   MAME_DIR      MAME tree with the device applied (default ~/Workspace/mame)
 #   FUJINET_TCP   live fujinet-pc (default 127.0.0.1:9995 -- must be running)

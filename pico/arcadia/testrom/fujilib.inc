@@ -1,34 +1,17 @@
 ; fujilib.inc -- 2650 client half of the FujiNet cartridge mailbox.
 ;
-; Hand-mirrors firmware/include/fuji_mailbox.h (the single source of truth);
-; every equate here is a CONSOLE address, i.e. cart image offset + 1000H for
-; everything at image 1000H and up (block 2 sits at CPU $2000). Keep the two
-; files in step.
+; Hand-mirrors firmware/include/fuji_mailbox.h; keep them in step. Equates are console
+; addresses (image offset + 1000H from image 1000H up). A register write is a read of
+; FNRSEL+reg then FNRDAT+value, back to back: the cart ignores an unpaired REGDATA.
 ;
-; The cartridge connector has no write or I/O visibility, so BOTH directions
-; ride reads: a "register write" is a read of FNRSEL+reg followed by a read
-; of FNRDAT+value (the low address byte IS the payload), and replies are
-; plain ROM bytes the cart repaints. A REGDATA read with no immediately
-; preceding REGSEL read is ignored by the cart -- that pairing rule is the
-; stray-read defense, so these helpers always issue the pair back to back.
-;
-; 2650 ground rules baked into everything here:
-;   - Non-branch memory instructions reach only their own 8K page, so all
-;     mailbox access from page-0 code goes through the 15-bit indirect
-;     pointer words at the bottom of this file (LODA,R0 *FSELP,R1 is one
-;     whole register-arm). Branch absolutes carry 15 bits and need no help.
-;   - Indexed addressing puts the INDEX register in the opcode and always
-;     moves data through R0. Convention: R0 data, R1/R2 arguments, R3
-;     counters. Register bank 1 is never selected (RS stays 0).
-;   - The return stack is the on-chip 8-entry RAS. These routines are leaves
-;     or call one level down (FNSTART -> FNREGWR); tools/checkdepth.py
-;     enforces the whole-client budget.
-;   - Clients run with PSL = 02H (COM=1): all compares are LOGICAL. The
-;     helpers rely on it. LOD instructions set CC, so a load of the 0
-;     terminator is already a testable EQ.
-;   - DW emits LITTLE-endian on this target but the 2650 fetches indirect
-;     pointers high byte first -- every pointer word here uses DWBE. Do not
-;     use DW for anything the CPU dereferences.
+; 2650 rules:
+;   - Non-branch memory instructions reach only their own 8K page, so mailbox access
+;     goes through the 15-bit indirect pointer words at the end of this file.
+;   - Indexed addressing always moves data through R0. R0 data, R1/R2 arguments,
+;     R3 counters; register bank 1 is never selected.
+;   - The return stack is the on-chip 8-entry RAS; tools/checkdepth.py enforces it.
+;   - Clients run with PSL = 02H (COM=1): compares are logical. A load sets CC.
+;   - DW emits little-endian but indirect pointers are fetched high byte first: use DWBE.
 
 DWBE    MACRO   val             ; big-endian word: what indirection reads
         DB      ((val)>>8)&$FF, (val)&$FF
@@ -116,10 +99,7 @@ FNREGWR:
         LODA,R0 *FDATP,R2       ; deliver the value
         RETC,UN
 
-; Begin a transaction to the FujiNet device: rewind the TX pointer and set
-; the device id. The caller then writes FRCMD and FRNPARM with its own
-; FNREGWR pairs, streams params/payload, and calls FNCOMMIT.
-; Calls one down. Clobbers R0,R1,R2.
+; Rewind the TX pointer and set the device id. Calls one down. Clobbers R0,R1,R2.
 FNSTART:
         LODI,R1 FRDATRS
         LODI,R2 0
@@ -129,19 +109,14 @@ FNSTART:
         BCTA,UN FNREGWR         ; tail call: FNREGWR returns to our caller
 
 ; Append a 1-byte parameter with value R2. Leaf. Clobbers R0,R1.
-; (A bare TX-stream append is one instruction, no helper:
-;       LODA,R0 *FTXP,Rn        with the byte in Rn.)
 FNPARB:
         LODI,R1 1
         LODA,R0 *FTXP,R1        ; size byte
         LODA,R0 *FTXP,R2        ; value
         RETC,UN
 
-; Append the 0-terminated string whose CONSOLE address is in the RAM word
-; FSTRP (big-endian, caller-stored) to the TX stream. Works for strings in
-; ROM, RAM, or the reply window itself (the reply-stability invariant in
-; fuji_mailbox.h is what makes the last one legal). Strings cap at 255.
-; Leaf. Clobbers R0,R1,R3.
+; Append the 0-terminated string at (FSTRP), which may be in the reply window. Caps at
+; 255. Leaf. Clobbers R0,R1,R3.
 FNTXSTR:
         LODI,R3 $FF
 FNTXS1: LODA,R0 *FSTRP,R3,+    ; str[++R3]; a load sets CC
@@ -151,10 +126,8 @@ FNTXS1: LODA,R0 *FSTRP,R3,+    ; str[++R3]; a load sets CC
         BCTR,UN FNTXS1
 FNTXS2: RETC,UN
 
-; Stream the 0-terminated string at (FSTRP), then NUL-pad to exactly 256
-; bytes -- the fixed-buffer payload SET_DEVICE_FULLPATH / OPEN_DIRECTORY
-; expect (a short read fails on the ESP32 side; the o2 client's lesson).
-; Path caps at 255. Leaf. Clobbers R0,R1,R3.
+; Stream the string at (FSTRP), NUL-padded to the 256 bytes SET_DEVICE_FULLPATH and
+; OPEN_DIRECTORY require. Caps at 255. Leaf. Clobbers R0,R1,R3.
 FNPATH: LODI,R3 0               ; bytes sent so far (mod 256)
 FNPP1:  LODA,R0 *FSTRP,R3       ; path[R3]; a load sets CC
         BCTR,EQ FNPP2           ; terminator: do not send it
@@ -168,13 +141,9 @@ FNPP3:  LODA,R0 *FTXP,R1        ; append 0
         BCFR,EQ FNPP3
         RETC,UN
 
-; Commit the transaction and wait for the cart to acknowledge. The next
-; sequence number is derived from the cart's own persisted ACKSEQ + 1
-; (never a local counter: console RESET restarts this program but not the
-; cart), wrapping 255 -> 1, 0 reserved.
-; Returns R0 = FNERR value (0 = ok) or FETIMO on timeout (~6 s: 64K polls
-; of ~90 us against the cart's own 5 s transact budget).
-; Calls one down. Clobbers R1,R2,R3.
+; Commit with SEQ = the cart's ACKSEQ + 1 (RESET does not reset the cart; 255 wraps to 1)
+; and wait. Returns R0 = FNERR or FETIMO after ~6 s (64K polls of ~90 us, past the cart's
+; 5 s transact budget). Calls one down. Clobbers R1,R2,R3.
 FNCOMMIT:
         LODA,R0 *FACKP
         ADDI,R0 1
@@ -201,8 +170,7 @@ FNCMI:  NOP                     ; pad the poll to ~90 us so the full sweep
 FNCMOK: LODA,R0 *FERRP
         RETC,UN
 
-; Select reply slice R2 (0-3) and wait for the repaint to complete: the
-; cart publishes FNSECHO last, so the slice is whole once it echoes.
+; Select reply slice R2 (0-3) and wait for FNSECHO, painted last, to echo it.
 ; Returns R0 = 0 ok, FETIMO on timeout (~1.5 s). Preserves R2.
 ; Calls one down. Clobbers R0,R1,R3.
 FNSLICE:
@@ -220,8 +188,7 @@ FNSLI:  LODA,R0 *FSECP
 FNSLOK: EORZ    R0
         RETC,UN
 
-; Is a FujiNet cartridge present? Returns R0 = 0 when the magic is there,
-; else nonzero. Leaf. Clobbers R0.
+; R0 = 0 when the 'F','N' magic is present, else nonzero. Leaf.
 FNCHECK:
         LODA,R0 *FMAGFP
         COMI,R0 'F'

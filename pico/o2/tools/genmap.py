@@ -4,7 +4,7 @@
 The VDC character pointer is a byte offset into the 512-byte character generator
 (glyphs are 7 rows in an 8-byte slot) and the VDC adds (Y>>1) to it while
 drawing, so the stored value is glyph*8 - Y/2, with bit 8 landing in bit 0 of the
-control byte next to the colour. Verified against o2em's cset.c and vdc.c:536.
+control byte next to the color. Verified against o2em's cset.c and vdc.c:536.
 """
 G = {}
 for i, ch in enumerate("0123456789"):

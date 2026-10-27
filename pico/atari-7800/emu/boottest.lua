@@ -11,7 +11,7 @@ local expect = os.getenv("BOOT_EXPECT")
 local function out(name) return manager.machine.devices[":"]:output(name):get() end
 local scr = manager.machine.screens[":screen"]
 
--- every pixel the colour of the first
+-- every pixel the color of the first
 local function blank()
   local px = scr:pixels()
   return px == px:sub(1, 4):rep(#px // 4)

@@ -1,10 +1,5 @@
-// FujiBus/SLIP client for the cartridge <-> ESP32-S3 (fujiversal-rs232) link.
-//
-// Bit-compatible plain-C port of the wire format implemented in
-// lib/bus/FujiBusPacket.cpp in the main fujinet-firmware tree. See
-// that file for the authoritative protocol definition; this is a client,
-// not a reimplementation of the bus service, and only needs to build and
-// parse single request/reply packets.
+// FujiBus/SLIP client for the cartridge <-> ESP32-S3 (fujiversal-rs232) link: builds and
+// parses single request/reply packets, bit-compatible with the ESP32's FujiBus.
 #ifndef FUJIBUS_H
 #define FUJIBUS_H
 
@@ -24,18 +19,12 @@
 #define FUJI_DEVICEID_PRINTER 0x40
 #define FUJI_DEVICEID_SERIAL  0x50
 
-// FUJI_DEVICEID_DBC: the ESP32-S3 addresses this device, not us, when it
-// pushes a ROM (and an optional .cfg sibling) to the cartridge mid-
-// MOUNT_IMAGE-transaction -- see the inbound-frame demux in
-// fujibus_usb.c and its handler, fujimail_inbound(), in fujimail.c.
-// Matches FUJI_DEVICEID_DBC in the main tree's include/fujiDeviceID.h.
+// The device the ESP32-S3 addresses when it pushes a ROM (and optional .cfg sibling) to the
+// cartridge mid-MOUNT_IMAGE. Matches the main tree's include/fujiDeviceID.h.
 #define FUJI_DEVICEID_DBC 0xFF
 
-// CMD::NET_*: matches include/fujiCommandID.h in the main tree. Reused here
-// (rather than CMD::FUJI_*) because that's what the ESP32-S3 side's
-// rs232Disk::mount() actually sends -- see push_stream() in
-// lib/device/rs232/disk.cpp.
-// CMD_* here mirrors the main tree's C++ `enum class CMD`; this tree is plain C.
+// The main tree's CMD (include/fujiCommandID.h) in plain C. The ROM push uses
+// the NET_* commands.
 #define CMD_NET_OPEN   0x4F
 #define CMD_NET_READ   0x52
 #define CMD_NET_STATUS 0x53
@@ -54,7 +43,7 @@
 #define CMD_FUJI_ACK 0x06
 #define CMD_FUJI_NAK 0x15
 
-// AdapterConfigExtended, packed layout matching lib/device/fujiDevice/fujiDevice.h.
+// The ESP32's packed AdapterConfigExtended reply.
 #define FUJI_ADAPTERCONFIG_EXTENDED_SIZE 240
 
 typedef enum {
@@ -79,23 +68,17 @@ typedef struct {
     uint16_t data_len;
 } fb_reply_t;
 
-// Builds a SLIP-framed FujiBus request for `device`/`command` with the given
-// params (may be NULL/0) and payload (may be NULL/0), into `out` (capacity
-// `out_cap`). Returns the frame length, or 0 if it would not fit.
+// params and payload may be NULL/0. Returns the frame length, or 0 if it would not fit.
 size_t fujibus_build_request(uint8_t device, uint8_t command,
                               const fb_param_t *params, unsigned nparams,
                               const uint8_t *payload, uint16_t payload_len,
                               uint8_t *out, size_t out_cap);
 
-// Parses one SLIP-framed FujiBus packet out of `in` (exactly one frame,
-// leading garbage before the first 0xC0 is skipped same as the ESP32 side).
-// On success, `reply->data` points into `in` (no copy) and remains valid
-// only as long as `in` does. Returns false on any framing/length/checksum
-// error.
+// Exactly one frame; bytes before the first 0xC0 are skipped, as on the ESP32.
+// Decodes in place: `in` is modified and reply->data points into it.
 bool fujibus_parse_reply(const uint8_t *in, size_t in_len, fb_reply_t *reply);
 
-// Runs the codec's self-test (known-good request/reply vectors) purely in
-// memory, no USB or hardware involved. Returns true if everything matches.
+// Known-good request/reply vectors, in memory only.
 bool fujibus_selftest(void);
 
 #endif /* FUJIBUS_H */

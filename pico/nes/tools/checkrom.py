@@ -1,22 +1,16 @@
 #!/usr/bin/env python3
 """checkrom.py -- validate a built NES FujiNet client image.
 
-Enforces the layout contract in firmware/include/fuji_mailbox.h so a client
-that breaks it fails its build rather than a debugging session:
+Enforces the layout contract in firmware/include/fuji_mailbox.h:
 
-  - a 16-byte iNES header the cart's own parser (nesmap.c's rules) accepts,
-    and a file exactly as long as the header promises;
-  - with --claim, "FUJI" in the last 16 bytes of PRG ($FFF0), which is what
-    keeps the mailbox alive after the cart boots the image;
+  - an iNES header nesmap.c accepts, and a file as long as it promises;
+  - with --claim, "FUJI" at PRG end-16 ($FFF0), which keeps the mailbox alive;
   - a reset vector inside $8000-$FFFF;
-  - no read-modify-write instruction whose operand is in the mailbox's
-    write-only pages ($5500-$57FF). An RMW writes the old value back on the
-    cycle before the new one, and on a page where any write is an event that
-    is a spurious event. Indexed stores are fine here: their extra cycle is a
-    read, and reads of these pages are inert.
+  - no RMW instruction on $5500-$57FF: its dummy write of the old value is a
+    spurious event. Indexed stores are fine: their extra cycle is an inert read.
 
-The scan walks the CODE-class segments named in the ld65 map (-m), so string
-tables and dispatch tables are never mistaken for instructions.
+Only the code segments in the ld65 map (-m) are scanned, so data is never
+mistaken for instructions.
 
 Usage: checkrom.py [--claim] [--map file.map] image.nes
        checkrom.py --loader loader.bin

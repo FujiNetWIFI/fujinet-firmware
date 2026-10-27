@@ -22,12 +22,9 @@
 // ======================> a5200_fujinet_device
 //
 // Model of the FujiNet RP2354B cartridge: the 32K window served from one of
-// two view buffers, with the read-hotspot mailbox of
-// pico/atari-5200/firmware/include/fuji_mailbox.h at $B000-$B7FF. The
-// protocol (fujimail.c), the wire codec (fujibus.c), the mappers (a52map.c)
-// and staging (fuji_load.c) are the cartridge firmware's own sources; this
-// device is only the port: frames go over a TCP socket to fujinet-pc
-// ($FUJINET_TCP, default 127.0.0.1:9995).
+// two view buffers, with the read-hotspot mailbox at $B000-$B7FF. Protocol,
+// codec, mappers and staging are the firmware's own sources; frames go over
+// TCP to fujinet-pc ($FUJINET_TCP, default 127.0.0.1:9995).
 //
 // What it serves at power-on:
 //   -cart with the "FUJI" claim  that client, mailbox live (as the baked CONFIG)
@@ -38,14 +35,12 @@
 // cycles at one address, as a 4-port console's clockless cart sees them;
 // $FUJINET_VIEWDUMP writes the 32K window at each swap.
 //
-// Throttled, transactions run on a worker thread, as the cart's core0 runs
-// them while core1 serves: the console polls and the window keeps drawing.
-// Under -nothrottle (the harnesses) they run inside the read, so emulated
-// time cannot outrun a network wait. $FUJINET_ASYNC=0/1 overrides.
+// Throttled, transactions run on a worker thread, as on the cart's core0.
+// Under -nothrottle they run inside the read, so emulated time cannot outrun
+// a network wait. $FUJINET_ASYNC=0/1 overrides.
 //
-// The real cart cannot tell a write from a read, so write() has exactly the
-// side effects read() does. Every reset is a power cycle: the 5200 has no
-// reset line, and MAME's resets stand in for its power switch.
+// The cart has no R/W, so write() has read()'s side effects. Every reset is
+// a power cycle: the 5200 has no reset line.
 
 class a5200_fujinet_device : public device_t, public device_a5200_cart_interface
 {
@@ -55,7 +50,7 @@ public:
 
 	virtual void cart_map(address_map &map) override ATTR_COLD;
 
-	// fujimail port plumbing, called from the C callbacks
+	// called from the fujimail port's C callbacks
 	void poke(unsigned offset, uint8_t value);
 	uint8_t stream_open(int stream, uint32_t size);
 	void stream_write(int stream, const uint8_t *chunk, unsigned len);
@@ -118,7 +113,6 @@ private:
 	std::mutex m_loadlock;                  // m_load: staging against the swap
 };
 
-// device type definition
 DECLARE_DEVICE_TYPE(A5200_FUJINET, a5200_fujinet_device)
 
 #endif // MAME_BUS_A800_A5200_FUJINET_H

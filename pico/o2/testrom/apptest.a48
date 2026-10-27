@@ -9,9 +9,8 @@
 ;     H H H H     the hostname behind it: reply bytes 33-36, read window 2
 ;
 ; build.sh assembles this once per page (PAGE=0..3). Every page carries the
-; same tail -- strings, the character map and the mailbox stub, so text works
-; whichever page is mapped -- and its own page_id at $800. The fixed half is
-; taken from the PAGE=0 assembly; it is the same in all of them.
+; strings, character map and mailbox stub, plus its own page_id at $800; the
+; fixed half comes from PAGE=0.
 
     cpu 8048
     org 400h
@@ -214,9 +213,8 @@ done:
 spin:
     jmp spin
 
-; fix_get: A = offset in page $700 -> A = the byte there. The POKE target has
-; to be read from its own page, which is the point: this is how an interrupt
-; routine reads tables the console keeps in the fixed half.
+; fix_get: A = offset in page $700 -> A = the byte there. MOVP reads its own
+; page, as an interrupt routine reading fixed-half tables would.
     org 7E0h
 fix_get:
     movp a,@a

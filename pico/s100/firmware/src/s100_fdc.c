@@ -1,4 +1,4 @@
-// See s100_fdc.h. The register behaviour follows the FDC+ serial-drive mode.
+// See s100_fdc.h. The register behavior follows the FDC+ serial-drive mode.
 #include "s100_fdc.h"
 
 #include <string.h>

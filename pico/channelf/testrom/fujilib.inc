@@ -3,26 +3,17 @@
 ;
 ; Hand-mirrors firmware/include/fuji_mailbox.h; keep the two in step.
 ;
-; Console -> cart is an ordinary STORE on this machine, not a read hotspot,
-; because ROMC 05 is a real write cycle. That makes the client dramatically
-; simpler than its Astrocade/Arcadia/Coleco siblings:
+; Console -> cart is an ordinary store. A register write is one store (address
+; picks the register, data is the value); DEVICE, CMD and NPARAM are
+; consecutive, so three STs off one DCI. The TX stream appends on a write
+; anywhere in its page.
 ;
-;   - a register write is ONE store. The address picks the register, the data
-;     is the value; the cart synthesises the REGSEL/REGDATA pair that the
-;     shared fujimail.c decodes.
-;   - registers 0, 1 and 2 are consecutive, so DEVICE, CMD and NPARAM go out
-;     as three STs off a single DCI, riding DC0's auto-increment.
-;   - the TX stream appends on a write ANYWHERE in its page, so a payload is
-;     one DCI followed by a run of STs.
-;
-; THE ONE RULE THAT WILL BITE: the TX page is 256 bytes and DC0 auto-increments
-; past it into $0000, which is BIOS ROM and silently swallows stores. So never
-; run more than 256 STs from a single DCI FNTX. Re-issue FNTXP between the
-; parameter bytes and a 256-byte payload -- otherwise the tail of the payload
-; is dropped and the command NAKs for no visible reason.
+; Never run more than 256 STs from one DCI FNTX: DC0 wraps into BIOS ROM and
+; the tail is silently dropped. Re-issue FNTXP between the parameter bytes and
+; a 256-byte payload.
 ;
 ; Register use: FNGO owns r9. FNBEG takes r0/r1/r2. Nothing here calls
-; anything else, because the F8 keeps exactly one return address.
+; anything else: the F8 keeps one return address.
 ; ---------------------------------------------------------------------------
 
 ; --- painted status page ($FC00) ---
@@ -130,9 +121,7 @@ FNTXP:	DCI FNTX
 ; ---------------------------------------------------------------------------
 ; FNBEG -- start building a transaction.
 ;   r0 = device, r1 = command, r2 = nparam.
-;   Writes DEVICE/CMD/NPARAM (three consecutive registers, so three stores off
-;   one DCI), rewinds the TX write pointer, and leaves DC0 on the TX page so
-;   the caller can ST its parameter and payload bytes straight in.
+;   Rewinds the TX write pointer and leaves DC0 on the TX page.
 ;   Clobbers A, DC0.
 ; ---------------------------------------------------------------------------
 FNBEG:	DCI FNREG+FR_DEV
@@ -152,12 +141,9 @@ FNBEG:	DCI FNREG+FR_DEV
 ; FNGO -- commit the transaction and wait for the reply.
 ;   Returns A = FN_ERR_* of the transaction. Clobbers A, r9, DC0.
 ;
-;   The sequence number comes from the cart's OWN persisted ACKSEQ + 1, never
-;   from a counter in RAM. A console RESET restarts this program and re-zeroes
-;   its variables but does NOT reset the cart -- there is no reset line on the
-;   connector at all -- so a local counter would replay a sequence the cart has
-;   already acknowledged and the client would read a stale reply as a fresh
-;   one. Every port in this family learned that the same way.
+;   SEQ is the cart's persisted ACKSEQ + 1, never a RAM counter: a console
+;   reset restarts this program but not the cart, and a replayed SEQ would
+;   read a stale reply as fresh.
 ; ---------------------------------------------------------------------------
 FNGO:	DCI FNACKSQ
 	LM			; A = the cart's last acknowledged sequence
@@ -190,12 +176,8 @@ FNRXL:	DCI FNRXLO
 ; FNPB -- append a one-byte parameter: the size byte 1, then the value in r0.
 ;   Takes its value in r0, not A: A does not survive a PI (see DHEXS).
 ;
-;   Points DC0 at the TX page itself rather than trusting the caller to have
-;   left it there. A write ANYWHERE in that page appends, so re-pointing costs
-;   nothing and cannot rewind the stream -- the write cursor lives in the cart.
-;   Without this, any DCI between FNBEG and here (reading a variable, say)
-;   silently redirects the parameter bytes into RAM: the command then goes out
-;   with no parameters at all AND scribbles over whatever it pointed at.
+;   Re-points DC0 at the TX page, since any DCI since FNBEG would send the
+;   bytes into RAM; the write cursor lives in the cart, so this cannot rewind.
 ;   Clobbers A, DC0.
 ; ---------------------------------------------------------------------------
 FNPB:	DCI FNTX
@@ -210,11 +192,8 @@ FNPB:	DCI FNTX
 ;   with NULs to exactly 256 bytes. OPEN_DIRECTORY and SET_DEVICE_FULLPATH both
 ;   require the full 256; a short one fails the server's read.
 ;
-;   Caller: DCI <path>, XDC, PI FNPATH. This re-points DC0 at the TX page
-;   itself, which is also what keeps the 256-store run legal after the
-;   parameter bytes -- see the DC0 rule at the top of this file. The TX write
-;   pointer lives in the cart and keeps advancing, so re-pointing DC0 does not
-;   rewind the stream.
+;   Caller: DCI <path>, XDC, PI FNPATH. Re-points DC0 at the TX page, which
+;   keeps the 256-store run legal after the parameter bytes.
 ;
 ;   Clobbers A, r0, DC0, DC1.
 ; ---------------------------------------------------------------------------
@@ -272,10 +251,8 @@ FNPW:	DCI FNTX
 ; FNEOF -- is the reply the two-byte $7F,$7F end-of-directory marker?
 ;   Returns with Z set at end of directory.
 ;
-;   Never read past it. A fujinet-pc SD host answers a position past the end by
-;   returning ".." over and over rather than the marker, and once that has
-;   happened every later SET_DIRECTORY_POSITION NAKs for the rest of the
-;   session -- a trap the ColecoVision port paid for.
+;   Never read past it: a fujinet-pc SD host then returns ".." repeatedly, and
+;   every later SET_DIRECTORY_POSITION NAKs for the rest of the session.
 ;   Clobbers A, DC0.
 ; ---------------------------------------------------------------------------
 FNEOF:	DCI FNREPLY

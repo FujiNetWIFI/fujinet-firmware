@@ -1,12 +1,8 @@
 ; ---------------------------------------------------------------------------
 ; romctest.asm -- drive the F8 bus through every ROMC state a Channel F can
-; actually produce, so emu/f8trace.py captures a trace that covers them.
+; produce (including ROMC 05, the store cycle) for emu/f8trace.py to capture.
 ;
-; A normal program only reaches about 19 of the 32 states; in particular it
-; never emits ROMC 05, the memory WRITE cycle that the cart-RAM design rests
-; on. This exists purely to widen test_romc.c's coverage.
-;
-; Out of reach here and deliberately so:
+; Out of reach:
 ;   0F/10/13  interrupt acknowledge -- needs a device asserting /INTREQ, and
 ;             the console wires no interrupt source
 ;   1E/1F     PC0 low/high onto the bus -- MAME's F8 core emits neither, so
@@ -33,9 +29,8 @@ LOOP:	; --- ROMC 05: ST, the store-through-DC0 write cycle ---
 	LM
 	LM
 
-	; --- ROMC 0A: DC0 += signed. Both directions on purpose: a trace with
-	;     only positive offsets cannot tell a sign-extending observer from
-	;     one that widens the byte unsigned. ---
+	; --- ROMC 0A: DC0 += signed. Both directions, to catch an observer
+	;     that widens the byte unsigned. ---
 	DCI 0C000H
 	LI 7FH
 	ADC			; +127

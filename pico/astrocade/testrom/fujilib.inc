@@ -1,19 +1,14 @@
 ; fujilib.inc -- Z80 client half of the FujiNet cartridge mailbox.
 ;
-; Hand-mirrors firmware/include/fuji_mailbox.h (the single source of truth);
-; every equate here is a console address, i.e. cart offset + 2000H. Keep the
-; two files in step.
+; Mirrors firmware/include/fuji_mailbox.h by hand; every equate here is a
+; console address (cart offset + 2000H).
 ;
-; The cartridge port has no write or I/O visibility, so BOTH directions ride
-; reads: a "register write" is a read of FNREGSEL+reg followed by a read of
-; FNREGDAT+value (the low address byte IS the payload), and replies are
-; plain ROM bytes the cart repaints. A REGDATA read with no immediately
-; preceding REGSEL read is ignored by the cart -- that pairing rule is the
-; stray-read defense, so these helpers always issue the pair back to back.
+; Both directions ride reads: a register write is a read of FNREGSEL+reg then
+; of FNREGDAT+value, and replies are ROM bytes the cart repaints. The cart
+; ignores a REGDATA read not immediately after a REGSEL read, so these
+; helpers always issue the pair back to back.
 ;
-; Clients run with DI and poll. With interrupts off the I register stays 0,
-; refresh cycles land in OS ROM space, and the refresh-stray hazard described
-; in fuji_mailbox.h never arises at all.
+; Clients run with DI and poll, so I stays 0 and refresh lands in OS ROM.
 
 ; ---- reply bytes (repainted ROM) --------------------------------------
 FNRDATA EQU     3B00H           ; 256-byte reply slice
@@ -41,20 +36,18 @@ FNRDATP EQU     3EH             ; HIGH operator)
 FNDATAP EQU     3FH
 
 ; ---- bank switching (protocol v2) -------------------------------------
-; A banked app image is the ordinary 8K window plus 4K pages appended; one
-; read maps image page 0-111 into 2000H-2FFFH (the high half never moves --
-; client code and the mailbox live there; page 1 IS the high half). The
-; select is complete before the next read; the byte the select read returns
-; is undefined. Do not execute from 2000H-2FFFH while switching away from
-; the page the PC is in. On a cart serving a plain 8K image these reads are
-; no-ops, so probing is safe.
+; A banked app image is the 8K window plus appended 4K pages; one read maps
+; image page 0-111 into 2000H-2FFFH. The high half (page 1: client code and
+; the mailbox) never moves. The select completes before the next read and
+; returns an undefined byte. Do not switch away from the page the PC is in.
+; On a plain 8K image these reads are no-ops, so probing is safe.
 FNBKSEL EQU     3D80H           ; read +page: map image page into 2000H-2FFFH
 FNBKMAX EQU     112             ; pages 0..111; 3DF0H+ stays reserved
                                 ; (3DFEH = FNSWAP)
 
-; Selecting a page is one instruction, no helper needed (a macro here would
-; be useless anyway: this file is included after its callers, and zmac
-; resolves forward EQUs but not forward macros). Constant page n:
+; Selecting a page is one instruction. No macro: this file is included after
+; its callers, and zmac resolves forward EQUs but not forward macros.
+; Constant page n:
 ;       LD      A,(FNBKSEL+n)
 ; Runtime page number in A:
 ;       LD      D,FNRSELP
@@ -158,9 +151,9 @@ FNBEGIN:
         JP      FNREGWR
 
 ; Commit the transaction and wait for the cart to acknowledge.
-; B = timeout in ~2 second quanta. The next sequence number is derived
-; from the cart's own persisted ACKSEQ + 1 (never a local counter: RESET
-; restarts this program but not the cart), wrapping 255 -> 1, 0 reserved.
+; B = timeout in ~2 second quanta. The next sequence number is the cart's
+; ACKSEQ + 1 (RESET restarts this program but not the cart), wrapping
+; 255 -> 1, 0 reserved.
 ; Returns: carry set on timeout; else A = FNERR value (0 = ok).
 ; Clobbers A,B,C,D,E,H,L.
 FNCOMMIT:

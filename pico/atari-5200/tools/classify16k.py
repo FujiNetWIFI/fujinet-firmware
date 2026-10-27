@@ -5,11 +5,10 @@ linear one, with abtest.lua's inputs, and see which one runs.
 
     classify16k.py [-j N] [--write]
 
-A mapping "runs" when its frames are not blank and at least 8 of the 30 differ;
-the wrong one typically shows the BIOS title and crashes, 1-4 distinct frames.
-Where one runs and the other plainly does not, that is the answer; otherwise
-the tracer's verdict stands and the row says so. --write updates corpus.tsv:
-a decided row gets source "mame".
+A mapping "runs" when its frames are not blank and at least 8 of the 30 differ
+(a wrong one typically shows 1-4). It decides only when exactly one runs.
+Otherwise the tracer's verdict stands. --write updates corpus.tsv; a row
+decided here gets source "mame".
 """
 
 import argparse

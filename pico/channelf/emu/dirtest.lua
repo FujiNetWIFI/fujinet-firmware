@@ -1,12 +1,10 @@
 -- Descend into the first entry (a directory) and check the path and the new
--- listing. This is what exercises PATHAPP and the full-length re-read: the
--- name drawn on screen is crunched to the display width and is NOT a path.
+-- listing; exercises PATHAPP, since the on-screen name is truncated.
 local VNROW, VCUR, VPATH = 0x8007, 0x8006, 0x8100
 local sp
 local phase, timer, before = "wait", 0, nil
 local n = 0
--- VNROW counts up as the rows arrive, so "nonzero" means the page is still
--- being built. Wait for it to stop moving instead, or the fire lands mid-page.
+-- VNROW counts up as rows arrive; wait for it to stop moving.
 local lastRows, stable = -1, 0
 
 local function path()

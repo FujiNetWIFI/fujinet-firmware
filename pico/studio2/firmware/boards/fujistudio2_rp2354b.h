@@ -1,6 +1,6 @@
 /* fujistudio2_rp2354b.h -- board header for the FujiNet RCA Studio II cartridge.
  *
- * Modelled on the SDK's pimoroni_pico_plus2_rp2350.h: pico2.h hard-defines
+ * Modeled on the SDK's pimoroni_pico_plus2_rp2350.h: pico2.h hard-defines
  * the A variant, so a B board declares itself. The bus pin map lives in
  * include/s2_cart.h; nothing here may claim a GPIO.
  */

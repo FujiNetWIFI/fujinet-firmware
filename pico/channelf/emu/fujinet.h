@@ -13,31 +13,13 @@
 
 // ======================> channelf_fujinet_cartridge_device
 //
-// Model of the FujiNet RP2040 Videocart: a 16K ROM window at $0800, an 8K
-// APPBANK page window at $4800 for clients bigger than 16K, and a 32K arena at
-// $8000 that is part RAM, part painted mailbox. The protocol itself
-// (fujimail.c), the wire codec (fujibus.c) and the image mapper (chfmap.c) are
-// the cartridge firmware's own sources, compiled in verbatim by
-// pico/channelf/emu/apply.sh; this device is only the port -- bytes go into
-// the arena, frames go over a TCP socket to fujinet-pc ($FUJINET_TCP, default
-// 127.0.0.1:9995).
+// Model of the FujiNet RP2040 Videocart. The cart firmware's fujimail.c,
+// fujibus.c, chfmap.c and the channelf_cart.h decode are compiled in by
+// pico/channelf/emu/apply.sh; frames go over TCP to fujinet-pc ($FUJINET_TCP,
+// default 127.0.0.1:9995).
 //
-// The address decode is shared too: read_rom() and write_ram() below go
-// through chf_read() and chf_write() in channelf_cart.h, the same static
-// inlines core1 compiles and the same ones test_busio.c checks. So this device
-// and the cartridge cannot disagree about which store is a register write.
-//
-// What this device does NOT model is the F8 bus. MAME's F8 core keeps one
-// internal set of PC0/PC1/DC0/DC1 and calls ROMC_xx() directly, handing a cart
-// flat reads and writes -- so every milestone that runs here could pass with a
-// completely broken ROMC state machine. That layer is covered separately, by
-// replaying golden traces from MAME's own core through chf_bus_cycle(); see
-// firmware/host_test/test_romc.c.
-//
-// One pleasant consequence of the console having a real write cycle: reads are
-// inert. There is no read that mutates mailbox state, so nothing here needs a
-// side_effects_disabled() guard on the read path, and the MAME debugger can
-// browse the whole cartridge window without disturbing a transaction.
+// MAME hands a cart flat reads and writes, so the ROMC state machine is not
+// exercised here; firmware/host_test/test_romc.c covers it.
 
 class channelf_fujinet_cartridge_device : public device_t,
 						public device_channelf_cart_interface
@@ -58,10 +40,8 @@ public:
 
 protected:
 	virtual void device_start() override ATTR_COLD;
-	// The image is loaded after device_start, so the window is built here --
-	// once: a machine reset must not reset the "cart", which on hardware never
-	// sees a reset line at all (there is no RESET pin on the connector; the
-	// cart infers one from ROMC 08 and deliberately keeps its state).
+	// The image is loaded after device_start, so the window is built here,
+	// once: the real cart has no reset line and keeps its state.
 	virtual void device_reset() override;
 
 private:

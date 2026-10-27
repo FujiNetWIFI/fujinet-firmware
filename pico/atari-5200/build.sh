@@ -1,13 +1,11 @@
 #!/usr/bin/env bash
-# build.sh -- the 6502 side: the bring-up clients, with cc65 (ca65/ld65).
-# Everything lands in build/.
+# build.sh -- build the 6502 clients into build/ with cc65 (ca65/ld65).
 #
 #   ./build.sh                    every client
 #   ./build.sh fujiboot           just one
 #   BOOT_HOST=0 BOOT_PATH=/x.a52 ./build.sh fujiboot
 #
-# Each client is build/<name>.bin: what the cart serves, and what MAME's
-# -cart takes.
+# Each client is build/<name>.bin, served by the cart and taken by MAME's -cart.
 set -euo pipefail
 cd "$(dirname "$0")"
 

@@ -1,11 +1,8 @@
 /* test_bankserve.c -- the serve model vs MAME's mappers, byte for byte.
  *
- * The GAME kinds promise exact rom_256k/rom_512k behavior. The reference
- * below is those two read handlers transcribed verbatim from MAME
- * src/devices/bus/astrocde/rom.cpp (BSD-3-Clause, (c) Fabio Priuli); the
- * model under test is the astromap serve model exactly as core1 and the
- * MAME cart device run it. A mismatch on any read, or any divergence in
- * bank state, is a failure.
+ * The reference is MAME's rom_256k/rom_512k read handlers, transcribed from
+ * src/devices/bus/astrocde/rom.cpp (BSD-3-Clause, (c) Fabio Priuli). Any read
+ * mismatch or bank-state divergence fails.
  *
  * Build: gcc -Wall -Wextra -Werror -I../include -o test_bankserve \
  *            test_bankserve.c ../src/astromap.c

@@ -78,9 +78,8 @@
 #define S100_LOADF_PHANTOM 0x01
 #define S100_LOADF_NOIMAGE 0x80 /* len is 0: no such image */
 
-/* Card info: an image carrying the magic "FNS1" anywhere gets the four bytes
- * after it rewritten as it streams: pipe base, page, console, flags, and then
- * drive 0's sectors per track (0 while unknown) for the boot loader. */
+/* Card info: an image carrying "FNS1" gets the five bytes after it rewritten as it streams:
+ * pipe base, page, console, flags, and drive 0's sectors per track (0 while unknown). */
 #define S100_INFO_MAGIC "FNS1"
 #define S100_INFO_LEN   5
 #define S100_INFOF_PHANTOM 0x01

@@ -4,8 +4,7 @@
 
  Emerson Arcadia 2001 FujiNet cartridge emulation
 
- See fujinet.h for the design; pico/arcadia/README.md in fujinet-firmware
- for the bring-up this device serves.
+ See fujinet.h.
 
  ***********************************************************************************************************/
 
@@ -17,9 +16,8 @@
 #include <algorithm>
 #include <cstring>
 
-// The cartridge firmware's own protocol sources, compiled in verbatim
-// (copied next to this file by pico/arcadia/emu/apply.sh -- as C++, to
-// live with MAME's forced C++ precompiled header, so no extern "C").
+// The firmware's own sources, copied in by apply.sh and built as C++ (MAME's forced
+// precompiled header), so no extern "C".
 #include "fuji_mailbox.h"
 #include "fujimail.h"
 #include "arcmap.h"
@@ -28,9 +26,7 @@
 
 DEFINE_DEVICE_TYPE(ARCADIA_ROM_FUJINET, arcadia_rom_fujinet_device, "arcadia_rom_fujinet", "Emerson Arcadia 2001 FujiNet Cart")
 
-// fujimail's port interface is C function pointers with no context argument,
-// so the single device instance is reached through this. One cart slot, one
-// cart: the constraint is real hardware's too.
+// fujimail's callbacks take no context argument.
 static arcadia_rom_fujinet_device *s_fujinet = nullptr;
 
 /*-------------------------------------------------
@@ -156,18 +152,15 @@ void arcadia_rom_fujinet_device::device_start()
 	std::memset(m_ff, 0xff, sizeof m_ff);
 	arcapp_reset(&m_app, m_slot[0].data(), 0, m_ff);
 
-	// No save_item for the mailbox: the protocol state lives in the shared C
-	// service's globals, which a save state cannot capture. Plain-ROM mode
-	// saves fine; a live mailbox across save/load is not supported.
+	// No save_item: the mailbox state is in the shared C globals, so a live mailbox does
+	// not survive save/load.
 }
 
 void arcadia_rom_fujinet_device::device_reset()
 {
 	arcmap_plan_t plan;
 
-	// Once only: the loaded image exists by the first reset, and later
-	// resets (F3) must leave the running mailbox alone, exactly as the real
-	// console's RESET leaves the RP2040 alone.
+	// Later resets (F3) leave the mailbox alone, as the console's RESET does the RP2040.
 	if (m_init_done)
 		return;
 	m_init_done = true;
@@ -200,10 +193,7 @@ void arcadia_rom_fujinet_device::device_reset()
 		fprintf(stderr, "fujinet: image carries no claim signature; running with the mailbox dead\n");
 }
 
-// One cartridge access, in connector terms: a14 = console address & 0x3FFF.
-// Both read_rom and extra_rom funnel here so the alias behaviour ($4000,
-// $6000) and the open-bus holes ($3000, $5000, $7000) fall out of
-// arcmap_decode rather than being special-cased.
+// a14 = console address & 0x3FFF.
 uint8_t arcadia_rom_fujinet_device::serve(unsigned a14)
 {
 	int img = arcmap_decode(a14);
@@ -211,7 +201,6 @@ uint8_t arcadia_rom_fujinet_device::serve(unsigned a14)
 	if (img < 0)
 		return 0xff;                // A12 high: chip select off, open bus
 
-	// The tick: the cartridge's timer repaints it; here it is emulated time.
 	if (m_mailbox_live && (img == FN_R_TICK_LO || img == FN_R_TICK_HI))
 	{
 		uint16_t const tick = uint16_t(machine().time().as_ticks(60));
@@ -220,10 +209,7 @@ uint8_t arcadia_rom_fujinet_device::serve(unsigned a14)
 
 	uint8_t data = arcapp_byte(&m_app, unsigned(img));
 
-	// Hotspot side effects: never for the debugger, never once the mailbox
-	// is dead. The swap, bank selects and cart RAM writes are handled here
-	// rather than in fujimail because they must happen inline in whatever
-	// serves the bus (core1 does the same).
+	// The swap, bank selects and RAM writes act inline, as on core1; never for the debugger.
 	if (!machine().side_effects_disabled() && img >= FN_H_REGSEL)
 	{
 		if (img == FN_H_REGSEL + FN_HOT_SWAP)
@@ -244,8 +230,7 @@ uint8_t arcadia_rom_fujinet_device::read_rom(offs_t offset)
 
 uint8_t arcadia_rom_fujinet_device::extra_rom(offs_t offset)
 {
-	// Installed over console $2000-$7FFF; the handler offset is relative to
-	// $2000, so rebuild the console address and let the decode sort it out.
+	// Installed over console $2000-$7FFF with offsets relative to $2000.
 	return serve((offset + 0x2000) & 0x3fff);
 }
 
@@ -254,11 +239,8 @@ void arcadia_rom_fujinet_device::poke(unsigned offset, uint8_t value)
 	if (offset == FN_R_TICK_LO || offset == FN_R_TICK_HI)
 		return;                     // the tick is time's, as on the cartridge
 	m_slot[m_live][offset & 0x1fff] = value;
-	// A staged image that claims the mailbox must receive the same
-	// publishes, or the client would boot into stale status pages. One that
-	// does not claim it keeps its bytes pristine -- and the mailbox stays
-	// live on the *current* slot until the swap actually happens, so the
-	// client still sees BOOT_READY.
+	// A staged claiming image gets the same publishes, or its client would boot into a
+	// stale status page.
 	if (m_have_staged && m_staged_claims)
 		m_slot[m_live ^ 1][offset & 0x1fff] = value;
 }
@@ -346,9 +328,7 @@ void arcadia_rom_fujinet_device::arm_swap()
 
 void arcadia_rom_fujinet_device::do_swap()
 {
-	// No repaint: the status page was carried into the staged slot when it
-	// was staged, exactly as the cartridge does it, so the protocol state
-	// (ACKSEQ against fujimail's last sequence) stays one piece.
+	// No repaint: the status page was carried over at staging.
 	m_live ^= 1;
 	arcapp_reset(&m_app, m_slot[m_live].data(), m_npages[m_live], m_ff);
 	m_swap_armed = false;

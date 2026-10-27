@@ -1,16 +1,12 @@
 #!/bin/bash
-# Assemble the stub BIOS and a cart image with Macroassembler AS (run under wine
-# from ~/Workspace/o2workspace/bin until AS is built natively).
+# Assemble the stub BIOS and cart images with Macroassembler AS.
 set -e
 AS_BIN="${AS_BIN:-$HOME/Workspace/o2workspace/bin}"
 OUT="${OUT:-$PWD/build}"
 mkdir -p "$OUT"
 
-# Macroassembler AS. A native install (Debian/Ubuntu package "asl") is preferred;
-# otherwise fall back to the Windows binaries under $AS_BIN through wine, which
-# is how o2workspace ships them. NOTE: only the wine path is exercised on the
-# author's machine -- AS is not packaged for Arch -- so the native path is first
-# proved by CI.
+# Prefer a native AS (Debian/Ubuntu package "asl"), else the Windows binaries
+# under $AS_BIN through wine.
 if command -v asl >/dev/null 2>&1; then
   AS=asl; P2BIN=p2bin
 elif command -v asw >/dev/null 2>&1; then
@@ -27,8 +23,7 @@ cp emu/stubbios.a48 "$OUT/"
 run_as -q -L stubbios.a48
 run_p2bin stubbios.p stubbios.bin -r 0x0-0x3FF -l 0
 
-# Boot target for fujiboot, overridable so the same cart can be pointed at a
-# local file for byte-for-byte validation of the push path:
+# Boot target for fujiboot; point it at a local file to validate the push path:
 #   BOOT_HOST=0 BOOT_PATH=/fujitest.bin ./build.sh fujiboot
 BOOT_HOST="${BOOT_HOST:-2}"
 BOOT_PATH="${BOOT_PATH:-/K.C. Munchkin (USA).bin}"

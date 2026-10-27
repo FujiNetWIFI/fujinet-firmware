@@ -1,8 +1,4 @@
-/* test_fujicart.c -- the two image slots: a push lands in the slot core1 is
- * not serving, staging a claiming image carries the status page over, the
- * swap serves the staged slot from page 0, and the next push goes back to
- * the slot the swap left.
- */
+/* test_fujicart.c -- the two image slots, staging and the swap. */
 
 #include <assert.h>
 #include <stdio.h>
@@ -24,7 +20,6 @@ static arcmap_plan_t claimed(uint32_t size, uint8_t fill)
     return plan;
 }
 
-/* What the console would read at image offset img. */
 static uint8_t served(unsigned img)
 {
     return arcapp_byte(&fuji_app, img);
@@ -61,7 +56,6 @@ int main(void)
     assert(memcmp(live_before, fuji_slot[0], sizeof live_before) == 0);
     assert(fuji_have_staged && fuji_staged_claims);
     assert(fuji_slot_npages[1] == 3);
-    /* Carried: the version and ACKSEQ the cart's protocol state holds. */
     assert(fuji_slot[1][FN_R_MAGIC0] == 'F' && fuji_slot[1][FN_R_MAGIC1] == 'N');
     assert(fuji_slot[1][FN_R_PROTO_VER] == FN_PROTO_VER);
     assert(fuji_slot[1][FN_R_ACKSEQ] == 37);

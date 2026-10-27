@@ -4,9 +4,6 @@
 
  Fairchild Channel F FujiNet Videocart emulation
 
- See fujinet.h for the design; pico/channelf/README.md in fujinet-firmware for
- the bring-up this device serves.
-
  ***********************************************************************************************************/
 
 #include "emu.h"
@@ -18,9 +15,8 @@
 #include <cstring>
 #include <utility>
 
-// The cartridge firmware's own protocol sources, compiled in verbatim (copied
-// next to this file by pico/channelf/emu/apply.sh -- as C++, to live with
-// MAME's forced C++ precompiled header, so no extern "C").
+// The cart firmware's sources, copied in by apply.sh and compiled as C++ for
+// MAME's forced precompiled header, so no extern "C".
 #include "fuji_mailbox.h"
 #include "fujimail.h"
 #include "chfmap.h"
@@ -28,9 +24,7 @@
 
 DEFINE_DEVICE_TYPE(CHANF_ROM_FUJINET, channelf_fujinet_cartridge_device, "chanf_fujinet", "Channel F FujiNet Videocart")
 
-// fujimail's port interface is C function pointers with no context argument,
-// so the single device instance is reached through this. One cart slot, one
-// cart: the constraint is real hardware's too.
+// fujimail's port callbacks take no context argument.
 static channelf_fujinet_cartridge_device *s_fujinet = nullptr;
 
 /*-------------------------------------------------
@@ -161,13 +155,11 @@ void channelf_fujinet_cartridge_device::device_start()
 	m_mem.ram_size = sizeof m_arena;
 	m_mem.mailbox = false;          // until an image claims it
 
-	// No save_item for the mailbox: the protocol state lives in the shared C
-	// service's globals, which a save state cannot capture. Plain-Videocart
-	// mode saves fine; a live mailbox across save/load is not supported.
+	// No save_item: the protocol state is in fujimail's globals, so a live
+	// mailbox does not survive save/load.
 }
 
-// Serve m_live: its first 16K at $0800, and APPBANK page 0 at $4800 if it has
-// pages. Called at load and after every swap, so a swap always maps page 0.
+// Called at load and after every swap, so a swap always maps page 0.
 void channelf_fujinet_cartridge_device::set_image()
 {
 	m_mem.rom = m_live.data();
@@ -177,10 +169,8 @@ void channelf_fujinet_cartridge_device::set_image()
 	m_mem.bank = m_mem.pages;
 }
 
-// The arena always answers; only the DECODE comes and goes. See chf_mem_t:
-// the swap stub executes out of the arena, and this console has no RAM of its
-// own to put it in, so tearing the arena down at swap time would kill the
-// instruction stream that triggered the swap.
+// The arena always answers, since the swap stub runs from it; only the
+// mailbox decode comes and goes.
 void channelf_fujinet_cartridge_device::set_mailbox(bool live)
 {
 	m_mailbox_live = live;
@@ -192,10 +182,7 @@ void channelf_fujinet_cartridge_device::device_reset()
 {
 	chfmap_plan_t plan;
 
-	// Once only: the loaded image exists by the first reset, and later resets
-	// (F3) must leave the running mailbox alone. On this console that is more
-	// than a convention -- the connector has no RESET pin at all, so the cart
-	// cannot be reset by the console even in principle.
+	// Once only: later resets (F3) must leave the running mailbox alone.
 	if (m_init_done)
 		return;
 	m_init_done = true;
@@ -231,14 +218,11 @@ void channelf_fujinet_cartridge_device::device_reset()
 
 uint8_t channelf_fujinet_cartridge_device::read_rom(offs_t offset)
 {
-	// The driver maps $0800-$FFFF here, so the console address is offset plus
-	// the cart base. No side_effects_disabled() guard: on this console every
-	// mailbox page is write-only and a read of one is inert, so the debugger
-	// cannot disturb a transaction by looking at it.
+	// The driver maps $0800-$FFFF here. Reads have no side effects, so no
+	// side_effects_disabled() guard.
 	uint16_t const a = uint16_t(offset + FN_ROM_BASE);
 
-	// The tick. The cart paints it from a timer; here it is emulated time,
-	// read on demand, which is the same thing as far as the F8 can tell.
+	// The cart paints the tick from a timer; here it is emulated time.
 	if (m_mailbox_live && (a == FN_ARENA_BASE + FN_R_TICK_LO || a == FN_ARENA_BASE + FN_R_TICK_HI))
 	{
 		uint16_t const t = uint16_t(machine().time().as_ticks(60));
@@ -258,8 +242,7 @@ void channelf_fujinet_cartridge_device::write_ram(offs_t offset, uint8_t data)
 	switch (ev)
 	{
 	case CHF_EV_REG:
-		// One store is a whole register write; the cart synthesises the
-		// REGSEL/REGDATA pair the shared decoder expects.
+		// Expand into the REGSEL/REGDATA pair fujimail decodes.
 		fujimail_read_hotspot(uint16_t(FN_H_REGSEL + reg));
 		fujimail_read_hotspot(uint16_t(FN_H_REGDATA + val));
 		break;
@@ -269,9 +252,7 @@ void channelf_fujinet_cartridge_device::write_ram(offs_t offset, uint8_t data)
 		break;
 
 	case CHF_EV_SWAP:
-		// Handled here rather than in fujimail because the swap must happen
-		// inline in whatever serves the bus -- the RP2040 does it in core1's
-		// loop for the same reason.
+		// The swap must happen inline in whatever serves the bus.
 		if (m_swap_armed)
 			do_swap();
 		break;
@@ -291,10 +272,6 @@ void channelf_fujinet_cartridge_device::poke(unsigned offset, uint8_t value)
 {
 	if (offset < sizeof m_arena)
 		m_arena[offset] = value;
-	// Unlike the ColecoVision there is nothing to mirror into a staged image:
-	// the arena is a separate buffer from the ROM window, so it survives a swap
-	// intact and a staged client boots into the status pages it was already
-	// watching.
 }
 
 uint8_t channelf_fujinet_cartridge_device::stream_open(int stream, uint32_t size)
@@ -343,8 +320,7 @@ uint8_t channelf_fujinet_cartridge_device::stream_close(int stream, uint32_t got
 
 	if (stream != FN_STREAM_ROM)
 	{
-		// The .cfg sibling. The ColecoVision needs it to disambiguate mappers;
-		// the Channel F has none to disambiguate, so it is accepted and dropped.
+		// The .cfg sibling: no mappers here, so it is dropped.
 		v.clear();
 		return 0;
 	}

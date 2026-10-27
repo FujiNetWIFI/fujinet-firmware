@@ -4,19 +4,16 @@
     pokeycmp.py [--mame build/wav/mame.wav]
     pokeycmp.py --game "/tmp/atari7800/Ballblazer (USA).bin"
 
-Plays testrom/pokeytest's step table through tools/pokeyrender.c (the cart's
-own pokey.c) and compares each half-second step with MAME's recording of the
-same client on the FujiNet cart (its POKEY at $0450, the TIA silent): the
-dominant pitch must agree within 2%, and the step's loudness relative to the
-first step within 25% (50% with a high-pass filter on). Noise steps compare
-spectral centroids instead.
-Records MAME first if the WAV is missing.
+Renders testrom/pokeytest's step table through tools/pokeyrender.c and
+compares each half-second step with MAME's recording of the same client
+(recorded first if the WAV is missing): dominant pitch within 2%, loudness
+relative to the first step within 25% (50% with a high-pass filter on); noise
+steps compare spectral centroids instead.
 
---game logs a POKEY game's register writes in MAME (emu/pokeylog.lua) and
-renders them the same way, then compares 100 ms windows with MAME's recording
-of the game from the first one our POKEY sounds in (the TIA may play before
-it): the loudness envelopes must correlate at 0.9 or better, and the median
-band-spectrum similarity must be 0.9 or better.
+--game logs a POKEY game's register writes in MAME (emu/pokeylog.lua), renders
+them the same way and compares 100 ms windows from the first one our POKEY
+sounds in (the TIA may play before it): loudness envelopes must correlate at
+0.9 or better, and the median band-spectrum similarity must be 0.9 or better.
 """
 
 import argparse

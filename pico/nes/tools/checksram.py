@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
-"""checksram.py -- core1 and everything it calls must live in SRAM.
-
-The firmware runs copy_to_ram, so this should never fail; it is here so a
-CMake change that drops that (or a stray section attribute) is caught at
-build time rather than as a missed bus cycle.
+"""checksram.py -- fail the build if core1's code is not in SRAM (a missed
+bus cycle otherwise).
 
 Usage: checksram.py fujines.elf
 """

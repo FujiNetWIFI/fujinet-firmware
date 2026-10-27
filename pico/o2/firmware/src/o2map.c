@@ -17,8 +17,7 @@ bool o2map_is_appbank(const uint8_t *image, uint32_t size)
     hdr = image + O2_APP_FIXED_BYTES + (O2_APP_HDR - O2_APP_PAGE_BASE);
     claim = image + O2_APP_FIXED_BYTES + (FN_R_CLAIM - O2_APP_PAGE_BASE);
 
-    /* The header's page count has to agree with the file: a truncated or
-     * padded image is refused rather than booted with pages missing. */
+    /* A header page count that disagrees with the file size is refused. */
     return memcmp(hdr, O2_APP_HDR_SIG, 4) == 0
         && hdr[4] == O2_APP_VERSION
         && hdr[5] == npages
@@ -34,9 +33,8 @@ o2map_err_t o2map_plan(const uint8_t *image, uint32_t size, o2map_plan_t *out)
     if (size == 0 || (size % 1024) != 0)
         return O2MAP_ENOTCART;
 
-    /* Protocol 2 first: an APPBANK image says so in page 0, so no legacy size
-     * that happens to match (9K is also three 3K banks) can be mistaken for
-     * one, nor one for a legacy cart. */
+    /* APPBANK first: it is identified by page 0's header, not by size (9K is
+     * also three 3K banks). */
     if (image != NULL && o2map_is_appbank(image, size)) {
         unsigned npages = (size - O2_APP_FIXED_BYTES) / O2_APP_PAGE_BYTES;
 
@@ -49,9 +47,8 @@ o2map_err_t o2map_plan(const uint8_t *image, uint32_t size, o2map_plan_t *out)
         return O2MAP_OK;
     }
 
-    /* 3K banks use A10, which IS on the connector (pin 10); the classic 2K
-     * carts simply leave it unconnected. Test for 3K first: 6144 is divisible
-     * by both, and a 6K image is two 3K banks, not three 2K ones. */
+    /* 3K banks use A10 (connector pin 10), which 2K carts leave unconnected.
+     * Test 3K first: a 6K image is two 3K banks, not three 2K ones. */
     if ((size % 3072) == 0) {
         bank_bytes = 3072;
         nbanks = size / 3072;
@@ -69,12 +66,9 @@ o2map_err_t o2map_plan(const uint8_t *image, uint32_t size, o2map_plan_t *out)
     out->nbanks = nbanks;
     out->bank_bytes = bank_bytes;
 
-    /* The mailbox lives at $F20-$FFF of the program window. A 3K bank reaches
-     * $FFF outright; a 2K bank stops at $BFF but the missing A10 mirrors
-     * $800-$BFF into $C00-$FFF, so it lands there too. Either way the image
-     * owns the page unless it says otherwise, which is why booting a game
-     * disables the mailbox for the session rather than refusing the boot --
-     * the same call the Intellivision cart makes with cart.MailboxActive. */
+    /* The mailbox at $F20-$FFF is image space in both layouts (a 2K bank
+     * mirrors into $C00-$FFF via the missing A10), so it is the image's unless
+     * the image claims it. */
     out->mailbox_ok = image != NULL && o2map_claims_mailbox(image, out);
 
     return O2MAP_OK;
@@ -84,9 +78,8 @@ bool o2map_claims_mailbox(const uint8_t *image, const o2map_plan_t *plan)
 {
     unsigned off = FN_R_CLAIM - O2MAP_CART_BASE;
 
-    /* Bank 0 is the boot bank and holds the LAST chunk of the file. In a 2K
-     * bank $F2C is not in the image at all: it is the missing-A10 reflection of
-     * $B2C, one 1K page lower, so look where the image actually keeps it. */
+    /* Bank 0 holds the file's last chunk. In a 2K bank $F2C is the A10 mirror
+     * of $B2C, 1K lower. */
     if (off >= plan->bank_bytes)
         off -= 1024;
 
@@ -97,11 +90,8 @@ bool o2map_claims_mailbox(const uint8_t *image, const o2map_plan_t *plan)
 
 unsigned o2map_file_chunk(const o2map_plan_t *plan, unsigned bank)
 {
-    /* Banks are stored in REVERSE file order. Bank select is the inverted
-     * P10/P11 pair, so both high at reset selects bank 0, which has to be the
-     * boot bank -- and that is the LAST chunk of the file. Loading forward
-     * boots a cart into the middle of its own data, which looks like a hang
-     * rather than like a mapping bug. */
+    /* Reverse file order: bank select is inverted P10/P11, so both high at
+     * reset selects bank 0, which must be the file's last (boot) chunk. */
     if (bank >= plan->nbanks)
         bank = plan->nbanks - 1;
     return plan->nbanks - 1 - bank;

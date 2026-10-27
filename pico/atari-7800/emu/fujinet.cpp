@@ -4,9 +4,6 @@
 
  Atari 7800 FujiNet cartridge emulation
 
- See fujinet.h for the design; pico/atari-7800/README.md in fujinet-firmware
- for the bring-up this device serves.
-
  ***********************************************************************************************************/
 
 #include "emu.h"

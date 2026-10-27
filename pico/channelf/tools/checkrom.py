@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 """Enforce the Channel F cart layout on a built image.
 
-The console BIOS compares the byte at $0800 against $55 and, only if it
-matches, jumps to $0802 (verified by disassembling sl31253/sl31254, not from
-documentation). An image that fails that check silently boots the BIOS's
-built-in Hockey instead of the cart, which looks like a dead cartridge.
+The BIOS jumps to $0802 only if $0800 holds $55 (from disassembling
+sl31253/sl31254); otherwise it runs its built-in Hockey.
 """
 import sys
 
@@ -40,11 +38,8 @@ def main(argv):
         if len(img) != want:
             errs.append("image is %d bytes, expected %d" % (len(img), want))
 
-    # A FujiNet client declares itself by carrying "FUJI" at the top of the 16K
-    # window. Only an exactly-16K image reaches that offset, which is what keeps
-    # a commercial Videocart from claiming the mailbox by accident -- and what
-    # makes a client that is short, or that forgot the ORG, fail here instead of
-    # silently booting with the mailbox dead.
+    # A short client, or one that forgot the ORG, would otherwise boot with the
+    # mailbox dead.
     if "--claim" in flags:
         if len(img) != ROM_SIZE:
             errs.append("a client image must be exactly %d bytes, got %d"
@@ -54,10 +49,8 @@ def main(argv):
                         "dead at boot" % (CLAIM.decode(), ROM_BASE + CLAIM_OFF,
                                           bytes(img[CLAIM_OFF:CLAIM_OFF + 4])))
 
-    # A banked client (APPBANK) is the same 16K, claim and all, followed by
-    # whole 8K pages. Anything ragged is refused by the cart with TOOBIG, and
-    # a banked image without the claim with NOMAP -- both only at boot, on the
-    # console, so catch them here.
+    # The cart refuses a ragged banked image (TOOBIG) or one without the claim
+    # (NOMAP) only at boot, so catch them here.
     if "--banked" in flags:
         extra = len(img) - ROM_SIZE
         if extra <= 0 or extra % PAGE or extra // PAGE > MAX_PAGES:

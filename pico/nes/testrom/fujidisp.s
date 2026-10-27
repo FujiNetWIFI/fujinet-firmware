@@ -1,10 +1,7 @@
 ; fujidisp.s -- text on the NES for the bring-up clients: an 8x8 font uploaded
 ; into CHR-RAM, and writes straight into the nametable while rendering is off.
 ;
-; Tile number = ASCII code, so a string is written by storing its bytes to
-; PPU_DATA after one PPU_ADDR set. All of this runs with the screen off; a
-; client turns it on with disp_on once the text is in place. (CONFIG proper
-; will buffer updates for vblank; the bring-up clients do not need to.)
+; Tile number = ASCII code. Runs with the screen off; disp_on turns it on.
 
         .include "fujinet.inc"
 
@@ -16,7 +13,7 @@
 ; disp_init -- font into CHR $0000-$07FF, palette, cleared nametable.
 ; Rendering must already be off and the PPU warmed up.
 .proc disp_init
-        ; palette: black background, white text (colour 1)
+        ; palette: black background, white text (color 1)
         lda     #$3F
         sta     PPU_ADDR
         lda     #$00
@@ -77,7 +74,7 @@ clr:    sta     PPU_DATA
         iny
         bne     clr
         dex
-        bne     clr             ; 1024 bytes: 960 tiles + 64 attributes (' ' = %00100000, palette 0 everywhere)
+        bne     clr             ; 960 tiles + 64 attributes; the palettes are all alike
         rts
 .endproc
 
@@ -145,9 +142,7 @@ loop:   lda     (FN_PTR),y
 done:   rts
 .endproc
 
-; disp_rpl -- up to Y bytes of the reply window from offset X, stopping at
-; NUL. Zero-copy: the bytes go from the cart's window to the PPU without
-; touching console RAM.
+; disp_rpl -- up to Y bytes of the reply window from offset X, stopping at NUL.
 .proc disp_rpl
 loop:   lda     FN_RPLY,x
         beq     done

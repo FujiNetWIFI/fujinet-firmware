@@ -3,15 +3,10 @@
 #
 # Usage: ./apply.sh /path/to/mame
 #
-# Copies the device model (fujinet.cpp/h, common's fujitcp.c/h) and the cartridge
-# firmware's own protocol sources (fujimail, fujibus, astromap, and their
-# headers -- MAME then runs the code the cartridge actually ships) into
-# src/devices/bus/astrocde/, and makes the only two shared-file edits:
-# the bus.lua file list and the cart-slot option in astrohome.cpp.
-# Idempotent: run it again after editing any source here.
-#
-# Afterwards: make -C /path/to/mame -j$(nproc) REGENIE=1 SUBTARGET=... as
-# usual (REGENIE=1 whenever apply.sh says bus.lua changed).
+# Copies the device model and the firmware's own protocol sources into
+# src/devices/bus/astrocde/, and edits bus.lua and astrohome.cpp.
+# Idempotent: rerun after editing any source here, then rebuild MAME with
+# REGENIE=1 whenever apply.sh says bus.lua changed.
 
 set -euo pipefail
 cd "$(dirname "$0")"

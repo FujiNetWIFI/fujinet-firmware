@@ -34,8 +34,7 @@ arcmap_err_t arcmap_plan(const uint8_t *image, uint32_t size,
         && memcmp(image + FN_R_CLAIM, FN_R_CLAIM_SIG, FN_R_CLAIM_LEN) == 0;
     plan->npages = 0;
     if (size > ARCMAP_WINDOW) {
-        /* A banked image only means something to a client that keeps the
-         * mailbox: without it nothing could ever select a page. */
+        /* Without the mailbox nothing could select a page. */
         if (!plan->mailbox_ok)
             return ARCMAP_ENOCLAIM;
         plan->npages = (uint8_t)(1 + (size - ARCMAP_WINDOW) / ARCMAP_PAGE);

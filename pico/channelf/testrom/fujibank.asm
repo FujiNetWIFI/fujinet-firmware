@@ -1,5 +1,5 @@
 ; ---------------------------------------------------------------------------
-; fujibank.asm -- M8: APPBANK pages and the tick, on screen.
+; fujibank.asm -- APPBANK pages and the tick, on screen.
 ;
 ; A banked image: the usual 16K, then two 8K pages. It selects each page with
 ; one store to $FD80+n, reads the page's id byte back through the window at

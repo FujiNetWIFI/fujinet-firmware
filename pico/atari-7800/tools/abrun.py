@@ -68,7 +68,7 @@ def digest(path):
 
 
 def blank(path):
-    # a PNG of one colour compresses to almost nothing
+    # a PNG of one color compresses to almost nothing
     return os.path.getsize(path) < 400
 
 

@@ -7,8 +7,8 @@
  * apply at the synth's current time, so their timing is good to one buffer
  * (8 ms), which is what a music driver running once a frame needs.
  *
- * PROVISIONAL until a scope says otherwise: the output level against the
- * TIA's on the edge's audio input, hence the full-scale constant below.
+ * Unmeasured: the output level against the TIA's on the edge's audio input,
+ * hence the full-scale constant below.
  */
 
 #include <string.h>

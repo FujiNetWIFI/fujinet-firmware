@@ -1,14 +1,12 @@
 ; fujiboot.asm -- mount a cartridge image over the network and boot it.
 ;
-; Milestone 2: MOUNT_HOST -> SET_DEVICE_FULLPATH -> MOUNT_IMAGE. The last
-; one makes the ESP32 side stream the image back to the cartridge on the
-; same link, addressed to the DBC device, while MOUNT_IMAGE's own reply is
-; still outstanding; the cartridge stages it and reports BOOT_STATE.
+; MOUNT_HOST -> SET_DEVICE_FULLPATH -> MOUNT_IMAGE. During MOUNT_IMAGE the
+; ESP32 streams the image to the DBC device on the same link; the cart
+; stages it and reports BOOT_STATE.
 ;
-; The boot itself: arm the swap (BOOTLOCK), run a stub from screen RAM that
-; reads the FN_HOT_SWAP hotspot -- the cart flips to the staged image
-; between that read and the next -- then JP 0. The OS cold-starts, walks the
-; new image's 0x55 sentinel, and the game is on the onboard menu.
+; Boot: arm the swap (BOOTLOCK), run a stub from screen RAM that reads the
+; FN_HOT_SWAP hotspot, then JP 0. The OS cold-starts and finds the new
+; image's sentinel on the onboard menu.
 ;
 ; The target host slot and path are baked in by build.sh:
 ;   BOOT_HOST=0 BOOT_PATH=/game.bin ./build.sh fujiboot
@@ -79,8 +77,8 @@ PRGSTR: DI
         JP      NZ,FAILN
 
 ; ---- SET_DEVICE_FULLPATH(dev, host, mode, path) ------------------------
-; The payload must be the full 256 bytes NUL-padded: the firmware reads it
-; into a fixed buffer and fails a short read (the o2 client's lesson).
+; The payload must be the full 256 bytes NUL-padded: the firmware fails a
+; short read.
         LD      A,FNDFUJI
         LD      E,FCSDFP
         LD      L,3
@@ -155,9 +153,8 @@ READY:  SYSSUK  STRDIS
         DB      OPTFB
         DW      BOOTING
 
-; Arm the swap, then run the stub from screen RAM: the swap replaces every
-; byte of this window, so nothing may execute from the cart past the
-; hotspot read.
+; The swap replaces every byte of this window, so the stub runs from screen
+; RAM.
         LD      C,FRBOOTL
         LD      A,FNBLMAG
         CALL    FNREGWR

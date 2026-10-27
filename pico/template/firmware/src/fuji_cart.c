@@ -27,11 +27,8 @@ bool fuji_cart_next_read(uint16_t *offset)
     return true;
 }
 
-/* Publish one mailbox byte. core0 writes the live served buffer directly
- * (fuji_serve_base -- stable across the write; core1 only ever repoints it,
- * once, on the swap), and also the staged copy while one is pending and
- * claims the mailbox, so a client that boots a claiming image never sees a
- * stale status page. */
+/* Into the live buffer (core1 repoints it only once, at the swap) and into a
+ * pending staged image that claims the mailbox, so it boots with a fresh page. */
 void fuji_cart_poke(unsigned offset, uint8_t value)
 {
     if (!fuji_mailbox_active)
@@ -41,10 +38,8 @@ void fuji_cart_poke(unsigned offset, uint8_t value)
         fuji_staged[offset & (TMPLMAP_WINDOW - 1)] = value;
 }
 
-/* Take a committed image and lay it into the staging window. Arming is
- * separate and client-driven (FN_REG_BOOTLOCK): a stray can never swap what
- * was never armed, and nothing under the running client is touched -- the
- * swap only repoints fuji_serve_base, on core1, at the client's own read. */
+/* Arming is separate and client-driven (FN_REG_BOOTLOCK), so a stray read
+ * cannot swap an unarmed image. */
 void fuji_cart_stage(const uint8_t *image, const tmplmap_plan_t *plan)
 {
     tmplmap_apply(image, plan, fuji_staged);

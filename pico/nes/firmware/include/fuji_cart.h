@@ -1,17 +1,7 @@
-/* fuji_cart.h -- the cartridge-side state: what core1 serves, what core0
- * drives, and the ring between them.
- *
- * core1 records every mailbox-page write into a ring and returns to the bus;
- * core0 drains the ring into fujimail.c. Mapper writes core1 applies itself,
- * because the PIO bank table has to be patched before the next fetch; only
- * the slow consequences (mirroring, write gates, the MMC3 interrupt
- * registers) cross to core0.
- *
- * The image never lives here. It is staged in fuji_store (RAM or flash) and
- * the 6502 copies it into the external SRAMs through the loader ROM, one 1K
- * slice at a time through the reply window; fuji_cart_service() runs that
- * sequence.
- */
+/* fuji_cart.h -- cartridge state shared by core1 (bus) and core0, and the
+ * event ring between them. core1 applies mapper writes itself, since the bank
+ * table must be patched before the next fetch; mirroring, write gates and the
+ * MMC3 IRQ registers go to core0. */
 
 #ifndef FUJI_CART_H
 #define FUJI_CART_H
@@ -45,8 +35,7 @@ extern volatile bool fuji_boot_armed;
 extern volatile bool fuji_have_staged;
 extern volatile uint8_t fuji_slow_dirty;       /* core1 -> core0: mirror/gates changed */
 
-/* core1: record one event. Inlined into the bus loop, so it stays a compare
- * and a few stores. */
+/* core1, inlined into the bus loop. */
 static inline void fuji_cart_note(uint16_t offset, uint8_t data, uint8_t kind, uint32_t cycle)
 {
     uint16_t head = fuji_ring.head;

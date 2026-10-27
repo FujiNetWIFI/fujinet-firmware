@@ -1,26 +1,11 @@
-/* nes_cart.h -- the NES cartridge bus as seen from the RP2354B.
+/* nes_cart.h -- the NES cartridge bus as seen from the RP2354B. The cart serves
+ * $5000-$7FFF and, while SRAM_EN is off, $FF00-$FFFF; it watches every write
+ * for the mailbox and the mapper. PRG and CHR are SRAMs the console addresses
+ * itself. The decode is inline so core1, MAME and the host tests share it.
  *
- * The cart does three jobs on the CPU bus and none on the PPU bus:
- *
- *   1. Serve $5000-$5FFF (the mailbox arena + the loader ROM), $6000-$7FFF
- *      (WRAM) and, while SRAM_EN is off, $FF00-$FFFF (the power-on vectors)
- *      out of its own memory. That is the family's 350 ns loop, and it is
- *      the ONLY software in any data path.
- *   2. Watch every write. Mailbox hotspot writes go to core0 through a ring;
- *      mapper register writes are applied inline and patch the PIO bank
- *      tables before the next fetch.
- *   3. Nothing else. PRG and CHR are external SRAMs the console addresses
- *      itself; PPU A10-A12 and CPU A13-A14 feed the PIO tables directly.
- *
- * The decode lives here as static inline so core1, the MAME device and the
- * host tests share one implementation (the ColecoVision pattern).
- *
- * Timing facts (nesdev "Cartridge connector", not to be re-derived): NTSC M2
- * is high 350 ns and low 209 ns of a 559 ns cycle; the address is guaranteed
- * stable only while M2 is high; write data is valid at M2's falling edge.
- * PROVISIONAL until a scope says otherwise: how long write data holds after
- * M2 falls, hence the last-sample-while-high model below.
- */
+ * NTSC M2 is high 350 ns, low 209 ns; the address is stable only while M2 is
+ * high; write data is valid at M2's fall (nesdev "Cartridge connector"). How
+ * long it holds after is unmeasured, hence the last sample while high. */
 #ifndef NES_CART_H
 #define NES_CART_H
 
@@ -31,10 +16,8 @@
 #include "fuji_mailbox.h"
 
 /* --------------------------------------------------------------------------
- * GPIO map: RP2354B, 48 of 48. Everything core1 reads is in GPIO 0-31 so one
- * SIO read covers the bus; everything PIO0/PIO1 touch is in 16-47 (GPIOBASE
- * 16). The RP sits on the 5 V bus directly -- the pads are 5 V-tolerant when
- * powered -- so there are no buffers to sequence.
+ * GPIO map: everything core1 reads is in GPIO 0-31 (one SIO read); everything
+ * PIO0/PIO1 touch is in 16-47 (GPIOBASE 16).
  * -------------------------------------------------------------------------- */
 #define CA0_PIN      0u     /* CPU A0-A12 on GP0-GP12                       */
 #define CD0_PIN      13u    /* CPU D0-D7 on GP13-GP20, bidirectional        */
@@ -127,9 +110,8 @@ static inline nes_region_t nes_region_from_addr(uint16_t a)
     return NES_R_NONE;
 }
 
-/* What core1 answers with. Every pointer is SRAM-resident on the cart. On
- * the cart the instance is volatile: core0 changes one field at a time and
- * core1 reads them every cycle; the pointers are set once at init. */
+/* What core1 answers with. core0 changes one field at a time; the pointers
+ * are set once at init. */
 typedef struct {
     const uint8_t *arena;     /* FN_ARENA_SIZE: reply, status, (hotspots), loader */
     uint8_t *wram;            /* NESMAP_WRAM_MAX, or NULL                   */
@@ -210,7 +192,7 @@ typedef struct {
 #define NES_EV_MAILBOX 0      /* a hotspot write, for fujimail              */
 #define NES_EV_MAPPER  1      /* a mapper write core1 forwards to core0 (MMC3 IRQ regs) */
 
-/* core1's entry point; SRAM-resident, see nes_cart.c. */
+/* core1's entry point; SRAM-resident. */
 void nes_core1_main(void);
 
 #endif /* NES_CART_H */

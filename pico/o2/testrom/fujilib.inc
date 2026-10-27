@@ -2,20 +2,13 @@
 ;
 ; Include after the cart's own code.
 ;
-; ALL CODE MUST STAY BELOW $800. CALL and JMP carry only 11 address bits; the
-; twelfth comes from the MB flag, and the assembler emits SEL MB0/MB1 on the
-; assumption that MB tracks the PC's own A11. That assumption breaks the moment
-; a routine above $7FF calls one below it: the callee's SEL MB0 persists after
-; it returns, and the next call from the high routine silently lands 2K lower --
-; in the console BIOS. Keeping every callable routine in the low bank removes
-; the hazard entirely. Only data lives high ($D00 strings, $E00 character map,
-; $F00 mailbox read stub), reached through explicit sel mb1/sel mb0 wrappers.
+; ALL CODE MUST STAY BELOW $800. CALL and JMP carry 11 address bits and A11
+; comes from MB: a callee's SEL MB0 outlives its return, so a later call from a
+; routine above $7FF lands 2K lower, in the BIOS. Only data lives high ($D00
+; strings, $E00 character map, $F00 mailbox stub), reached via sel mb1/mb0.
 ;
-; The include starts at a FIXED address ($4D0) in every cart. Conditional jumps
-; are page-relative, so whether a given routine straddles a 256-byte boundary
-; depends on where the include happens to land -- letting that vary with the
-; size of each cart's main body means a layout fix for one cart breaks another.
-; Each cart therefore pads its main body out to $4D0 before including this.
+; Starts at a fixed $4D0 in every cart, since conditional jumps are
+; page-relative; each cart pads its main body out to $4D0 first.
 ;
 ; Register convention across these helpers:
 ;   r0  MOVX address / VDC register walker
@@ -30,9 +23,8 @@
 
     org 4D0h
 
-; vdc_init: blank the display and clear the power-on garbage. The quad
-; registers matter as much as the singles and sprites -- leaving them shows
-; up as bars in the top-left.
+; vdc_init: blank the display and clear power-on garbage. Uncleared quad
+; registers show as bars in the top-left.
 vdc_init:
     mov a,#P1_SEL_VDC
     outl p1,a
@@ -75,8 +67,7 @@ fn_reg:
     ret
 
 ; fn_push: append A to the TX byte stream. P1 = P1_SEL_XRAM.
-; Runs in register bank 1 so it cannot disturb a caller that is walking a
-; buffer with r0 -- which is exactly what every payload loop does.
+; Register bank 1, so a caller walking a buffer with r0 is undisturbed.
 fn_push:
     sel rb1
     mov r0,#FN_W_DATA
@@ -102,8 +93,7 @@ fn_read:
     ret
 
 ; fn_begin: start a request. A = command, r2 = nparam, r3 = TXLEN_HI.
-; TXLEN_LO is always 0 -- the only payload any of these commands carries is
-; the 256-byte NUL-padded path.
+; TXLEN_LO is always 0: the only payload is the 256-byte NUL-padded path.
 fn_begin:
     mov r4,a
     clr a
@@ -128,12 +118,7 @@ fn_begin:
 
 ; fn_fire: launch the transaction and wait for it.
 ; Returns A = the reply command (FUJICMD_ACK / _NAK), or 0 on timeout.
-;
-; The sequence number comes from the CART's persisted ACKSEQ, never from a
-; local counter: a console RESET restarts this program but not the cartridge,
-; so a local counter would recompute a value the cart has already acked and no
-; further request would ever be sent -- while the screen kept showing the
-; previous reply. Sequence 0 is reserved.
+; SEQ is ACKSEQ + 1, never a local counter (see fuji_mailbox.h); 0 is reserved.
 fn_fire:
     mov a,#FN_R_ACKSEQ&0FFh
     call fn_read
@@ -162,11 +147,7 @@ ffok:
 ; Switches the published slice when the offset crosses 128 and remembers which
 ; slice is live, so a sequential walk costs one mailbox write per 128 bytes.
 ; P1 = P1_SEL_XRAM on entry (it may have to write FN_REG_RXSLICE).
-;
-; The reply window is 128 bytes at $F80 precisely so this is shift-and-mask
-; work: an 8048 doing a divide by 208 to find a slice would be silly.
-; Bank 1 throughout, for the same reason as fn_push: callers walk a destination
-; buffer with r0 and a source offset with r1 across this call.
+; Bank 1 throughout: callers hold a destination in r0 and an offset in r1.
 fn_rx:
     sel rb1
     mov r4,a
@@ -220,11 +201,8 @@ show_char:
     ret
 
 ; show_quad: draw the 4 bytes at V_STAT as one quad-character group on row QY.
-;
-; One group, not four: quad characters are spaced at DOUBLE pitch, 16 pixels
-; apart rather than 8 (o2em's draw_quad advances `off += 16` on top of the 16
-; buffer units the glyph itself consumes). Four groups of four would want 256
-; pixels on a 160-pixel screen. P1 = P1_SEL_VDC.
+; One group only: quad characters are 16 pixels apart, so four groups would
+; need 256 pixels on a 160-pixel screen. P1 = P1_SEL_VDC.
 show_quad:
     mov r0,#vdc_quad0
     mov r1,#V_STAT
@@ -320,10 +298,9 @@ psdone:
     ret
 
 ; joy_read: read stick 0 through the BIOS and return a direction code in A:
-;   0 = centred, 1 = up, 2 = down, 3 = fire, 4 = left, 5 = right
-; The keyboard and joysticks can only be scanned from internal ROM -- P20-P23
-; double as A8-A11 and toggle on every external fetch -- so this has to go
-; through the BIOS entry point rather than poking the port directly.
+;   0 = centered, 1 = up, 2 = down, 3 = fire, 4 = left, 5 = right
+; Only internal ROM can scan the keyboard and joysticks: P20-P23 double as
+; A8-A11 and toggle on every external fetch.
 joy_read:
     mov a,#P1_SEL_JOY
     outl p1,a

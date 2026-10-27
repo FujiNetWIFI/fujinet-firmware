@@ -3,10 +3,8 @@
 #
 # Usage: ./apply-mame.sh /path/to/mame
 #
-# Copies the device model (fujinet.cpp/h), pico/common's TCP transport and wire
-# codec, and the cartridge firmware's own protocol sources (fujimail, o2map,
-# o2app and their headers -- MAME then runs the code the cartridge ships) into
-# src/devices/bus/odyssey2/, and makes the shared-file edits:
+# Copies the device model, pico/common's TCP transport and wire codec, and the
+# cartridge's own protocol sources into src/devices/bus/odyssey2/, then edits:
 #
 #   scripts/src/bus.lua               the O2 file list
 #   src/devices/bus/odyssey2/slot.cpp the "fujinet" slot option
@@ -35,8 +33,7 @@ graft "$BUSDIR" fujinet.cpp fujinet.h
 graft_common "$BUSDIR" fujitcp fujibus
 graft "$BUSDIR" ../firmware/src/{fujimail,o2map}.c \
                 ../firmware/include/{fujimail,o2map,o2app,fuji_mailbox}.h
-# The O2's mailbox service is its own, not pico/common's, so its symbols are
-# named here; another cart's fujimail in the same MAME binary keeps its own.
+# Namespace the O2's own fujimail/o2map so other carts' copies in MAME don't clash.
 graft_fujins "$BUSDIR" o2 fujinet.cpp fujimail.cpp fujimail.h o2map.cpp o2map.h -- \
     fujimail_init fujimail_paint fujimail_write fujimail_inbound \
     fujimail_rx fujimail_rxn fujimail_stage_live \

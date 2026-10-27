@@ -3,10 +3,8 @@
 #
 # Usage: ./apply.sh /path/to/mame
 #
-# Copies the device model (fujinet.cpp/h, common's fujitcp.c/h) and the cartridge
-# firmware's own protocol sources (fujimail, fujibus, nesmap, the bus decode,
-# the baked CONFIG and loader ROMs -- MAME then runs the code the cartridge
-# actually ships) into src/devices/bus/nes/, and makes the shared-file edits:
+# Copies the device model and the firmware's own protocol sources and baked
+# ROMs (so MAME runs what the cart ships) into src/devices/bus/nes/, and edits:
 #
 #   scripts/src/bus.lua             the NES file list
 #   src/devices/bus/nes/nes_carts.cpp  the "fujinet" slot option
@@ -59,8 +57,7 @@ EOF2
     echo "apply.sh: nes_carts.cpp updated"
 fi
 
-# nes.cpp: read_h must be installed for our device whatever pcb id the iNES
-# header gave the slot -- the whole $8000-$FFFF window is ours to serve.
+# nes.cpp: install read_h for our device whatever pcb id the header gave.
 if ! grep -q "NES_FUJINET" "$DRIVER"; then
     python3 - "$DRIVER" <<'EOF2'
 import sys

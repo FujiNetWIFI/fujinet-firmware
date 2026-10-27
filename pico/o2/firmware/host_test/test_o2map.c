@@ -1,10 +1,5 @@
-/* test_o2map.c -- desktop regression gate for the cartridge image mapper.
- *
- * Build:
- *   gcc -Wall -Wextra -I../include -o /tmp/test_o2map \
- *       test_o2map.c ../src/o2map.c
- * Run with no arguments for the table-driven checks, or pass real cartridge
- * images to have their layout decoded and their reset vector sanity-checked.
+/* test_o2map.c -- host tests for the cartridge image mapper. Given cartridge
+ * images as arguments, it decodes their layout and checks the reset vector.
  */
 
 #include <stdio.h>
@@ -96,8 +91,7 @@ int main(int argc, char **argv)
     {
         static uint8_t img[6144];
 
-        /* An ordinary game: whatever it keeps at $F2C, it is not the
-         * signature, so the mailbox goes away for the session. */
+        /* An ordinary game, unsigned at $F2C: the mailbox goes. */
         memset(img, 0xAA, sizeof img);
         o2map_plan(img, 3072, &p);
         check("a 3K game claims $F00 outright", !p.mailbox_ok);
@@ -107,9 +101,8 @@ int main(int argc, char **argv)
         o2map_plan(NULL, 3072, &p);
         check("no image to inspect reads as claimed", !p.mailbox_ok);
 
-        /* A client that reserved the page says so at $F2C. In a 3K bank that
-         * is image offset $B2C; in a 2K bank the byte lives at $72C and
-         * reaches $F2C only through the mirror. */
+        /* $F2C is image offset $B2C in a 3K bank; in a 2K bank it is $72C,
+         * reaching $F2C through the mirror. */
         memcpy(img + 0xB2C, FN_R_CLAIM_SIG, FN_R_CLAIM_LEN);
         o2map_plan(img, 3072, &p);
         check("a 3K client that reserves the page keeps the mailbox",
@@ -121,8 +114,7 @@ int main(int argc, char **argv)
         check("a 2K client signs at $72C, one page below the mirror",
               p.mailbox_ok);
 
-        /* Only the boot bank is asked, and that is the LAST chunk of the
-         * file -- a signature in any other chunk is not a declaration. */
+        /* Only the boot bank (the file's last chunk) counts. */
         memset(img, 0xAA, sizeof img);
         memcpy(img + 0xB2C, FN_R_CLAIM_SIG, FN_R_CLAIM_LEN);
         o2map_plan(img, 6144, &p);
@@ -176,8 +168,8 @@ int main(int argc, char **argv)
             continue;
         }
         o2map_apply(img, &p, banks);
-        /* $400 is the cartridge reset vector: the BIOS jumps here on power-up,
-         * so bank 0 must start with a JMP (opcode 0x04 | page<<5). */
+        /* $400 is the reset vector: bank 0 must start with a JMP
+         * (opcode 0x04 | page<<5). */
         printf("  %-40s %u x %uK  reset $400 = %02X %02X  %s\n",
                argv[i], p.nbanks, p.bank_bytes / 1024,
                banks[0][O2MAP_CART_BASE], banks[0][O2MAP_CART_BASE + 1],

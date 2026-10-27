@@ -1,8 +1,6 @@
-/* test_fujimail.c -- desktop regression tests for the shared mailbox service, which every
- * cart runs against its own fuji_mailbox.h: register decode through the REGSEL/REGDATA
- * pair, the SEQ/ACKSEQ interlock, the SLICE_ECHO repaint handshake, the DBC push receiver,
- * and proof that a stray run of hotspot events (a crashed program's reads or stores) can
- * never launch a transaction, arm a swap or reboot the cart on its own.
+/* test_fujimail.c -- the shared mailbox service, run by every cart against its own
+ * fuji_mailbox.h: register decode, the SEQ/ACKSEQ interlock, the SLICE_ECHO handshake, the
+ * DBC push receiver, and stray hotspot events that must launch, arm and reboot nothing.
  *
  * The cart's host_test/fujimail_test.h names its mapper's gate, a large image the gate
  * accepts (FUJIMAIL_TEST_GAME) and one it refuses (FUJIMAIL_TEST_TOOBIG).
@@ -288,9 +286,8 @@ static void test_seq_gates(void)
 }
 
 #if FN_R_NSLICES == 1
-/* A cart with one 1K slice (FN_R_NSLICES == 1) publishes the whole reply at once.
- * FN_REG_RXSLICE and FN_R_SLICE_ECHO stay; here they are always 0, and the echo-last
- * ordering still has to hold because the repaint is asynchronous on real hardware. */
+/* One 1K slice (FN_R_NSLICES == 1): the whole reply at once. The echo, always 0, must
+ * still come last because the repaint is asynchronous on hardware. */
 static void test_whole_reply_window(void)
 {
     unsigned i;
@@ -364,10 +361,7 @@ static void test_unpaired_regdata(void)
     reg_write(FN_REG_SEQ, 2);
     assert(txn.calls == 2 && txn.device == 0x99);
 
-    /* Special ops belong to the bus-serving layer; reaching this decoder (as
-     * a stray, or a port that forwards them anyway) they are no-ops and leave
-     * an armed regsel alone. The whole bit7-set half of the REGSEL page is
-     * special ops. */
+    /* Special ops (REGSEL 0x80-0xFF) are no-ops here and leave an armed regsel alone. */
     fujimail_read_hotspot(FN_H_REGSEL + FN_REG_DEVICE);
     fujimail_read_hotspot(FN_H_REGSEL + 0x80);
     fujimail_read_hotspot(FN_H_REGSEL + 0xEF);
@@ -380,9 +374,8 @@ static void test_unpaired_regdata(void)
     assert(txn.calls == 3 && txn.device == 0x33);
 }
 
-/* A stray sweep, such as a crashed program's store loop through a page: it
- * must not mutate anything observable -- no transaction, no swap arm, no
- * reboot, no register change. */
+/* A stray sweep, such as a crashed program's store loop through a page, changes nothing
+ * observable. */
 static void sweep(uint16_t page_base)
 {
     unsigned r, lap;
@@ -416,9 +409,7 @@ static void test_refresh_sweeps(void)
     assert(bootsel_calls == 0);
     assert(window[FN_R_ACKSEQ] == 1);
 
-    /* The REGSEL page sweep leaves a stale armed regsel behind (0x7F, the
-     * last one it touched) -- prove the very next legitimate pair still
-     * works and that the stale arm decayed onto a harmless register. */
+    /* The REGSEL sweep leaves 0x7F armed: the next real pair must still work. */
     run_txn(2, 0x70, 0xC4);
     assert(txn.calls == 2 && txn.device == 0x70);
 }
@@ -525,8 +516,7 @@ static void test_dbc_abort_and_toobig(void)
     reg_write(FN_REG_BOOTLOCK, FN_BOOTLOCK_MAGIC);
     assert(armed_calls == 0);
 
-    /* An image no scheme could hold is refused at OPEN, before the ESP32
-     * drags the whole file over TNFS. */
+    /* An image no scheme could hold is refused at OPEN. */
     fresh();
     dbc_open(0, FUJIMAIL_TEST_TOOBIG);
     assert(pushed.opens == 1 && pushed.closes == 0);
@@ -588,9 +578,7 @@ static void test_dbc_game_push(void)
     assert(armed_calls == 1);
 }
 
-/* A commit-time mapping failure must never read as READY, and BOOTLOCK must
- * stay refused. (A size that passes the OPEN gate can still fail at close,
- * when the cart's mapper finds no layout.) */
+/* A mapping failure at close never reads as READY, and BOOTLOCK stays refused. */
 static void test_dbc_close_nomap(void)
 {
     static uint8_t image[4096];
@@ -606,8 +594,7 @@ static void test_dbc_close_nomap(void)
     assert(armed_calls == 0);
 }
 
-/* The .cfg sibling (stream 1, pushed before the ROM) must never touch the
- * boot state -- neither before the ROM push nor after READY. */
+/* The .cfg sibling (stream 1) never touches the boot state, before the ROM or after READY. */
 static void test_dbc_stream1_isolation(void)
 {
     static uint8_t image[4096];
@@ -638,8 +625,7 @@ static void test_dbc_stream1_isolation(void)
     assert(armed_calls == 1);
 }
 
-/* A new MOUNT_IMAGE starts the boot registers over, so a verdict left by an
- * earlier attempt is never mistaken for this one's. */
+/* A new MOUNT_IMAGE clears the boot registers an earlier attempt left. */
 static void test_mount_resets_boot(void)
 {
     static const uint8_t junk[100] = { 1, 2, 3 };
@@ -663,10 +649,7 @@ static void test_mount_resets_boot(void)
     assert(armed_calls == 0);
 }
 
-/* A network OPEN or CLOSE may run as long as the protocol's connect or
- * commit (GCAL:// fetches every calendar before it acknowledges an open),
- * and a STATUS or READ as long as HTTP's deferred request; everything else
- * keeps the ordinary window. */
+/* Network OPEN, CLOSE, STATUS and READ get the long window; everything else the ordinary one. */
 static void test_timeouts(void)
 {
     fresh();

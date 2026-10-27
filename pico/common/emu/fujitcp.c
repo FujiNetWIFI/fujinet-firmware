@@ -13,8 +13,8 @@
 #include "fujimail.h"
 #include "fuji_mailbox.h"
 
-/* Must hold the largest SLIP-encoded frame: a 6-byte header plus a 1K reply
- * (FUJIMAIL_RX_MAX), doubled for SLIP's worst case, plus two delimiters. */
+/* A 6-byte header plus a 1K reply (FUJIMAIL_RX_MAX), doubled for SLIP's worst case, plus
+ * two delimiters. */
 #define RX_RAW_MAX (2 * (6 + 1024) + 2)
 
 static int fd = -1;
@@ -184,9 +184,7 @@ fb_status_t fujitcp_transact(uint8_t device, uint8_t command,
             return st;
         if (!fujibus_parse_reply(raw, rawlen, reply))
             return FB_EBADFRAME;
-        /* Push frames arrive interleaved with the reply we are waiting for;
-         * consuming one proves the link is alive, so the deadline restarts
-         * rather than counting down. */
+        /* A push frame proves the link alive, so the deadline restarts. */
         if (!fujimail_inbound(reply))
             return FB_OK;
     }

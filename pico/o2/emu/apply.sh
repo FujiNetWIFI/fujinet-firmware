@@ -1,12 +1,7 @@
 #!/bin/bash
 # Apply the FujiNet model to a clean o2em checkout.
-#
-# The patch deliberately does not carry the shared sources. fujibus.[ch],
-# fujimail.[ch], o2map.[ch], o2app.h and fuji_mailbox.h are copied in from the cartridge
-# firmware tree and pico/common, so the emulator runs the cartridge's own wire
-# codec, mailbox service and image mapper rather than a lookalike. What is left
-# in the patch is only the port -- sockets instead of USB, an array instead of a
-# live bus -- plus the headless harness.
+# The shared protocol sources are copied in, not patched, so the emulator runs
+# the cartridge's own code; the patch is only the port and headless harness.
 set -e
 O2EM="${1:-$HOME/Workspace/o2em}"
 HERE="$(cd "$(dirname "$0")" && pwd)"

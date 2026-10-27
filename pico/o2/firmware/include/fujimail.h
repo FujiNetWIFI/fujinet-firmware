@@ -1,16 +1,6 @@
-/* fujimail.h -- the mailbox service: register decode, the SEQ/ACKSEQ interlock,
- * and the DBC ROM-push receiver.
- *
- * Shared by the RP2040 cartridge and the o2em model, behind a small port
- * interface, for the same reason fujibus.c and o2map.c are shared: this is the
- * protocol, and two copies of a protocol drift. Because the emulator drives
- * this code, every browse-and-boot run against a real fujinet-pc-rs232
- * exercises what the cartridge actually ships rather than a lookalike.
- *
- * The port supplies the four things that genuinely differ between a cartridge
- * and an emulator: where a published byte goes, how a frame reaches the
- * ESP32-S3, what to do with a finished push stream, and how to reboot into
- * BOOTSEL.
+/* fujimail.h -- the mailbox service: register decode, the SEQ/ACKSEQ interlock
+ * and the DBC ROM-push receiver. Shared by the cartridge and the o2em model
+ * through a port interface.
  */
 
 #ifndef FUJIMAIL_H
@@ -23,22 +13,20 @@
 #include "fuji_mailbox.h"
 #include "o2map.h"
 
-/* The largest image o2map will accept: a full APPBANK image (fuji_mailbox.h),
- * which is bigger than 8 legacy banks of 3K. Sizing this by guess would
- * silently truncate a maximum-size image and boot the remains. */
+/* A full APPBANK image, the largest o2map accepts (more than 8 legacy 3K banks). */
 #define FUJIMAIL_STAGE_MAX (O2_APP_FIXED_BYTES + O2_APP_MAXPAGES * O2_APP_PAGE_BYTES)
 #define FUJIMAIL_RX_MAX    1024
 
-/* The reply, for a cartridge that serves the read window out of it directly
- * (APPBANK; o2app_read). fujimail_rxn is stored after the bytes are copied. */
+/* An APPBANK cart serves the read window from here; fujimail_rxn is stored
+ * after the bytes are copied. */
 extern uint8_t fujimail_rx[FUJIMAIL_RX_MAX];
 extern volatile unsigned fujimail_rxn;
 
-/* Set by the port while an APPBANK image is served out of the stage buffer:
- * a further push is then refused with FN_BOOT_ERR_BUSY. */
+/* Set by the port while an APPBANK image is served from the stage buffer;
+ * a further push is refused with FN_BOOT_ERR_BUSY. */
 extern volatile bool fujimail_stage_live;
 
-/* Reported to the port purely so it can log; nothing depends on it. */
+/* For logging only. */
 typedef struct {
     uint8_t device, command, nparam, seq, reply_cmd;
     uint16_t txlen, rxlen;
@@ -52,7 +40,6 @@ typedef enum {
 } fujimail_dbc_ev_t;
 
 typedef struct {
-    /* Publish one mailbox byte into the console's program window. */
     void (*poke)(unsigned prog_addr, uint8_t value);
 
     bool (*link_up)(void);
@@ -62,13 +49,11 @@ typedef struct {
                             const uint8_t *payload, uint16_t payload_len,
                             uint32_t timeout_ms, fb_reply_t *reply);
 
-    /* Send a frame with no reply expected -- used to ACK push frames. */
+    /* No reply expected; ACKs push frames. */
     void (*send_bare)(uint8_t device, uint8_t command,
                       const uint8_t *payload, uint16_t payload_len);
 
-    /* A push stream has finished. `stream` is 0 for the ROM image and 1 for the
-     * .cfg sibling. The cartridge lays a committed ROM into its spare bank
-     * array and arms the swap; the emulator stages it and may dump it. */
+    /* `stream` is 0 for the ROM image, 1 for the .cfg sibling. */
     void (*stream_end)(int stream, const uint8_t *data, unsigned len,
                        bool aborted);
 

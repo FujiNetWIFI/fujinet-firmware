@@ -1,9 +1,7 @@
 ; hello.asm -- Arcadia 2001 toolchain + display smoke test. No FujiNet.
 ;
-; Paints the full 64-glyph UVI character set, a user-defined character, a
-; block-graphics-mode probe row, and echoes the keypad columns live as hex
-; digits (the charset conveniently runs 0-9 then A-Z, so $10+nibble is a
-; hex digit for free).
+; Paints the 64-glyph UVI charset, a user-defined character and a graphics-mode probe,
+; and echoes the keypad columns as hex ($10+nibble is a hex digit: the charset runs 0-9, A-Z).
 ;
 ; Screen: row 0 title, rows 2-5 the charset, row 7 keypad echo, row 9 the
 ; UDC, row 11 the $C0/$40 graphics-mode probe.
@@ -12,7 +10,7 @@
 
 SCREEN  EQU     $1800           ; upper screen, 16x13
 UDC     EQU     $1980           ; user-defined characters, 8x8 bytes
-GFXMOD  EQU     $19F8           ; bit7 gfx, bit6 26-line, 0-5 alt colours
+GFXMOD  EQU     $19F8           ; bit7 gfx, bit6 26-line, 0-5 alt colors
 BGCOL   EQU     $19F9           ; bit7 char size, 3-5 char col, 0-2 screen col
 PITCH   EQU     $18FD           ; bit7 multicolor, 0-6 sound freq
 VOLUME  EQU     $18FE           ; 0-2 loudness, 3 snd en, 5-7 horiz shift
@@ -31,8 +29,8 @@ START:  EORZ    R0
         STRA,R0 GFXMOD          ; no gfx mode, 13 lines
         STRA,R0 PITCH
         STRA,R0 VOLUME
-        LODI,R0 $87             ; 8x8 chars, char colour 0 (white),
-        STRA,R0 BGCOL           ; screen colour 7 (black)
+        LODI,R0 $87             ; 8x8 chars, char color 0 (white),
+        STRA,R0 BGCOL           ; screen color 7 (black)
 
 ; --- clear the upper screen ($1800-$18CF, 208 cells) ---------------------
         LODI,R3 207

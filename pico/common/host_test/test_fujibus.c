@@ -1,4 +1,4 @@
-// Host-buildable test driver for fujibus.c -- no pico-sdk involved.
+// Runs the fujibus.c self-test on the host.
 #include <stdio.h>
 #include "fujibus.h"
 

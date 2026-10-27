@@ -4,8 +4,7 @@
 
 void fuji_service_init(void);
 
-/* Drain core1's write ring and run whatever the console has launched. Called
- * from the cartridge's main loop on core0; returns quickly when idle. */
+/* core0 main loop: drain core1's write ring and run any launched transaction. */
 void fuji_mailbox_service(void);
 
 #endif /* FUJINET_H */

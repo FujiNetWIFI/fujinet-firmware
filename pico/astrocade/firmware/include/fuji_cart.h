@@ -1,21 +1,13 @@
 /* fuji_cart.h -- the cartridge-side half of the FujiNet mailbox.
  *
- * Split so that core1's bus loop does as little as possible. core1 records
- * hotspot READS into a ring and returns to polling; core0 drains the ring
- * and runs the protocol. Replies need no bus-loop change at all: the
- * mailbox is painted straight into the served window, so serving it is the
- * same instruction that already serves ROM.
+ * core1 records hotspot reads into a ring and goes back to polling; core0
+ * drains it and runs the protocol. Replies are painted into the served
+ * window, so the bus loop serves them like ROM.
  *
- * Astrocade specifics versus the O2 original:
- *   - entries are 13-bit cart offsets, not (addr, data) pairs -- on this
- *     port the address IS the data;
- *   - core1 records at most one event per Enable assertion (it spins until
- *     Enable deasserts before looking again), because a ~500ns Z80 read
- *     spans many polling-loop iterations and recording each one would
- *     append duplicate TX bytes;
- *   - the ROM swap and both bank-select flavors are core1's, inline: a
- *     switch must be complete before the next read can begin, and the loop's
- *     spin-until-deassert guarantees exactly that.
+ * Ring entries are 13-bit cart offsets: on this port the address is the data.
+ * core1 records one event per Enable assertion, since a ~500ns Z80 read spans
+ * many loop iterations. The ROM swap and bank selects run inline on core1 so
+ * a switch completes before the next read.
  */
 
 #ifndef FUJI_CART_H
@@ -79,10 +71,8 @@ static inline void fuji_cart_note_read(uint16_t offset)
 /* core0 */
 bool fuji_cart_next_read(uint16_t *offset);
 void fuji_cart_poke(unsigned offset, uint8_t value);
-/* Stage a committed image for the armed swap. `image` is the full raw
- * image; for the banked kinds it must be persistent storage (the serve
- * pointers point into it for as long as it is live) -- a FLAT image is
- * copied and may be transient. */
+/* Stage a committed image for the armed swap. A banked image must stay put
+ * while live (it is served in place); a FLAT image is copied. */
 void fuji_cart_stage(const uint8_t *image, const astromap_plan_t *plan);
 void fuji_cart_init(void);
 

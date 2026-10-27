@@ -1,16 +1,6 @@
-/* fujimail.h -- the mailbox service: hotspot decode, the SEQ/ACKSEQ
- * interlock, and the DBC ROM-push receiver.
- *
- * Shared by the cartridge firmware and the MAME cart model, behind a small port
- * interface, for the same reason fujibus.c and the mapper engine are shared: this is
- * the protocol, and two copies of a protocol drift. Because the emulator
- * drives this code, every browse-and-boot run against a real fujinet-pc
- * exercises what the cartridge actually ships rather than a lookalike.
- *
- * The port supplies what genuinely differs between a cartridge and an
- * emulator: where a published byte goes, how a frame reaches the ESP32-S3,
- * what to do with a finished push stream, how the armed swap is signalled,
- * and how to reboot into BOOTSEL.
+/* fujimail.h -- the mailbox service: hotspot decode, the SEQ/ACKSEQ interlock, and the DBC
+ * ROM-push receiver. The cartridge firmware and the MAME cart model share it; the port
+ * supplies what differs between them.
  */
 
 #ifndef FUJIMAIL_H
@@ -47,19 +37,15 @@ typedef struct {
                             const uint8_t *payload, uint16_t payload_len,
                             uint32_t timeout_ms, fb_reply_t *reply);
 
-    /* Send a frame with no reply expected -- used to ACK push frames. */
+    /* No reply expected; ACKs push frames. */
     void (*send_bare)(uint8_t device, uint8_t command,
                       const uint8_t *payload, uint16_t payload_len);
 
-    /* A push stream is open(size) -> write* -> close, and its storage lives
-     * in the port (a banked image can be far bigger than any buffer this
-     * service could own). `stream` is 0 for the ROM image and 1 for the
-     * .cfg sibling. open returns 0 to accept or the FN_BOOT_ERR_* to refuse
-     * -- refusal happens HERE, before the ESP32 drags the file over TNFS.
-     * close returns 0 when a committed stream-0 image was mapped and staged,
-     * else the FN_BOOT_ERR_* to report; READY is published only on 0, so a
-     * close-time failure can never read as bootable. The staged image must
-     * NOT be served yet -- the console is still running the client. */
+    /* A push stream is open(size) -> write* -> close; the port owns its storage. `stream`
+     * is FN_STREAM_ROM or FN_STREAM_CFG. open returns 0 or the FN_BOOT_ERR_* refusing it,
+     * before the ESP32 reads the file. close returns 0 once a stream-0 image is mapped and
+     * staged, else the FN_BOOT_ERR_*; READY is published only on 0. The staged image must
+     * not be served yet: the console is still running the client. */
     uint8_t (*stream_open)(int stream, uint32_t size);
     void (*stream_write)(int stream, const uint8_t *chunk, unsigned len);
     uint8_t (*stream_close)(int stream, uint32_t got, bool aborted);
@@ -74,7 +60,7 @@ typedef struct {
     void (*on_txn)(const fujimail_txn_t *txn);
     void (*on_dbc)(fujimail_dbc_ev_t ev, int stream, uint32_t expect,
                    unsigned got, bool aborted);
-    /* Optional: a pair that writes one of the platform's registers (FN_REG_PLATFORM up).
+    /* Optional: a write to one of the platform's registers (FN_REG_PLATFORM up).
      * Keep new members last: the MAME devices fill this struct in order. */
     void (*own_reg)(uint8_t reg, uint8_t value);
 } fujimail_port_t;
@@ -84,9 +70,8 @@ void fujimail_init(const fujimail_port_t *port);
 /* Paint the magic bytes and clear the rest of the status pages. */
 void fujimail_paint(void);
 
-/* One hotspot event: an arena offset in [FN_H_REGSEL, FN_H_DATA + 0xFF].
- * The caller has already filtered by range and by whether the mailbox is
- * live; FN_HOT_* are the caller's to handle inline, not here. */
+/* An arena offset in [FN_H_REGSEL, FN_H_DATA + 0xFF], already filtered by range and by
+ * whether the mailbox is live. FN_HOT_* are the caller's. */
 void fujimail_read_hotspot(uint16_t offset);
 
 /* Offer an inbound frame; true if it was a push frame and was consumed. */

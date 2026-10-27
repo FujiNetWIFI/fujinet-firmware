@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """checkrom.py -- validate a built Astrocade FujiNet client image.
 
-Enforces the layout contract in firmware/include/fuji_mailbox.h so a client
-that drifts into the mailbox pages fails its build, not a debugging session.
+Enforces the layout in firmware/include/fuji_mailbox.h.
 Default mode, an ordinary 8K client:
   - exactly 8192 bytes;
   - the 0x55 sentinel first;

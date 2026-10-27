@@ -1,13 +1,11 @@
 ; fujiboot.s -- M2: mount a cartridge image over the network and boot it.
 ;
-; MOUNT_HOST -> SET_DEVICE_FULLPATH -> MOUNT_IMAGE. The last one makes the
-; ESP32 side stream the file back to the cartridge on the same link,
-; addressed to the DBC device, while MOUNT_IMAGE's own reply is still
-; outstanding; the cart stages it and reports BOOT_STATE. Then BOOTLOCK, and
-; the loader at $0600 copies the image into the SRAM and starts it -- through
-; the console's own BIOS if this console would start it itself.
+; MOUNT_HOST -> SET_DEVICE_FULLPATH -> MOUNT_IMAGE. During MOUNT_IMAGE the
+; ESP32 streams the file to the DBC device; the cart stages it and reports
+; BOOT_STATE. Then BOOTLOCK, and the loader copies the image into the SRAM and
+; starts it, through the console's own BIOS if this console would start it.
 ;
-; Target host slot and path come from bootcfg.inc, written by build.sh:
+; Host slot and path come from bootcfg.inc, written by build.sh:
 ;   BOOT_HOST=0 BOOT_PATH=/game.bin ./build.sh fujiboot
 ; BOOT_DIRECT=1 locks INPTCTRL first, which forces the loader's own hand-over.
 
@@ -122,8 +120,6 @@ have:   lda     #FNDEVF
 :
 
 ; ---- MOUNT_IMAGE(dev, mode) ----
-; The one that takes real time: the ESP32 fetches the file and streams it to
-; the cart as DBC frames while this reply is outstanding.
         lda     #FNDEVF
         sta     FN_DEV
         lda     #FNCMIMG

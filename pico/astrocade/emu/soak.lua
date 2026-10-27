@@ -1,15 +1,11 @@
 -- soak.lua: verify one DBC-streamed cart image, headless.
 --
--- Ridden by tools/soak.sh with fujiboot (BOOT_PATH=/soak.bin) as the cart:
--- press '1' at t=3 to launch fujiboot, watch the boot state at 3C06H, and
--- when the swap happens (the 'F','N' magic pair vanishes -- every image in
--- the soak corpus is claim-less) read the ENTIRE served window 2000H-3FFFH
--- and byte-compare it against the expected mapping in $SOAK_EXPECT (the 8K
--- astromap output soak.sh precomputes: power-of-two images mirror, odd
--- sizes pad with FFH). All polled and dumped offsets are side-effect-free
--- once the mailbox is dead. Then press '1' again to launch the booted
--- image's menu entry and sample the Z80 PC for 300 frames -- how often it
--- lands in cart space is reported, but the window compare is the verdict.
+-- Run by tools/soak.sh with fujiboot (BOOT_PATH=/soak.bin) as the cart.
+-- Launches fujiboot, waits for the swap (the 'F','N' magic vanishes; every
+-- corpus image is claim-less), then compares the whole window 2000H-3FFFH
+-- with $SOAK_EXPECT. Reads are side-effect-free once the mailbox is dead.
+-- Then launches the image and reports how often the Z80 PC is in cart space
+-- over 300 frames; the window compare is the verdict.
 --
 -- Prints exactly one line:  soak: PASS pc=N/300 | soak: FAIL <why>
 --
@@ -66,9 +62,7 @@ emu.register_frame(function()
     end
 
     if phase == "boot" then
-        -- The magic pair vanishing is the swap, for a claim-less image.
-        -- Test it FIRST: once the swap lands, every mailbox offset reads
-        -- game bytes, and interpreting those as a boot state is a lie.
+        -- Test the swap first: after it, mailbox offsets read game bytes.
         local swapped = mem:read_u8(0x3C09) ~= 0x46 or mem:read_u8(0x3C0A) ~= 0x4E
         if not swapped then
             local state = mem:read_u8(0x3C06)

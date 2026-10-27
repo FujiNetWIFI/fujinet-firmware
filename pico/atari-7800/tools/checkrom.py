@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """checkrom.py -- validate a built 7800 FujiNet client image, or the loader.
 
-Enforces the layout contract in firmware/include/fuji_mailbox.h so a client
-that breaks it fails its build rather than a debugging session:
+Enforces the layout contract in firmware/include/fuji_mailbox.h:
 
   - a headerless image whose size is a whole number of KiB, or an .a78 file
     (128-byte header) as MAME loads one;

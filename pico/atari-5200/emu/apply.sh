@@ -10,9 +10,8 @@
 #   scripts/src/bus.lua                    the a800 file list
 #   src/devices/bus/a800/a800_carts.cpp    a selectable "fujinet" option
 #
-# The 5200 driver is not touched. Idempotent: run it again after editing any
-# source here. CONFIG comes from build/gen (../build-cart.sh) or
-# firmware/baked/.
+# Idempotent: run it again after editing any source here. CONFIG comes from
+# build/gen (../build-cart.sh) or firmware/baked/.
 #
 # Afterwards, in a single-driver tree:
 #   make SUBTARGET=a5200 SOURCES=src/mame/atari/atari400.cpp REGENIE=1 NOWERROR=1

@@ -11,10 +11,10 @@
  * decode is static inline here so core1, the MAME device and the host tests
  * share one implementation.
  *
- * Timing (not to be re-derived): the 6502C runs at 1.79 MHz, 559 ns a cycle;
- * the address is stable while PHI2 is high and write data is valid at its
- * falling edge. PROVISIONAL until a scope says otherwise: how long write
- * data holds after PHI2 falls, hence the last-sample-while-high model.
+ * Timing: the 6502C runs at 1.79 MHz, 559 ns a cycle; the address is stable
+ * while PHI2 is high and write data is valid at its falling edge. How long
+ * write data holds after PHI2 falls is unmeasured, hence the
+ * last-sample-while-high model.
  */
 #ifndef A78_CART_H
 #define A78_CART_H

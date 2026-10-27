@@ -1,11 +1,10 @@
-/* test_pio.c -- the slot-table state machine, modelled.
+/* test_pio.c -- the slot-table state machine, modeled.
  *
  * A 30-line model of what PIO does with the words a78_pio.h builds:
  * `mov isr,null / in pins,N / in null,1 / mov pc,isr` with a left-shifting
- * ISR, `set pins` with optional side-set, and `jmp`. For every slot index and a spread of banks it checks that the
- * pins end up carrying exactly the slot word patched into that slot, and it
- * pins the encoders to hand-checked words from the RP2350 datasheet so a
- * wrong bit in a78_pio.h fails here rather than on a board.
+ * ISR, `set pins` with optional side-set, and `jmp`. For every slot index
+ * and a spread of banks the pins must carry the slot word patched into that
+ * slot; the encoders are pinned to hand-checked RP2350 datasheet words.
  */
 
 #include <assert.h>
@@ -21,7 +20,7 @@ typedef struct {
     unsigned index_bits, side_bits;
     unsigned pc;
     uint32_t isr;
-    unsigned in_pins;         /* what `in pins` sees, after the synchroniser */
+    unsigned in_pins;         /* what `in pins` sees, after the synchronizer */
     unsigned set_out, side_out;
     unsigned steps;
 } sm_t;

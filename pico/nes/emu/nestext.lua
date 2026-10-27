@@ -1,9 +1,7 @@
 -- nestext.lua -- read the screen as text.
 --
--- The bring-up clients upload a font whose tile number IS the ASCII code, so
--- a nametable row read straight out of PPU memory is the string on screen.
--- readv_u8 has no side effects, which matters: a plain read_u8 through the
--- CPU space would fire mailbox hotspots.
+-- The clients' font tile number is the ASCII code, so a nametable row is the
+-- string on screen. Use readv_u8: read_u8 through CPU space fires hotspots.
 local M = {}
 
 function M.ppu_space()
@@ -48,8 +46,7 @@ function M.now()
   return manager.machine.time:as_double()
 end
 
--- The frame notifier token must stay referenced or the subscription dies at
--- the next GC (learned on the ColecoVision).
+-- The notifier token must stay referenced or the subscription dies at the next GC.
 function M.every_frame(fn)
   _G.__nestext_sub = emu.add_machine_frame_notifier(fn)
 end

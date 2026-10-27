@@ -1,5 +1,4 @@
-# a52plan, the cart's plan for an image, built for the host tools (abprep.py, soak.py, mkmapdb.py).
-# It lands in ../build/tools, outside the source tree.
+# a52plan, the cart's plan for an image, for the host tools; built into ../build/tools.
 
 CC ?= cc
 CFLAGS ?= -O1

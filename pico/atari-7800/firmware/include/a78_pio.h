@@ -9,13 +9,13 @@
  * the old word or the new one, never a torn one.
  *
  * Latency, from an address change to the pins: at most 9 instructions (A13-A15
- * bypass the input synchroniser), about 45 ns at 200 MHz. With the SRAM's
+ * bypass the input synchronizer), about 45 ns at 200 MHz. With the SRAM's
  * 55 ns that is about 115 ns, against about 200 ns usable in a MARIA
  * display-list read.
  *
- * Hardware-free: the encoders are the SDK's pio_encode_* by hand, so the host
- * tests build the exact words the firmware patches, and a78_pio.c checks them
- * against pioasm's output of a78_tables.pio at init.
+ * The encoders are the SDK's pio_encode_* by hand, so the host tests build
+ * the exact words the firmware patches; a78_pio.c checks them against
+ * pioasm's a78_tables.pio at init.
  */
 
 #ifndef A78_PIO_H

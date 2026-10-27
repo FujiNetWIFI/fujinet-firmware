@@ -1,13 +1,7 @@
-/* sms_cart.h -- the SMS cartridge bus as seen from the RP2354B.
- *
- * The console addresses the 1 MB SRAM itself (A0-A12 direct); core1 supplies
- * A13-A19 from the live mapper's page table and serves whatever the cart
- * serves out of its own memory. Who drives D0-D7 is decided by 74HCT gates
- * from the address and four slow mode bits, never by software timing; the
- * equations are here so the MAME device and the tests use the same ones.
- *
- * Decode, write classification and the BIOS snoop are static inline and
- * shared by core1, the MAME device and the host tests.
+/* sms_cart.h -- the SMS cartridge bus as seen from the RP2354B: GPIO map, glue
+ * equations, decode and BIOS snoop, shared by core1, the MAME device and the
+ * host tests. The console drives SRAM A0-A12 itself and core1 supplies A13-A19;
+ * 74HCT gates, not software timing, pick who drives D0-D7.
  */
 #ifndef SMS_CART_H
 #define SMS_CART_H

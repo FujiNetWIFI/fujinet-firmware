@@ -1,5 +1,5 @@
 ; o2fuji.inc -- 8048 mirror of firmware/include/fuji_mailbox.h.
-; Hand-synchronised; do not change one without the other.
+; Hand-synchronized; do not change one without the other.
 
 ; console -> cart: MOVX writes, external-data window (P13 high, P14 low, P16 low)
 FN_W_REGSEL     equ 0E0h
@@ -58,8 +58,7 @@ FUJICMD_SET_DIRECTORY_POSITION     equ 0E4h
 
 MODE_READ       equ 1
 
-; Internal RAM. $00-$07 is register bank 0 and $08-$17 is the stack, so the
-; scratch this client owns starts at $20.
+; Internal RAM: $00-$07 register bank 0, $08-$17 the stack; client scratch at $20.
 V_SLICE  equ 020h           ; which reply slice is currently published
 V_HOST   equ 021h           ; highlighted host slot
 V_POS    equ 022h           ; directory entry index
@@ -68,18 +67,16 @@ V_STAT   equ 028h           ; 4 bytes: the quad-row status cell
 V_NAME   equ 030h           ; NAMELEN bytes: the entry name being displayed
 NAMELEN  equ 12             ; display width, and all the RAM a name gets
 PATHLEN  equ 64             ; full length asked for when building a boot path;
-                            ; must stay inside one 128-byte reply slice
+                            ; must stay inside one 208-byte reply slice
 
-; Layout. Two rows, and the roles are forced by pitch, not by preference:
-; quad characters are drawn at DOUBLE pitch -- 16 pixels apart, not 8 -- so the
-; 16 of them would span 256 pixels on a 160-pixel screen. Only about ten are
-; ever visible. So the 12 single characters carry the filename at tight pitch,
-; and one quad group carries a 4-character status cell.
+; Quad characters are drawn 16 pixels apart, so only about ten fit on the
+; 160-pixel screen: the 12 single characters carry the name, one quad group a
+; 4-character status cell.
 QY       equ 24             ; quad row: the status cell
 QX       equ 16
 NX       equ 32             ; single-character row: the name
 QDELTA   equ (CMAP_YP-QY)/2 ; character-map bias correction for the quad row
 
-; External-data window selected: P13 high (VDC off the bus), P14 low, and P16
-; MUST stay low or the cartridge write strobe is gated off.
+; External-data window: P13 high, P14 low; P16 must stay low or the cartridge
+; write strobe is gated off.
 P1_SEL_XRAM equ P1_BANK0|P1_BANK1|P1_KBD|P1_VDC|P1_NC|P1_LUM

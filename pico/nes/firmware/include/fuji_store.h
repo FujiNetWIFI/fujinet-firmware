@@ -1,22 +1,10 @@
-/* fuji_store.h -- where a DBC-pushed image's bytes live until the console
- * copies them into the SRAMs.
+/* fuji_store.h -- where a DBC-pushed image lives until the console copies it
+ * into the SRAMs: RAM if it fits, else the flash above the firmware (chosen by
+ * size at OPEN). A store that is staged or being copied out is not overwritten.
  *
- * Two tiers, chosen by size at OPEN time: a static RAM store for images that
- * fit, and the flash above the firmware for the rest (a 512K+512K MMC3 game
- * is 1 MB, which no RAM here holds). A store that is staged, or being copied
- * out by the loader, cannot be overwritten, so open() refuses with
- * FN_BOOT_ERR_STOREBUSY when the only fitting store is spoken for. Once the
- * image is in the SRAMs the store is free again.
- *
- * Flash writes happen on core0 while core1 keeps serving: the firmware runs
- * from SRAM (copy_to_ram), so suspending XIP for an erase or program stalls
- * nothing.
- *
- * Erases are kept OUT of the push path. A 4K sector erase is 45 ms typical and
- * 400 ms worst case on a W25Q; a program is ~11 ms. Doing both before the
- * chunk's ACK put the reply outside the ESP32's read window on the Astrocade,
- * so fuji_store_idle() blanks the store ahead of time, from the service loop.
- */
+ * The firmware runs from SRAM, so core0's flash writes do not stall core1. A
+ * W25Q 4K erase is 45 ms typical, 400 ms worst; erase plus program before a
+ * chunk's ACK misses the ESP32's read window, so erases happen in idle. */
 
 #ifndef FUJI_STORE_H
 #define FUJI_STORE_H
@@ -32,14 +20,12 @@
  * legal (an older peer omitting it) and lands in the RAM tier. */
 uint8_t fuji_store_open(uint32_t size);
 void fuji_store_write(const uint8_t *chunk, unsigned len);
-/* Commit (or abort). Returns the base of the stored image -- RAM, or the
- * XIP alias for the flash tier -- or NULL on abort/nothing. *kept, when
- * given, is how much of the image the store holds: less than was written
- * when it outgrew its tier, as one an OPEN gave no size for can. */
+/* Returns the stored image (RAM, or the XIP alias for flash) or NULL. *kept is
+ * how much the store holds: less than written if an unsized image outgrew its tier. */
 const uint8_t *fuji_store_close(bool aborted, uint32_t *kept);
 
-/* Erase one sector of the flash store, or nothing if there is none to do.
- * Call only where a 45 ms stall is free: no push open, no reply owed. */
+/* Erase one pending flash sector. Call only where a 45 ms stall is free:
+ * no push open, no reply owed. */
 void fuji_store_idle(void);
 
 #endif /* FUJI_STORE_H */

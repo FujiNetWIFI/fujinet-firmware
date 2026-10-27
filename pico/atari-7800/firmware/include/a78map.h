@@ -4,7 +4,7 @@
  * One engine, three consumers: core1 (the write path below is static inline
  * and patches the PIO table words as it goes), the MAME device, and the host
  * tests, which drive it against transcriptions of MAME's a7800 handlers.
- * Behaviour follows MAME's a78 devices, including its bank masks.
+ * Behavior follows MAME's a78 devices, including its bank masks.
  *
  * Each slot is one 9-bit word, exactly what the PIO table puts on the pins:
  * SRAM A13-A18 (the page), ROM_EN (the SRAM may drive a read), RAM_EN (a

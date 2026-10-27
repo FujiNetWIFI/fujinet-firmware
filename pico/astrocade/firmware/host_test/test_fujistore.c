@@ -1,14 +1,12 @@
-/* test_fujistore.c -- desktop regression tests for the push store's flash
- * bookkeeping: the idle erase sweep, its guards, and the erase-vs-program
- * decision a chunk pays for.
+/* test_fujistore.c -- host tests for the push store's idle erase sweep and
+ * its guards.
  *
  * Build: gcc -Wall -Wextra -Werror -I../../../common/host_test/stub -I../include \
  *            -I../../../common/include -DFUJI_STORE_BINARY_END=0x1000u \
  *            -o test_fujistore test_fujistore.c ../src/fuji_store.c
  *
- * common's stub/ models the flash part rather than faking it -- a program only
- * clears bits -- so an erase this code wrongly skips shows up as a corrupt
- * image, not as a test that happens to pass.
+ * The stub models NOR (a program only clears bits), so a wrongly skipped
+ * erase shows up as a corrupt image.
  */
 
 #include <assert.h>
@@ -75,11 +73,9 @@ static void serve_nothing(void)
     memset(&fuji_next, 0, sizeof fuji_next);
 }
 
-/* Back to "store dirty, nothing blank, nothing spoken for", through the
- * public API only. Programming a sector and then dropping the close is what
- * forces the sweep back to zero, so this leans on the OPEN-side guard alone
- * -- a reset that needed the close-side one would hide its absence from
- * every test that starts here. */
+/* Store dirty, nothing blank, nothing in use. Uses only the OPEN-side guard
+ * (a dropped close), so tests starting here still catch a missing
+ * close-side reset. */
 static void store_reset(void)
 {
     serve_nothing();
@@ -99,7 +95,7 @@ static void sweep_all(void)
         fuji_store_idle();
 }
 
-/* One push, in the 512-byte chunks push_stream() actually sends. */
+/* One push, in the 512-byte chunks the ESP32 actually sends. */
 static const uint8_t *push(unsigned len)
 {
     unsigned off;
@@ -120,7 +116,6 @@ static void test_sweep_blanks_then_stops(void)
     for (unsigned i = 0; i < FUJI_STORE_FLASH_SIZE; i++)
         assert(store_base()[i] == 0xFF);
 
-    /* Done is done: no rewear once the store is blank. */
     fuji_store_idle();
     fuji_store_idle();
     assert(fake_flash_erases == SECTORS);
@@ -146,7 +141,7 @@ static void test_sweep_waits_for_the_console(void)
     fuji_store_idle();
     assert(fake_flash_erases == 0);
 
-    /* Staged but not yet swapped -- still not ours to erase. */
+    /* Staged but not yet swapped. */
     serve_nothing();
     fuji_next.app_store = store_base();
     fuji_store_idle();
@@ -189,10 +184,8 @@ static void test_sweep_ahead_is_not_reused(void)
     fill(3, IMG_SIZE);
     assert(push(IMG_SIZE) == store_base());
 
-    /* The console boots away; the store is ours again -- but its prefix is
-     * programmed now, so a second push must re-erase rather than trust the
-     * sweep that blanked it before. Without that, the AND below leaves the
-     * first image's bits behind. */
+    /* The prefix is programmed now, so a second push must re-erase rather
+     * than trust the earlier sweep. */
     serve_nothing();
     fake_flash_erases = fake_flash_programs = 0;
     fill(4, IMG_SIZE);
@@ -201,8 +194,6 @@ static void test_sweep_ahead_is_not_reused(void)
     assert(memcmp(store_base(), img, IMG_SIZE) == 0);
 }
 
-/* What the close-side reset is for: the sweep has to re-cover a prefix it
- * already blanked once, because the push that followed programmed it. */
 static void test_sweep_restarts_after_a_commit(void)
 {
     store_reset();
@@ -215,7 +206,6 @@ static void test_sweep_restarts_after_a_commit(void)
     sweep_all();
     assert(fake_flash_erases == SECTORS);
 
-    /* And so the next push pays nothing in its ACK path. */
     fake_flash_erases = fake_flash_programs = 0;
     fill(9, IMG_SIZE);
     assert(push(IMG_SIZE) == store_base());
@@ -223,8 +213,7 @@ static void test_sweep_restarts_after_a_commit(void)
     assert(memcmp(store_base(), img, IMG_SIZE) == 0);
 }
 
-/* The ESP32 disappearing mid-push leaves the store programmed with no CLOSE
- * to say so. A sweep that ran before it must not be trusted afterwards. */
+/* The ESP32 vanishing mid-push leaves the store programmed with no CLOSE. */
 static void test_abandoned_session_resweeps(void)
 {
     unsigned off;
@@ -255,7 +244,7 @@ static void test_partial_tail_sector(void)
     assert(push(IMG_SIZE + 100) == store_base());
     assert(fake_flash_programs == IMG_SECTORS + 1);
     assert(memcmp(store_base(), img, IMG_SIZE + 100) == 0);
-    /* Padded, not left with whatever the buffer held. */
+    /* Padded with 0xFF. */
     for (unsigned i = IMG_SIZE + 100; i < IMG_SIZE + FLASH_SECTOR_SIZE; i++)
         assert(store_base()[i] == 0xFF);
 }
@@ -269,8 +258,7 @@ static void test_busy_rules(void)
     fuji_next.hot_image = store_base();
     assert(fuji_store_open(FUJI_STORE_FLASH_SIZE) == FN_BOOT_ERR_STOREBUSY);
 
-    /* Same for the RAM store: stage it, then a RAM-sized push has to land
-     * in flash instead of overwriting what the console is about to run. */
+    /* A staged RAM image pushes a RAM-sized push into flash. */
     serve_nothing();
     fill(6, FUJI_STORE_RAM_SIZE);
     ram = push(FUJI_STORE_RAM_SIZE);

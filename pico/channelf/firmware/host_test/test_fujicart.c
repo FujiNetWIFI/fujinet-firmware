@@ -1,12 +1,6 @@
-/* test_fujicart.c -- the cart's image slots and the paint filter.
- *
- * fuji_cart.c is the part of core0 that owns the two image slots. Checked
- * here, against rules written out from fuji_mailbox.h:
- *   - staging never writes the slot core1 is serving;
- *   - a staged banked image records its page count, which is what serve_live
- *     hands the bus decode at the swap;
- *   - fujimail.c's zero-fill of the status page cannot clobber the tick, which
- *     belongs to the timer alone.
+/* test_fujicart.c -- the cart's image slots and the paint filter: staging
+ * never writes the live slot, a banked image records its page count, and
+ * fujimail.c's status-page zero-fill cannot clobber the tick.
  */
 #include <stdint.h>
 #include <stdio.h>

@@ -1,12 +1,6 @@
-/* fujinet.c -- the cartridge's side of the mailbox.
- *
- * The protocol itself lives in fujimail.c, which the MAME model drives too,
- * and fuji_port.c binds it to the USB link; this is only the rest of the port:
- * where a published byte goes, and what to do with a committed image.
- *
- * NOT YET RUN ON HARDWARE -- there is no Channel F Videocart board yet.
- * fujimail.c is exercised against a real fujinet-pc through the MAME model,
- * which is exactly why it is shared rather than reimplemented here.
+/* fujinet.c -- the cartridge's side of the mailbox: where a published byte
+ * goes and what happens to a committed image. The protocol is fujimail.c.
+ * Not yet run on hardware.
  */
 
 #include <string.h>
@@ -21,18 +15,13 @@
 #include "fuji_mailbox.h"
 #include "chfmap.h"
 
-/* A pushed image lands straight in the slot that is not being served, which
- * is big enough for the largest banked client (CHFMAP_STORE), so there is no
- * separate push buffer. There is no flash tier either -- the ColecoVision
- * needed one, and the reasons (128K+ game images, and an XIP miss eating most
- * of a 373 ns budget) apply to neither this console nor this connector. */
+/* A pushed image lands straight in the slot not being served. */
 static uint32_t rx_len;
 static bool rx_over;
 
 static uint8_t port_rom_open(uint32_t size)
 {
-    /* The slot is about to be overwritten: whatever was staged there is gone,
-     * so a swap must not be able to serve it half-written. */
+    /* A swap must not serve the slot half-written. */
     fuji_have_staged = false;
     rx_len = 0;
     rx_over = false;

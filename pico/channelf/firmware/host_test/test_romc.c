@@ -1,18 +1,10 @@
-/* test_romc.c -- replay golden ROMC traces from MAME's F8 core through
- * chf_bus_cycle() and prove the cart's shadow registers track it exactly.
+/* test_romc.c -- replay golden ROMC traces from MAME's F8 core (captured by
+ * emu/f8trace.py) through chf_bus_cycle(). The only coverage of the ROMC state
+ * machine: MAME's cart device sees flat reads and writes.
  *
- * This is the only thing that covers the ROMC state machine. MAME's cart
- * device sees flat reads and writes, so the whole emulation harness -- boot,
- * browse, soak -- can pass with a completely broken bus observer. Traces come
- * from emu/f8trace.py, which instruments MAME's own ROMC_00..ROMC_1F.
- *
- * Two independent checks per cycle:
- *   1. the shadow registers match the CPU's, and
- *   2. the decision to drive the bus (and the byte driven) matches a predicate
- *      written out separately below from the F8 spec wording.
- * Check 2 exists because check 1 alone has a blind spot: if the cart wrongly
- * declined to drive, the replay would fall back to the trace's own bus value
- * -- the correct byte -- and the registers would still agree.
+ * Per cycle, the shadow registers must match the CPU's, and the drive decision
+ * must match an independent predicate; without the second check, a wrongly
+ * declined drive replays the trace's own (correct) bus byte and still agrees.
  *
  * usage: test_romc <trace.bin> <cart.bin> [<trace.bin> <cart.bin> ...]
  */
@@ -34,10 +26,9 @@ static const uint8_t UNREACHABLE[] = { 0x0F, 0x10, 0x13, 0x1E, 0x1F };
 #define N_UNREACHABLE (sizeof UNREACHABLE / sizeof UNREACHABLE[0])
 #define EXPECT_COVERED (32 - (int)N_UNREACHABLE)
 
-/* Independent of channelf_cart.h: what, if anything, does the addressed device
- * put on the bus this cycle? Transcribed from the F8 spec wording in MAME's
- * ROMC comments rather than from the observer, so a wrong observer cannot make
- * this agree with it. Returns 1 and fills *want when the cart must drive. */
+/* What the cart must drive this cycle, transcribed from the F8 spec wording
+ * in MAME's ROMC comments, independently of channelf_cart.h. Returns 1 and
+ * fills *want when the cart must drive. */
 static int expect_drive(uint8_t romc, const chf_bus_t *b, const chf_mem_t *m,
                         uint8_t *want)
 {

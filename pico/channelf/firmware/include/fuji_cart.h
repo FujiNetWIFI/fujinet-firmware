@@ -1,23 +1,10 @@
 /* fuji_cart.h -- the cartridge-side half of the FujiNet mailbox.
  *
- * Split so core1's bus loop does as little as possible. core1 records mailbox
- * WRITES into a ring and returns to the bus; core0 drains the ring and runs
- * the protocol. Replies need no bus-loop change at all: the mailbox is painted
- * into the arena core1 already serves.
- *
- * Channel F specifics versus the ColecoVision original:
- *   - the ring carries hotspot offsets, exactly as there, even though the
- *     console writes rather than reads. core1 turns one store into the
- *     REGSEL/REGDATA pair fujimail.c decodes, so that file stays verbatim.
- *   - there is one arena, not a ping-pong pair: it is separate memory from the
- *     ROM window, so it survives a swap untouched and a staged client boots
- *     into the status pages it was already watching.
- *   - the ROM image IS ping-ponged, for the reason the ColecoVision found: a
- *     client that has itself been swapped in is running out of that slot,
- *     and staging the next image into the same buffer would rewrite the code
- *     currently executing. A slot holds a whole image: the fixed 16K and, for
- *     a banked client, its APPBANK pages after it.
- *   - the swap is core1's, inline: it must be complete before the next fetch.
+ * core1 records mailbox writes into a ring as hotspot offsets (one store
+ * becomes the REGSEL/REGDATA pair fujimail.c decodes); core0 drains it and
+ * paints replies into the arena core1 serves. The arena is single and
+ * survives a swap. Images are ping-ponged because a swapped-in client runs
+ * from its slot. core1 does the swap inline, before the next fetch.
  */
 
 #ifndef FUJI_CART_H
@@ -29,10 +16,8 @@
 #include "channelf_cart.h"
 #include "chfmap.h"
 
-/* One transaction is a dozen register writes plus at most a 320-byte stream,
- * and the console cannot start another until it sees ACKSEQ, so the ring only
- * ever has to hold one transaction's worth. A register write costs two
- * entries, since it expands to the REGSEL/REGDATA pair. */
+/* One transaction: a dozen register writes (two entries each) plus at most a
+ * 320-byte stream; the console waits for ACKSEQ before the next. */
 #define FUJI_RING_LEN 1024
 
 typedef struct {
@@ -55,8 +40,7 @@ extern volatile bool fuji_boot_armed;
 extern volatile bool fuji_staged_claims;
 extern volatile bool fuji_have_staged;
 
-/* core1: record one mailbox event. Inlined into the bus loop, so it stays a
- * compare and two stores. */
+/* core1: record one mailbox event. */
 CHF_INLINE void fuji_cart_note(uint16_t offset)
 {
     uint16_t head = fuji_ring.head;

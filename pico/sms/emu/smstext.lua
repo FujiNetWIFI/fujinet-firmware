@@ -1,7 +1,7 @@
 -- smstext.lua -- the SMS screen as text, for the harnesses. Reads the Mode 4
 -- name table at $3800 out of the VDP's own VRAM. The low 7 bits of a cell's
 -- tile are its character: testrom/fujidisp.c loads one font at tile 32,
--- fujinet-config one per colour at 32, 160 and 288.
+-- fujinet-config one per color at 32, 160 and 288.
 local T = {}
 
 local function vdp()

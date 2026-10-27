@@ -6,13 +6,12 @@
 #   FUJINET_LOADER=1 ./run.sh hello   send the -cart image through the loader ROM,
 #                                     as the cart does at power-on
 #
-# MAME's nes driver insists on a cartridge image, so there is always a -cart;
-# the device treats it as the resident image the cart would have baked in.
 #   MAME=~/src/mame ./run.sh hello    a different MAME tree
 #
-# fujinet-pc must already be running with BoIP on 127.0.0.1:9995 (FUJINET_TCP
+# The -cart image is the resident image the cart would have baked in.
+# fujinet-pc must be running with BoIP on 127.0.0.1:9995 (FUJINET_TCP
 # overrides). MAME must run from its own tree or -autoboot_script is silently
-# ignored, so everything below is passed as an absolute path.
+# ignored, so paths are absolute.
 set -euo pipefail
 cd "$(dirname "$0")"
 HERE="$PWD"

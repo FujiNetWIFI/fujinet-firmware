@@ -3,15 +3,9 @@
 
 Usage: rom2h.py <symbol> <rom file> <output header>
 
-The fujiversal pico firmware includes its cartridge ROM as build/<BOARD>/rom.h (see that
-tree's board_defs.h). Upstream's Makefile generates it with xxd, which is not installed
-everywhere -- upstream hit this too (commit 929e2f8) and worked around it by running xxd
-inside their Docker image. The ESP32 build has neither, so it calls this instead, via the
-pico_prebuild key in the fujiversal board inis.
-
-Output matches `xxd -i` closely enough for board_defs.h: an unsigned char array plus an
-unsigned int length, both named after <symbol>. Writes only when the content changes, so an
-unchanged ROM does not force the pico firmware to relink on every build.
+Generates the fujiversal firmware's build/<BOARD>/rom.h, which upstream makes with xxd, for
+builds that have no xxd. Output is an unsigned char array plus an unsigned int length, both
+named after <symbol>, as board_defs.h expects.
 """
 
 import os
@@ -56,8 +50,7 @@ def main(argv):
 
     rendered = render(symbol, data)
 
-    # Don't rewrite an identical header: the pico firmware's build depends on this file, and
-    # a fresh mtime alone would rebuild (and relink) it on every ESP32 build.
+    # A fresh mtime alone would relink the pico firmware on every ESP32 build.
     try:
         with open(out_path, "r") as fh:
             if fh.read() == rendered:

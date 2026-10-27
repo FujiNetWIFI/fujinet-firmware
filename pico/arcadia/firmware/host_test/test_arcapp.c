@@ -1,7 +1,4 @@
-/* test_arcapp.c -- serving an APPBANK image (arcapp.h): the window, the bank
- * select, cart RAM writes, and that a flat image is served exactly as before.
- * core1 and the MAME device run these same inline functions.
- */
+/* test_arcapp.c -- serving APPBANK and flat images (arcapp.h). */
 
 #include <assert.h>
 #include <stdio.h>
@@ -36,7 +33,6 @@ static arcmap_plan_t make_image(unsigned npages)
     return plan;
 }
 
-/* The reads a client makes, as image offsets (console $2D00+n etc.). */
 static bool regsel(arcapp_t *app, unsigned reg) { return arcapp_hotspot(app, FN_H_REGSEL + reg); }
 static bool regdata(arcapp_t *app, unsigned data) { return arcapp_hotspot(app, FN_H_REGDATA + data); }
 
@@ -62,10 +58,8 @@ static void test_window(void)
     assert(arcapp_byte(&app, 0x0800) == 0xFF && arcapp_byte(&app, 0x0FFF) == 0xFF);
     assert(regsel(&app, FN_HOT_BANK_LAST));
     assert(arcapp_byte(&app, 0x0ABC) == 0xFF);
-    /* The swap and RESET-free restart: reset maps page 0. */
     arcapp_reset(&app, slot, plan.npages, ffpage);
     assert(arcapp_byte(&app, 0x0FFF) == 0);
-    /* Ops past the bank range are not ours. */
     assert(!regsel(&app, FN_HOT_BANK_LAST + 1));
     assert(!regsel(&app, FN_HOT_SWAP));
 }
@@ -118,8 +112,7 @@ static void test_ram(void)
     assert(!regdata(&app, 0x42));
     assert(memcmp(before, slot, sizeof before) == 0);
 
-    /* The client's closing read: a stray REGDATA after it only moves the
-     * pointer; a second one is fujimail's, where nothing is armed. */
+    /* After the closing read a stray REGDATA only moves the pointer; a second is forwarded. */
     assert(regsel(&app, FN_REG_RAMPOKE));
     assert(regdata(&app, 0x99));
     assert(regsel(&app, FN_REG_RAMPTR0));         /* close */
@@ -129,7 +122,6 @@ static void test_ram(void)
     assert(memcmp(before, slot, sizeof before) == 0);
     assert(app.ptr == 0x033);
 
-    /* RAM writes never touch anything but the two RAM ranges. */
     for (unsigned ptr = 0; ptr < FN_RAM_SIZE; ptr++) {
         unsigned off = arcapp_ram_offset(ptr);
         assert((off >= FN_RAM_L && off < FN_RAM_L + FN_RAM_HALF)
@@ -147,7 +139,6 @@ static void test_flat(void)
         flat[idx] = (uint8_t) idx;
     memcpy(before, flat, sizeof before);
     arcapp_reset(&app, flat, 0, ffpage);
-    /* Every hotspot read goes on to fujimail, as in protocol 1. */
     for (unsigned off = FN_H_REGSEL; off < FN_H_DATA + 0x100; off++)
         assert(!arcapp_hotspot(&app, off));
     for (unsigned idx = 0; idx < ARCMAP_WINDOW; idx++)

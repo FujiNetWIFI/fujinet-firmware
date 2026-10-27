@@ -1,7 +1,7 @@
 /* test_load.c -- staging and the swap (fuji_load.c): pushes land in the
  * buffer core1 is not serving, a staged image is served only after an armed
  * swap, the mailbox follows the image's claim, a push disarms, CONFIG can be
- * staged back, and every corpus mapper kind arrives in its power-on state.
+ * staged back, and Bounty Bob starts in its power-on banks.
  */
 
 #include <assert.h>
@@ -113,7 +113,7 @@ static void test_game_and_app(void)
     printf("load: staged until armed; claims keep the mailbox; push disarms; CONFIG again\n");
 }
 
-/* Every kind starts as MAME's device_reset leaves it. */
+/* Bounty Bob starts as MAME's device_reset leaves it. */
 static void test_power_on_banks(void)
 {
     static uint8_t img[A52MAP_BBSB_SIZE];

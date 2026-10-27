@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
-"""Emit testrom/font.inc: a 3x5 glyph set for $20-$5F, as five 64-byte row tables.
+"""Emit testrom/font.inc: a 3x5 glyph set for $20-$7F, as five 96-byte row tables.
 
-Row-major tables (not glyph-major) so a glyph row is FNTRn + (char-32) -- one
-signed ADC reaches any glyph, which a glyph-major layout could not do (offsets
-run to 315 and ADC is +/-127).
+Row-major so a glyph row is FNTRn + (char-32), reachable with one signed ADC
+(+/-127); glyph-major offsets would run past it.
 """
 import sys
 
-# 3 wide, 5 tall. '#' lit. Lowercase folds to uppercase at draw time.
+# 3 wide, 5 tall. '#' lit.
 GLYPHS = {
     ' ': "...;...;...;...;...",   '!': ".#.;.#.;.#.;...;.#.",
     '"': "#.#;#.#;...;...;...",   '#': "#.#;###;#.#;###;#.#",
@@ -51,12 +50,8 @@ FIRST, LAST = 0x20, 0x7F
 
 
 def rows_for(ch):
-    # Lowercase is derived, not drawn. Three pixels wide leaves no room for
-    # real letterforms, so a-z are the uppercase glyph squashed into four rows
-    # -- the top two OR'd together -- which reads as "the same letter, shorter".
-    # An x-height difference is what the on-screen keyboard actually needs:
-    # SSIDs and passwords are case-sensitive, so the user has to be able to see
-    # which case they just typed, and only the height has to be unambiguous.
+    # a-z are the uppercase glyph squashed into four rows (top two OR'd), so
+    # the keyboard shows case for SSIDs and passwords.
     if 'a' <= ch <= 'z':
         up = rows_for(ch.upper())
         return [0, up[0] | up[1], up[2], up[3], up[4]]

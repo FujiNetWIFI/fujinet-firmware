@@ -1,8 +1,7 @@
 ; loader.s -- the 2K loader ROM the cart serves at $5800-$5FFF.
 ;
-; This is the swap stub for every image, CONFIG at power-on included. It is
-; cart-served, so unlike every sibling port it survives the copy it performs
-; and nothing has to be moved into console RAM first.
+; The swap stub for every image, CONFIG at power-on included. Cart-served, so
+; it survives the copy it performs.
 ;
 ; Protocol (fuji_mailbox.h): store to FN_RSEL+FH_SWAP to ask for the load,
 ; then for every LSEQ bump copy the 1K in the reply window to
@@ -36,8 +35,7 @@ start:  sei
         sta     APU_STATUS
         sta     lseq
 
-        ; Two vblanks: at power-on the PPU is not ready before that, and a
-        ; PPU_MASK write only takes effect from the next frame anyway.
+        ; Two vblanks: the PPU is not ready at power-on before that.
         bit     PPU_STATUS
 vbl1:   bit     PPU_STATUS
         bpl     vbl1
@@ -104,8 +102,7 @@ copy7:  COPY1K  $9C00
 prgtab: .addr   copy0, copy1, copy2, copy3, copy4, copy5, copy6, copy7
 
 ; ---- CHR: 1K through PPU_DATA, address LOFF * $400 ----
-; PPU_DATA auto-increments, so the bytes must go in address order: one page
-; at a time, four bytes per iteration within the page.
+; PPU_DATA auto-increments, so bytes go in address order.
 .macro  CHRPAGE src
         ldx     #0
 :       lda     src,x
@@ -145,7 +142,6 @@ done:   lda     lseq
         txs
         jmp     ($FFFC)
 
-; A failed load leaves a dark screen. The console's Reset re-enters the
-; image's vectors, which the SRAM now holds half-written; power-cycling brings
-; CONFIG back.
+; A failed load leaves a dark screen. Reset re-enters half-written vectors;
+; power-cycling brings CONFIG back.
 fail:   jmp     fail

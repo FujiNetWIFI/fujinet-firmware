@@ -3,8 +3,8 @@
  * A transcription of the header checks the BIOS makes before it hashes a
  * cart (its code at $F406-$F4FC, copied to RAM at $2306), applied to the
  * block the cart serves at power-on, and the block's own contract: its reset
- * code checks the mailbox is visible, then reaches the loader. The signature itself is checked by 7800sign in
- * the Makefile, and by sigtest.lua running the real BIOS in MAME.
+ * code checks the mailbox is visible, then reaches the loader. The signature
+ * itself is checked by 7800sign in the Makefile, and by sigtest.lua in MAME.
  */
 
 #include <assert.h>

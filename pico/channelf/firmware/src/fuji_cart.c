@@ -33,17 +33,11 @@ bool fuji_cart_next_event(uint16_t *offset)
     return true;
 }
 
-/* Publish one mailbox byte into the arena. Unlike the ColecoVision there is
- * nothing to mirror: the arena is separate memory from the ROM window, so a
- * staged image cannot disturb it and a client that boots keeps watching the
- * same status pages it was already watching. */
 void fuji_cart_poke(unsigned offset, uint8_t value)
 {
     if (!fuji_mailbox_active)
         return;                 /* a booted Videocart owns these pages now */
-    /* The tick is the timer's alone. fujimail.c paints the status page with
-     * zeros, and is kept byte-identical to the sibling ports, so the filter
-     * lives here rather than there. */
+    /* The tick is the timer's alone; fujimail.c would paint it with zeros. */
     if (offset == FN_R_TICK_LO || offset == FN_R_TICK_HI)
         return;
     if (offset < sizeof fuji_arena)
@@ -55,11 +49,8 @@ volatile uint16_t *fuji_tick_target(void)
     return fuji_mailbox_active ? (volatile uint16_t *)(fuji_arena + FN_R_TICK_LO) : NULL;
 }
 
-/* Take a committed image and lay it into the slot that is NOT being served.
- * The push normally lands there already, so the apply is in place. Arming is
- * separate and client-driven (FN_REG_BOOTLOCK): a stray store can never swap
- * what was never armed, and nothing is overwritten under the running client
- * either way. */
+/* Lay a committed image into the slot not being served. Arming is separate
+ * and client-driven (FN_REG_BOOTLOCK). */
 void fuji_cart_stage(const uint8_t *image, const chfmap_plan_t *plan)
 {
     chfmap_apply(image, plan, fuji_cart_stage_window());

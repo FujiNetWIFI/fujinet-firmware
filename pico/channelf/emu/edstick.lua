@@ -1,9 +1,6 @@
--- Move the name-entry cursor with the hand controller, not the console panel.
---
--- Left and right on the stick are the natural way across a 16-wide keyboard,
--- and INSCAN did not decode them: the cursor only ever moved on TIME/HOLD.
--- This walks right three cells, types, walks back one, types again, and checks
--- both the cursor and the accumulator -- the panel buttons are never touched.
+-- Move the name-entry cursor with the hand controller, not the console panel:
+-- right three cells, type, back one, type again, then check the cursor and
+-- the accumulator.
 local ST_EDIT = 1
 local VSTATE, VEDX, VEDLEN, VENTRY = 0x8006, 0x801C, 0x801E, 0x8080
 

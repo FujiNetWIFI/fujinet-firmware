@@ -140,7 +140,7 @@ SYM_DOWN        EQU     09H
 SYM_TEN         EQU     0AH
 SYM_BACK        EQU     0BH
 
-; ---- FujiBus (lib/device/fujiDevice) ----
+; ---- FujiBus (include/fujiDeviceID.h, include/fujiCommandID.h) ----
 FNDEVF          EQU     70H             ; the FUJI device
 FNCADPX         EQU     0C4H            ; GET_ADAPTERCONFIG_EXTENDED
 FNCMHST         EQU     0F9H            ; MOUNT_HOST

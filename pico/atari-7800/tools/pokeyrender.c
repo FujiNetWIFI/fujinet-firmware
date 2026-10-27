@@ -1,4 +1,4 @@
-/* pokeyrender.c -- the firmware's POKEY synthesiser as a host program.
+/* pokeyrender.c -- the firmware's POKEY synthesizer as a host program.
  *
  * Reads "clock register value" lines (machine clocks at 1.79 MHz) on stdin
  * and writes raw signed 16-bit mono samples, one every 57 clocks (31.4 kHz),

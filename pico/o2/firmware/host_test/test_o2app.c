@@ -1,8 +1,5 @@
-/* test_o2app.c -- desktop regression gate for protocol 2 (APPBANK).
- *
- * How o2map recognises an APPBANK image, and how o2app.h -- the decode the
- * cartridge's core1 loop and the o2em model both inline -- serves the console's
- * fetches and takes its register writes.
+/* test_o2app.c -- host tests for protocol 2: APPBANK recognition and the
+ * o2app.h fetch and register decode.
  */
 
 #include <stdio.h>

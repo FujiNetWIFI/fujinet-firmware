@@ -2,9 +2,8 @@
 # build-cart.sh -- build the RP2040 Videocart firmware: [--baked | --bake] [board], as
 # pico/common/scripts/build-cart.lib.sh describes.
 #
-# Client: $FUJI_CLIENT if set; else build/config.bin -- the REAL CONFIG from
-# fujinet-config/channelf; else the fujicfg testrom stand-in; else fujitest; else hello. The
-# stand-ins exist for bring-up only; a release cart bakes real CONFIG.
+# Client: $FUJI_CLIENT if set; else build/config.bin (CONFIG from
+# fujinet-config/channelf); else the fujicfg, fujitest or hello stand-ins.
 CART_BOARD=fujichannelf
 CART_ELF=fujichannelf
 CART_BAKE="fujiconfigrom.h"

@@ -4,9 +4,6 @@
 
  Atari 5200 FujiNet cartridge emulation
 
- See a5200_fujinet.h for the design; pico/atari-5200/README.md in
- fujinet-firmware for the bring-up this device serves.
-
  ***********************************************************************************************************/
 
 #include "emu.h"
@@ -18,8 +15,7 @@
 #include <cstdlib>
 #include <cstring>
 
-// The cartridge firmware's own sources, compiled in as C++ (apply.sh copies
-// them next to this file), so no extern "C".
+// The firmware's own sources, compiled as C++ (apply.sh copies them here).
 #include "fuji_mailbox.h"
 #include "fujimail.h"
 #include "fujitcp.h"
@@ -27,8 +23,7 @@
 
 DEFINE_DEVICE_TYPE(A5200_FUJINET, a5200_fujinet_device, "a5200_fujinet", "Atari 5200 FujiNet Cartridge")
 
-// fujimail's port is C function pointers with no context argument; one slot,
-// one cart, as on the hardware.
+// fujimail's port callbacks take no context argument; one cart, as on hardware.
 static a5200_fujinet_device *s_fujinet = nullptr;
 
 // set on the worker thread: its pokes queue for the CPU thread

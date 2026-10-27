@@ -11,7 +11,7 @@
 
 #define CMD_GET_ADAPTERCONFIG_EXTENDED 0xC4
 
-/* AdapterConfigExtended, from lib/device/fujiDevice/fujiDevice.h. */
+/* AdapterConfigExtended field offsets, as the ESP32 sends them. */
 #define ACX_SSID      0
 #define ACX_VERSION   125
 #define ACX_SLOCALIP  140

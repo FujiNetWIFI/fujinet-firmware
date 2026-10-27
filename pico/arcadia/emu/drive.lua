@@ -1,18 +1,11 @@
--- drive.lua: headless CONFIG smoke test -- walk the browser and boot.
---
--- Drives fujicfg (or the real CONFIG) through the P1 keypad: Enter to open
--- host 0, `DRIVE_DOWN` presses of '8' to move the cursor, then Enter to
--- boot the selected entry. Confirms the swap happened (the 'F','N' magic
--- pair at 2C09/2C0A vanishes) and prints one line:
+-- drive.lua: headless CONFIG smoke test. Enter opens host 0, DRIVE_DOWN presses of '8'
+-- move the cursor, Enter boots; PASS when the 'F','N' magic at 2C09/2C0A vanishes.
 --   drive: PASS | drive: FAIL <why>
 --
--- Keypad ioports (see arcadia.cpp INPUT_PORTS): ':controller1_col2' field
--- 0x02 = '8' (down), ':controller1_col3' field 0x01 = Enter.
+-- Keypad: ':controller1_col2' field 0x02 = '8' (down), ':controller1_col3' 0x01 = Enter.
 --
---   DRIVE_DOWN     cursor-down presses before boot (default 5 -> jungler on
---                  an SD whose listing is FujiNet/, <synthetic>, 5card,
---                  astrotest, fujibank, fujitest, jungler, ...)
---   DRIVE_TIMEOUT  emulated-seconds budget (default 20)
+--   DRIVE_DOWN     cursor-down presses before boot (default 6)
+--   DRIVE_TIMEOUT  emulated-seconds budget (default 30)
 
 local downs = tonumber(os.getenv("DRIVE_DOWN") or "6")
 local timeout = tonumber(os.getenv("DRIVE_TIMEOUT") or "30")
@@ -29,23 +22,20 @@ local function done(msg)
     manager.machine:exit()
 end
 
--- add_machine_frame_notifier, not the removed emu.register_frame; the handle is kept in
--- a global or it is collected and the callback stops.
+-- Keep the handle in a global or it is collected and the callback stops.
 _G.DRIVE_SUB = emu.add_machine_frame_notifier(function()
     if finished then return end
     local mem = manager.machine.devices[":maincpu"].spaces["program"]
     local col2 = manager.machine.ioport.ports[":controller1_col2"]
     local col3 = manager.machine.ioport.ports[":controller1_col3"]
     if col2 == nil or col3 == nil then return done("FAIL no keypad ports") end
-    -- machine.time.seconds is whole seconds only: a 0.3 s press would vanish
-    -- inside one value. Count frames instead (the Arcadia runs at 60 Hz).
+    -- machine.time.seconds is whole seconds only; count 60 Hz frames instead.
     frames = frames + 1
     local seconds = frames / 60
     if seconds >= timeout then return done("FAIL timeout at step " .. step) end
     if seconds < nextt then return end
 
-    -- script: Enter(open host), downs x '8', Enter(boot); each = 0.3s down,
-    -- 0.5s up, generous against the redraw bursts between key polls.
+    -- 0.3 s down, 0.5 s up: generous against the redraw bursts between key polls.
     if step == 0 then col3:field(0x01):set_value(1); nextt = seconds + 0.3; step = 1
     elseif step == 1 then col3:field(0x01):set_value(0); nextt = seconds + 1.2; step = 2
     elseif step == 2 then

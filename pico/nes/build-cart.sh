@@ -3,11 +3,9 @@
 #
 # Usage: ./build-cart.sh [board]          default board: fujines_rp2354b
 #
-# Regenerates firmware/include/fujiconfigrom.h from the baked-in client and
-# nesloaderrom.h from the loader ROM, then a plain pico-sdk CMake build.
-# Client resolution: $FUJI_CLIENT if set; else build/config.nes -- the REAL
-# CONFIG from fujinet-config/nes; else the fujicfg stand-in; else fujitest;
-# else hello. The stand-ins exist for bring-up only.
+# Regenerates fujiconfigrom.h and nesloaderrom.h, then builds with the pico-sdk.
+# Baked client: $FUJI_CLIENT, else build/config.nes (fujinet-config/nes), else
+# the bring-up stand-ins fujicfg, fujitest, hello.
 set -euo pipefail
 cd "$(dirname "$0")"
 

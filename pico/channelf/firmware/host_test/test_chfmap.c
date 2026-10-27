@@ -1,15 +1,7 @@
-/* test_chfmap.c -- the image mapper, against an expectation written out
- * separately from the implementation.
- *
- * The ColecoVision port learned to do this the hard way with five mappers: a
- * test that reuses the code under test only proves it is self-consistent. So
- * the expected window here is built from the rules in prose -- copy the image,
- * fill the rest with $FF, which is what MAME's own stock Videocart device
- * answers past its ROM size -- and never by calling chfmap_apply.
- *
- * Banked (APPBANK) images follow the prose in fuji_mailbox.h: 16K plus k whole
- * 8K pages, 1 <= k <= 6, laid into the slot in order; anything else over 16K
- * is refused, and a banked image without the claim is refused too.
+/* test_chfmap.c -- the image mapper, against expectations built from the
+ * rules in fuji_mailbox.h, never by calling chfmap_apply: copy the image and
+ * fill with $FF (as MAME's stock Videocart device does); banked images are 16K
+ * plus 1-6 whole 8K pages and must carry the claim.
  */
 #include <stdint.h>
 #include <stdio.h>
@@ -126,10 +118,8 @@ int main(void)
     one(CHFMAP_WINDOW, CHFMAP_OK, "exactly the window");
     one(CHFMAP_WINDOW + 1, CHFMAP_ETOOBIG, "one over the window");
 
-    /* --- the BIOS signature gate ---
-     * Without $55 at $0800 the console runs its built-in Hockey instead, which
-     * looks like a dead cartridge rather than a failed boot. Catching it here
-     * turns that into a reportable error. */
+    /* --- the BIOS signature gate: without $55 the BIOS runs its built-in
+     * Hockey instead. */
     image[0] = 0x00;
     one(2048, CHFMAP_ENOSIG, "no $55 signature");
     image[0] = 0x54;

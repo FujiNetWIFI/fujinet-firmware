@@ -9,12 +9,8 @@ fn_get:                     ; A = offset in page $F00 -> A = byte there
     movp a,@a
     ret
 
-; $F2C-$F2F is the one part of the page the cartridge never publishes over, so
-; it is where an image declares itself FujiNet-aware: this cart reserves
-; $F20-$FFF for the mailbox and does not drive The Voice through $E0-$E3.
-; Without the signature the cartridge disables the mailbox when this image is
-; booted -- right for an ordinary game, fatal for a client, which comes up
-; reading NO CART because the magic at $F29 was never republished.
+; The FUJI claim (see FN_R_CLAIM in fuji_mailbox.h). Without it the cartridge
+; drops the mailbox at boot and a client reads NO CART.
     org 0F2Ch
     db "FUJI"
 

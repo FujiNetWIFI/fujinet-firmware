@@ -1,20 +1,9 @@
-/* test_busio.c -- the parts of the bus observer no golden trace can reach.
+/* test_busio.c -- the bus observer paths a stock-Videocart trace cannot
+ * reach, against hand-computed expectations: ROMC 05 writes read back through
+ * ROMC 02, the mailbox write decode, side-effect-free reads of the register
+ * and TX pages, the ROMC 03 -> 1A/1B port latch, and APPBANK selects.
  *
- * test_romc.c replays traces from MAME running a STANDARD Videocart, which has
- * neither RAM nor cart I/O ports nor a mailbox. So nothing there exercises:
- *   - the ROMC 05 write path and reading that data back through ROMC 02,
- *     which is the basis for handing the console 30K of real RAM;
- *   - the mailbox write decode: which store means a register write, which
- *     means a TX append, which means the ROM swap, and which is simply
- *     dropped;
- *   - that the register and TX pages are INERT on reads, the property that
- *     deletes the stray-read hazard the sibling ports defend against;
- *   - the ROMC 03 -> 1A/1B I/O port latch;
- *   - APPBANK: a store to $FD80+n serving page n at $4800 from the next read.
- * All checked here against hand-computed expectations.
- *
- * Compiled with the cart claiming ports $20-$27, the historic Videocart PSU
- * range, so the claim logic is live.
+ * Compiled with the cart claiming ports $20-$27, the historic PSU range.
  */
 #include <stdint.h>
 #include <stdio.h>
@@ -46,9 +35,7 @@ static uint8_t pgbyte(unsigned p, unsigned i)
     return (uint8_t)((i * 3u) ^ (p * 0x5Bu) ^ 0xC3u);
 }
 
-/* The arena with guard bands either side: an observer that loses a bounds
- * check writes just past the window, which a plain array would turn into
- * undetected UB rather than a failing assertion. */
+/* Guard bands either side turn a lost bounds check into a failing check. */
 #define GUARD 64
 static struct {
     uint8_t lo[GUARD];
@@ -192,7 +179,7 @@ int main(void)
     CHECK(bus.ev == CHF_EV_REG && bus.ev_reg == FN_REG_SEQ && bus.ev_val == 0x01,
           "SEQ register write");
 
-    /* the raw REGDATA half still decodes, for a sibling-shaped client */
+    /* the raw REGDATA half still decodes, for a two-step client */
     store((uint16_t)(FN_ARENA_BASE + FN_H_REGDATA + FN_REG_NPARAM), 0x03);
     CHECK(bus.ev == CHF_EV_REG && bus.ev_reg == FN_REG_NPARAM && bus.ev_val == 0x03,
           "raw REGDATA write");
@@ -316,9 +303,8 @@ int main(void)
     mem.npages = 0;
     mem.bank = NULL;
 
-    /* --- after booting a Videocart the decode dies but the arena does NOT.
-     * The swap stub runs out of the arena and this console has no RAM of its
-     * own, so tearing it down would kill the code that triggered the swap. --- */
+    /* --- after booting a Videocart the decode dies but the arena stays: the
+     * swap stub runs from it. --- */
     mem.mailbox = false;
     store((uint16_t)(FN_ARENA_BASE + FN_H_REGSEL + FN_REG_SEQ), 0x02);
     CHECK(bus.ev == CHF_EV_NONE, "with the decode dead, a register store is inert");

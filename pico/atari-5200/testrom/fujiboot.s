@@ -1,11 +1,9 @@
 ; fujiboot.s -- M2: mount a cartridge image over the network and boot it.
 ;
-; MOUNT_HOST -> SET_DEVICE_FULLPATH -> MOUNT_IMAGE. The last one makes the
-; ESP32 side stream the file back to the cartridge on the same link,
-; addressed to the DBC device, while MOUNT_IMAGE's own reply is still
-; outstanding; the cart stages it and reports BOOT_STATE. Then BOOTLOCK,
-; and the cart's stub hands the console to the image through the BIOS's own
-; reset code.
+; MOUNT_HOST -> SET_DEVICE_FULLPATH -> MOUNT_IMAGE. During MOUNT_IMAGE the
+; ESP32 streams the file to the DBC device on the same link; the cart stages
+; it and reports BOOT_STATE. Then BOOTLOCK, and the cart's stub hands the
+; console to the image through the BIOS's own reset code.
 ;
 ; Target host slot and path come from bootcfg.inc, written by build.sh:
 ;   BOOT_HOST=0 BOOT_PATH=/game.a52 ./build.sh fujiboot
@@ -123,8 +121,6 @@ have:   lda     #FNDEVF
 :
 
 ; ---- MOUNT_IMAGE(dev, mode) ----
-; The one that takes real time: the ESP32 fetches the file and streams it to
-; the cart as DBC frames while this reply is outstanding.
         lda     #FNDEVF
         sta     FN_DEV
         lda     #FNCMIMG
@@ -180,7 +176,7 @@ boot:   jsr     fn_boot
         lda     #6
         sta     apstep
 
-; ---- the failure screen: WHICH step, with WHAT ----
+; ---- the failure screen: step and error ----
 show:   PUTS    8, 2, tfail
         lda     #8
         ldx     #14

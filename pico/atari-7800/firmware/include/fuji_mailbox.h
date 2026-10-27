@@ -100,7 +100,7 @@
 /* ---------------- console -> cart: writes ---------------- */
 
 /* Writing V to FN_H_REGSEL + n (n < 0x80) sets register n = V; the cart
- * synthesises the REGSEL/REGDATA pair fujimail.c decodes. */
+ * synthesizes the REGSEL/REGDATA pair fujimail.c decodes. */
 #define FN_H_REGSEL      0x500    /* write V to +n: register n = V ($0D00)   */
 #define FN_H_REGDATA     0x600    /* unused by clients; for the shared decoder */
 #define FN_H_DATA        0x700    /* write anywhere in page: append data byte */

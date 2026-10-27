@@ -8,18 +8,13 @@
 
 #include "arcmap.h"
 
-/* Plain Pico assignments (see boards/fujiarcadia.h for the board story):
- *   GP0-GP13   A0-A13        one contiguous mask, addr = pins & 0x3FFF
- *   GP12       A12           doubles as the active-low chip select
+/*   GP0-GP13   A0-A13 (GP12 = A12, the active-low chip select)
  *   GP14-GP21  D0-D7
  *   GP22       (spare: future self-test trigger)
  *   GP25       LED
  *   GP26       (spare: future console-5V power sense)
  *   GP27       (spare: future debug UART TX)
- *
- * The Emerson connector carries no read strobe: A12 low IS the chip select
- * (a real cart ROM's /CE), so there is no separate Enable pin as on the
- * Astrocade. A13 picks the 4K block.
+ * The connector has no read strobe: A12 low is the ROM's /CE. A13 picks the 4K block.
  */
 #define ADDR_MASK   0x00003FFFu          /* A0-A13 */
 #define A12_PIN     12
@@ -29,15 +24,11 @@
 
 #define BUS_GPIO_MASK (ADDR_MASK | DATA_MASK)
 
-/* Gap between the two address samples: 100 ns at 250 MHz, wider than the skew
- * between address lines through the level shifters, still tiny against the
- * ~3.35 us 2650 memory cycle. */
+/* 100 ns at 250 MHz between address samples: wider than level-shifter skew, tiny against
+ * the ~3.35 us 2650 memory cycle. */
 #define ARCADIA_SETTLE_CYCLES 25
 
-/* The bus-loop's serve/de-dup decision, factored out so it can be fuzzed on
- * the desktop (test_busedge.c) against the exact code core1 runs -- there is
- * no Enable line to key events off, so this is where the correctness of the
- * "one event per changed A0-A13 state" rule lives. */
+/* With no Enable line, one event per changed A0-A13 state; shared with test_busedge.c. */
 typedef struct {
     uint32_t prev;              /* last acted-on A0-A13 (+A12) state */
 } arcadia_edge_t;
@@ -47,13 +38,9 @@ static inline void arcadia_edge_init(arcadia_edge_t *e)
     e->prev = 0xFFFFFFFFu;
 }
 
-/* One bus observation from two GPIO snapshots ARCADIA_SETTLE_CYCLES apart.
- * Returns the decoded image offset being served (>= 0) whenever the cart is
- * selected and the address is stable, or -1 (chip select off, or an unstable
- * sample -- in which case `prev` is deliberately left untouched so a
- * mid-cycle glitch cannot double-fire). *is_event is set only when the
- * selected address has CHANGED since the last event, which is exactly when
- * a hotspot side effect should run. */
+/* Two GPIO snapshots ARCADIA_SETTLE_CYCLES apart. Returns the image offset, or -1 when
+ * deselected or unstable; an unstable sample leaves prev alone so a glitch cannot
+ * double-fire. *is_event is set when the selected address changed: run hotspots then. */
 static inline int arcadia_bus_observe(arcadia_edge_t *e, uint32_t pins,
                                       uint32_t pins2, bool *is_event)
 {

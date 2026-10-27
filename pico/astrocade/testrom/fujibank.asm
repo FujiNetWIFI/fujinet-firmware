@@ -1,18 +1,15 @@
 ; fujibank.asm -- APPBANK self-test client for the FujiNet cartridge.
 ;
 ; Built as an ordinary claimed 8K client, then tools/mkbanked.py appends
-; stamped 4K pages (default 8 total). All code lives in the HIGH half
-; (3000H+): the low half is what banks, so nothing here may execute from it.
-; The reset entry at exactly 3000H re-selects page 0 and restarts -- every
-; appended page's stamped sentinel header points its start vector there,
-; which is what makes console RESET safe with any page selected.
+; stamped 4K pages (default 8 total). All code lives in the high half
+; (3000H+), since the low half banks. Every appended page's header points its
+; start vector at the reset entry at 3000H, which re-selects page 0, so
+; console RESET is safe with any page selected.
 ;
-; For each page: select it with one FNBKSEL read and verify the packer's
-; stamp (page 0 = our own low half; page 1 = the high half aliased low;
-; pages 2+ = header, marker pair, 32 PRNG bytes). Then prove the mailbox is
-; fully live WHILE a non-zero page is banked: run GET_ADAPTERCONFIG_EXTENDED
-; with page 2 selected. Verdict to screen and to 4FA0H (0A5H pass / 5AH
-; fail, failing page in 4FA1H) for the emulation harness to sample.
+; Selects and verifies each page (page 1 is the high half aliased low), then
+; runs GET_ADAPTERCONFIG_EXTENDED with page 2 selected to prove the mailbox
+; is live while banked. Verdict to screen and to 4FA0H (0A5H pass / 5AH
+; fail, failing page in 4FA1H).
 ;
 ; Assemble: zmac fujibank.asm; then mkbanked.py (build.sh does both).
 

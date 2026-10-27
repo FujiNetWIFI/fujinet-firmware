@@ -1,7 +1,7 @@
 /* fake_esp.h -- a stand-in for the ESP32's rs232 bus on the far end of the link.
  *
  * Frames the card sends are answered from in-memory Altair images (one per slot)
- * the way lib/device/rs232 does: 'N' PERCOM, 'R'/'W' 137-byte sectors, FUJI
+ * as the ESP32 does: 'N' PERCOM, 'R'/'W' 137-byte sectors, FUJI
  * mount commands, printer writes, and MODEM_WRITE with no reply. Replies queue
  * in `out` until the test pumps them into s100_link_rx(), so a test can delay,
  * split or interleave them with raw modem bytes.

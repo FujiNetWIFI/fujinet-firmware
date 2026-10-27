@@ -3,7 +3,7 @@
 #ifndef ASTROCADE_CART_H
 #define ASTROCADE_CART_H
 
-/* Plain Pico assignments (see boards/fujicade.h for the board story):
+/* Plain Pico assignments:
  *   GP0-GP12   A0-A12        one contiguous mask, addr = pins & 0x1FFF
  *   GP13       /ENABLE       pre-decoded cart select, active low
  *   GP14-GP21  D0-D7

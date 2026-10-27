@@ -174,14 +174,7 @@ protected:
                                                    uint8_t maxlen) = 0;
     dirEntryDetails _additional_direntry_details(fsdir_entry_t *f);
 
-    // Platform hook for fujicore_mount_disk_image_success(): the base
-    // implementation calls DISK_DEVICE::mount() with its original 5-arg
-    // signature, so this stays the only call site that needs a
-    // platform-specific override rather than a #ifdef BUILD_* (banned here,
-    // see tests/check_no_build_ifdefs.py). rs232Fuji overrides this to pass
-    // `host` through to rs232Disk::mount(), which hands it to MediaTypeROM so
-    // the ROM's memory-map sibling is opened through the same fujiHost the ROM
-    // itself came from -- see lib/media/rs232/diskTypeROM.cpp.
+    // Platform hook for fujicore_mount_disk_image_success()
     virtual mediatype_t mount_media(DISK_DEVICE *disk_dev, fujiDisk &disk, fujiHost &host,
                                     disk_access_flags_t mode)
     {

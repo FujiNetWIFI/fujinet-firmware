@@ -4,8 +4,7 @@
 
  Bally Astrocade FujiNet cartridge emulation
 
- See fujinet.h for the design; pico/astrocade/README.md in fujinet-firmware
- for the bring-up this device serves.
+ See fujinet.h; pico/astrocade/README.md in fujinet-firmware.
 
  ***********************************************************************************************************/
 
@@ -16,9 +15,8 @@
 #include <cstdlib>
 #include <cstring>
 
-// The cartridge firmware's own protocol sources, compiled in verbatim
-// (copied next to this file by pico/astrocade/emu/apply.sh -- as C++, to
-// live with MAME's forced C++ precompiled header, so no extern "C").
+// The firmware's own sources, copied here by pico/astrocade/emu/apply.sh and
+// compiled as C++ for MAME's forced precompiled header, so no extern "C".
 #include "fuji_mailbox.h"
 #include "fujimail.h"
 #include "astromap.h"
@@ -26,9 +24,7 @@
 
 DEFINE_DEVICE_TYPE(ASTROCADE_ROM_FUJINET, astrocade_rom_fujinet_device, "astrocade_rom_fujinet", "Bally Astrocade FujiNet Cart")
 
-// fujimail's port interface is C function pointers with no context argument,
-// so the single device instance is reached through this. One cart slot, one
-// cart: the constraint is real hardware's too.
+// fujimail's callbacks take no context argument; there is one cart slot.
 static astrocade_rom_fujinet_device *s_fujinet = nullptr;
 
 static const char *kind_name(astromap_kind_t kind)
@@ -166,14 +162,12 @@ void astrocade_rom_fujinet_device::device_start()
 	m_bank[0] = m_window;
 	m_bank[1] = m_window + 0x1000;
 
-	// No save_item for the mailbox: the protocol state lives in the shared C
-	// service's globals, which a save state cannot capture. Plain-ROM mode
-	// saves fine; a live mailbox across save/load is not supported.
+	// No save_item for the mailbox: its state is in the shared C globals, so
+	// save states work only with the mailbox dead.
 }
 
-// Point the serve state at the live image, the emulator's copy of core1's
-// swap: m_image must already hold the full image for the banked kinds, and
-// m_window the (first) 8K.
+// m_image must already hold the full image for the banked kinds, and
+// m_window the first 8K.
 void astrocade_rom_fujinet_device::apply_serving(const astromap_plan_t &plan)
 {
 	astromap_serve_t s;
@@ -218,9 +212,8 @@ void astrocade_rom_fujinet_device::device_reset()
 {
 	astromap_plan_t plan;
 
-	// Once only: the loaded image exists by the first reset, and later
-	// resets (F3) must leave the running mailbox alone, exactly as the real
-	// console's RESET leaves the RP2040 alone.
+	// Once only: later resets (F3) leave the mailbox alone, as the console's
+	// RESET leaves the RP2040 alone.
 	if (m_init_done)
 		return;
 	m_init_done = true;
@@ -259,9 +252,8 @@ uint8_t astrocade_rom_fujinet_device::read_rom(offs_t offset)
 
 	if (offset >= m_hot_base)
 	{
-		// Game bank hotspot: the read RETURNS the new bank number, exactly
-		// as rom_256k/rom_512k. The debugger sees the value but must not
-		// switch (stricter than MAME's own mappers, which commit).
+		// The read returns the new bank number. The debugger must not switch
+		// (stricter than MAME's own mappers, which commit).
 		uint8_t data = offset & m_hot_mask;
 		if (!machine().side_effects_disabled())
 			m_bank[1] = m_hot_image + (uint32_t(data) << 12);
@@ -270,10 +262,8 @@ uint8_t astrocade_rom_fujinet_device::read_rom(offs_t offset)
 
 	uint8_t data = m_bank[offset >> 12][offset & 0xfff];
 
-	// Hotspot side effects: never for the debugger, never once the mailbox
-	// is dead. The swap and the bank selects are handled here rather than in
-	// fujimail because they must happen inline in whatever serves the bus
-	// (the RP2040 does both in core1's loop for the same reason).
+	// The swap and bank selects are handled here, not in fujimail, because
+	// they must happen inline in whatever serves the bus.
 	if (!machine().side_effects_disabled() && offset >= FN_H_REGSEL)
 	{
 		if (offset == FN_H_REGSEL + FN_HOT_SWAP)
@@ -297,13 +287,9 @@ uint8_t astrocade_rom_fujinet_device::read_rom(offs_t offset)
 void astrocade_rom_fujinet_device::poke(unsigned offset, uint8_t value)
 {
 	m_window[offset & 0x1fff] = value;
-	// A staged image that claims the mailbox must receive the same
-	// publishes, or the client would boot into stale status pages. One that
-	// does not claim it keeps its bytes pristine -- and the mailbox stays
-	// live on the *current* window until the swap actually happens, so the
-	// client still sees BOOT_READY (deactivating at stage time is a latent
-	// bug in the o2 firmware port). Every mailbox offset is >= 0x1B00, the
-	// high half, which an APPBANK image always serves from m_window.
+	// A staged image that claims the mailbox gets the same publishes; one
+	// that doesn't is left untouched. The mailbox stays live until the swap
+	// so the client still sees BOOT_READY.
 	if (m_have_staged && m_staged_claims)
 		m_staged[offset & 0x1fff] = value;
 }

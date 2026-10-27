@@ -35,9 +35,8 @@ static void poke(unsigned offset, uint8_t v)
     port->poke(offset, v);
 }
 
-/* The ROM stream's byte counts, for a client that shows more than a bar, on carts whose
- * status page has them. Low byte first: a reader racing a write can see a torn value, so it
- * reads twice and keeps a matching pair. */
+/* The ROM stream's byte counts, on carts whose status page has them. Low byte first; a
+ * reader can see a torn value, so it reads twice and keeps a matching pair. */
 #ifdef FN_R_BOOT_GOT0
 #define BOOT_GOT FN_R_BOOT_GOT0
 #define BOOT_TOT FN_R_BOOT_TOT0
@@ -81,8 +80,7 @@ static void publish_slice(void)
 
     for (i = 0; i < FN_R_SLICE_LEN; i++)
         poke(FN_R_DATA + i, (base + i < rxlen) ? rxbuf[base + i] : 0);
-    /* Published LAST: the client selects a slice and polls this until it
-     * echoes; only then is the slice above known to be whole. */
+    /* Last: the client polls this until it echoes, then knows the slice is whole. */
     poke(FN_R_SLICE_ECHO, rxslice);
 }
 
@@ -90,12 +88,8 @@ void fujimail_paint(void)
 {
     unsigned a;
 
-    /* Painting republishes FN_R_ACKSEQ as 0, so the interlock has to start
-     * over with it. Leaving lastseq behind would make the client's first
-     * request -- ACKSEQ + 1, per the rule in fuji_mailbox.h -- collide with a
-     * sequence already answered, and run_transaction would drop it in
-     * silence. The register pairing starts over too, so half a pair from the
-     * client before cannot complete with the next one's first access. */
+    /* Painting zeroes FN_R_ACKSEQ, so the client's next SEQ (ACKSEQ + 1) must not match a
+     * stale lastseq. Half a register pair from the last client is dropped too. */
     lastseq = 0;
     regsel = REGSEL_INERT;
     prev_regnum = REGSEL_INERT;
@@ -109,9 +103,8 @@ void fujimail_paint(void)
 
 /* ---- the DBC ROM push ----
  *
- * rs232Disk::mount() (lib/device/rs232/disk.cpp) streams the cartridge image
- * to device $FF while our MOUNT_IMAGE is still outstanding, so these frames
- * arrive unsolicited in the middle of a transaction and each needs its own ACK.
+ * The ESP32 streams the cartridge image to device $FF while our MOUNT_IMAGE
+ * is outstanding; each frame arrives unsolicited and needs its own ACK.
  */
 
 bool fujimail_inbound(const fb_reply_t *req)
@@ -137,9 +130,7 @@ bool fujimail_inbound(const fb_reply_t *req)
 
         err = port->stream_open(dbc_stream, stage_expect);
         if (err != 0) {
-            /* Say so now rather than after the ESP32 has dragged the whole
-             * file over TNFS -- and refusing is the only way to avoid
-             * silently booting a truncated image. */
+            /* Refuse now, before the ESP32 reads the file, rather than boot it truncated. */
             if (dbc_stream == 0) {
                 boot_ready = false;
                 poke(FN_R_BOOT_STATE, FN_BOOT_FAILED);
@@ -150,8 +141,7 @@ bool fujimail_inbound(const fb_reply_t *req)
             return true;
         }
         if (dbc_stream == 0) {
-            /* Stream 1 (the .cfg sibling, pushed first) never touches the
-             * boot state: only the ROM stream's progress is the client's. */
+            /* Only the ROM stream, not the .cfg sibling, drives the boot state. */
             poke(FN_R_BOOT_STATE, FN_BOOT_XFER);
             poke(FN_R_BOOT_PCT, 0);
             poke(FN_R_BOOT_ERR, 0);
@@ -177,8 +167,7 @@ bool fujimail_inbound(const fb_reply_t *req)
     }
 
     if (req->command == CMD_NET_CLOSE) {
-        /* Bare CLOSE commits; payload 0x01 aborts, so partial data is never
-         * booted and older peers stay compatible. */
+        /* Bare CLOSE commits; payload 0x01 aborts. */
         bool aborted = (req->data_len > 0 && req->data[0] == 0x01);
         int stream = dbc_stream;
         uint8_t err = 0;
@@ -197,7 +186,6 @@ bool fujimail_inbound(const fb_reply_t *req)
             poke(FN_R_BOOT_ERR, FN_BOOT_ERR_TRUNCATED);
         } else if (stream == 0) {
             if (err != 0) {
-                /* Mapping failed at commit: never publish READY over it. */
                 boot_ready = false;
                 poke(FN_R_BOOT_STATE, FN_BOOT_FAILED);
                 poke(FN_R_BOOT_ERR, err);
@@ -218,16 +206,9 @@ bool fujimail_inbound(const fb_reply_t *req)
 
 /* ---- the transaction ---- */
 
-/* How long the FujiNet may take to answer this request. A network device's
- * OPEN does the protocol's whole connect before it acknowledges -- for
- * GCAL:// that is an OAuth refresh, the calendar list and an HTTPS fetch per
- * calendar -- and a write channel's CLOSE is the commit (a POST or PATCH).
- * HTTP defers its request to the first STATUS or READ. All of these
- * routinely outlast the ordinary window, and a reply that arrives after the
- * window has closed would be taken as the answer to the next request.
- * COPY_FILE gets the mount budget: its ACK arrives only when the host-side
- * copy finishes, which for a big file over TNFS is far past the ordinary
- * window. */
+/* A network OPEN does the whole connect before it ACKs, a write channel's CLOSE is the
+ * commit, and HTTP sends its request on the first STATUS or READ; COPY_FILE ACKs only when
+ * the copy finishes. A reply after the window closes would answer the next request. */
 static uint32_t txn_timeout(uint8_t device, uint8_t cmd)
 {
     if (cmd == CMD_FUJI_MOUNT_IMAGE || cmd == CMD_FUJI_COPY_FILE)
@@ -248,7 +229,7 @@ static void run_transaction(uint8_t seq)
     fb_status_t st = FB_OK;
     uint8_t reply_cmd = 0;
 
-    /* Unpack the TX stream: NPARAM x {size, value LE}, then payload. */
+    /* TX stream: NPARAM x {size, value LE}, then payload. */
     for (i = 0; i < nparam && p < txptr; i++) {
         unsigned sz = txbuf[p++], k;
 
@@ -263,15 +244,12 @@ static void run_transaction(uint8_t seq)
     }
 
     if (st == FB_OK) {
-        /* The console reaches its first transaction long before the ESP32-S3
-         * finishes enumerating, and this service runs only once per SEQ bump,
-         * so a single "no link" answer here would be permanent. */
+        /* The console's first transaction can beat USB enumeration, and a SEQ is answered
+         * once, so a "no link" here would stick. */
         if (port->wait_link_ms && !port->link_up())
             port->wait_link_ms(LINK_WAIT_MS);
 
-        /* A mount starts the boot registers over: a FAILED or READY left by
-         * an earlier attempt must not be read as this one's verdict, whether
-         * the FujiNet pushes the image before or after it replies. */
+        /* A FAILED or READY from an earlier mount must not read as this one's verdict. */
         if (mb_cmd == CMD_FUJI_MOUNT_IMAGE) {
             boot_ready = false;
             poke(FN_R_BOOT_STATE, FN_BOOT_IDLE);
@@ -302,9 +280,8 @@ static void run_transaction(uint8_t seq)
     rxslice = 0;
     publish_slice();
 
-    /* Published LAST. This single store is the whole interlock: everything
-     * the console reads is already in place before it can see the sequence
-     * match. */
+    /* Last: this store is the interlock; the console sees the sequence match only once
+     * everything else is in place. */
     poke(FN_R_ACKSEQ, seq);
 
     if (port->on_txn) {
@@ -335,10 +312,8 @@ static void reg_write(uint8_t reg, uint8_t data)
         break;
 
     case FN_REG_SEQ:
-        /* Sequence 0 is reserved and an unchanged number is a no-op, so a
-         * client that timed out and retried can never make us replay a
-         * command -- and a stray hotspot event (which cannot complete a
-         * REGSEL pair with a fresh value) cannot launch one. */
+        /* 0 is reserved and a repeated number is a no-op, so a retry never replays a
+         * command. */
         if (data != 0 && data != lastseq) {
             lastseq = data;
             run_transaction(data);
@@ -351,16 +326,14 @@ static void reg_write(uint8_t reg, uint8_t data)
         break;
 
     case FN_REG_BOOTSEL_2:
-        /* Only as the second half of the two-pair sequence; one stray event
-         * can never reboot the cart out from under the console. */
+        /* Only as the second half of the two-pair sequence. */
         if (data == FN_BOOTSEL_MAGIC2 && prev_regnum == FN_REG_BOOTSEL_1
             && port->bootsel)
             port->bootsel();
         break;
 
     case FN_REG_BOOTSEL_1:
-        /* Recorded via prev_regnum below; the magic value is checked here so
-         * a pair with the wrong value does not count as the first half. */
+        /* A wrong value does not count as the first half. */
         if (data != FN_BOOTSEL_MAGIC1)
             reg = REGSEL_INERT;
         break;
@@ -382,15 +355,11 @@ void fujimail_read_hotspot(uint16_t offset)
     case (FN_H_REGSEL >> 8):
         if (low < 0x80)
             regsel = low;
-        /* 0x80-0xFF: special ops (FN_HOT_*), all handled inline by the
-         * bus-serving layer. They are no-ops here, and they deliberately do
-         * NOT disturb an armed regsel, so a stray in this page cannot break
-         * up a legitimate pair in the other. */
+        /* 0x80-0xFF are FN_HOT_*, handled by the bus side; they leave an armed regsel be. */
         break;
 
     case (FN_H_REGDATA >> 8):
-        /* A REGDATA with no immediately-preceding REGSEL is a no-op: this
-         * disarm-after-one-use is the core stray-event defense. */
+        /* Disarm after one use: a REGDATA without a REGSEL just before it is a no-op. */
         if (regsel != REGSEL_INERT) {
             uint8_t reg = regsel;
 

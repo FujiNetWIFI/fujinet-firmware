@@ -1,16 +1,8 @@
 ; fujicfg.asm -- FujiNet CONFIG for the Emerson Arcadia 2001.
 ;
-; Milestone 3: pick a host slot, browse the root of its tree, pick an image,
-; boot it. Controls (see fujidisp.inc SCAN): the P1 disc moves up/down and
-; the FIRE button selects; the keypad is the alternative -- 8 down, 4/6
-; page, Enter select, Clear back. (FIRE and keypad '2' are the same wire, so
-; that bit selects rather than moving.) The console RESET button restarts
-; the client; the cart keeps its state, so sequence numbers derive from
-; ACKSEQ (see fujilib.inc).
-;
-; Root listing only (the o2/astrocade testrom scope). Display names are
-; crunched to the row width, so the boot path re-reads the selected entry
-; at full length first.
+; Pick a host slot, browse its root directory, boot an image. Controls are in fujidisp.inc
+; SCAN. Names are listed at row width, so the selected entry is re-read at full length
+; before booting.
 
         CPU     2650
 
@@ -384,9 +376,8 @@ RDPOS:  STRA,R2 FTMPA
         BSTA,UN FNPARB
         BCTA,UN FNCOMMIT
 
-; RDENT: read display-width entry at index R2. R0=0 if a real name is in the
-; reply window, nonzero at end-of-directory or on error.
-; Calls a couple down. Clobbers R0,R1,R2,R3.
+; RDENT: read display-width entry R2. R0=0 if a name is in the reply window, nonzero at
+; end of directory or on error. Clobbers R0,R1,R2,R3.
 RDENT:  BSTA,UN RDPOS
         COMI,R0 0
         BCFA,EQ RDBAD
