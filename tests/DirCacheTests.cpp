@@ -13,6 +13,12 @@ int sam(int argc, char **argv) { return 0; }
 namespace
 {
 
+fsdir_entry *read_next(DirCache &cache)
+{
+    static fsdir_entry entry;
+    return cache.read(entry);
+}
+
 // Insertion, name and date order all differ, so the result shows which sort ran
 void fill(DirCache &cache)
 {
@@ -31,7 +37,7 @@ std::string order(DirCache &cache, uint16_t diropts)
 {
     cache.apply_filter(nullptr, diropts);
     std::string names;
-    for (fsdir_entry *entry = cache.read(); entry != nullptr; entry = cache.read())
+    for (fsdir_entry *entry = read_next(cache); entry != nullptr; entry = read_next(cache))
         names += std::string(entry->filename) + " ";
     return names;
 }
@@ -66,19 +72,19 @@ TEST_CASE("an entry reads back as it was added")
     cache.add_entry(entry);
 
     cache.apply_filter(nullptr, 0);
-    fsdir_entry *got = cache.read();
+    fsdir_entry *got = read_next(cache);
     REQUIRE(got != nullptr);
     CHECK(std::string(got->filename) == "games");
     CHECK(got->isDir);
 
-    got = cache.read();
+    got = read_next(cache);
     REQUIRE(got != nullptr);
     CHECK(std::string(got->filename) == "disk.atr");
     CHECK_FALSE(got->isDir);
     CHECK(got->size == 92160);
     CHECK(got->modified_time == 1700000000);
 
-    CHECK(cache.read() == nullptr);
+    CHECK(read_next(cache) == nullptr);
 }
 
 TEST_CASE("a name of the longest length survives")
@@ -89,7 +95,7 @@ TEST_CASE("a name of the longest length survives")
     cache.add_entry(entry);
 
     cache.apply_filter(nullptr, 0);
-    fsdir_entry *got = cache.read();
+    fsdir_entry *got = read_next(cache);
     REQUIRE(got != nullptr);
     CHECK(strlen(got->filename) == MAX_PATHLEN - 1);
 }
@@ -102,12 +108,12 @@ TEST_CASE("filter, tell and seek work over the filtered listing")
 
     // "bravo" and "charlie" fall out, "alpha" stays
     CHECK(cache.tell() == 0);
-    CHECK(std::string(cache.read()->filename) == "alpha");
+    CHECK(std::string(read_next(cache)->filename) == "alpha");
     CHECK(cache.tell() == 1);
-    CHECK(cache.read() == nullptr);
+    CHECK(read_next(cache) == nullptr);
 
     CHECK(cache.seek(0).is_success());
-    CHECK(std::string(cache.read()->filename) == "alpha");
+    CHECK(std::string(read_next(cache)->filename) == "alpha");
     CHECK(cache.seek(2).is_error());
 }
 
@@ -119,7 +125,7 @@ TEST_CASE("clear empties the listing")
     cache.clear();
 
     CHECK(cache.empty());
-    CHECK(cache.read() == nullptr);
+    CHECK(read_next(cache) == nullptr);
     CHECK(cache.tell() == FNFS_INVALID_DIRPOS);
 }
 
@@ -138,16 +144,16 @@ TEST_CASE("a pattern ending in / filters directories as well as files")
     }
 
     cache.apply_filter("g*/", 0);
-    CHECK(std::string(cache.read()->filename) == "games");
-    CHECK(std::string(cache.read()->filename) == "gamer.atr");
-    CHECK(cache.read() == nullptr);
+    CHECK(std::string(read_next(cache)->filename) == "games");
+    CHECK(std::string(read_next(cache)->filename) == "gamer.atr");
+    CHECK(read_next(cache) == nullptr);
 
     // Without the slash only files are filtered
     cache.apply_filter("*.atr", 0);
-    CHECK(std::string(cache.read()->filename) == "docs");
-    CHECK(std::string(cache.read()->filename) == "games");
-    CHECK(std::string(cache.read()->filename) == "gamer.atr");
-    CHECK(cache.read() == nullptr);
+    CHECK(std::string(read_next(cache)->filename) == "docs");
+    CHECK(std::string(read_next(cache)->filename) == "games");
+    CHECK(std::string(read_next(cache)->filename) == "gamer.atr");
+    CHECK(read_next(cache) == nullptr);
 }
 
 TEST_CASE("add_entry refuses an entry past the 16-bit position limit")
@@ -161,9 +167,22 @@ TEST_CASE("add_entry refuses an entry past the 16-bit position limit")
     // The entries already added still list, and the end position is a valid one
     REQUIRE(cache.apply_filter(nullptr, DIR_OPTION_UNSORTED).is_success());
     size_t count = 0;
-    while (cache.read() != nullptr)
+    while (read_next(cache) != nullptr)
         count++;
     CHECK(count == DirCache::MAX_ENTRIES);
     CHECK(cache.tell() == DirCache::MAX_ENTRIES);
     CHECK(cache.tell() != FNFS_INVALID_DIRPOS);
+}
+
+TEST_CASE("a cache knows which directory it holds")
+{
+    DirCache cache;
+    CHECK_FALSE(cache.holds(""));
+
+    cache.set_path("/games");
+    CHECK(cache.holds("/games"));
+    CHECK_FALSE(cache.holds("/docs"));
+
+    cache.clear();
+    CHECK_FALSE(cache.holds("/games"));
 }

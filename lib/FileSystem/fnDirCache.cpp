@@ -16,7 +16,14 @@ void DirCache::clear()
     _records.shrink_to_fit();
     _names.clear();
     _names.shrink_to_fit();
+    _path.clear();
+    _path.shrink_to_fit();
     _current = 0;
+}
+
+void DirCache::set_path(const char *path)
+{
+    _path.assign(path, path + strlen(path) + 1);
 }
 
 namespace
@@ -117,18 +124,18 @@ success_is_true DirCache::apply_filter(const char *pattern, uint16_t diropts)
     RETURN_SUCCESS_AS_TRUE();
 }
 
-fsdir_entry *DirCache::read()
+fsdir_entry *DirCache::read(fsdir_entry &out)
 {
     if (_current >= _filtered.size())
         return nullptr;
 
     uint32_t idx = _filtered[_current++];
     const Record &record = _records[idx];
-    strlcpy(_entry.filename, name_of(idx), sizeof(_entry.filename));
-    _entry.isDir = record.isDir;
-    _entry.size = record.size;
-    _entry.modified_time = record.modified_time;
-    return &_entry;
+    strlcpy(out.filename, name_of(idx), sizeof(out.filename));
+    out.isDir = record.isDir;
+    out.size = record.size;
+    out.modified_time = record.modified_time;
+    return &out;
 }
 
 uint16_t DirCache::tell()

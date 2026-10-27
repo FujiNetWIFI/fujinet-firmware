@@ -17,11 +17,11 @@
 
 #include "peoples_url_parser.h"
 #include "fnFS.h"
-#include "fnFsDirCache.h"
+#include "fnDirCache.h"
 #include "IndexParser.h"
 
 
-class FileSystemHTTP : public FileSystemDirCache
+class FileSystemHTTP : public FileSystem
 {
 private:
     // parsed HTTP URL

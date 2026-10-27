@@ -212,7 +212,7 @@ success_is_true FileSystemNFS::fill_dircache(const char *path)
         fs_de.size = (uint32_t)nfs_de->size;
         fs_de.modified_time = (time_t)nfs_de->mtime.tv_sec;
 
-        if (_dircache.add_entry(fs_de).is_error())
+        if (_dircache->add_entry(fs_de).is_error())
         {
             nfs_closedir(_nfs, nfs_dir);
             RETURN_ERROR_AS_FALSE();

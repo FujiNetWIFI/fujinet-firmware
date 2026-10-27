@@ -95,3 +95,52 @@ const char * FileSystem::type_to_string(fsType type)
             return "UNKNOWN FS TYPE";
     }
 }
+
+success_is_true FileSystem::dir_open(const char *path, const char *pattern, uint16_t diroptions)
+{
+    Debug_printf("FileSystem::dir_open(\"%s\", \"%s\", %u)\n", path ? path : "", pattern ? pattern : "", diroptions);
+
+    if (ready_to_list().is_error() || path == nullptr)
+        RETURN_ERROR_AS_FALSE();
+
+    if (!_dircache)
+    {
+#ifdef ESP_PLATFORM
+        PSRAMAllocator<DirCache> allocator;
+        void *memory = allocator.allocate(1);
+        if (memory == nullptr)
+            RETURN_ERROR_AS_FALSE();
+        _dircache.reset(new (memory) DirCache());
+#else
+        _dircache.reset(new DirCache());
+#endif
+    }
+
+    if (keeps_listing() && _dircache->holds(path))
+    {
+        Debug_printf("Use directory cache\n");
+    }
+    else
+    {
+        Debug_printf("Fill directory cache\n");
+
+        _dircache->clear();
+
+        if (fill_dircache(path).is_error())
+        {
+            _dircache->clear();
+            RETURN_ERROR_AS_FALSE();
+        }
+
+        _dircache->set_path(path);
+    }
+
+    // Apply pattern matching filter and sort entries
+    return _dircache->apply_filter(pattern, diroptions);
+}
+
+void FileSystem::dir_close()
+{
+    if (_dircache && !keeps_listing())
+        _dircache->clear();
+}

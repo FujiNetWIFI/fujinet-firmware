@@ -228,7 +228,7 @@ success_is_true FileSystemSMB::fill_dircache(const char *path)
         fs_de.size = (uint32_t)smb_de->st.smb2_size;
         fs_de.modified_time = (time_t)smb_de->st.smb2_mtime;
 
-        if (_dircache.add_entry(fs_de).is_error())
+        if (_dircache->add_entry(fs_de).is_error())
         {
             smb2_closedir(_smb, smb_dir);
             RETURN_ERROR_AS_FALSE();

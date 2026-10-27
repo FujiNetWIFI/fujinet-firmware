@@ -1,13 +1,15 @@
 #ifndef FN_DIRCACHE_H
 #define FN_DIRCACHE_H
 
+#include <cstring>
 #include <vector>
 
 #ifdef ESP_PLATFORM
 #include "../../include/PSRAMAllocator.h"
 #endif
 
-#include "fnFS.h"
+#include "fnFSDirEntry.h"
+#include "global_types.h"
 
 class DirCache
 {
@@ -32,13 +34,20 @@ private:
     std::vector<uint32_t> _filtered;
 #endif
     uint16_t _current = 0;
-    // Returned by read(); valid until the next read() or clear()
-    fsdir_entry _entry;
+    // Directory the entries came from, with its NUL; empty if unset
+#ifdef ESP_PLATFORM
+    std::vector<char,PSRAMAllocator<char>> _path;
+#else
+    std::vector<char> _path;
+#endif
 
     const char *name_of(uint32_t idx) const { return &_names[_records[idx].name_offset]; }
 
 public:
     void clear();
+    // Which directory the entries hold, so a caller can skip reading it again
+    void set_path(const char *path);
+    bool holds(const char *path) const { return !_path.empty() && strcmp(&_path[0], path) == 0; }
     // Listing positions are 16-bit, and FNFS_INVALID_DIRPOS is not one
     static constexpr size_t MAX_ENTRIES = FNFS_INVALID_DIRPOS - 1;
 
@@ -52,7 +61,8 @@ public:
 
     bool empty() {return _records.empty();}
 
-    fsdir_entry *read();
+    // Fills out and returns it, or returns nullptr at the end
+    fsdir_entry *read(fsdir_entry &out);
     uint16_t tell();
     success_is_true seek(uint16_t pos);
 };

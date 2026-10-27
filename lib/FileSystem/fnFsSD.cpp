@@ -167,7 +167,7 @@ success_is_true FileSystemSDFAT::fill_dircache(const char *path)
         || strcmp(finfo.fname, "rs232dump") == 0)
             continue;
 
-        if (_dircache.add_entry(finfo.fname, finfo.fattrib & AM_DIR, finfo.fsize,
+        if (_dircache->add_entry(finfo.fname, finfo.fattrib & AM_DIR, finfo.fsize,
                                 _fssd_fatdatetime_to_epoch(finfo.ftime, finfo.fdate)).is_error())
         {
             f_closedir(&_dir);
@@ -201,7 +201,7 @@ success_is_true FileSystemSDFAT::fill_dircache(const char *path)
         }
         free(fpath);
         // Assume symlinks point to directories only
-        if (_dircache.add_entry(d->d_name, d->d_type == DT_DIR || d->d_type == DT_LNK, size, modified_time).is_error())
+        if (_dircache->add_entry(d->d_name, d->d_type == DT_DIR || d->d_type == DT_LNK, size, modified_time).is_error())
         {
             closedir(_dir);
             RETURN_ERROR_AS_FALSE();

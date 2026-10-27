@@ -336,6 +336,7 @@ if(NOT WIN32)
       ${CMAKE_SOURCE_DIR}/lib/media/adam/mediaTypeDSK.cpp
       ${CMAKE_SOURCE_DIR}/lib/media/adam/mediaTypeROM.cpp
       ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFS.cpp
+      ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnDirCache.cpp
       ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFsSPIFFS.cpp
   )
   if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
@@ -402,7 +403,6 @@ add_executable(fssd_listing_tests
     ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFS.cpp
     ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFsSD.cpp
     ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnDirCache.cpp
-    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFsDirCache.cpp
 )
 if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
   target_sources(fssd_listing_tests PRIVATE
@@ -475,6 +475,7 @@ if(NOT FUJINET_TARGET STREQUAL "APPLE")
       ${CMAKE_SOURCE_DIR}/lib/printer-emulator/pdf_printer.cpp
       ${CMAKE_SOURCE_DIR}/lib/printer-emulator/printer_emulator.cpp
       ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFS.cpp
+      ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnDirCache.cpp
       ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFsSPIFFS.cpp
   )
   if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
@@ -962,7 +963,6 @@ add_executable(smb_protocol_tests
     ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFile.cpp
     ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFS.cpp
     ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnDirCache.cpp
-    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFsDirCache.cpp
     ${CMAKE_SOURCE_DIR}/lib/utils/peoples_url_parser.cpp
     ${CMAKE_SOURCE_DIR}/lib/utils/string_utils.cpp
     ${CMAKE_SOURCE_DIR}/lib/utils/utils.cpp

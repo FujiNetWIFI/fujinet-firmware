@@ -420,7 +420,7 @@ success_is_true FileSystemFTP::fill_dircache(const char *path)
         fs_de.isDir = is_dir;
         fs_de.size = (uint32_t)filesz;
         fs_de.modified_time = 0; // TODO
-        if (_dircache.add_entry(fs_de).is_error())
+        if (_dircache->add_entry(fs_de).is_error())
             RETURN_ERROR_AS_FALSE();
 
         // get next

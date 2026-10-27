@@ -9,9 +9,9 @@
 #include <vector>
 
 #include "fnFS.h"
-#include "fnFsDirCache.h"
 
-class FileSystemSDFAT : public FileSystemDirCache
+
+class FileSystemSDFAT : public FileSystem
 {
 private:
 #ifdef ESP_PLATFORM
@@ -24,7 +24,7 @@ public:
     FileSystemSDFAT() = default;
     // Another handle on the mounted card, with its own directory listing
     FileSystemSDFAT(const FileSystemSDFAT &card)
-        : FileSystemDirCache(card), _card_capacity(card._card_capacity) {}
+        : FileSystem(card), _card_capacity(card._card_capacity) {}
 
 #ifdef ESP_PLATFORM
     success_is_true start();

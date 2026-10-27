@@ -8,10 +8,10 @@
 #include "peoples_url_parser.h"
 #include "fnFTP.h"
 #include "fnFS.h"
-#include "fnFsDirCache.h"
+#include "fnDirCache.h"
 
 
-class FileSystemFTP : public FileSystemDirCache
+class FileSystemFTP : public FileSystem
 {
 private:
     // parsed FTP URL

@@ -6,10 +6,10 @@
 #include <smb2/libsmb2.h>
 
 #include "fnFS.h"
-#include "fnFsDirCache.h"
+#include "fnDirCache.h"
 
 
-class FileSystemSMB : public FileSystemDirCache
+class FileSystemSMB : public FileSystem
 {
 private:
     struct smb2_context *_smb;

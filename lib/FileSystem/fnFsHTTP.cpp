@@ -495,7 +495,7 @@ success_is_true FileSystemHTTP::fill_dircache(const char *path)
             }
         }
 
-        if (_dircache.add_entry(fs_de).is_error())
+        if (_dircache->add_entry(fs_de).is_error())
         {
             _parser.clear();
             RETURN_ERROR_AS_FALSE();

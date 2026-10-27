@@ -6,10 +6,10 @@
 #include <nfsc/libnfs.h>
 
 #include "fnFS.h"
-#include "fnFsDirCache.h"
+#include "fnDirCache.h"
 
 
-class FileSystemNFS : public FileSystemDirCache
+class FileSystemNFS : public FileSystem
 {
 private:
     struct nfs_context *_nfs;
