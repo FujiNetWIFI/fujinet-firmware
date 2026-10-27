@@ -1,15 +1,7 @@
 #!/usr/bin/env python3
-"""Patch a MAME tree's F8 core to emit a golden ROMC trace.
-
-MAME does not model the ROMC bus -- its F8 core keeps one internal set of
-PC0/PC1/DC0/DC1 and calls ROMC_xx() directly, and a cart device only ever sees
-flat read/write. That means nothing in the MAME harness exercises the cart's
-ROMC state machine, which is the one genuinely novel part of this port.
-
-So we make MAME tell us what it did: a record per bus cycle, which
-test_romc.c replays through chf_bus_cycle() and compares. The trace is the
-CPU's own register state, which is exactly what every device on a real F8 bus
-is required to track in lockstep.
+"""Patch a MAME tree's F8 core to emit a golden ROMC trace, one record per bus
+cycle, for test_romc.c to replay. MAME hands a cart flat reads and writes, so
+this is the only way to check the cart's ROMC state machine against it.
 
 Idempotent, and reversible with --revert (a .fujibak is kept).
 Record: romc u8, dbus u8, pc0 u16le, pc1 u16le, dc0 u16le, dc1 u16le = 10 bytes.

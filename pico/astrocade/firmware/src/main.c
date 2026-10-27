@@ -1,9 +1,8 @@
 /* main.c -- FujiNet Astrocade cartridge firmware.
  *
- * core1 serves the cartridge bus (astrocade_cart.c); core0's whole job is
- * the USB CDC link to the ESP32-S3 and the mailbox service. Booting a game
- * is core1's doing -- it swaps the served window on the client's armed
- * FN_HOT_SWAP read -- so nothing here waits on it.
+ * core1 serves the cartridge bus; core0 runs the USB CDC link to the ESP32-S3
+ * and the mailbox service. core1 swaps in a game on the client's armed
+ * FN_HOT_SWAP read, so nothing here waits on it.
  */
 
 #include "pico/stdlib.h"

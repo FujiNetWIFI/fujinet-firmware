@@ -1,14 +1,6 @@
-/* o2app.h -- an APPBANK image as the console sees it (protocol 2).
- *
- * Header-only and hardware-free: the cartridge's core1 bus loop inlines these
- * into SRAM, the o2em model calls them on every fetch, and the host tests drive
- * them directly. One decode, three users -- the same reason o2map.c and
- * fujimail.c are shared.
- *
- * The layout is in fuji_mailbox.h: a fixed 1K at $400-$7FF that the console can
- * write through FN_REG_POKE, pages of 2K mapped at $800-$F1F by FN_REG_CODEBANK,
- * and the mailbox at $F20-$FFF with the reply window served straight out of the
- * reply buffer.
+/* o2app.h -- an APPBANK image as the console sees it (protocol 2; layout in
+ * fuji_mailbox.h). Header-only so core1's bus loop can inline it; the o2em
+ * model and host tests share it.
  */
 
 #ifndef O2APP_H
@@ -50,11 +42,9 @@ static inline void o2app_init(o2app_t *app, uint8_t *image, unsigned npages)
     o2app_select(app, 0);
 }
 
-/* One console write to the mailbox register file. Returns true when the write
- * was an APPBANK register's and must NOT reach the mailbox service: a 600-byte
- * POKE burst through the service's ring would overflow it, and none of these
- * registers mean anything to the service anyway. REGSEL is copied here and
- * still passed on, so both sides agree on what the next REGDATA is for. */
+/* True when the write was to an APPBANK register and must not reach the mailbox
+ * service: a 600-byte POKE burst would overflow its ring. REGSEL is copied and
+ * still passed on. */
 static inline bool o2app_write(o2app_t *app, uint8_t addr, uint8_t data)
 {
     if (addr == FN_W_REGSEL) {
@@ -89,9 +79,8 @@ static inline bool o2app_write(o2app_t *app, uint8_t addr, uint8_t data)
     }
 }
 
-/* One console fetch, $400-$FFF. `mbox` is the published mailbox page indexed by
- * console address ($F20-$F2F is all that is read from it); `reply`/`rxlen` the
- * reply. */
+/* One console fetch, $400-$FFF. `mbox` is indexed by console address; only
+ * $F20-$F2F is read from it. */
 static inline uint8_t o2app_read(const o2app_t *app, unsigned addr,
                                  const uint8_t *mbox,
                                  const uint8_t *reply, unsigned rxlen)

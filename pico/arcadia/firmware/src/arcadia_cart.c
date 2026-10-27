@@ -1,36 +1,10 @@
-/* arcadia_cart.c -- core1: serve the Emerson Arcadia 2001 cartridge bus.
+/* arcadia_cart.c -- core1: serve the Arcadia 2001 cartridge bus. Not yet run on hardware.
  *
- * The port is read-only from the cart's side: A0-A13, D0-D7, and power.
- * There is no read strobe and no Enable line -- A12 LOW is the chip select
- * (a real cart ROM's /CE) and A13 picks the 4K block. So the rule is: drive
- * the data bus whenever A12 is low, tri-state whenever it is high, and never
- * otherwise. The served byte is the decoded image offset
- * (arcmap_decode()): A13 selects block 2, A14 is not on the connector.
- *
- * The Astrocade loop keyed hotspot events off the Enable edge and spun
- * until it deasserted. That cannot work here: A12 stays low across
- * consecutive cart reads (sequential instruction fetch), so there is no
- * per-access edge to wait on. Instead the loop double-samples the address
- * for stability, then fires a hotspot event only when the full A0-A13+A12
- * pin state has CHANGED since the last event. This is correct because the
- * client executes from cart ROM: two data reads of the same hotspot always
- * have an instruction-fetch address between them, which resets the edge
- * detector. On an unstable sample it skips WITHOUT updating the remembered
- * state, so a mid-cycle glitch cannot double-fire a hotspot.
- *
- * An APPBANK image (protocol 2) adds two things this loop must do itself,
- * because each changes what the very next read returns: a bank select
- * repoints the $0800-$0FFF window, and a cart RAM write stores a byte the
- * client may read back at once. Both are arcapp.h's, shared with MAME and
- * the host tests; neither reaches the ring.
- *
- * A 2650 memory cycle at 0.895 MHz is ~3.35 microseconds; even with the
- * gap between samples this loop runs about 30 times per cycle.
- *
- * NOT YET RUN ON HARDWARE -- there is no cartridge board yet. The protocol
- * this loop feeds (fujimail.c) is exercised against a real fujinet-pc
- * through the MAME model, which is why it is shared rather than
- * reimplemented here.
+ * No read strobe or Enable line: drive the data bus while A12 is low, tri-state otherwise.
+ * A12 stays low across sequential fetches, so a hotspot fires when the stable A0-A13 state
+ * changes; the client runs from cart ROM, so a fetch address always falls between two
+ * reads of one hotspot. APPBANK bank selects and cart RAM writes are handled here, since
+ * each changes the very next read. A 3.35 us 2650 cycle gives about 30 loop passes.
  */
 
 #include "pico/stdlib.h"
@@ -60,7 +34,6 @@ void __not_in_flash_func(arcadia_core1_main)(void)
         int img = arcadia_bus_observe(&edge, pins, pins2, &is_event);
 
         if (img < 0) {
-            /* Chip select off, or an unstable sample: tri-state and retry. */
             gpio_set_dir_in_masked(DATA_MASK);
             continue;
         }
@@ -70,9 +43,8 @@ void __not_in_flash_func(arcadia_core1_main)(void)
 
         if (is_event && img >= FN_H_REGSEL) {
             if (img == swap_off) {
-                /* A slot switch is the whole swap; the client's stub runs
-                 * from RAM, so nothing fetches from the cart between this
-                 * read and the next. */
+                /* The client's stub runs from RAM, so nothing fetches from the cart
+                 * across the slot switch. */
                 if (fuji_boot_armed && fuji_have_staged)
                     fuji_cart_swap();
             } else if (fuji_mailbox_active

@@ -1,27 +1,17 @@
-// See bootmap.h for the call contract and what deliberately isn't here.
-//
-// Both stream formats decode straight into the ROM buffer as bytes arrive,
-// packed sequentially from stage_base. Nothing is identity-mapped: a .rom
-// segment's bus address and its staged offset are unrelated, which is what
-// lets a segment live below $4000 (Maria, Space Intruders and friends all
-// start at $2000/$2100) without touching the CONFIG image the console is
-// still executing out of underneath the transfer.
+// Both formats pack sequentially from stage_base. A segment's bus address
+// and staged offset are unrelated, so segments below $4000 (Maria, Space
+// Intruders start at $2000/$2100) never touch the running CONFIG image.
 #include <stdio.h>
 #include <string.h>
 
 #include "bootmap.h"
 #include "utils.h"
 
-// Lowest bus address a cartridge may claim. Below this is EXEC ROM
-// ($1000-$1FFF), system RAM and the STIC/PSG registers -- all console-
-// decoded, so mapping there is bus contention on every instruction fetch
-// and means we misparsed the stream rather than that the ROM wants it.
-// $2000-$2FFF is legitimate cartridge space and is used by real titles.
+// Lowest cartridge bus address. Below it is console-decoded (EXEC ROM, system
+// RAM, STIC/PSG), so mapping there means bus contention and a misparse.
 #define BM_CART_LO 0x2000u
 
-// Longest .cfg line worth keeping. Real ones run ~40 bytes; the rest of an
-// over-length line is discarded and the boot fails TRUNCATED rather than
-// acting on half a mapping.
+// Real lines run ~40 bytes; a longer one fails the boot TRUNCATED.
 #define CFG_LINE_MAX 128
 
 static uint16_t *bm_rom;
@@ -29,10 +19,7 @@ static uint32_t  bm_rom_words;
 static uint32_t  bm_stage_base;
 static uint32_t  bm_ram_words;
 
-// The .cfg is parsed as it streams, one line at a time, straight into
-// `plan` -- there is no buffer holding the whole file. A 4 KB one used to
-// live here, which is a lot of .bss to spend re-reading something already
-// bounded by BM_MAX_SEGS on a board that links at 99% of RAM.
+// The .cfg is parsed a line at a time as it streams, to save RAM.
 typedef enum { SEC_NONE, SEC_MAPPING, SEC_MEMATTR, SEC_VARS } cfg_section_t;
 static char          cfg_line[CFG_LINE_MAX];
 static unsigned      cfg_line_len;
@@ -41,9 +28,8 @@ static cfg_section_t cfg_section;
 static bool          cfg_open;
 static bool          have_cfg;
 
-// Sticky failure reasons. cfg_err survives the ROM stream's own OPEN (a
-// .cfg is pushed first, and its overflow must not be forgotten by the time
-// the ROM closes); rom_err is cleared per ROM stream.
+// Sticky failure reasons. cfg_err survives the ROM stream's OPEN, since the
+// .cfg is pushed first; rom_err is per ROM stream.
 static int cfg_err;
 static int rom_err;
 
@@ -64,12 +50,9 @@ static bool     rom_open;
 static bool    flat_have_hi;
 static uint8_t flat_hi;
 
-// ROMFMT_HDR: incremental Intellicart/CC3 .rom decode, one segment at a
-// time. Reference: jzIntv's src/icart/icartrom.c icartrom_decode(). Layout
-// per segment: 2 bytes (lo, hi) giving an inclusive page range (word
-// address = page<<8, hi's page is the start of its last 256-word block),
-// then 2*(wordcount) bytes of big-endian ROM data, then a 2-byte CRC-16
-// (received but not validated).
+// ROMFMT_HDR: Intellicart/CC3 .rom, per jzIntv's icartrom_decode(). Each
+// segment: 2 bytes (lo, hi) of inclusive 256-word page range, the words
+// big-endian, then a CRC-16 (not validated).
 typedef enum { RH_SEG_ADDR, RH_SEG_DATA, RH_SEG_CRC } rh_state_t;
 static rh_state_t rh_state;
 static uint8_t    rh_nseg, rh_seg_i;
@@ -82,12 +65,8 @@ static bool       rh_have_hi;
 static uint8_t    rh_hi_byte;
 static unsigned   rh_crclen;
 
-// Trailing attribute/fine-address ("enable") tables: 16 attribute bytes +
-// 32 fine-address bytes, collected once the last segment's CRC is consumed
-// (their own CRC-16 is received but not validated). decode_enable_tables()
-// turns these into plan.ram entries -- this is the only place a .rom
-// declares its RAM (e.g. cart scratch at $8000-$9BFF), so ignoring them
-// boots a game whose RAM silently reads/writes nothing.
+// Trailing enable tables: 16 attribute + 32 fine-address bytes (CRC not
+// validated). The only place a .rom declares its RAM.
 #define RH_TBL_LEN 48
 static uint8_t  rh_tbl[RH_TBL_LEN];
 static unsigned rh_tbl_len;
@@ -118,19 +97,11 @@ void bootmap_init(uint16_t *rom, uint32_t rom_words, uint32_t stage_base,
 //                              .cfg parsing
 ////////////////////////////////////////////////////////////////////////////
 
-// parse_cfg_line: one whole .cfg line, already terminated. Whitespace- and
-// case-tolerant, and comment-stripping, matching load_cfg() (intellicart.c)
-// -- the reference parser every local-storage board has always used.
-//
-// [macro]/poke lines stay unsupported over the network: an unrecognized
-// section switches to SEC_NONE so its body is ignored rather than
-// misparsed. Segment offsets recorded here are file-relative;
-// bootmap_rom_end() clamps them at EOF and biases them past CONFIG.
+// Matches load_cfg() (intellicart.c). Unknown sections such as [macro] are
+// ignored. Offsets here are file-relative until bootmap_rom_end().
 static void parse_cfg_line(char *tmp)
 {
-    // Strip the comment before anything else looks at the line: jzintv
-    // comments run to end of line, and one saying "...page 2 of the
-    // manual" would otherwise read as a paging qualifier below.
+    // Strip first, or a comment like "page 2 of the manual" reads as paging
     char *semi = strchr(tmp, ';');
     if (semi != NULL)
         *semi = 0;
@@ -174,8 +145,7 @@ static void parse_cfg_line(char *tmp)
     } else if (cfg_section == SEC_MEMATTR && s[0] == '$') {
         unsigned int from = 0, to = 0, width = 0;
         char type[8];
-        // Only "RAM" lines allocate. A "ROM" line marks a range read-only,
-        // which a preloaded segment already is.
+        // Only "RAM" lines allocate; ROM segments are already read-only.
         if (sscanf(s, " $%x - $%x = %7s %u", &from, &to, type, &width) == 4 &&
             (width == 8 || width == 16) && strcmp(type, "ram") == 0 &&
             from <= to && to <= 0xFFFF) {
@@ -204,8 +174,7 @@ static void parse_cfg_line(char *tmp)
         } else if (sscanf(s, " fujinet = %d", &v) == 1) {
             plan.fujinet = v;
         }
-        // Everything else (name, author, year, ecs_compat, ...) is
-        // metadata for humans -- ignored, and must stay harmless.
+        // Other vars (name, author, year, ...) are ignored.
     }
 }
 
@@ -224,8 +193,7 @@ static void cfg_flush_line(void)
 
 void bootmap_cfg_begin(void)
 {
-    // The .cfg is the first thing pushed for a mount, so this is where the
-    // plan starts; bootmap_rom_begin() leaves it alone when one arrived.
+    // The .cfg is pushed first, so the plan starts here.
     memset(&plan, 0, sizeof(plan));
     cfg_line_len = 0;
     cfg_line_over = false;
@@ -283,9 +251,7 @@ int bootmap_rom_begin(uint32_t expected_bytes)
     stage_wp = bm_stage_base;
     rh_banksw = false;
 
-    // Cheapest possible early-out: a stream this large cannot fit however
-    // it's laid out, so refuse before pulling it over TNFS. The exact
-    // per-format bound is enforced as the stream decodes.
+    // Refuse before pulling it over TNFS; exact bounds are checked as it decodes.
     if (expected_bytes / 2 > bm_rom_words) {
         rom_fmt = ROMFMT_REJECTED;
         rom_err = FUJI_BOOT_ERR_TOOBIG;
@@ -294,10 +260,7 @@ int bootmap_rom_begin(uint32_t expected_bytes)
     return 0;
 }
 
-// rom_start_segment: called the instant an HDR segment's address range is
-// known. Stages the segment at the current write pointer and records the
-// mapping right away -- there's no buffer of decoded segments to batch this
-// from later.
+// Stages an HDR segment at the write pointer once its range is known.
 static void rom_start_segment(void)
 {
     uint32_t words = rh_hi - rh_lo;
@@ -322,9 +285,7 @@ static void rom_start_segment(void)
     stage_wp += words;
 }
 
-// feed_rom_byte: one byte of a NETCMD_WRITE payload on the ROM stream.
-// Format is decided from the first 3 bytes; everything after is interpreted
-// incrementally, writing each completed word straight to its staged home.
+// The first 3 bytes decide the format.
 static void feed_rom_byte(uint8_t b)
 {
     rom_total_bytes++;
@@ -345,19 +306,15 @@ static void feed_rom_byte(uint8_t b)
         } else {
             rom_fmt = ROMFMT_FLAT;
             flat_have_hi = false;
-            // A flat image needs its whole word count staged contiguously,
-            // and with a size from the peer that's known now rather than
-            // 200 KB into the transfer.
+            // With a peer-sent size, a flat image too big to stage fails now
             if (rom_expected_bytes != 0 &&
                 bm_stage_base + rom_expected_bytes / 2 > bm_rom_words) {
                 rom_fmt = ROMFMT_REJECTED;
                 rom_err = FUJI_BOOT_ERR_TOOBIG;
                 return;
             }
-            // The 3 header-probe bytes are real file data in flat mode --
-            // replay them now that the format is known. All 3 were already
-            // counted by the natural calls that got us here, and each replay
-            // call counts itself again, so back out all 3 first.
+            // Replay the 3 probe bytes as data; uncount them first since
+            // each replay counts itself.
             rom_total_bytes -= 3;
             feed_rom_byte(rom_hdrbuf[0]);
             feed_rom_byte(rom_hdrbuf[1]);
@@ -460,19 +417,12 @@ void bootmap_rom_abort(void)
     cfg_err = 0;
 }
 
-// decode_enable_tables: translate the .rom's attribute/fine-address tables
-// (rh_tbl) into plan.ram entries. Layout, per jzIntv's icartrom_decode():
-// for 2K bank i (bus address i<<11), the attribute nibble is rh_tbl[i>>1]
-// (low nibble = even bank, high = odd), and the fine-address byte is
-// rh_tbl[16 + ((i>>1) | ((i&1)<<4))] -- even banks in bytes 16-31's first
-// half, odd banks in the second -- whose high nibble is the bank's first
-// active 256-word block and low nibble its last. Attribute bits: 1 =
-// readable, 2 = writable, 4 = narrow (8-bit), 8 = bank-switched.
-//
-// Writable, non-bank-switched ranges become RAM (8-bit when narrow, else
-// 16-bit); read-only ranges are already covered by the staged segments.
-// Adjacent same-width ranges are merged so a typical game's whole scratch
-// window costs one slot.
+// Per jzIntv's icartrom_decode(): for 2K bank i (bus address i<<11) the
+// attribute nibble is rh_tbl[i>>1] (low nibble = even bank) and the
+// fine-address byte rh_tbl[16 + ((i>>1) | ((i&1)<<4))] holds the first
+// (high nibble) and last (low nibble) active 256-word block. Attribute bits:
+// 1 readable, 2 writable, 4 narrow (8-bit), 8 bank-switched. Writable,
+// non-bank-switched ranges become RAM, adjacent same-width ones merged.
 static void decode_enable_tables(void)
 {
     for (unsigned i = 0; i < 32; i++) {
@@ -482,8 +432,7 @@ static void decode_enable_tables(void)
         unsigned hi = (lohi & 0x7) + 1;
 
         if (attr & 0x8) {
-            // This decoder cannot follow bank switching, so a game relying
-            // on it would run with only the banks it happened to list.
+            // bank switching is unsupported
             rh_banksw = true;
             continue;
         }
@@ -515,9 +464,8 @@ static void decode_enable_tables(void)
     }
 }
 
-// A bare .bin with no .cfg: the same file-order layouts bin2rom assumes for
-// the handful of sizes the original cartridge library actually used.
-// Anything else is refused rather than guessed at.
+// A bare .bin with no .cfg: bin2rom's layouts for the original library's
+// sizes. Any other size is refused.
 static bool guess_by_size(uint32_t bytes)
 {
     uint32_t words = bytes / 2;
@@ -576,10 +524,8 @@ int bootmap_rom_end(bm_plan_t **out)
     } else if (rom_expected_bytes != 0 && rom_total_bytes != rom_expected_bytes) {
         err = FUJI_BOOT_ERR_TRUNCATED;
     } else if (rom_fmt == ROMFMT_HDR) {
-        // A header-format image is self-describing: RAM comes from its own
-        // enable tables, and a .cfg sibling is neither needed nor consulted.
-        // The tables are formally optional, so a stream that ended without
-        // them simply boots with no RAM.
+        // Self-describing: any .cfg is ignored. The enable tables are
+        // optional; without them the game gets no RAM.
         plan.nram = 0;
         plan.jlp = plan.jlpflash = 0;
         plan.ecs = plan.voice = plan.fujinet = 0;
@@ -597,7 +543,6 @@ int bootmap_rom_end(bm_plan_t **out)
         err = have_cfg ? FUJI_BOOT_ERR_CFGBAD : FUJI_BOOT_ERR_NOMAP;
     }
 
-    // Consume the .cfg either way, so the next push starts clean.
     have_cfg = false;
 
     if (!err && (cfg_err || rom_err))
@@ -610,10 +555,8 @@ int bootmap_rom_end(bm_plan_t **out)
         return err;
     }
 
-    // Flat images carry file-relative offsets from the .cfg or the size
-    // guess. Clamp mappings at EOF (bin2rom semantics -- collection cfgs
-    // describe each title's largest layout and expect ranges past EOF to
-    // fall away), then bias into the staging area.
+    // Clamp flat-image mappings at EOF (bin2rom semantics: collection cfgs
+    // describe the largest layout), then bias into the staging area.
     if (rom_fmt == ROMFMT_FLAT) {
         uint32_t words = rom_total_bytes / 2;
         int kept = 0;
@@ -635,9 +578,8 @@ int bootmap_rom_end(bm_plan_t **out)
         }
     }
 
-    // Recompute from what actually survived the clamp, not from what the
-    // .cfg asked for: cart.pagingSupport costs a test on every bus write,
-    // so don't arm it for a map with no paged entries left.
+    // Recompute after the clamp: cart.pagingSupport costs a test on every
+    // bus write.
     plan.paging = false;
     for (int i = 0; i < plan.nseg; i++)
         if (plan.seg[i].page != MM_NO_PAGE)
@@ -689,8 +631,7 @@ int bootmap_shadow_range(bm_plan_t *p, uint16_t lo, uint16_t hi)
         } else if (s_lo >= lo && s_hi <= hi) {
             dropped++;                          // wholly shadowed
         } else if (s_lo < lo) {
-            // Overlaps the bottom edge, and possibly out the top too --
-            // either way the part below the window is what survives.
+            // Overlaps the bottom edge (maybe the top too): keep the part below
             s.rom_end = s.rom_off + (lo - 1 - s_lo);
             p->seg[kept++] = s;
         } else {

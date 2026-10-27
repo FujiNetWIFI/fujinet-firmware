@@ -1,6 +1,3 @@
-# The FujiBus codec self-test, the .cfg sibling's mapper= line, what fuji_port hands
-# fujimail, the push store on stub/'s model of NOR flash, the console watchdog, and the CRC-32
-# and its table lookup.
 TESTS = test_fujibus test_fuji_cfg test_fuji_port test_fuji_store test_fuji_watchdog test_fuji_crc
 test_fujibus_SRCS = $(SRC)/fujibus.c
 test_fuji_cfg_SRCS = $(SRC)/fuji_cfg.c

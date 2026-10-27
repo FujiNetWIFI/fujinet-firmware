@@ -1,9 +1,6 @@
--- M3 gate: browse the host's root, walk the cursor down to a chosen row, fire,
--- and prove the image that boots is byte-identical to the file on disk.
---
--- Nothing here is timed by guesswork: it waits on the client's own state in the
--- RAM arena (VNROW, then the served window) rather than on frame numbers, so a
--- slow socket round trip cannot turn into a flaky pass.
+-- Browse the host's root, walk the cursor to a chosen row, fire, and check the
+-- booted image against the file on disk. Waits on the client's state in the
+-- arena, not frame numbers.
 local WANT = os.getenv("BOOT_IMAGE") or ""
 local PICK = tonumber(os.getenv("PICK_ROW") or "6")
 
@@ -13,9 +10,7 @@ local VCUR  = 0x8006
 local sp
 local phase, timer, moves = "wait", 0, 0
 local n = 0
--- VNROW counts up as rows arrive, so "big enough" can be true while the page
--- is still building. Wait for it to stop moving, or the first press lands
--- mid-listing and the cursor ends up somewhere else.
+-- VNROW counts up as rows arrive; wait for it to stop moving.
 local lastRows, stable = -1, 0
 
 local function press(field, port)

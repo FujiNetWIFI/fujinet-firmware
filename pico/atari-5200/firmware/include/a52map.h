@@ -3,7 +3,7 @@
  *
  * One engine, three consumers: core1 (the commit path below is static inline),
  * the MAME device, and the host tests, which drive it against transcriptions
- * of MAME's bus/a800 a5200 handlers. Behaviour follows those devices.
+ * of MAME's bus/a800 a5200 handlers. Behavior follows those devices.
  *
  * The page size is 2K because the mailbox arena is exactly one page: a live
  * mailbox is page 14 pointed at the arena, whatever the image's bank.

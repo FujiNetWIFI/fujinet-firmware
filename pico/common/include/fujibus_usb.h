@@ -6,30 +6,28 @@
 #include <stdint.h>
 #include "fujibus.h"
 
-/* A frame the ESP32-S3 sends unsolicited, mid-transaction. Return true if it
- * was consumed, in which case the wait continues with a refreshed deadline. */
+/* A frame the ESP32-S3 sends unsolicited, mid-transaction. Returning true consumes it and
+ * restarts the wait's deadline. */
 typedef bool (*fujibus_inbound_fn)(const fb_reply_t *frame);
 void fujibus_set_inbound_handler(fujibus_inbound_fn handler);
 
 bool fujibus_link_up(void);
 
-/* Called while a transaction or a pumped wait is out, between USB pumps: a
- * cart that must keep serving its console (the Studio II's text engine)
- * does it here. NULL, the default, calls nothing. */
+/* Runs between USB pumps during a transaction or pumped wait, for a cart that must keep
+ * serving its console (the Studio II's text engine). */
 typedef void (*fujibus_idle_fn)(void);
 void fujibus_set_idle(fujibus_idle_fn hook);
 
 /* Pump USB for `ms`, never back-to-back. */
 void fuji_wait_ms_pumped(uint32_t ms);
 
-/* One request/response round trip. `timeout_ms` is per frame, so consuming an
- * inbound push frame restarts it. */
+/* `timeout_ms` is per frame, so consuming an inbound push frame restarts it. */
 fb_status_t fujibus_transact(uint8_t device, uint8_t command,
                              const fb_param_t *params, unsigned nparams,
                              const uint8_t *payload, uint16_t payload_len,
                              uint32_t timeout_ms, fb_reply_t *reply);
 
-/* Send a bare frame with no reply expected (used to ACK push frames). */
+/* No reply expected; ACKs push frames. */
 void fujibus_send_bare(uint8_t device, uint8_t command,
                        const uint8_t *payload, uint16_t payload_len);
 

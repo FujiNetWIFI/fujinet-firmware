@@ -1,10 +1,5 @@
-/* fuji_cart.h -- the cartridge-side half of the FujiNet mailbox.
- *
- * Split so that core1's bus loop does as little as possible. core1 records
- * mailbox writes into a ring and returns to polling; core0 drains the ring and
- * runs the transaction. Reads need no bus-loop change at all: the mailbox is
- * painted straight into rom_table[], so serving it is the same instruction that
- * already serves ROM.
+/* fuji_cart.h -- the cartridge-side mailbox. core1 rings mailbox writes for
+ * core0 to run; reads need nothing, as the mailbox is painted into rom_table[].
  */
 
 #ifndef FUJI_CART_H
@@ -15,9 +10,8 @@
 
 #include "o2app.h"
 
-/* One transaction is ~6 register writes plus at most a 256-byte payload, and
- * the console cannot start another until it sees ACKSEQ, so the ring only ever
- * has to hold one. */
+/* Holds one transaction (~6 register writes plus up to 256 payload bytes); the
+ * console cannot start another until it sees ACKSEQ. */
 #define FUJI_RING_LEN 512
 
 typedef struct {
@@ -30,16 +24,13 @@ typedef struct {
 extern fuji_ring_t fuji_ring;
 extern volatile bool fuji_mailbox_active;
 
-/* Protocol 2. core0 fills fuji_app and sets fuji_app_armed before it arms the
- * boot swap; core1 turns it live at the same $400 fetch that swaps the tables,
- * and from then on owns it: o2app_read for every fetch, o2app_write for every
- * register write, all inlined into the bus loop. */
+/* Protocol 2: core0 fills fuji_app and arms it before the boot swap; core1 sets
+ * it live at the $400 fetch that swaps the tables and owns it from then on. */
 extern o2app_t fuji_app;
 extern volatile bool fuji_app_armed;
 extern volatile bool fuji_app_live;
 
-/* core1: record one external-data-window write. Inlined into the bus loop, so
- * it must stay a compare and two stores. */
+/* core1 bus loop: must stay a compare and two stores. */
 static inline void fuji_cart_note_write(uint8_t addr, uint8_t data)
 {
     uint16_t head = fuji_ring.head;

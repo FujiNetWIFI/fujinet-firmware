@@ -1,28 +1,14 @@
--- Mount an image over the network, boot it, and prove the served window is
--- byte-identical to the file that was pushed -- and that everything past the
--- image reads $FF, which is what MAME's own stock Videocart device answers
--- past its ROM size.
---
--- The comparison is against the file on disk, not against anything the cart
--- computed, so a mapper that quietly mangled the image would fail here.
---
--- A banked (APPBANK) image is compared page by page: the probe selects each
--- page itself, with a store to $FD80+n, and reads it back through $4800. An
--- image the cart refuses ends with BOOTTEST: REFUSED and the boot error, which
--- tools/soak.sh checks against what the image's name says it expects.
---
--- Polls for the swap rather than waiting a fixed number of frames: a soak run
--- is dominated by that wait otherwise, and a slow socket round trip would turn
--- a fixed deadline into a flake.
+-- Mount an image over the network, boot it, and check the served window
+-- against the file on disk, with $FF past the image. A banked image is checked
+-- page by page via $FD80+n. A refused image prints BOOTTEST: REFUSED and the
+-- boot error for tools/soak.sh.
 local WANT = os.getenv("BOOT_IMAGE") or ""
 local DEADLINE = tonumber(os.getenv("BOOT_DEADLINE") or "6000")
 
 local img, sp, n = nil, nil, 0
 
--- Cheap discriminator, polled until it holds. It must include the byte just
--- PAST the image: every Channel F cart image starts with the same $55 BIOS
--- signature, so a one-byte image compared head-only matches the client that is
--- still running and the swap looks like it already happened.
+-- Polled until it holds. It must include the byte past the image: every
+-- image starts with $55, so a head-only check matches the running client.
 local FIXED, PAGE = 0x4000, 0x2000
 
 local function looks_swapped()

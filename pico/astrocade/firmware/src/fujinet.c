@@ -1,12 +1,9 @@
-/* fujinet.c -- the cartridge's side of the mailbox.
+/* fujinet.c -- the cartridge's side of the mailbox: where a published byte
+ * goes and what to do with a committed image. The protocol is the shared
+ * fujimail.c, bound to USB by fuji_port.c.
  *
- * The protocol itself lives in fujimail.c, which the MAME model drives too,
- * and fuji_port.c binds it to the USB link; this is only the rest of the
- * port: where a published byte goes, and what to do with a committed image.
- *
- * NOT YET RUN ON HARDWARE -- there is no Astrocade cartridge board yet.
- * fujimail.c is exercised against a real fujinet-pc through the MAME model,
- * which is exactly why it is shared rather than reimplemented here.
+ * Not yet run on hardware; fujimail.c is tested against fujinet-pc through
+ * the MAME model.
  */
 
 #include <string.h>
@@ -22,10 +19,9 @@
 #include "fuji_mailbox.h"
 #include "astromap.h"
 
-/* The push stream's bytes land in the store; a committed image is staged
- * for core1's armed FN_HOT_SWAP swap, so nothing is overwritten under the
- * client while it is still executing -- and the mailbox stays live until
- * then, so the BOOT_READY publish that follows the close is seen. */
+/* A committed image is staged for core1's armed FN_HOT_SWAP, so nothing is
+ * overwritten under the running client and the mailbox stays live for the
+ * BOOT_READY that follows the close. */
 static uint8_t port_rom_open(uint32_t size)
 {
     uint8_t err = astromap_gate(size);
@@ -82,12 +78,10 @@ void fuji_mailbox_service(void)
         quiet = false;
     }
 
-    /* Nothing from the console this pass, so spend it blanking the flash
-     * store instead of erasing inside a push and stalling that chunk's ACK.
-     * A sector erase deafens core0 for ~45 ms; the hotspot ring holds a whole
-     * transaction (FN_TX_MAX plus its register pairs) and the SEQ/ACKSEQ
-     * interlock stops the client starting another, so the console loses
-     * latency here and never an event. */
+    /* Erase flash ahead while the console is quiet, not inside a push. A
+     * ~45 ms sector erase deafens core0, but the ring holds a whole
+     * transaction and SEQ/ACKSEQ stops the client starting another, so no
+     * event is lost. */
     if (quiet)
         fuji_store_idle();
 }

@@ -47,9 +47,7 @@ void init_cart(void) {
    cart.JLPFlashSize = 0;
    cart.JLPAccel = 0;
    cart.flashfile[0] = '\0';
-   // cart.FujiSupport is NOT reset here -- it's a board capability
-   // (RunFujiConfig() sets it once, at boot, before any game loads) rather
-   // than per-game state.
+   // cart.FujiSupport is a board capability, not per-game state
    update_ram_window();
 #endif
 #if CONFIG_ECS_AUDIO || CONFIG_INTELLIVOICE
@@ -59,8 +57,6 @@ void init_cart(void) {
 }
 
 #if CONFIG_JLP
-// Recomputes the RAM window the bus loop claims ahead of mm_lookup() (see
-// cartridge.c). Call after changing JLPAccel, JLPFlash, or FujiSupport.
 void update_ram_window(void) {
 #if CONFIG_FUJINET
    if (cart.JLPAccel || cart.JLPFlash) {

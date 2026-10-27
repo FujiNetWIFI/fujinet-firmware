@@ -1,21 +1,14 @@
 ; fujidisp.inc -- 2637 UVI display helpers for the Arcadia FujiNet clients.
 ;
-; The UVI has a 64-glyph character generator (no lowercase, no / - _ :) and
-; each screen byte is 2 colour bits + a 6-bit glyph code. Text is written
-; straight into screen RAM; there is no BIOS. The missing path glyphs live
-; in the 8 user-defined characters ($1980-$19BF, codes $38-$3F); sprites
-; are unused by every client, so all 8 slots are free.
-;
-; Never emit colour bits 11 in a text cell: a $C0 byte flips the whole row
-; into block-graphics mode. DXLAT can only produce codes $00-$3F.
-;
-; Uses the fujilib register conventions (R0 data, R1/R2 args, R3 counters).
+; The UVI's 64 glyphs lack lowercase and / - _ :, so those live in the 8 user-defined
+; characters (codes $38-$3F; no client uses sprites). A screen byte is 2 color bits + a
+; 6-bit glyph; never emit color bits 11, since a $C0 byte flips the row to block graphics.
 
 SCREEN  EQU     $1800           ; upper screen, 16 cols x 13 rows
 UDC     EQU     $1980           ; 8 user-defined characters, 8 bytes each
 GFXMOD  EQU     $19F8           ; bit7 gfx mode, bit6 26-line, 0-5 alt cols
 BGCOL   EQU     $19F9           ; bit7 char size, 6 pot mux, 3-5 char col,
-                                ; 0-2 screen col (colours INVERTED: 0=white,
+                                ; 0-2 screen col (colors inverted: 0=white,
                                 ; 7=black)
 PITCH   EQU     $18FD           ; bit7 multicolor, 0-6 sound frequency
 VOLUME  EQU     $18FE           ; 0-2 loudness, 3 snd en, 5-7 horiz shift
@@ -76,10 +69,8 @@ DXLAT:  ANDI,R0 $7F
 DXLBAD: LODI,R0 $34             ; '.'
         RETC,UN
 
-; Print the 0-terminated ASCII string at (DSTRP) starting at screen offset
-; R2 + 1 (R2 = target cell minus one, the auto-increment convention; on
-; return R2 is the last cell written). Stops at the 0 terminator; the
-; caller owns line-length discipline. Calls one down (DXLAT).
+; Print the string at (DSTRP) from screen offset R2 + 1 (R2 = target cell minus one for
+; auto-increment; returns the last cell written). No line wrap. Calls one down (DXLAT).
 ; Clobbers R0,R1,R2,R3.
 DPRINT: LODI,R3 $FF
 DPRT1:  LODA,R0 *DSTRP,R3,+    ; str[++R3]; a load sets CC
@@ -89,11 +80,10 @@ DPRT1:  LODA,R0 *DSTRP,R3,+    ; str[++R3]; a load sets CC
         BCTR,UN DPRT1
 DPRT2:  RETC,UN
 
-; Print R0 as two hex digits at screen offset R2+1 (same convention).
-; The charset makes this free: $10+nibble runs 0-9 then A-F. Leaf.
+; Print R0 as two hex digits at screen offset R2+1 ($10+nibble is 0-9, A-F). Leaf.
 ; Clobbers R0,R1,R2.
 DHEX:   STRZ    R1
-        RRR,R0                  ; high nibble down (4 rotates)
+        RRR,R0
         RRR,R0
         RRR,R0
         RRR,R0
@@ -107,17 +97,11 @@ DHEX:   STRZ    R1
         RETC,UN
 
 ; ---- input: joystick disc + keypad ---------------------------------
-; The hand controller's primary control is the self-centring disc and the
-; side FIRE button; the 12-key keypad is secondary. Two hardware facts
-; shape this:
-;   - FIRE is wired to the SAME line as keypad '2' (controller col 2 bit 3,
-;     $1901 b3). They are electrically indistinguishable, so that bit is
-;     SELECT (fire-to-confirm), and up/down live on the disc.
-;   - The disc is read as an analog pot digitised by the 2637, valid ONLY
-;     during vertical blank. P1 vertical is $19FF with the pot mux ($19F9
-;     bit 6) clear (DINIT leaves it clear): up reads 0x00, down 0xFF, centre
-;     ~0x6F. Read outside vblank it returns 0xFF -- which looks like "down"
-;     -- so SCAN syncs to vblank (TPSU $80) before reading it.
+;   - FIRE shares a line with keypad '2' ($1901 b3), so that bit is SELECT and up/down
+;     live on the disc.
+;   - The disc is a pot the 2637 digitizes, valid only in vblank: $19FF with the pot mux
+;     ($19F9 bit 6) clear reads up 0x00, down 0xFF, center ~0x6F. Outside vblank it reads
+;     0xFF, which looks like down.
 ; Keypad, active high, masked $0F, one column per address:
 ;   $1900 b3=1 b2=4 b1=7 b0=Clear     $1901 b3=2/FIRE b2=5 b1=8 b0=0
 ;   $1902 b3=3 b2=6 b1=9 b0=Enter
@@ -133,8 +117,7 @@ JOYP1   EQU     $19FF           ; P1 vertical pot (mux clear): up 00, down FF
 JOYUP   EQU     $40             ; < this = up
 JOYDN   EQU     $C0             ; > this = down
 
-; SCAN: R0 = code of the first control found (0 if none). Syncs to vblank so
-; the disc pot read is valid. Calls nothing. Clobbers R0,R1.
+; SCAN: R0 = code of the first control found (0 if none). Leaf. Clobbers R0,R1.
 SCAN:   TPSU    $80             ; wait for vertical blank (pot A/D valid there)
         BCFR,EQ SCAN
         LODA,R0 JOYP1           ; disc up/down first
@@ -177,8 +160,7 @@ SCPU:   LODI,R0 KPGUP
 SCPD:   LODI,R0 KPGDN
         RETC,UN
 
-; GETKEY: block for a fresh control; R0 = code. Waits for full release first
-; so a held key/disc steps once per push. Calls one down (SCAN).
+; GETKEY: R0 = code of a fresh press; a held control steps once. Calls one down (SCAN).
 GETKEY: BSTA,UN SCAN            ; wait for release
         COMI,R0 0
         BCFA,EQ GETKEY

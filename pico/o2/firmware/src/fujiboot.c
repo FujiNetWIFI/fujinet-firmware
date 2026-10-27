@@ -1,8 +1,5 @@
-/* fujiboot.c -- bring the cartridge up as FujiNet rather than as a menu.
- *
- * Replaces PicoPAC's videopacMenu()/load_file("/selectgame.bin") path: the
- * console client is baked into this firmware, because at power-up there is no
- * network and nothing to load it from.
+/* fujiboot.c -- boot the baked-in console client instead of PicoPAC's menu;
+ * at power-up there is no network to load it from.
  */
 
 #include <string.h>
@@ -22,14 +19,12 @@ void fuji_config_boot(void)
 
     memset(rom_table, 0, sizeof rom_table);
 
-    /* The client is a 3K single-bank image, so it lands in every bank and the
-     * console sees it whichever way P10/P11 happen to sit. */
+    /* A 3K single-bank image lands in every bank, whatever P10/P11 select. */
     if (o2map_plan(_configrom, FUJI_CONFIGROM_SIZE, &plan) == O2MAP_OK)
         o2map_apply(_configrom, &plan, rom_table);
 
-    /* The client owns only $F00-$F1F of the mailbox page; everything from
-     * $F20 up is ours, so painting it does not disturb the image just loaded.
-     * fuji_mailbox.h's FN_R_STUB_END is the boundary both sides agree on. */
+    /* The client owns only $F00-$F1F (to FN_R_STUB_END); painting from $F20
+     * up leaves it intact. */
     fuji_mailbox_active = true;
     fuji_cart_init();
 

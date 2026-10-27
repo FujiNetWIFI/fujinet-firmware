@@ -2,9 +2,8 @@
 # build-cart.sh -- build the RP2040 cartridge firmware: [--baked | --bake] [board], as
 # pico/common/scripts/build-cart.lib.sh describes.
 #
-# Client: $FUJI_CLIENT if set; else build/config.bin -- the REAL CONFIG from
-# fujinet-config/astrocade; else the fujicfg testrom stand-in; else fujitest. The stand-ins
-# exist for bring-up only; a release cart bakes real CONFIG.
+# Client: $FUJI_CLIENT if set; else build/config.bin (the real CONFIG from
+# fujinet-config/astrocade); else the fujicfg or fujitest bring-up stand-ins.
 CART_BOARD=fujicade
 CART_ELF=fujicade
 CART_BAKE="fujiconfigrom.h"

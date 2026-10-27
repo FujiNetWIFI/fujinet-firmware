@@ -1,14 +1,7 @@
-/* main.c -- FujiNet NES cartridge firmware, RP2354B.
- *
- * core1 serves the CPU bus (nes_cart.c); the PIO bank tables serve the SRAMs'
- * high address lines (nes_pio.c); core0's job is the USB CDC link to the
- * ESP32-S3, the mailbox service, the load sequence and the slow mapper
- * outputs on the '595.
- *
- * The RP sits on the console's 5 V bus with no buffers: RP2350 pads are
- * 5 V-tolerant while powered, and the cart is powered from the console or
- * USB, whichever is up. Pull-downs stay off on every bus pin (RP2350-E9).
- */
+/* main.c -- FujiNet NES cartridge firmware, RP2354B. core1 serves the CPU bus,
+ * PIO the SRAM bank lines; core0 runs USB, the mailbox, loads and the '595.
+ * Bus pins are unbuffered on 5 V (powered RP2350 pads are 5 V-tolerant), with
+ * pulls off (RP2350-E9). */
 
 #include "pico/stdlib.h"
 #include "pico/multicore.h"

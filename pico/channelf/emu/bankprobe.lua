@@ -1,10 +1,6 @@
--- bankprobe.lua -- M8: check fujibank.bin's APPBANK results and the tick.
---
--- fujibank.asm leaves what it read through the page window in RAM at $8010
--- (see its header). This waits for its done marker, checks each byte against
--- what the spec in fuji_mailbox.h says it must be, then measures the tick
--- against ten seconds of emulated time. Against time, not frames: the console
--- refreshes at 60.53 Hz (4.09 MHz / 256 x 264), so 600 frames is 595 ticks.
+-- bankprobe.lua -- check fujibank.bin's APPBANK results (left at $8010) and
+-- the tick. The tick is measured against emulated time, not frames: the
+-- console refreshes at 60.53 Hz (4.09 MHz / 256 x 264).
 --
 --   FUJINET_TCP=127.0.0.1:9 ./run.sh fujibank bankprobe
 local VRES = 0x8010
@@ -14,7 +10,7 @@ local n, t0, f0, s0, sp, fails = 0, nil, nil, nil, nil, 0
 local function now() return manager.machine.time:as_double() end
 
 local function tick()
-    -- HI, LO, HI as the client does; reads of the status page are inert
+    -- HI, LO, HI as the client does
     while true do
         local h1 = sp:readv_u8(0xFC0F)
         local lo = sp:readv_u8(0xFC0E)

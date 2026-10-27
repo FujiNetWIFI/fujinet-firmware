@@ -1,22 +1,8 @@
 /* channelf_cart.c -- core1: be a memory device on the F8 bus.
  *
- * The F8 has no address bus. Five ROMC lines encode a 32-state protocol, and
- * every device on the bus keeps its own PC0/PC1/DC0/DC1 and updates them on
- * EVERY cycle -- so this loop may never miss one. Fall behind once and the
- * shadow registers are wrong for the rest of the session; there is no address
- * to resynchronise against, because there is no address.
- *
- * The decode itself lives in channelf_cart.h as static inlines, shared with
- * the MAME device and the host tests, and is proven against MAME's own F8 core
- * by replaying golden traces (firmware/host_test/test_romc.c). What is NOT
- * proven, and cannot be without a board, is the timing below: which edge of
- * WRITE marks a cycle and when the CPU's write data is valid. Those are
- * marked PROVISIONAL and are the first thing to put a scope on.
- *
- * Budget, for scale: a cycle is 4 PHI periods (2.235 us) or 6 (3.353 us) at
- * 1.7897725 MHz. The ColecoVision port had 373 ns. This loop is
- * correctness-bound, not latency-bound, which is why it is a plain polling
- * loop with no PIO and no overclock.
+ * Every device tracks PC0/PC1/DC0/DC1 on every cycle, so this loop may never
+ * miss one. The decode is in channelf_cart.h; the WRITE timing below is
+ * untested on hardware and marked PROVISIONAL.
  */
 
 #include "pico/stdlib.h"
@@ -74,24 +60,22 @@ void __not_in_flash_func(channelf_core1_main)(void)
         uint8_t romc, out = 0xFF;
         bool drive;
 
-        /* PROVISIONAL: a cycle is taken to begin on WRITE's rising edge, and
-         * ROMC to be stable from then to the end of the cycle -- which is what
-         * the F8 User's Guide says of ROMC, though not in these words about
-         * WRITE. */
+        /* PROVISIONAL: a cycle begins on WRITE's rising edge, with ROMC
+         * stable to the end of the cycle. */
         while (!(sio_hw->gpio_in & WRITE_MASK))
             ;
 
         pins = sio_hw->gpio_in;
         romc = (uint8_t)((pins & ROMC_MASK) >> ROMC0_PIN);
 
-        /* Decide and drive before doing anything else: for the states the cart
-         * sources, the console is already waiting. */
+        /* Drive first: for the states the cart sources, the console is
+         * already waiting. */
         drive = chf_bus_source(&bus, &mem, romc, &out);
         if (drive)
             data_drive(out);
 
-        /* PROVISIONAL: for the states the CPU sources -- ROMC 05 above all --
-         * its data is sampled late, just as WRITE falls. */
+        /* PROVISIONAL: CPU-sourced data (ROMC 05 above all) is sampled as
+         * WRITE falls. */
         while (sio_hw->gpio_in & WRITE_MASK)
             ;
 
@@ -106,15 +90,12 @@ void __not_in_flash_func(channelf_core1_main)(void)
         if (drive)
             data_release();
 
-        /* A console reset arrives as ROMC 08. The cart deliberately does NOT
-         * reset with it: ACKSEQ has to persist, or a client restarted by the
-         * reset would replay a sequence the cart already answered and read a
-         * stale reply as a fresh one. */
+        /* The cart ignores the ROMC 08 reset: ACKSEQ must persist, or a
+         * restarted client would take a stale reply for a fresh one. */
 
         switch ((chf_ev_t)bus.ev) {
         case CHF_EV_REG:
-            /* One store is one whole register write; expand it into the pair
-             * the shared fujimail.c decodes. */
+            /* Expand into the pair fujimail.c decodes. */
             fuji_cart_note((uint16_t)(FN_H_REGSEL + bus.ev_reg));
             fuji_cart_note((uint16_t)(FN_H_REGDATA + bus.ev_val));
             break;
@@ -124,9 +105,7 @@ void __not_in_flash_func(channelf_core1_main)(void)
             break;
 
         case CHF_EV_SWAP:
-            /* core1's own, and inline: the window must be switched before the
-             * next fetch, and the stub that triggered this is running out of
-             * the arena precisely so it survives the switch. */
+            /* The window must switch before the next fetch. */
             if (fuji_boot_armed && fuji_have_staged) {
                 fuji_live_win ^= 1u;
                 fuji_boot_armed = false;
@@ -137,8 +116,7 @@ void __not_in_flash_func(channelf_core1_main)(void)
             break;
 
         case CHF_EV_BANK:
-            /* Nothing left to do: chf_write switched the page, inline, before
-             * this cycle ended. */
+            /* chf_write already switched the page. */
             break;
 
         default:

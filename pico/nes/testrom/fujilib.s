@@ -101,11 +101,8 @@ padl:   sta     FN_TX           ; Y wraps to 0 after 256 - Y stores
 .endproc
 
 ; fn_go -- commit and wait. Returns A = FNE* (0 = the transaction completed).
-;
-; THE RULE EVERY PORT LEARNED THE HARD WAY: the next sequence number comes
-; from the CART'S OWN persisted ACKSEQ + 1, never from a counter in RAM. A
-; console RESET restarts the client and re-zeroes its variables but does NOT
-; reset the cartridge -- there is no reset line on the edge.
+; The sequence is the cart's ACKSEQ + 1, never a RAM counter: a console Reset
+; zeroes RAM but not the cart (no reset line on the edge).
 .proc fn_go
         lda     FN_ACKS
         clc
@@ -154,9 +151,8 @@ ok:     lda     #FNEOK
         jmp     fn_rw
 .endproc
 
-; fn_boot -- hand the machine to the loader ROM. Does not return. The loader
-; is cart-served and untouched by the SRAM copy, so nothing is copied into
-; console RAM first; it just has to run with NMI off and the screen dark.
+; fn_boot -- jump to the cart-served loader ROM with NMI off and the screen
+; dark. Does not return.
 .proc fn_boot
         sei
         lda     #0

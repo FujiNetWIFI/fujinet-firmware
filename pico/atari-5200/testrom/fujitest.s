@@ -1,12 +1,9 @@
 ; fujitest.s -- M1: one real transaction, and proof the cart survives a
 ; power cycle.
 ;
-; Asks the FujiNet for GET_ADAPTERCONFIG_EXTENDED and puts the live SSID, IP
-; address and firmware version on screen. Nothing is faked: the bytes come
-; off a socket to fujinet-pc, through the cartridge's own fujimail.c.
-; emu/powertest.lua power-cycles the console: the cart starts the
-; interlock over (ACKSEQ 0), and the client's next transaction must still go
-; through.
+; Shows GET_ADAPTERCONFIG_EXTENDED's SSID, IP address and firmware version.
+; emu/powertest.lua power-cycles the console: the cart starts the interlock
+; over (ACKSEQ 0), and the next transaction must still go through.
 
         .include "fujinet.inc"
 
@@ -14,8 +11,7 @@
         .import fn_chk, fn_beg, fn_go, fn_ack
         .export main
 
-; Field offsets inside GET_ADAPTERCONFIG_EXTENDED (lib/device/fujiDevice/
-; fujiDevice.h, packed). All below 256, so one index reaches them.
+; Field offsets in the packed GET_ADAPTERCONFIG_EXTENDED reply, all below 256.
 AC_SSID = 0                     ; char[33]
 AC_VER  = 125                   ; char[15]
 AC_SIP  = 140                   ; char[16], the IP already formatted as text
@@ -96,7 +92,6 @@ ok:     PUTS    5, 2, tssid
         ldy     #15
         jsr     disp_rpl
 
-        ; the sequence number, in hex
 seq:    PUTS    12, 2, tseq
         lda     #12
         ldx     #10

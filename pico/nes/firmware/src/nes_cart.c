@@ -1,20 +1,7 @@
-/* nes_cart.c -- core1: the CPU bus, one M2 cycle at a time.
- *
- * Reads: if the address is in the cart's own memory (the mailbox arena, the
- * loader ROM, WRAM, or the vector page while the SRAM is off), drive D0-D7
- * from M2 rising until M2 falls. Writes: keep sampling D0-D7 until M2 falls
- * and use the last sample taken while it was high, then hand the byte to the
- * mailbox ring, to WRAM, or to the mapper engine -- whose bank changes are
- * patched into the PIO tables right here, before the next fetch.
- *
- * Budget: M2 is high 350 ns; the console needs read data before it falls.
- * From the rising edge this loop takes a handful of loads and one decode, so
- * well under 100 ns at 200 MHz. Everything it touches is in SRAM: the
- * firmware runs copy_to_ram, and tools/checksram.py checks the symbols.
- *
- * PROVISIONAL, and the first thing for a scope: how long the CPU holds write
- * data after M2 falls. The last-sample-while-high model needs none.
- */
+/* nes_cart.c -- core1: the CPU bus, one M2 cycle at a time. Read data must be
+ * driven within M2's 350 ns high time; this loop needs well under 100 ns.
+ * Write data is the last sample while M2 is high, so it needs no hold time
+ * after M2 falls (provisional, unverified on hardware). */
 
 #include "pico/stdlib.h"
 #include "hardware/gpio.h"
@@ -43,10 +30,8 @@ static inline void data_release(void)
     sio_hw->gpio_oe_clr = DATA_MASK;
 }
 
-/* A mapper write, applied inline. The PRG and CHR tables are patched here;
- * the slow consequences are flagged for core0. MMC3's interrupt registers go
- * to core0 too, so that every touch of the IRQ state happens on one core and
- * only this core writes m->dirty. */
+/* Bank tables are patched before the next fetch; the rest is flagged for core0.
+ * MMC3 IRQ registers go to core0 so the IRQ state is touched on one core. */
 static inline void mapper_write(uint16_t a, uint8_t d, uint32_t cycle)
 {
     nesmap_t *m = &fuji_map;
@@ -77,8 +62,7 @@ void __not_in_flash_func(nes_core1_main)(void)
         uint16_t a;
         nes_region_t r;
 
-        /* The rising edge of M2: everything before it is phi1, where the
-         * connector guarantees nothing. */
+        /* The address is valid only while M2 is high. */
         while (sio_hw->gpio_in & M2_MASK)
             ;
         while (!((pins = sio_hw->gpio_in) & M2_MASK))

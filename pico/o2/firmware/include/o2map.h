@@ -1,11 +1,5 @@
 /* o2map.h -- how a raw Odyssey 2 cartridge image maps into the console's
- * program window.
- *
- * Hardware-free on purpose. This and fujibus.c are the two pieces most likely
- * to be wrong in a way that is painful to diagnose on real hardware, so both
- * build with plain gcc, both have desktop regression tests, and both are linked
- * by the o2em model as well as the cartridge firmware -- emulator and cart stay
- * identical by construction rather than by discipline.
+ * program window. Hardware-free so the host tests and the o2em model share it.
  */
 
 #ifndef O2MAP_H
@@ -35,12 +29,9 @@ typedef struct {
     unsigned npages;      /* APPBANK pages, 2..O2_APP_MAXPAGES                */
 } o2map_plan_t;
 
-/* Decide the layout for an image of `size` bytes. `image` may be NULL when only
- * the layout is wanted; mailbox_ok then reads false, the safe answer, and an
- * APPBANK image cannot be recognised -- it is told apart by its header.
- *
- * An APPBANK image is NOT laid out with o2map_apply: the cartridge serves it
- * where it already is, through o2app.h. */
+/* `image` may be NULL for layout only; mailbox_ok is then false and an APPBANK
+ * image, known only by its header, is not recognized. An APPBANK image is
+ * served in place through o2app.h, not laid out with o2map_apply. */
 o2map_err_t o2map_plan(const uint8_t *image, uint32_t size, o2map_plan_t *out);
 
 /* Is this a protocol 2 APPBANK image? (header, page count and claim) */

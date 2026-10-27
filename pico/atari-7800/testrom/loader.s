@@ -1,18 +1,17 @@
 ; loader.s -- the 512 bytes the cart serves at $0600: fills the SRAM and
 ; starts what it filled it with.
 ;
-; Every client boots through here, and so does the power-on boot block.
-; The cart moves into LOAD on our first write, then hands us the image one
-; 1K slice at a time in the reply window, with the address to copy it to;
-; we copy and ack. When it is all in, the cart says how to start it:
+; The cart enters LOAD on our first write, then hands us the image in 1K
+; slices in the reply window, each with its destination; we copy and ack.
+; Then it says how to start it:
 ;
-;   BIOS    the console's own BIOS, mapped back in, checks and starts the
-;           game exactly as at power-on (INPTCTRL is still unlocked);
-;   DIRECT  we start it, leaving what the BIOS leaves: X = S = $16, D and I
+;   BIOS    the console's own BIOS, mapped back in, starts the game as at
+;           power-on (INPTCTRL is still unlocked);
+;   DIRECT  we start it with the BIOS's exit state: X = S = $16, D and I
 ;           set, MARIA's DMA off.
 ;
-; Either way the last instruction runs from a trampoline in zero page, so
-; the arena can disappear under it. Nothing here returns.
+; The last instruction runs from a zero-page trampoline, so the arena can
+; disappear under it.
 
         .include "fujinet.inc"
 

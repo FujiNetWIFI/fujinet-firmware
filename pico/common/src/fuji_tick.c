@@ -1,15 +1,8 @@
-/* fuji_tick.c -- keep the 60 Hz tick painted.
+/* fuji_tick.c -- a core0 timer interrupt paints the 60 Hz tick 240 times a second.
  *
- * A core0 timer interrupt, 240 times a second, writes the current value into
- * the status page the cart names with fuji_tick_target(). It is an interrupt rather than a step in the main loop
- * because core0 spends whole seconds inside a transaction, and the tick is
- * only worth having if it keeps counting through them. It is core0's rather
- * than core1's because core1's bus loop has a 2.2 us budget and must never
- * touch flash, and a 64-bit divide is a library call that lives there.
- *
- * The two bytes go out as one halfword store, so core1 never serves a value
- * that is half old and half new; the console still reads them one byte at a
- * time, which is why fuji_mailbox.h tells it to read HI, LO, HI.
+ * An interrupt, because core0 spends whole seconds inside a transaction. Not core1: its bus
+ * loop has a 2.2 us budget and the 64-bit divide is a library call in flash. One halfword
+ * store, so core1 never serves a torn value; the console still reads HI, LO, HI.
  */
 #include "pico/stdlib.h"
 
@@ -30,7 +23,6 @@ static bool tick_cb(repeating_timer_t *timer)
 
 void fuji_tick_start(void)
 {
-    /* Negative: the period runs from one callback's start to the next, so the
-     * rate holds however long a callback takes. */
+    /* Negative: the period runs start to start, however long a callback takes. */
     add_repeating_timer_us(-4167, tick_cb, NULL, &tick_timer);
 }

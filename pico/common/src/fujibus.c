@@ -1,6 +1,4 @@
-// See fujibus.h. Ported line-for-line against
-// lib/bus/FujiBusPacket.cpp in the main fujinet-firmware tree -- that
-// file is the source of truth; comments below cite it by function name.
+// FujiBus/SLIP codec; the ESP32's FujiBus implementation is the source of truth.
 #include "fujibus.h"
 #include <string.h>
 
@@ -11,7 +9,7 @@ enum {
     SLIP_ESC_ESC = 0xDD,
 };
 
-// FujiBusPacket.cpp: fieldSizeTable / numFieldsTable, indexed by descr&0x07.
+// Field size and count, indexed by descr & 0x07.
 static const uint8_t fb_field_size[8]  = {0, 1, 1, 1, 1, 2, 2, 4};
 static const uint8_t fb_field_count[8] = {0, 1, 2, 3, 4, 1, 2, 1};
 
@@ -19,8 +17,7 @@ static const uint8_t fb_field_count[8] = {0, 1, 2, 3, 4, 1, 2, 1};
 #define FB_DESCR_COUNT_MASK 0x07
 #define FB_MAX_DESCRIPTORS  16 /* defensive cap on a malformed/hostile reply */
 
-// FujiBusPacket.cpp: calcChecksum() -- 8-bit sum with end-around carry fold,
-// computed with the header's checksum byte set to 0.
+// 8-bit sum with end-around carry, over the packet with its checksum byte 0.
 static uint8_t fb_checksum(const uint8_t *buf, size_t n)
 {
     uint16_t c = 0;
@@ -36,9 +33,7 @@ size_t fujibus_build_request(uint8_t device, uint8_t command,
                               const uint8_t *payload, uint16_t payload_len,
                               uint8_t *out, size_t out_cap)
 {
-    // Decoded (unescaped) packet is assembled here first, then SLIP-encoded
-    // into `out` below -- encoding can grow the data, so it can't be done
-    // in place the way parse()'s decode can.
+    // SLIP encoding grows the data, so build unescaped here first.
     uint8_t pkt[384];
     size_t off = 6; // header size
 
@@ -46,11 +41,8 @@ size_t fujibus_build_request(uint8_t device, uint8_t command,
         if (nparams > FB_MAX_DESCRIPTORS)
             return 0;
 
-        // FujiBusPacket.cpp serialize(): the reference encoder greedily
-        // groups same-size params up to 4 bytes per descriptor. parse() on
-        // the far end accepts any legal descriptor chain, so we simplify:
-        // one descriptor per param (fieldDescr = count(1) + EXCEEDS_U8 +
-        // EXCEEDS_U16, per fieldSize).
+        // One descriptor per param: the ESP32 accepts any legal chain, though its own
+        // encoder groups same-size params.
         uint8_t descr[FB_MAX_DESCRIPTORS];
         for (unsigned i = 0; i < nparams; i++) {
             uint8_t size = params[i].size;
@@ -92,8 +84,6 @@ size_t fujibus_build_request(uint8_t device, uint8_t command,
     pkt[4] = 0;
     pkt[4] = fb_checksum(pkt, off);
 
-    // FujiBusPacket.cpp: encodeSLIP() -- leading END, escape 0xC0/0xDB,
-    // trailing END.
     size_t w = 0;
     if (w >= out_cap) return 0;
     out[w++] = SLIP_END;
@@ -116,17 +106,11 @@ size_t fujibus_build_request(uint8_t device, uint8_t command,
 
 bool fujibus_parse_reply(const uint8_t *in_const, size_t in_len, fb_reply_t *reply)
 {
-    // Decoding only ever removes bytes (escape collapse), so it's safe to
-    // decode in place into the caller's buffer; reply->data then points
-    // back into it. This does mean `in` is mutated -- documented in the
-    // header.
+    // Decoding only shrinks the data, so it runs in place in the caller's buffer.
     uint8_t *in = (uint8_t *)in_const;
 
-    // FujiBusPacket.cpp: parse() finds the first SLIP_END and treats the
-    // frame as starting there; the caller is expected to have already
-    // framed the buffer to end at the matching closing END (that's what
-    // the ESP32's readBusPacket()/two-END accumulation does, and what our
-    // own USB read loop must do too).
+    // The frame starts at the first END; the caller must already have cut the buffer at
+    // the closing END.
     size_t start = 0;
     while (start < in_len && in[start] != SLIP_END)
         start++;
@@ -150,7 +134,7 @@ bool fujibus_parse_reply(const uint8_t *in_const, size_t in_len, fb_reply_t *rep
                 in[w++] = SLIP_END;
             else if (v == SLIP_ESC_ESC)
                 in[w++] = SLIP_ESCAPE;
-            // else: ignore malformed escape (matches decodeSLIP())
+            // else: drop a malformed escape, as the ESP32 does
         } else {
             in[w++] = v;
         }
@@ -173,12 +157,8 @@ bool fujibus_parse_reply(const uint8_t *in_const, size_t in_len, fb_reply_t *rep
     uint8_t device = in[0];
     uint8_t command = in[1];
 
-    // Descriptor chain: first descriptor in the header, additional ones
-    // (while bit 7 is set) immediately follow the header, then param value
-    // bytes, then whatever's left is payload. Real ACK/NAK replies always
-    // carry descr==0 (no params) -- this still walks the general case so
-    // the codec is spec-complete and testable against the reference
-    // multi-param vector.
+    // First descriptor in the header, more after it while bit 7 is set, then the param
+    // values, then payload.
     uint8_t descr[FB_MAX_DESCRIPTORS];
     unsigned ndescr = 0;
     uint8_t dsc = in[5];
@@ -212,7 +192,7 @@ bool fujibus_parse_reply(const uint8_t *in_const, size_t in_len, fb_reply_t *rep
 }
 
 // ---------------------------------------------------------------------
-// Self-test: known-good vectors, no USB/hardware involved.
+// Self-test
 // ---------------------------------------------------------------------
 
 static bool fb_bytes_eq(const uint8_t *a, const uint8_t *b, size_t n)
@@ -224,8 +204,7 @@ bool fujibus_selftest(void)
 {
     uint8_t buf[512];
 
-    // GET_ADAPTERCONFIG_EXTENDED to Fuji, no params. Verified against
-    // lib/bus/FujiBusPacket.cpp by hand:
+    // GET_ADAPTERCONFIG_EXTENDED to Fuji, no params:
     //   decoded: 70 C4 06 00 3B 00  (device, cmd, len=6 LE, checksum, descr=0)
     //   on wire: C0 70 C4 06 00 3B 00 C0
     static const uint8_t want_getcfg[] = {
@@ -259,10 +238,7 @@ bool fujibus_selftest(void)
             return false;
     }
 
-    // Round-trip a synthetic 246-byte ACK carrying the 240-byte
-    // AdapterConfigExtended payload (240 sentinel bytes of 0xA5, chosen
-    // because it also exercises SLIP escaping -- 0xA5 needs none, but the
-    // point is the framing/length/checksum machinery at this size).
+    // A 246-byte ACK carrying a 240-byte AdapterConfigExtended-sized payload.
     {
         uint8_t decoded[6 + FUJI_ADAPTERCONFIG_EXTENDED_SIZE];
         decoded[0] = FUJI_DEVICEID_FUJINET;
@@ -300,11 +276,9 @@ bool fujibus_selftest(void)
                 return false;
     }
 
-    // Reference vector (FujiBusPacketTests.cpp): 5xu8 + 1xu16 params, no
-    // payload. Groups [4xu8],[1xu8],[1xu16] -> descriptors 0x84,0x81,0x05;
+    // The ESP32's reference vector: 5xu8 + 1xu16 params, no payload, grouped
+    // [4xu8],[1xu8],[1xu16] -> descriptors 0x84,0x81,0x05;
     // decoded: 70 C4 0F 00 <ck> 84 81 05 01 02 03 04 05 CD AB (len=15).
-    // This exercises the multi-descriptor walk in fujibus_parse_reply(),
-    // even though real ACK/NAK replies never carry params.
     {
         uint8_t decoded[] = {
             0x70, 0xC4, 0x0F, 0x00, 0x00, 0x84,

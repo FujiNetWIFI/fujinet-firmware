@@ -1,23 +1,16 @@
 ; ---------------------------------------------------------------------------
-; fujicfg.asm -- M3: browse a host's directory and boot what you pick.
+; fujicfg.asm -- browse a host's directory and boot what you pick.
 ;
 ; Mount host 0, list a page of entries, move a cursor over them, descend into
 ; subdirectories, and boot a selection over the network.
 ;
-; STRUCTURE. The F8 keeps exactly ONE return address (PI copies PC0 into PC1;
-; POP restores it), so nesting needs PC1 saved by hand through the K register
-; and the BIOS's r40-r58 stack. This program avoids the whole question: it is a
-; flat state machine that JMPs between states, and every call is a single PI to
-; a leaf. Nothing here is ever two deep.
+; The F8 keeps one return address (PC1), so this is a flat state machine that
+; JMPs between states; every call is a single PI to a leaf.
 ;
-; Two traps this port inherits from its siblings and honours:
-;   - READ_DIR_ENTRY CRUNCHES the name to the maxlen you ask for, so the
-;     displayed 21 characters are not a filename. Anything that has to OPEN --
-;     descending or booting -- re-reads the row at full length first.
-;   - NEVER read past the end of a directory. The $7F,$7F marker is the only
-;     safe stop: a fujinet-pc SD host answers a position past the end with ".."
-;     forever, and once that has happened every later SET_DIRECTORY_POSITION
-;     NAKs for the rest of the session.
+;   - READ_DIR_ENTRY truncates the name to the requested maxlen, so descending
+;     or booting re-reads the row at full length first.
+;   - Never read past the $7F,$7F end marker: a fujinet-pc SD host then answers
+;     ".." forever and every later SET_DIRECTORY_POSITION NAKs.
 ;
 ; Build: ../build.sh fujicfg
 ; ---------------------------------------------------------------------------
@@ -119,9 +112,8 @@ HAVE:	LI FD_FUJI
 ; ===========================================================================
 ; SDRAW -- repaint the whole page from the network.
 ;
-; Stateless by construction, as on the Astrocade and INTV: every page draw is
-; OPEN_DIRECTORY, then one SET_DIRECTORY_POSITION / READ_DIR_ENTRY pair per
-; row, then CLOSE_DIRECTORY. Only per-row metadata survives the draw.
+; Every page draw is OPEN_DIRECTORY, the reads, then CLOSE_DIRECTORY. Only
+; per-row metadata survives the draw.
 ; ===========================================================================
 SDRAW:	; header: the path we are looking at
 	LI NAMELN+2
@@ -190,12 +182,8 @@ SDROW:	DCI VNROW
 	CLR
 	ST
 
-	; Seek ONCE per page, and only when the page does not start at the top:
-	; a freshly opened directory is already at position 0, and dir_seek(0)
-	; fails outright on an empty directory (fnFsSD.cpp requires
-	; pos < _dir_entries.size()), which would read as an error rather than as
-	; the empty listing it is. The reads that follow are sequential, so this
-	; also costs one round trip per page instead of one per row.
+	; Seek once per page, and only past the top: a fresh directory is already
+	; at position 0, and seeking to 0 in an empty directory is an error.
 	DCI VPOSL
 	LM
 	LR 4,A
@@ -314,10 +302,8 @@ SDEND:	; CLOSE_DIRECTORY
 	PI FNBEG
 	PI FNGO
 
-	; clear any rows this page did not fill. The counter lives in RAM, not a
-	; register: DCLRR clobbers r0 and r4-r8, which is most of the directly
-	; addressable file, and an earlier version of this loop kept its counter
-	; in r7 and never terminated.
+	; clear any rows this page did not fill. The counter lives in RAM because
+	; DCLRR clobbers r0 and r4-r8.
 	DCI VNROW
 	LM
 	DCI VROW
@@ -431,10 +417,7 @@ SDIDY:	LIS 1
 
 ; ===========================================================================
 ; SCUR -- draw the cursor gutter: a chevron on the selected row, blank on the
-; others. Redrawing only the gutter is what makes moving the cursor free -- the
-; row text never has to be fetched again, so a keypress costs no network round
-; trip. (The ColecoVision inverts the row instead, which needs VRAM readback;
-; this console has none.)
+; others, so moving the cursor needs no network round trip.
 ; ===========================================================================
 SCUR:	DCI VROW
 	CLR
@@ -500,10 +483,8 @@ SCURX:	JMP SINPUT
 ; ===========================================================================
 ; SINPUT -- the idle loop.
 ; ===========================================================================
-; Every arm is inverted-and-JMP rather than a direct BZ: the state bodies are
-; far bigger than a relative branch's +/-127 reach, and inverting keeps that
-; true no matter how they grow. CI leaves A alone, so the chain can keep
-; testing the event; JMP clobbers A, which is fine once we are leaving.
+; Every arm is inverted-and-JMP: the state bodies are beyond a relative
+; branch's +/-127 reach. CI leaves A alone, so the chain keeps testing it.
 SINPUT:	PI INSCAN
 	LR A,0
 	CI EV_NONE

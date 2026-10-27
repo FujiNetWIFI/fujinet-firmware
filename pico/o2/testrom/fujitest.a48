@@ -1,12 +1,7 @@
 ; fujitest.a48 -- FujiNet Odyssey 2 mailbox smoke test.
 ;
-; One round trip: ask the FujiNet for its adapter config and print the SSID.
-; Deliberately uses no BIOS routines -- it drives the VDC itself -- so what it
-; proves is the mailbox and nothing else.
-;
-; Reads out of the cartridge program window with MOVP, writes into the
-; external-data window with MOVX. See firmware/include/fuji_mailbox.h for why
-; the two directions differ.
+; One round trip: fetch the adapter config and print the SSID. Calls no BIOS
+; routines, so it tests only the mailbox.
 
     cpu 8048
     org 400h
@@ -41,11 +36,7 @@ start:
     xrl a,#'N'
     jnz nocart
 
-; Next sequence number comes from the CART's persisted ACKSEQ, never from a
-; local counter: a console RESET restarts this program but not the cartridge,
-; and a local counter would recompute a value the cart has already acked --
-; no further request would ever be sent, while the screen kept showing the
-; previous reply. Sequence 0 is reserved.
+; SEQ is ACKSEQ + 1, never a local counter (see fuji_mailbox.h); 0 is reserved.
     mov a,#FN_R_ACKSEQ&0FFh
     call fn_read
     inc a

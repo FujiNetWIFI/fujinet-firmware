@@ -1,22 +1,13 @@
 /* astrocade_cart.c -- core1: serve the Bally Astrocade cartridge bus.
  *
- * The port is read-only from the cart's side: A0-A12, D0-D7, and one
- * pre-decoded Enable that asserts for reads in 0x2000-0x3FFF. There is no
- * /RD -- Enable IS the output enable, exactly as it is for the 2764 in a
- * standard EPROM cartridge -- so the rule is: drive the data bus while
- * Enable is asserted, tri-state the instant it drops, and never otherwise.
+ * There is no /RD: the pre-decoded Enable (reads in 0x2000-0x3FFF) is the
+ * output enable, as for the 2764 in an EPROM cart. Drive data while Enable
+ * is asserted and tri-state the instant it drops.
  *
- * A Z80 read cycle at 1.789 MHz holds Enable for ~1 microsecond; this loop
- * iterates in tens of nanoseconds at 250 MHz. That asymmetry is why each
- * assertion must produce at most ONE hotspot event: the loop spins until
- * Enable deasserts before it looks again. (The o2 bring-up's loop lacks
- * this and would record one console write many times over on real
- * hardware.)
+ * Enable lasts ~1 us at 1.789 MHz and the loop runs in tens of ns, so it
+ * spins until Enable deasserts to record one hotspot event per assertion.
  *
- * NOT YET RUN ON HARDWARE -- there is no cartridge board yet. The protocol
- * this loop feeds (fujimail.c) is exercised against a real fujinet-pc
- * through the MAME model, which is exactly why it is shared rather than
- * reimplemented here.
+ * Not yet run on hardware.
  */
 
 #include "pico/stdlib.h"
@@ -39,16 +30,14 @@ void __not_in_flash_func(astrocade_core1_main)(void)
         uint32_t pins = sio_hw->gpio_in;
 
         if ((pins & EN_MASK) == 0) {
-            /* Re-read once: we may have caught the very edge of Enable with
-             * a straggling address line still settling through its buffer. */
+            /* Re-read: an address line may still be settling at Enable's edge. */
             pins = sio_hw->gpio_in;
             uint32_t a = pins & ADDR_MASK;
             uint32_t data;
 
             if (a >= fuji_live.hot_base) {
-                /* Game bank hotspot (never true outside GAME mode: the base
-                 * parks at 0x2000). The read RETURNS the new bank number,
-                 * exactly as the homebrew mapper's latch does. */
+                /* Game bank hotspot (hot_base is 0x2000 outside GAME mode).
+                 * The read returns the new bank number, as the mapper does. */
                 data = a & fuji_live.hot_mask;
                 fuji_live.bank[1] = fuji_live.hot_image + (data << 12);
             } else {
@@ -60,9 +49,8 @@ void __not_in_flash_func(astrocade_core1_main)(void)
             if (a >= FN_H_REGSEL && a < fuji_live.hot_base) {
                 if (a == swap_off) {
                     if (fuji_boot_armed) {
-                        /* The stub runs from screen RAM; nothing fetches
-                         * from the cart between this read and the next, so
-                         * plain field-wise stores are the whole swap. */
+                        /* The stub runs from screen RAM, so nothing fetches
+                         * from the cart before the next read. */
                         fuji_live.bank[0] = fuji_next.bank[0];
                         fuji_live.bank[1] = fuji_next.bank[1];
                         fuji_live.hot_mask = fuji_next.hot_mask;
@@ -75,8 +63,8 @@ void __not_in_flash_func(astrocade_core1_main)(void)
                     }
                 } else if ((a & FN_H_PAGE_MASK) == FN_H_REGSEL
                            && (a & 0xFF) >= FN_HOT_BANK) {
-                    /* Special ops are core1's, never queued: the APPBANK
-                     * low-half select must land before the next read. */
+                    /* Not queued: the APPBANK select must land before the
+                     * next read. */
                     uint32_t page = (a & 0xFF) - FN_HOT_BANK;
 
                     if (page < fuji_live.app_npages)

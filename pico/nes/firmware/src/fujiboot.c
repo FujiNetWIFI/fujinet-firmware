@@ -1,10 +1,5 @@
-/* fujiboot.c -- bring the cartridge up as FujiNet.
- *
- * The console client is baked into this firmware, because at power-up there
- * is no network and nothing to load it from. Unlike the siblings it is not
- * served in place: it is the resident image, and the loader ROM copies it
- * into the PRG SRAM through the same slice path a network image takes.
- */
+/* fujiboot.c -- bring the cartridge up as FujiNet. The baked-in client is the
+ * resident image; the loader ROM copies it into the SRAMs like a network image. */
 
 #include <string.h>
 

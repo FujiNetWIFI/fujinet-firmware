@@ -11,8 +11,6 @@
 ;  1 0   0 1    0
 ;  1 1   0 0    1
 ;
-; do this 
-;
 
 .program enand
 .side_set 1 opt
@@ -28,18 +26,14 @@ out1:
     ; otherwise output a 0 (because at least one of them is 1 - original value of 0)
  
 % c-sdk {
-// this is a raw helper function for use by the user which sets up the GPIO input and output, and configures the SM to output on a particular pin
 
 void enand_program_init(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin) {
-   // configure a SM
    pio_sm_config c = enand_program_get_default_config(offset);
-   // config side set
    sm_config_set_sideset_pins(&c, out_pin);
    sm_config_set_in_pins(&c, in_pin); 
    sm_config_set_out_shift(&c, true, false, 0);
    pio_gpio_init(pio, out_pin);
    pio_sm_set_consecutive_pindirs(pio, sm, out_pin, 1, true);
-   // initialize
    pio_sm_init(pio, sm, offset, &c);
 }
 %}

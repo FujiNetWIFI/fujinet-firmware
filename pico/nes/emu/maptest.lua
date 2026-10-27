@@ -1,11 +1,9 @@
 -- maptest.lua -- the soak's bank check: boot a synthetic image through the
--- loader, then drive its mapper registers and verify what every PRG and CHR
--- slot shows against an expectation written in Lua from the nesdev register
--- descriptions -- deliberately NOT nesmap.c, which is what is under test.
+-- loader, drive its mapper registers and check every PRG and CHR slot against
+-- expectations written from nesdev, independent of nesmap.c.
 --
--- The corpus images (tools/mkcorpus.py) stamp every 1K bank: 'P'/'C', bank
--- low, bank high, ~bank low. A slot's stamp is read with readv_u8, which has
--- no side effects; register writes use write_u8, which do.
+-- Stamps (tools/mkcorpus.py) are read with readv_u8 (no side effects);
+-- register writes use write_u8.
 --
 --   MAPTEST_MAPPER   the image's mapper number (required)
 --   MAPTEST_PRG16    PRG size in 16K units;  MAPTEST_CHR8  CHR-ROM size in 8K units (0 = RAM)
@@ -57,9 +55,8 @@ end
 
 local function w(addr, v) cpu:write_u8(addr, v) end
 
--- MMC1: five serial writes, LSB first. A bit-7 write resets the shift
--- register AND forces control to mode 3 ($0C), on silicon and in MAME, so it
--- is done once at the start and never between registers.
+-- MMC1: five serial writes, LSB first. A bit-7 write also forces control to
+-- mode 3 ($0C), so it is done once at the start only.
 local function mmc1_reg(addr, v)
   for i = 0, 4 do
     w(addr, (v >> i) & 1)

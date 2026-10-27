@@ -5,7 +5,7 @@
  *   SIO    = (sINP | sOUT) & !sINTA & A2-A7 == SIO DIP & SIO_EN
  *   FDC    = (sINP | sOUT) & !sINTA & A2-A7 == 000010b & FDC_EN
  *   PAGE   = sMEMR & !sINTA & ((ROM_ON & A8-A15 == page DIP) | POJ_ARMED)
- *   DECODE = PIPE | SIO | FDC | PAGE; the block code favours FDC, then PIPE, then SIO
+ *   DECODE = PIPE | SIO | FDC | PAGE; the block code favors FDC, then PIPE, then SIO
  *   ARM    : D-flip-flop, D=1, clocked by pSYNC rising, cleared by /WAIT_CLR or RESET*
  *   PRDY*  = !(ARM & DECODE), open collector; WAITQ = ARM & DECODE
  *   DI_OE  = DECODE & pDBIN & (sINP | sMEMR)

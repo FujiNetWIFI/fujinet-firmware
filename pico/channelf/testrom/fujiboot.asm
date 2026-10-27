@@ -1,22 +1,14 @@
 ; ---------------------------------------------------------------------------
-; fujiboot.asm -- M2: mount a Videocart image over the network and boot it.
+; fujiboot.asm -- mount a Videocart image over the network and boot it.
 ;
-; MOUNT_HOST -> SET_DEVICE_FULLPATH -> MOUNT_IMAGE. The last one makes the
-; ESP32 side stream the image back to the cartridge on the same link, addressed
-; to the DBC device, while MOUNT_IMAGE's own reply is still outstanding; the
-; cart stages it and reports BOOT_STATE.
+; MOUNT_HOST -> SET_DEVICE_FULLPATH -> MOUNT_IMAGE. The ESP32 streams the image
+; to the DBC device before MOUNT_IMAGE's reply; the cart stages it and reports
+; BOOT_STATE.
 ;
-; The boot itself: arm the swap (BOOTLOCK), copy a 7-byte stub into the RAM
-; arena and jump to it. The stub stores to FNSWAP -- the cart flips the ROM
-; window to the staged image between that store and the next fetch -- then
-; JMPs to $0000, where the BIOS cold-starts, re-reads the new image's own $0800
-; header and runs it exactly as it would a real cartridge.
-;
-; The stub MUST run from the arena, because the swap replaces every byte of the
-; ROM window including the code that triggered it. Every sibling port puts its
-; stub in console RAM; this console has none, so the cart's own arena is the
-; only memory there is -- which is why the arena survives a swap even though
-; the mailbox decode does not.
+; Boot: arm the swap (BOOTLOCK), copy a 7-byte stub into the arena and jump to
+; it. The stub stores to FNSWAP, which swaps the ROM window before the next
+; fetch, then JMPs to $0000 so the BIOS cold-starts the new image. The stub
+; must run from the arena because the swap replaces the whole ROM window.
 ;
 ; Target host slot and path come from bootcfg.inc, written by build.sh:
 ;   BOOT_HOST=0 BOOT_PATH=/hello.bin ./build.sh fujiboot

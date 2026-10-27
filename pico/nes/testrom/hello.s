@@ -1,8 +1,5 @@
-; hello.s -- M0: the toolchain, the header, the font and a frame counter.
-;
-; Plain NROM with CHR-RAM and no mailbox traffic at all (it still carries the
-; claim, so the cart keeps the mailbox alive; nothing here touches it). Runs
-; in stock MAME as well as behind the FujiNet cart.
+; hello.s -- NROM, CHR-RAM, the font and a frame counter; no mailbox traffic,
+; though it carries the claim. Runs in stock MAME too.
 
         .include "fujinet.inc"
 
@@ -39,8 +36,7 @@ wait:   cmp     tick
         jmp     loop
 .endproc
 
-; Once a frame: the counter, written during vblank, then the scroll restored
-; -- PPU_ADDR writes disturb it.
+; PPU_ADDR writes disturb the scroll, so restore it after the counter.
 .proc nmi
         pha
         inc     frames

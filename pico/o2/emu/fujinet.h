@@ -4,15 +4,13 @@
 
  Magnavox Odyssey 2 / Philips Videopac FujiNet cartridge emulation
 
- The RP2040 cartridge of pico/o2 in fujinet-firmware, for MAME. It runs the
- cartridge's own mailbox service (fujimail.c), image mapper (o2map.c) and
- protocol 2 decode (o2app.h), copied in by pico/o2/emu/apply-mame.sh, and
- reaches a fujinet-pc over TCP ($FUJINET_TCP, default 127.0.0.1:9995).
+ The pico/o2 cartridge for MAME, running the cartridge's own fujimail.c,
+ o2map.c and o2app.h, and reaching a fujinet-pc over TCP ($FUJINET_TCP,
+ default 127.0.0.1:9995).
 
- Why MAME as well as o2em: MAME's i8244 is the stricter model of what a client
- that rewrites the VDC mid-frame can get away with -- it refuses object
- register writes while the foreground is on, draws per scanline, and runs
- 22.75 CPU cycles to the line -- so a client's display engine is timed here.
+ MAME's i8244 is the stricter model for a client that rewrites the VDC
+ mid-frame: it refuses object register writes while the foreground is on,
+ draws per scanline, and runs 22.75 CPU cycles to the line.
 
    mame odyssey2 -cartslot fujinet -cart image.bin
 
@@ -47,17 +45,15 @@ public:
 
 protected:
 	virtual void device_start() override ATTR_COLD;
-	// The image is loaded after device_start, so the cart comes up here --
-	// once: the console's RESET does not reach the cartridge connector, and
-	// the cart keeps its state across it (fuji_mailbox.h's ACKSEQ rule).
+	// The image loads after device_start, so the cart comes up here, once:
+	// the console's RESET does not reach the cartridge connector.
 	virtual void device_reset() override;
 
 private:
 	u8 fetch(unsigned addr);
 	void take_staged();
 
-	// A legacy image as the bus loop serves it, mailbox page published into
-	// every bank; and the next one, until the console fetches $400.
+	// A legacy image as served, and the staged next one.
 	u8 m_banks[O2MAP_BANKS][O2MAP_BANK_BYTES];
 	u8 m_staged[O2MAP_BANKS][O2MAP_BANK_BYTES];
 

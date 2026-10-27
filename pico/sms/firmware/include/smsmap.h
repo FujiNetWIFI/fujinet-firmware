@@ -1,11 +1,8 @@
 /* smsmap.h -- the SMS mapper engine: which 8K SRAM bank sits behind each 1K
- * page of $0000-$BFFF.
- *
- * One engine, three consumers: core1 (the write path below is static inline
- * so it runs from SRAM without a call), the MAME device, and the host tests,
- * which drive it against transcriptions of MAME's sega8 handlers. Behaviour
- * follows MAME's sega8 devices exactly, including `% pages` wrapping over the
- * image padded to 16K.
+ * page of $0000-$BFFF, shared by core1 (the write path is static inline so it
+ * runs from SRAM without a call), the MAME device and the host tests. Follows
+ * MAME's sega8 devices exactly, `% pages` wrapping over the image padded to
+ * 16K included.
  *
  * SRAM layout (1 MB, 8K banks 0-127): the image from bank 0, zero-padded to
  * 16K; Janggun's bit-reversed copy from bank 64; cart RAM in banks 124-127.

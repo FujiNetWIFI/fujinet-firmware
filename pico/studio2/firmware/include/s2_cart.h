@@ -6,9 +6,8 @@
  * clock, no reset. Every read is one TPA pulse: the high address byte is on
  * MA0-7 when TPA falls, the low byte a few hundred ns later.
  *
- * The decision for one read is s2_bus_read() below, static inline so core1,
- * the MAME device and the host tests run the same code. Times are in µs;
- * PROVISIONAL until a scope says otherwise: S2_LO_DELAY_NS, S2_LINEGAP_US.
+ * s2_bus_read() is shared by core1, the MAME device and the host tests. Times
+ * are in µs. S2_LO_DELAY_NS and S2_LINEGAP_US are provisional until scoped.
  */
 #ifndef S2_CART_H
 #define S2_CART_H

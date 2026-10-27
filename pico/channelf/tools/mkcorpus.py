@@ -1,16 +1,11 @@
 #!/usr/bin/env python3
 """Build a corpus of Videocart images for the soak.
 
-There is no Channel F ROM set on this machine -- MAME ships only the BIOS -- so
-the soak drives synthetic images instead. That is a weaker test of real-cart
-compatibility and a stronger one of the push/stage/swap/serve path: the sizes
-here are chosen to hit every boundary that matters (every real Videocart size,
-one byte, one short of the window, exactly the window), and the contents are
-distinct per image so a stale window cannot pass by looking plausible.
-
-Banked (APPBANK) clients are 16K plus whole 8K pages, always claimed. Two
-images must be REFUSED, and their names say how (tools/soak.sh checks it):
-a banked image without the claim (NOMAP), and one byte past a page (TOOBIG).
+Synthetic images sized to every real Videocart size and boundary (one byte,
+one short of the window, exactly the window), with distinct contents so a
+stale window cannot pass. Banked clients are 16K plus whole 8K pages, always
+claimed. Two must be refused, as their names say: a banked image without the
+claim (NOMAP), and one byte past a page (TOOBIG).
 """
 import os
 import pathlib
@@ -54,8 +49,7 @@ for name, size in SIZES:
         img[0] = 0x55                      # the BIOS cart signature
         if size > 1:
             img[1] = 0x00
-        # An exactly-full-window image gets the claim in one variant, so the
-        # soak covers both "mailbox survives the boot" and "mailbox dies".
+        # One 16K variant carries the claim, so both mailbox outcomes are soaked.
         if size == WINDOW and variant == "b":
             img[WINDOW - 4:WINDOW] = b"FUJI"
         p = out / f"soak_{name}_{variant}.bin"

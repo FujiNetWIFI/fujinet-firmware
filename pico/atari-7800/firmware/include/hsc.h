@@ -6,7 +6,7 @@
  * the last write. Each chunk is one AppKey (OPEN, then a 64-byte WRITE or a
  * READ), so 32 keys hold the whole RAM. A key that reads back empty fills
  * with $FF, as MAME's HSC starts; the HSC formats whatever it does not
- * recognise.
+ * recognize.
  *
  * Shared by the cart and the MAME device; the port supplies the link.
  */

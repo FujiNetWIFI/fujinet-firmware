@@ -4,9 +4,8 @@
 #
 # Usage: tools/soak.sh [corpus-dir]      default build/soak (tools/mkcorpus.py)
 #
-# Each image is sent through the loader (FUJINET_LOADER=1), as the cart would
-# at power-on, so the soak also proves the copy path at every size. fujinet-pc
-# is not involved: nothing here touches the network.
+# Each image goes through the loader (FUJINET_LOADER=1), so the copy path is
+# exercised at every size. No fujinet-pc needed.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 DIR="${1:-build/soak}"

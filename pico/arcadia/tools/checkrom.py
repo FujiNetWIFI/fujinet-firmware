@@ -1,16 +1,11 @@
 #!/usr/bin/env python3
 """checkrom.py -- validate a built Arcadia FujiNet client image.
 
-Enforces the layout contract in firmware/include/fuji_mailbox.h so a client
-that drifts into the mailbox pages fails its build, not a debugging session:
-  - exactly 8192 bytes;
-  - the cartridge header: a BCTA,UN ($1F) at image 0 and the RETC,UN ($17)
-    interrupt guard at image 3 (the convention every commercial cart follows;
-    some consoles vector a sprite interrupt through $0003);
-  - nothing but zeros in 0x1B00-0x1FFF except the "FUJI" claim at 0x1CFC;
-  - the claim signature present.
-An APPBANK image (protocol 2) is exactly 8192 + k * 2048 bytes, 1 <= k <= 31,
-and the same rules hold for its first 8K; its pages may hold anything.
+Enforces the layout in firmware/include/fuji_mailbox.h:
+  - 8192 bytes, or 8192 + k * 2048 (k = 1..31) for an APPBANK image;
+  - BCTA,UN ($1F) at image 0 and the RETC,UN ($17) interrupt guard at image 3
+    (some consoles vector a sprite interrupt through $0003);
+  - zeros in 0x1B00-0x1FFF except the "FUJI" claim at 0x1CFC, which must be present.
 Usage: checkrom.py image.bin [image2.bin ...]
 """
 

@@ -22,23 +22,12 @@ changed:
 
 
 % c-sdk {
-// this is a raw helper function for use by the user which sets up the GPIO input and output, and configures the SM to output on a particular pin
 
 void dcd_commands_program_init(PIO pio, uint sm, uint offset, uint pin) {
-   // configure a SM
    pio_sm_config c = dcd_commands_program_get_default_config(offset);
-   // set the out pin to pin
-//    sm_config_set_out_pins(&c, pin, 1);
-   // start at GPIO2 to read in the dcd_commands
-   sm_config_set_in_pins(&c, pin); // start at GPIO 2 for the dcd_commands
-   // there are 3 wires to read for latch mux, shift to the left, autopush
+   sm_config_set_in_pins(&c, pin);
+   // 3 phase wires, shift left, autopush
    sm_config_set_in_shift(&c, false, true, 3);
-   // sm_config_set_out_shift(&c, true, false, 1); // shift to the right
-   // set pin as a GPIO output connected to this SM
-   // pio_gpio_init(pio, pin);
-   // pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, true);
-   // sm_config_set_set_pins(&c, pin, 1);
-   // initialize
    pio_sm_init(pio, sm, offset, &c);
 }
 %}

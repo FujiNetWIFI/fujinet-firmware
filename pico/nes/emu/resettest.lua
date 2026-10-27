@@ -1,15 +1,11 @@
--- resettest.lua -- M1's reset-survival proof.
---
--- fujitest shows "ACKSEQ: 01" after its transaction. A soft reset restarts
--- the 6502 but not the cart, so the second run must show "ACKSEQ: 02": the
--- client derived its sequence from the cart's persisted ACKSEQ, not from a
--- counter of its own that the reset zeroed.
+-- resettest.lua -- a soft reset restarts the 6502 but not the cart, so
+-- fujitest's "ACKSEQ: 01" must become "ACKSEQ: 02": the client takes its
+-- sequence from the cart's ACKSEQ, not a counter the reset zeroed.
 local T = dofile(os.getenv("NES_EMU_DIR") .. "/nestext.lua")
 local timeout = tonumber(os.getenv("RESET_TIMEOUT") or "30")
 
--- MAME re-executes the autoboot script on a soft reset, but the Lua state and
--- the emulated clock carry on: the test's state has to live in _G, and this
--- second execution must not start a second test.
+-- MAME reruns the autoboot script on a soft reset but keeps the Lua state
+-- and clock: state lives in _G so the rerun does not start a second test.
 if _G.__resettest_phase == nil then
   _G.__resettest_phase = 0
   _G.__resettest_reset_at = 0

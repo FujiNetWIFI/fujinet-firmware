@@ -17,15 +17,10 @@
 
 // ======================> a78_fujinet_device
 //
-// Model of the FujiNet RP2354B cartridge: 512K of SRAM behind the slot table,
-// the signed boot block at $F000 until the first image is in, the loader at
-// $0600 and the arena at $0800, a POKEY at $4000 or $0450 (MAME's own, so a
-// game's RANDOM reads match its native cart), and the High Score Cart. The
-// mapper engine (a78map.c), the bus decode and glue (a78_cart.h), the load
-// sequence (fuji_load.c), the HSC's saves (hsc.c), the protocol (fujimail.c)
-// and the wire codec (fujibus.c) are the cartridge firmware's own sources,
-// compiled in by pico/atari-7800/emu/apply.sh; frames go over TCP to
-// fujinet-pc ($FUJINET_TCP, default 127.0.0.1:9995).
+// The FujiNet RP2354B cartridge, built from the cart firmware's own sources
+// (apply.sh). The POKEY is MAME's own, so a game's RANDOM reads match its
+// native cart. Frames go over TCP to fujinet-pc ($FUJINET_TCP, default
+// 127.0.0.1:9995).
 //
 //   -cartslot fujinet -cart client.a78   a claimed client in place of CONFIG
 //   FUJINET_IMAGE=game.bin               that image in the SRAM from power-on,

@@ -59,9 +59,8 @@ uint8_t astromap_gate(uint32_t size)
 
 bool astromap_claims_mailbox(const uint8_t *image, const astromap_plan_t *plan)
 {
-    /* Only a full-window or app-shaped image can reserve the mailbox pages:
-     * a smaller one aliases (mirrored) or pads (odd-sized) its way into
-     * them, and either way the bytes at FN_R_CLAIM are not a declaration. */
+    /* A smaller image mirrors or pads into the mailbox pages, so its bytes
+     * at FN_R_CLAIM are not a declaration. */
     if (image == NULL)
         return false;
     if (plan->size != ASTROMAP_WINDOW && !app_shaped(plan->size))
@@ -91,8 +90,8 @@ void astromap_serve_reset(const astromap_plan_t *plan, astromap_serve_t *s)
     switch (plan->kind) {
     case ASTROMAP_GAME256:
     case ASTROMAP_GAME512:
-        /* Fixed low half = LAST bank; switched half starts at bank 0,
-         * matching MAME's m_base_bank reset. */
+        /* Fixed low half = last bank; switched half starts at bank 0, as
+         * MAME's m_base_bank reset does. */
         s->bank_off[0] = (uint32_t)(plan->npages - 1) << 12;
         s->bank_off[1] = 0;
         s->hot_base = (plan->kind == ASTROMAP_GAME256) ? ASTROMAP_HOT256_BASE

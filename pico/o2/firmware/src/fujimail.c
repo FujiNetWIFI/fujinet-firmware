@@ -18,8 +18,7 @@ static unsigned txptr;
 static uint8_t lastseq;
 
 /* Read-side state. */
-/* The reply. Not static: an APPBANK cartridge serves the console's read window
- * straight out of it (o2app_read) instead of publishing a copy. */
+/* Not static: an APPBANK cartridge serves the console's read window straight from it. */
 uint8_t fujimail_rx[FUJIMAIL_RX_MAX];
 volatile unsigned fujimail_rxn;
 volatile bool fujimail_stage_live;
@@ -55,10 +54,8 @@ void fujimail_paint(void)
 {
     unsigned a;
 
-    /* Painting republishes FN_R_ACKSEQ as 0, so the interlock has to start over
-     * with it. Leaving lastseq behind would make the client's first request --
-     * ACKSEQ + 1, per the rule in fuji_mailbox.h -- collide with a sequence
-     * already answered, and run_transaction would drop it in silence. */
+    /* Painting zeroes FN_R_ACKSEQ; a stale lastseq would make the client's
+     * first request (ACKSEQ + 1) look already answered and be dropped. */
     lastseq = 0;
     for (a = FN_R_ACKSEQ; a <= 0xFFF; a++)
         poke(a, 0);
@@ -79,9 +76,8 @@ static void publish_slice(void)
 
 /* ---- the DBC ROM push ----
  *
- * MediaTypeROM::mount() streams the cartridge image to device $FF while our
- * MOUNT_IMAGE is still outstanding, so these frames arrive unsolicited in the
- * middle of a transaction and each needs its own ACK.
+ * The ESP32 streams the cartridge image to device $FF while our MOUNT_IMAGE
+ * is outstanding; each frame arrives unsolicited and needs its own ACK.
  */
 
 bool fujimail_inbound(const fb_reply_t *req)
@@ -105,10 +101,8 @@ bool fujimail_inbound(const fb_reply_t *req)
             port->on_dbc(FUJIMAIL_DBC_OPEN, dbc_stream, stage_expect, 0, false);
 
         if (dbc_stream == 0 && fujimail_stage_live) {
-            /* An APPBANK image is being served straight out of the stage
-             * buffer, so a second image has nowhere to land until the
-             * cartridge is power-cycled. Say so before the ESP32 drags the
-             * file over the network. */
+            /* An APPBANK image is served from the stage buffer, so a second
+             * one has nowhere to land until power-cycle. Refuse up front. */
             dbc_stream = -1;
             poke(FN_R_BOOT_STATE, FN_BOOT_FAILED);
             poke(FN_R_BOOT_ERR, FN_BOOT_ERR_BUSY);
@@ -116,9 +110,7 @@ bool fujimail_inbound(const fb_reply_t *req)
             return true;
         }
         if (dbc_stream == 0 && stage_expect > FUJIMAIL_STAGE_MAX) {
-            /* Say so now rather than after the ESP32 has dragged the whole file
-             * over TNFS -- and refusing is the only way to avoid silently
-             * booting a truncated image. */
+            /* Refuse up front rather than boot a truncated image. */
             dbc_stream = -1;
             poke(FN_R_BOOT_STATE, FN_BOOT_FAILED);
             poke(FN_R_BOOT_ERR, FN_BOOT_ERR_TOOBIG);
@@ -198,9 +190,8 @@ static void run_transaction(uint8_t seq)
     }
 
     if (st == FB_OK) {
-        /* The Odyssey 2 reaches its first transaction long before the ESP32-S3
-         * finishes enumerating, and this service runs only once per SEQ bump,
-         * so a single "no link" answer here would be permanent. */
+        /* The first transaction comes before the ESP32-S3 enumerates, and this
+         * runs once per SEQ bump, so one "no link" answer would stick. */
         if (port->wait_link_ms && !port->link_up())
             port->wait_link_ms(LINK_WAIT_MS);
 
@@ -229,8 +220,7 @@ static void run_transaction(uint8_t seq)
     rxslice = 0;
     publish_slice();
 
-    /* Published LAST. This single store is the whole interlock: everything the
-     * console reads is already in place before it can see the sequence match. */
+    /* Published last: this store is the interlock, so the reply must be in place first. */
     poke(FN_R_ACKSEQ, seq);
 
     if (port->on_txn) {

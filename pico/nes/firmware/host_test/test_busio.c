@@ -1,11 +1,6 @@
-/* test_busio.c -- the bus decode, the serve table and the RMW signature.
- *
- * Drives the static inlines in nes_cart.h with synthetic gpio_in words, the
- * way core1 sees them, and checks every region boundary, that hotspot pages
- * are inert on reads, which writes are mailbox / WRAM / mapper events, and
- * that the ring-drain rule "two writes, one address, adjacent cycles" is the
- * exact shape of a 6502 RMW dummy write and nothing else.
- */
+/* test_busio.c -- nes_cart.h's decode on synthetic gpio_in words: region
+ * boundaries, inert hotspot reads, write kinds, and that "two writes, one
+ * address, adjacent cycles" matches a 6502 RMW dummy write and nothing else. */
 
 #include <assert.h>
 #include <stdio.h>
@@ -183,9 +178,8 @@ static void test_rmw(void)
     n = drain(ev, 2, out, &rmw);
     assert(n == 2 && rmw == 0);
 
-    /* STA $5700 then STA $5701 on adjacent cycles cannot happen on a 6502
-     * (the fastest store pair is 3 cycles), but different offsets are kept
-     * regardless */
+    /* impossible on a 6502 (stores are 3+ cycles apart), but different
+     * offsets are kept regardless */
     ev[0] = (nes_event_t){ FN_H_DATA, 0x41, 0, 3001 };
     ev[1] = (nes_event_t){ FN_H_DATA + 1, 0x42, 0, 3002 };
     n = drain(ev, 2, out, &rmw);

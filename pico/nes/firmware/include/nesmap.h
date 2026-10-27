@@ -1,17 +1,7 @@
-/* nesmap.h -- NES cartridge image mapping: the iNES/NES 2.0 header, and the
- * mapper engine that turns console writes into bank tables.
- *
- * Every mapper the EverDrive N8 supports reduces to the same outputs on this
- * hardware: four 8K PRG slots, eight 1K CHR slots, a mirroring mode, and the
- * WRAM/CHR write gates. The engine is a table of per-mapper handlers that all
- * produce one nesmap_out_t; three consumers read it and never disagree:
- *   - the cartridge firmware patches the PIO bank tables and the '595 from it
- *   - the MAME device indexes its PRG/CHR arrays through it
- *   - test_nesmap.c compares it against transcriptions of MAME's own handlers
- *
- * Hardware-free by design: compiled into the cartridge firmware, the MAME
- * device, and the host tests. Nothing here may touch pico-sdk.
- */
+/* nesmap.h -- the iNES/NES 2.0 header and the mapper engine: per-mapper
+ * handlers that turn console writes into one nesmap_out_t (four 8K PRG slots,
+ * eight 1K CHR slots, mirroring, write gates). Shared by the firmware, the MAME
+ * device and the host tests, so nothing here may touch pico-sdk. */
 
 #ifndef NESMAP_H
 #define NESMAP_H
@@ -109,8 +99,7 @@ typedef struct nesmap_desc {
     uint8_t irq;                  /* nesmap_irq_t                         */
 } nesmap_desc_t;
 
-/* Size gate at stream-open time, before the ESP32 drags the file over the
- * network; 0 to accept (size 0 = still unknown) or an FN_BOOT_ERR_*. */
+/* Size gate at stream open, before the transfer; size 0 is unknown and accepted. */
 uint8_t nesmap_gate(uint32_t size);
 
 /* Parse the header and locate the claim. `size` is the whole file. */
@@ -122,18 +111,13 @@ const nesmap_desc_t *nesmap_find(uint16_t mapper);
 nesmap_err_t nesmap_init(nesmap_t *m, const nesmap_plan_t *plan);
 void nesmap_reset(nesmap_t *m);
 
-/* One console write. `cycle` counts M2 rising edges; it exists for MMC1's
- * consecutive-write rule, which needs the cart's clock rather than the
- * emulator's. Sets m->dirty for a bank or gate change; an IRQ register write
- * leaves dirty alone, so the caller compares irq_line before and after. */
+/* `cycle` counts M2 rising edges, for MMC1's consecutive-write rule. An IRQ
+ * register write leaves dirty alone; compare irq_line before and after. */
 void nesmap_write(nesmap_t *m, uint16_t addr, uint8_t data, uint32_t cycle);
 
-/* MMC3-style scanline counter: one filtered PPU A12 rising edge. Returns the
- * new state of the IRQ line. */
+/* One filtered PPU A12 rising edge; returns the IRQ line. */
 bool nesmap_a12_clock(nesmap_t *m);
 
-/* The image offsets the loader copies from: PRG starts right after the header,
- * CHR right after PRG. */
 static inline uint32_t nesmap_prg_offset(const nesmap_plan_t *p)
 {
     (void)p;

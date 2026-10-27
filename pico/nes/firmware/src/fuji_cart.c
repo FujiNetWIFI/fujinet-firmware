@@ -1,6 +1,5 @@
 /* fuji_cart.c -- core0's half of the cartridge: the ring drain, the '595,
- * the load sequence and the console-power watchdog.
- */
+ * the load sequence and the console-power watchdog. */
 
 #include <string.h>
 
@@ -96,7 +95,7 @@ void fuji_cart_set_irq(bool asserted)
 
 /* Only an event at least two bus cycles old is handed out, so that the write
  * of the cycle after it -- an RMW's real write -- is already in the ring and
- * the dummy write can be recognised: same offset, adjacent cycle. */
+ * the dummy write can be recognized: same offset, adjacent cycle. */
 bool fuji_cart_next_event(nes_event_t *ev)
 {
     uint16_t tail = fuji_ring.tail;
@@ -234,10 +233,8 @@ static void begin_load(const uint8_t *base, const nesmap_plan_t *plan)
     fuji_have_staged = false;
     fuji_boot_armed = false;
 
-    /* Order matters: core1 stops serving the vector page BEFORE the '595
-     * enables the SRAM, so two drivers never meet on D0-D7. The loader
-     * polls FN_R_SRAM_STATE, painted by the '595 write, before its first
-     * SRAM store. */
+    /* core1 stops serving the vector page before the '595 enables the SRAM,
+     * so two drivers never meet on D0-D7. */
     fuji_serve.loading = true;
     fuji_serve.mailbox = true;
     fuji_serve.sram_en = true;
@@ -258,9 +255,8 @@ static void finish_load(void)
     fuji_serve.loading = false;
     nes_irq_enable(fuji_map.desc->irq == NESMAP_IRQ_A12);
 
-    /* The mailbox stays live only for an image that claims it. It is not
-     * switched off here: the loader still has to read FN_LOAD_DONE, and it
-     * says goodbye with one more SLICE_ACK. */
+    /* The mailbox stays on until the loader's final SLICE_ACK, and after
+     * that only for an image that claims it. */
     if (ls_plan.fuji_claim && !ls_plan.claims_5000)
         fujimail_paint();                      /* ACKSEQ restarts for the new client */
     fuji_cart_poke(FN_R_MAPPER, (uint8_t)ls_plan.mapper);
@@ -268,11 +264,9 @@ static void finish_load(void)
     ls_state = LS_DONE;
 }
 
-/* The loader's request. A client armed a staged image with BOOTLOCK, or --
- * at power-on and after a console power-cycle -- the loader was entered
- * through the cart-served vectors and the resident CONFIG is what it gets.
- * Nothing enables the SRAM before this request: the 6502 must have fetched
- * its reset vector from the cart first. */
+/* A BOOTLOCKed staged image, or at power-on (and after a console power-cycle)
+ * the resident CONFIG. The SRAM stays off until this request, so the 6502
+ * fetches its reset vector from the cart first. */
 void fuji_cart_request_load(void)
 {
     if (ls_state != LS_IDLE)
@@ -343,8 +337,8 @@ void fuji_cart_init(const uint8_t *loader_rom, unsigned loader_len)
         loader_len = FN_LOADER_SIZE;
     memcpy(fuji_arena + FN_LOADER, loader_rom, loader_len);
 
-    /* The vector page the cart serves at power-on: RESET into the loader,
-     * NMI and IRQ onto the RTI at its third byte (loader.s keeps them there). */
+    /* Power-on vectors: RESET to the loader at $5800, NMI and IRQ to its RTI
+     * at $5803. */
     fuji_vectors[0xFA] = 0x03; fuji_vectors[0xFB] = 0x58;
     fuji_vectors[0xFC] = 0x00; fuji_vectors[0xFD] = 0x58;
     fuji_vectors[0xFE] = 0x03; fuji_vectors[0xFF] = 0x58;

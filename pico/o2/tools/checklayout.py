@@ -1,11 +1,8 @@
 #!/usr/bin/env python3
 """Fail a build when two pinned routines overlap in an AS listing.
 
-Every routine in this project is placed with an explicit `org`, because
-conditional jumps on the 8048 are page-relative and a routine that drifts
-across a 256-byte boundary stops assembling. The cost of that discipline is
-that a routine which simply grows silently lands on top of the next one:
-p2bin says "overlapping memory allocation!" and nothing about where.
+Routines are pinned with `org` because 8048 conditional jumps are page-relative,
+so one that grows lands on the next; p2bin reports the overlap but not where.
 """
 import re
 import sys

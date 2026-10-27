@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """checkrom.py -- validate a built 5200 FujiNet client image.
 
-Enforces the contract in firmware/include/fuji_mailbox.h, so a client that
-breaks it fails its build rather than a debugging session:
+Enforces the contract in firmware/include/fuji_mailbox.h:
 
   - a flat 32K image, or 64K/128K for a Super Cart app;
   - an entry vector at $BFFE inside the cart window;

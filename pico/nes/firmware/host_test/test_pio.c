@@ -1,13 +1,6 @@
-/* test_pio.c -- the bank-table state machine, modelled.
- *
- * A 30-line model of what PIO does with the words nes_pio.h builds: the
- * 2-cycle input synchroniser, `mov isr,null / in pins,N / in null,1 /
- * mov pc,isr` with a left-shifting ISR, `set pins` with optional side-set,
- * and `jmp`. For every slot index and a spread of banks it checks that the
- * pins end up carrying exactly the bank patched into that slot, and it pins
- * the encoders to hand-checked words from the RP2350 datasheet so a wrong
- * bit in nes_pio.h fails here rather than on a board.
- */
+/* test_pio.c -- a model of the PIO executing nes_pio.h's tables: every slot
+ * index drives the bank patched into it. Also pins the encoders to words
+ * hand-checked against the RP2350 datasheet. */
 
 #include <assert.h>
 #include <stdio.h>
@@ -22,7 +15,7 @@ typedef struct {
     unsigned index_bits, side_bits;
     unsigned pc;
     uint32_t isr;
-    unsigned in_pins;         /* what `in pins` sees, after the synchroniser */
+    unsigned in_pins;         /* what `in pins` sees, after the synchronizer */
     unsigned set_out, side_out;
     unsigned steps;
 } sm_t;

@@ -14,19 +14,11 @@
 
 // ======================> nes_fujinet_device
 //
-// Model of the FujiNet RP2354B cartridge: two 512K SRAMs (PRG, CHR) behind
-// bank tables, a 4K mailbox arena at $5000 with a 2K loader ROM at $5800,
-// cart-served WRAM at $6000, and a vector page at $FF00 while the SRAM is
-// off. The protocol (fujimail.c), the wire codec (fujibus.c), the mapper
-// engine (nesmap.c) and the bus decode (nes_cart.h) are the cartridge
-// firmware's own sources, compiled in verbatim by pico/nes/emu/apply.sh; this
-// device is only the port -- bytes go into the arena, frames go over a TCP
-// socket to fujinet-pc ($FUJINET_TCP, default 127.0.0.1:9995).
-//
-// What the hardware does with PIO -- the bank tables -- this device does with
-// two slot arrays indexed exactly the same way, and what core1 does with the
-// ring -- the RMW dummy-write drop -- this device does with a cycle-stamped
-// queue drained on the next cart access.
+// Model of the FujiNet RP2354B cartridge. The protocol, codec, mapper engine
+// and bus decode are the firmware's own sources (grafted by emu/apply.sh);
+// frames go over TCP to fujinet-pc ($FUJINET_TCP, default 127.0.0.1:9995).
+// Slot arrays stand in for the PIO tables, and a cycle-stamped queue drained
+// on the next cart access for the ring.
 //
 // Two ways in: `-cart file.nes` runs that image directly (FUJINET_LOADER=1
 // sends it through the loader ROM instead, as the cart would); no -cart

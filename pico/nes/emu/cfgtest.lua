@@ -1,7 +1,6 @@
--- cfgtest.lua -- drive CONFIG with the joypad: open host slot 1, move the
--- bar to CFG_FILE, boot it, and PASS once CFG_EXPECT is on screen (i.e. the
--- booted image is running out of the SRAM). FAIL on a "?..." status (the
--- Family BASIC-style "?MOUNT ERROR 8A") or timeout.
+-- cfgtest.lua -- drive CONFIG with the joypad: open host slot 1, boot
+-- CFG_FILE, PASS once CFG_EXPECT shows. FAIL on a "?..." status
+-- ("?MOUNT ERROR 8A") or timeout.
 --   CFG_FILE     entry to boot, paged to with Right if not on page 1 (default hello.bin)
 --   CFG_EXPECT   text the booted image shows (default "FUJINET NES"), or
 --                "image:<local path>" to byte-compare the PRG and CHR SRAMs
@@ -45,10 +44,8 @@ end
 local pad = manager.machine.ioport.ports[":ctrl1:joypad:JOYPAD"]
 local function btn(name) return pad.fields["P1 " .. name] end
 
--- A press is held for 6 frames and released for 6: one event for fujiin.c,
--- which samples once per frame and auto-repeats only after 20 frames. The
--- override takes effect at the next frame's input update, so the Lua read
--- lags set_value by a frame.
+-- Hold 6 frames, release 6: one event to CONFIG, which samples once a frame
+-- and repeats after 20. set_value takes effect a frame later.
 local presses, hold = {}, 0
 local function press(name, n) for _ = 1, (n or 1) do presses[#presses + 1] = name end end
 local function pump()

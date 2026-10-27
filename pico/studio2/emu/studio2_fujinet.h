@@ -20,12 +20,10 @@
 
 // ======================> studio2_fujinet_device
 //
-// Model of the FujiNet RP2354B cartridge for the RCA Studio II. The decision
-// for every read is the cartridge's own s2_bus_read (s2_cart.h); the
-// protocol (fujimail.c), the codec (fujibus.c), the planner (s2map.c),
-// staging (fuji_load.c) and the text engine (s2_text.c) are the firmware's
-// sources too. Frames go over a TCP socket to fujinet-pc ($FUJINET_TCP,
-// default 127.0.0.1:9995).
+// Model of the FujiNet RP2354B cartridge for the RCA Studio II, built from
+// the firmware's own sources: s2_bus_read (s2_cart.h), fujimail.c, fujibus.c,
+// s2map.c, fuji_load.c and s2_text.c. Frames go over a TCP socket to
+// fujinet-pc ($FUJINET_TCP, default 127.0.0.1:9995).
 //
 // The Studio II's slot is a generic ROM socket, so the device is a child of
 // the driver, and inert unless the environment asks for it:

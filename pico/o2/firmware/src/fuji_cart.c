@@ -13,12 +13,8 @@ volatile bool fuji_app_live;
 extern unsigned char rom_table[8][4096];
 extern unsigned char new_rom_table[8][4096];
 
-/* Set once an image is staged. core1 owns the live-table pointer and swaps it
- * to new_rom_table at the boot fetch, so from that moment on this is the table
- * a published byte has to reach -- but core0 cannot read that pointer safely
- * (core1 writes it, and nothing makes the load ordered or unhoistable). It
- * publishes into both tables instead: rom_table is dead memory after the swap,
- * and eight extra stores off the bus loop cost nothing. */
+/* core1 swaps to new_rom_table at the boot fetch and core0 cannot read that
+ * pointer safely, so once an image is staged, publish into both tables. */
 static bool publish_staged;
 
 bool fuji_cart_next_write(uint8_t *addr, uint8_t *data)
@@ -36,10 +32,8 @@ bool fuji_cart_next_write(uint8_t *addr, uint8_t *data)
     return true;
 }
 
-/* Publish one mailbox byte. It goes into every bank because the console may be
- * running with any of them selected, and the mailbox has to answer regardless
- * of which. This is why serving the mailbox costs the bus loop nothing: by the
- * time core1 sees the read, the byte is already ROM as far as it is concerned. */
+/* Into every bank, since the console may have any selected; core1 then serves
+ * it as plain ROM. */
 void fuji_cart_poke(unsigned prog_addr, uint8_t value)
 {
     int b;
@@ -53,9 +47,6 @@ void fuji_cart_poke(unsigned prog_addr, uint8_t value)
     }
 }
 
-/* Called when an image is armed: o2map_apply has just written it over the
- * staged table's mailbox page, so a mailbox that survives the boot has to be
- * published into that table too, from here to the end of the session. */
 void fuji_cart_stage_boot(void)
 {
     publish_staged = true;

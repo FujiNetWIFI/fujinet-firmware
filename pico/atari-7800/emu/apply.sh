@@ -3,17 +3,9 @@
 #
 # Usage: ./apply.sh /path/to/mame
 #
-# Copies the device model (fujinet.cpp/h, common's fujitcp.c/h) and the cartridge
-# firmware's own sources (fujimail, fuji_cfg, fuji_crc, fujibus, a78map, fuji_load,
-# hsc, the bus decode, the baked CONFIG, loader and boot block) into
-# src/devices/bus/a7800/, and edits:
-#
-#   scripts/src/bus.lua              the a7800 file list
-#   src/devices/bus/a7800/a78_carts.h  a selectable "fujinet" slot option
-#
-# The device installs its own handlers; the 7800 driver is not touched.
-# Idempotent: run it again after editing any source here. The generated
-# headers come from build/gen (../build-cart.sh) or firmware/baked/.
+# Copies the device and the cart firmware's sources into src/devices/bus/a7800/,
+# adds them to scripts/src/bus.lua and adds a "fujinet" option to a78_carts.h.
+# The 7800 driver is not touched. Idempotent; rerun after editing a source.
 #
 # Afterwards: make -C /path/to/mame -j$(nproc) REGENIE=1 NOWERROR=1
 # (REGENIE=1 whenever apply.sh says bus.lua changed).

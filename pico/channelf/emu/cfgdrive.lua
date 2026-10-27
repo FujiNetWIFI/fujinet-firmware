@@ -1,8 +1,6 @@
 -- Drive CONFIG from power-on to a booted cartridge: host list -> open host 0
--- -> walk the directory -> fire -> byte-compare what booted.
---
--- Every wait is on the program's own state in the RAM arena, never on a frame
--- number, so a slow socket round trip cannot turn into a flake.
+-- -> walk the directory -> fire -> byte-compare what booted. Waits on the
+-- program's state in the arena, not frame numbers.
 local ST_HOST, ST_FILE = 4, 5
 local VSTATE, VCUR, VNROW = 0x8006, 0x8007, 0x8008
 

@@ -4,12 +4,11 @@ loads for it, and the console.
 
     abprep.py [corpus-dir]        (default $A52_ROMS or /tmp/a5200)
 
-Stock MAME picks a 5200 mapper by path only from a .car header or a .hsi
-A13MIRRORING line, and five 2-chip images have no such line, so the A side
-is always told: each image is wrapped as a .car of the type the cart's own
-plan chose (type 7 for Bounty Bob, which MAME reads in its own file order --
-the order the corpus is in). A 2K image has no .car type and goes in raw,
-as a5200_rom. Writes build/ab/table.tsv and build/ab/a/.
+Stock MAME picks a mapper by path only from a .car header or a .hsi
+A13MIRRORING line, which five 2-chip images lack, so each image is wrapped as
+a .car of the type the cart's plan chose (type 7 for Bounty Bob, in MAME's
+file order, which the corpus uses). A 2K image has no .car type and goes in
+raw. Writes build/ab/table.tsv and build/ab/a/.
 """
 
 import os

@@ -1,9 +1,5 @@
--- drive.lua: press keypad "1" on the OS onboard menu (our clients register
--- as the first item), keyed on EMULATED time so any throttle works.
--- Presses twice: once to launch the client, once more later -- after a
--- network boot the OS menu returns with the pushed image's own entry, and
--- the second press launches that. Harmless when the first client is still
--- on screen at t=25 (fujitest ignores the keypad).
+-- drive.lua: press keypad "1" on the OS menu at emulated t=3 to launch the
+-- client, and again at t=25 to launch a network-booted image's own entry.
 -- For headless smoke tests: mame ... -autoboot_script emu/drive.lua
 local presses = { 3, 25 }
 local state = 0

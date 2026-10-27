@@ -198,7 +198,7 @@ static void mmc1_write(nesmap_t *m, uint16_t a, uint8_t d)
 {
     /* The MMC1 ignores a write on the cycle after another write, which is
      * what makes an RMW instruction's dummy write harmless on real boards
-     * (MAME: m_reg_write_enable + a scheduler synchronise). */
+     * (MAME: m_reg_write_enable + a scheduler synchronize). */
     if (m->consecutive)
         return;
 
@@ -593,9 +593,7 @@ void nesmap_write(nesmap_t *m, uint16_t addr, uint8_t data, uint32_t cycle)
 
 /* nesdev, "MMC3 rev B": on a filtered A12 rise, reload when the counter is
  * zero or a reload is pending, else decrement; assert when it reaches zero
- * with interrupts enabled. Deliberately does not touch m->dirty: on the cart
- * this runs in core0's PIO interrupt while core1 owns dirty. The caller acts
- * on the return value. */
+ * with interrupts enabled. Leaves m->dirty alone: core1 owns it. */
 bool nesmap_a12_clock(nesmap_t *m)
 {
     if (m->desc->irq != NESMAP_IRQ_A12)

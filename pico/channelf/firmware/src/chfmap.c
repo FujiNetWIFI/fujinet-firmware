@@ -33,9 +33,8 @@ chfmap_err_t chfmap_plan(const uint8_t *image, uint32_t size,
         return CHFMAP_EEMPTY;
     if (size > CHFMAP_WINDOW && !chfmap_app_shaped(size))
         return CHFMAP_ETOOBIG;
-    /* The console BIOS compares the first cart byte against $55 and runs its
-     * built-in Hockey if it differs, so an image without it would look like a
-     * dead cartridge rather than a failed boot. Catch it here instead. */
+    /* Without $55 the BIOS runs its built-in game, which looks like a dead
+     * cart rather than a failed boot. */
     if (image[0] != 0x55)
         return CHFMAP_ENOSIG;
 
@@ -43,8 +42,7 @@ chfmap_err_t chfmap_plan(const uint8_t *image, uint32_t size,
     plan->mailbox_ok = chfmap_claims(image, size);
     plan->npages = (uint8_t)(size > CHFMAP_WINDOW
                              ? (size - CHFMAP_WINDOW) / FN_APP_PAGE : 0);
-    /* Pages are selected through the mailbox, so a banked image that let the
-     * mailbox die would strand them; refuse it rather than boot it broken. */
+    /* Pages are selected through the mailbox, which a claimless image kills. */
     if (plan->npages && !plan->mailbox_ok)
         return CHFMAP_ENOCLAIM;
     return CHFMAP_OK;

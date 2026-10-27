@@ -1,24 +1,13 @@
-/* nes_pio.h -- the PIO bank tables, as instruction words.
+/* nes_pio.h -- the PIO bank tables, as instruction words. A 4-instruction
+ * loop turns PPU A10-A12 (CPU A13-A14) into a slot address; each slot is
+ * `set pins, lo5 side hi` + `jmp loop`. A bank change is one store to
+ * instruction memory ("1-write, 4-read register file"), so never torn.
  *
- * The PRG and CHR SRAMs get their high address bits from two PIO state
- * machines that are nothing but lookup tables: a 4-instruction loop turns
- * PPU A10-A12 (or CPU A13-A14) into a slot address, and each 2-instruction
- * slot is `set pins, lo5 [side hi]` + `jmp loop`. A bank change is one 32-bit
- * store into the SM's instruction memory, which the datasheet describes as a
- * "1-write, 4-read register file": the SM reads the old word or the new one,
- * never a torn one, and with optional side-set every bank bit rides in that
- * one word.
+ * Latency to the bank pins: 2-cycle synchronizer plus at most 9 instructions,
+ * 55 ns at 200 MHz, against a 372 ns PPU access (350 ns CPU).
  *
- * Latency, from a PPU address change to the bank pins: the 2-cycle input
- * synchroniser plus at most 9 instructions (the SM had just sampled), 45 ns
- * at 250 MHz, against a 372 ns PPU access. The CPU side has the same figure
- * against 350 ns.
- *
- * This header is hardware-free: the encoders below are the SDK's
- * pio_encode_* by hand, so the host tests can build the exact words the
- * firmware patches, and nes_pio.c checks them against pioasm's output of
- * nes_tables.pio at init.
- */
+ * Hardware-free so the host tests build the exact words; nes_pio.c checks
+ * them against pioasm at init. */
 
 #ifndef NES_PIO_H
 #define NES_PIO_H
@@ -39,9 +28,8 @@
 #define NES_PIO_CHR_PROG_LEN   (2 * NES_PIO_CHR_SLOTS + NES_PIO_LOOP_LEN)   /* 20 */
 #define NES_PIO_PRG_PROG_LEN   (2 * NES_PIO_PRG_SLOTS + NES_PIO_LOOP_LEN)   /* 12 */
 
-/* Instruction encodings (RP2350 datasheet 11.4). No delay bits are ever used;
- * with `.side_set N opt` bit 12 is the side-set enable and the N bits below
- * it are the side value. */
+/* RP2350 datasheet 11.4. No delay bits; with `.side_set N opt` bit 12 is the
+ * side-set enable and the N bits below it the value. */
 static inline uint16_t nes_pio_enc_jmp(unsigned addr)
 {
     return (uint16_t)(0x0000u | (addr & 0x1Fu));           /* jmp always */
@@ -106,7 +94,6 @@ static inline unsigned nes_pio_build_table(uint16_t *prog, unsigned nslots,
 #define NES_PIO_A12_ITER_CYCLES 32u
 
 #ifndef NES_PIO_ON_HOST
-/* Firmware-only API (nes_pio.c). */
 void nes_pio_init(void);
 void nes_pio_patch_prg(unsigned slot, unsigned bank);
 void nes_pio_patch_chr(unsigned slot, unsigned bank);

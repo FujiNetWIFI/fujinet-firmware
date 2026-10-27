@@ -198,9 +198,8 @@ void __time_critical_func(core1_main()) {
 #endif
 
 #if CONFIG_JLP
-            // Kept outside the RAM-window test below: JLPAccel toggling off
-            // narrows that window, and handle_jlp_request() still has to see
-            // a later $8033 to turn it back on.
+            // Outside the RAM-window test: with JLPAccel off the window is
+            // narrower, and handle_jlp_request() must still see $8033.
             if ( cart.JLPSupport ) {
                if ((addrIn >= 0x8000) && (addrIn <= 0x9FFF)) {
                   // addrInCopy is to pass address to other core for JLP functions processing
@@ -214,16 +213,9 @@ void __time_critical_func(core1_main()) {
                }
             }
 
-            // cart.ramLo/ramHi/ramWindow are precomputed (init_cart(),
-            // config_jlp(), RunFujiConfig()) -- never recomputed here, to
-            // keep this branch's instruction count identical to the plain
-            // JLP-only check it replaces. On a FujiNet-capable board with no
-            // JLP game loaded, this claims only the mailbox range
-            // (FUJI_MB_ADDR_LO..HI) so the RP2040 stays reachable without
-            // shadowing game ROM mapped elsewhere in $8000-$9FFF (several
-            // built-in fingerprint configs and many .cfg files put ROM at
-            // $9000). Once a JLP game loads, JLPAccel/JLPFlash widen it back
-            // to the full $8000-$9FFF, same as upstream Minty.
+            // The window is precomputed by update_ram_window() to keep this
+            // branch as short as Minty's JLP check. Without JLP it covers only
+            // the mailbox, so game ROM at e.g. $9000 is not shadowed.
             if ( cart.ramWindow && (addrIn >= cart.ramLo) && (addrIn <= cart.ramHi) ) {
 
                   if ((cart.JLPFlash) && (addrIn == 0x8023)) {
@@ -298,24 +290,10 @@ void __time_critical_func(core1_main()) {
                if (deviceAddress) {
 
 #if CONFIG_JLP
-                  // Same precomputed window as the read path above. Unlike
-                  // the check this replaces, falling outside the window no
-                  // longer skips mm_lookup() -- it used to be that once
-                  // cart.JLPSupport was set, the write side never consulted
-                  // mm_lookup() at all (the `} else {` below was paired with
-                  // `if (cart.JLPSupport)`, not with the window test), so a
-                  // JLP game's .cfg [memattr] RAM outside $8000-$9FFF was
-                  // silently unwritable. Now the window and mm_lookup() are
-                  // simple either/or, as they should be.
-                  //
-                  // KNOWN LIMITATION this reintroduces: mm_add_ram() (see
-                  // memory.c) packs [memattr] RAM into cart.RAM[] as
-                  // appended offsets starting at 0, the same array indices
-                  // the window branch addresses directly as addr-0x8000. A
-                  // .cfg combining `jlp = N` with a [memattr] line outside
-                  // the window would alias the two -- not exercised by any
-                  // known JLP title (they use JLP RAM exclusively), so left
-                  // as-is rather than reworking mm_add_ram()'s allocator.
+                  // Known limitation: mm_add_ram() packs [memattr] RAM into
+                  // cart.RAM[] from index 0, the same indices this window uses
+                  // as addr-0x8000, so `jlp` plus [memattr] RAM outside the
+                  // window would alias. No known JLP title does this.
                   if ( cart.ramWindow && (addrIn >= cart.ramLo) && (addrIn <= cart.ramHi) ) {
 
                      if ( cart.JLPSupport ) {
@@ -333,10 +311,7 @@ void __time_critical_func(core1_main()) {
                         }
                      }
 
-                     // RAM window write -- JLP RAM, or (when no JLP game is
-                     // loaded) the FujiNet mailbox. fujinet.c reads these
-                     // cells back byte-wide ((uint8_t)cart.RAM[...]), so no
-                     // masking is needed on this side.
+                     // JLP RAM or the mailbox; fujinet.c reads it byte-wide
                      cart.RAM[addrIn - 0x8000] = dataIn;
 
                   } else {
@@ -422,8 +397,7 @@ void __time_critical_func(handle_jlp_request)(void) {
       }
    }
 
-   // JLPAccel may have just toggled above -- widen/narrow the RAM
-   // window the bus loop claims (see update_ram_window()) to match.
+   // JLPAccel may have just toggled
    update_ram_window();
 
    // handle JLP accelerator feature

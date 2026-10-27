@@ -1,6 +1,6 @@
 -- boottest.lua -- M2 and the Tier C soak: fujiboot pushes an image and hands
 -- the console to it. Waits for the cart's swap (the device's fujinet_swaps
--- output), then judges the screen at +10 s and +30 s: alive (not one colour)
+-- output), then judges the screen at +10 s and +30 s: alive (not one color)
 -- and changing. Prints one VERDICT line that tools/soak.py parses.
 --   BOOT_WAIT  seconds to wait for the swap (default 90)
 --   SNAP_A/B   seconds after the swap for the two looks (10, 30)

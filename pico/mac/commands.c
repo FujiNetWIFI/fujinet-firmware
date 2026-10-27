@@ -4,10 +4,8 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-//#define FLOPPY
 #undef FLOPPY
 #undef DCD
-//#define DCD
 
 #include <stdio.h>
 #include <string.h>
@@ -33,13 +31,12 @@
 #include "dcd_write.pio.h"
 #include "gcr_capture.pio.h"
 
-// define GPIO pins
 #define UART_TX_PIN 4
 #define UART_RX_PIN 5
 #define EN0
 #define EN1
-#define ENABLE      11 // was 7 - swap order of CA and EN
-#define MCI_CA0     6  // was 8 - move CA down to EN
+#define ENABLE      11
+#define MCI_CA0     6
 #define MCI_WR      15
 #define ECHO_IN     21
 #define TACH_OUT    21
@@ -70,7 +67,6 @@ uint pio_dcd_cmd_offset;
 
 void pio_commands(PIO pio, uint sm, uint offset, uint pin);
 void pio_echo(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin, uint num_pins);
-// void pio_latch(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin);
 void pio_mux(PIO pio, uint sm, uint offset, uint in_pin, uint mux_pin);
 void pio_enand(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin);
 void pio_dcd_commands(PIO pio, uint sm, uint offset, uint pin);
@@ -82,17 +78,15 @@ void set_num_dcd();
  * HERE IS UART SETUP
 */
 #define UART_ID uart1
-#define BAUD_RATE 2000000 //230400 //115200
+#define BAUD_RATE 2000000
 #define DATA_BITS 8
 #define STOP_BITS 1
 #define PARITY UART_PARITY_NONE
 
 
 /**
- * Read `len` bytes from the ESP32 with a per-byte timeout. Returns the
- * number of bytes actually read. Missing bytes are left as they were, so
- * callers should pre-clear their buffer. Without this a reset of the
- * ESP32 mid-transfer parks the Pico in uart_read_blocking() forever.
+ * Missing bytes are left as they were, so pre-clear buf. Bounded so that an
+ * ESP32 reset mid-transfer cannot hang the Pico.
  */
 static size_t esp_read_timeout(uint8_t *buf, size_t len, uint32_t timeout_ms)
 {
@@ -143,29 +137,9 @@ uint num_dcd_drives;
 
 __aligned(32) bool latch_lut[24];
 
-// latches stored at bool LUT's. Floppy is 16 bits and dcd is 8 bits,
-// represented by bool in array. Array is addressed via DMA using following addresses:
-
+// One bool per latch bit, fetched by DMA at:
 // 0b0xxxx   0..15 is floppy
-// 0b10xxx  16..24 is dcd
-
-// the dcd latch is the same for all the dcd drives - no unique info
-// floppy latches have many unique settings (e.g., CSTIN, TK0, SIDES)
-// so if we add the internal floppy, we need another 16 values.
-// if we add another address bit using the internal ENABLE line
-// then we can expand the lut to 24+16 = 40 bools (aligned to 64 bytes)
-// floppy is 16 bits and dcd is 8 bits
-// 0b00xxxx   0..15 is internal floppy
-// 0b01xxxx  16..31 is unassigned
-// 0b10xxxx  32..47 is external floppy
-// 0b110xxx  48..55 is dcd
-// 0b111xxx  56..63 is unassigned 
-//
-// this means putting the internal ENABLE on pin DISKFLAG+1 = 13
-// or rather move CA0 down to 6 and put the two ENABLES above DISKFLAG
-//
-// not sure if there's enough SM instructions left to force a floppy type when 
-// the internal ENABLE is activated
+// 0b10xxx  16..23 is dcd, shared by all the DCD drives
 
 /**
  * 800 KB GCR Drive
@@ -215,21 +189,21 @@ DCDDATA	Communication channel from DCD device to Macintosh
 
 // info from Apple Computer Drawing Number 699-0452-A
 enum latch_bits {
-    DIRTN = 0,      // 0 !DIRTN	     This signal sets the direction of head motion. A zero sets direction toward the center of the disk and a one sets direction towards outer edge. When IENBL is high IDIRTN is set to zero. Change of !DIRTN command is not allowed during head movement nor head settlying time.
-    STEP,           // 1 !STEP	     At the falling edge of this signal the destination track counter is counted up or down depending on the ID'IIRTN level. After the destination counter in the drive received the falling edge of !STEP, the drive sets !STEP to high.
-    MOTORON,        // 2 !MOTORON	 When this signal is set to low, the disk motor is turned on. When IENBL is high, /MOTORON is set to high.
-    EJECT,          // 3 EJECT       At the rising edge of the LSTRB, EJECT is set to high and the ejection operation starts. EJECT is set to low at rising edge of ICSTIN or 2 sec maximum after rising edge of EJECT. When power is turned on, EJECT is set to low.
+    DIRTN = 0,      // 0 !DIRTN	     This signal sets the direction of head motion. A zero sets direction toward the center of the disk and a one sets direction towards outer edge. When !ENBL is high !DIRTN is set to zero. Change of !DIRTN command is not allowed during head movement nor head settling time.
+    STEP,           // 1 !STEP	     At the falling edge of this signal the destination track counter is counted up or down depending on the !DIRTN level. After the destination counter in the drive received the falling edge of !STEP, the drive sets !STEP to high.
+    MOTORON,        // 2 !MOTORON	 When this signal is set to low, the disk motor is turned on. When !ENBL is high, /MOTORON is set to high.
+    EJECT,          // 3 EJECT       At the rising edge of the LSTRB, EJECT is set to high and the ejection operation starts. EJECT is set to low at rising edge of !CSTIN or 2 sec maximum after rising edge of EJECT. When power is turned on, EJECT is set to low.
     DATA0,          // 4             read data - not from latch but comes from RMT device
     na0101,         // 5             not assigned in latch
     SINGLESIDE,     // 6 !SINGLESIDE A status bit which is read as one for double sided drive.
     DRVIN,          // 7 !DRVIN      This status bit is read as a zero only if the selected drive is connected to the host computer.
     CSTIN,          // 8 !CSTIN      This status bit is read as a zero only when a diskette is in the drive or when the mechanism for ejection and insertion is at the disk-in position without diskette.
     WRTPRT,         // 9 !WRTPRT     This status bit is read as a zero only when a write protected diskette is in the drive or no diskette is inserted in the drive.
-    TKO,            // a !TKO        This status bit is read as a zero when a head is on track 00 or outer position of track 00. NOTE: rrKO is an output signal of a latch whose status is decided by the track 00 sensor only while the drive is not in power save mode.
+    TKO,            // a !TKO        This status bit is read as a zero when a head is on track 00 or outer position of track 00. NOTE: !TK0 is an output signal of a latch whose status is decided by the track 00 sensor only while the drive is not in power save mode.
     TACH,           // b             tachometer - generated by the RP2040 clock device
     DATA1,          // c             read data - not from latch but comes from RMT device
     na1101,         // d             not assigned in latch
-    READY,          // e !READY      This status line is used to indicate that the host system can read the recorded data on the disk or write data to the disk. IREADY is a zero when the head position is settled on disired track, motor is at the desired speed, and a diskette is in the drive.
+    READY,          // e !READY      This status line is used to indicate that the host system can read the recorded data on the disk or write data to the disk. !READY is a zero when the head position is settled on desired track, motor is at the desired speed, and a diskette is in the drive.
     REVISED         // f REVISED     This status line is used to indicate that the interface definition of the connected external drive. When REVISED is a one, the drive Part No. will be 699-0326 or when REVISED is a zero, the drive Part No. will be 699-0285.
 };
 
@@ -261,50 +235,35 @@ void dcd_assert_hshk()
 {                   // State	CA2	  CA1	  CA0	  HOST	HOFF	RESET	RD Function
   dcd_clr_latch(2); // 2	    Low	  High	Low	  Low	  Low	  Low	  !HSHK
   dcd_clr_latch(3); // 3	    Low	  High	High	High	Low	  Low	  !HSHK
-  // pio_sm_put_blocking(pioblk_rw, SM_LATCH, dcd_get_latch()); // send the register word to the PIO
 }
 
 void dcd_deassert_hshk()
 {                   // State	CA2	  CA1	  CA0	  HOST	HOFF	RESET	RD Function
   dcd_set_latch(2); // 2	    Low	  High	Low	  Low	  Low	  Low	  !HSHK
   dcd_set_latch(3); // 3	    Low	  High	High	High	Low	  Low	  !HSHK
-  // pio_sm_put_blocking(pioblk_rw, SM_LATCH, dcd_get_latch()); // send the register word to the PIO
 }
 
 void preset_latch()
 {
   for (int i = 0; i < 16; i++)
   {
-    // latch_lut[i] = true;
     set_latch(i);
   }
   // set up like an empty floppy
-    // latch =-1;
-    // clr_latch(DIRTN);
-    // set_latch(STEP);
-    // set_latch(MOTORON);
     clr_latch(EJECT);
-    // set_latch(na0101); // to contrast to DCD, but this is SUPERDRIVE
     set_latch(SINGLESIDE); // SIDES: we emulate an 800K double-sided drive; the Mac ROM
                            // sizes the drive at boot, so this must not depend on the disk
     clr_latch(na0101);     // SUPERDRIVE low: with it high the ROM identifies us as an FDHD
                            // SuperDrive and boots through the MFM-capable path, which fails
     clr_latch(DRVIN); // low because the drive is present
     clr_latch(na1101); // CA2:1 CA1:0 CA0:1 SEL:1 is "MFM mode on" for the ROM's drive
-                       // model (low on a GCR-only 800K drive); it was left high
-    // set_latch(CSTIN); // no disk in drive
+                       // model; low on a GCR-only 800K drive
     clr_latch(WRTPRT);
-    // set_latch(TKO);
-    // set_latch(READY);
-    // set_latch(REVISED);   // my mac plus revised looks set
-    // for (int i=0; i<16; i++)
-    //   printf("\nlatch bit %02d = %d",i, latch_val(i));
     printf("\nFloppy Latch: %04x", get_latch());
 }
 
 void dcd_preset_latch()
 {
-  // dcd_latch = 0;
                     // State	CA2	  CA1	  CA0	  HOST	HOFF	RESET	RD Function
   dcd_clr_latch(0); // 0	    Low	  Low	  Low	  High	High	Low	  Data
   dcd_clr_latch(1); // 1	    Low	  Low	  High	High	Low	  Low	  Data
@@ -318,10 +277,8 @@ void dcd_preset_latch()
 }
 
 /**
- * Status-select trace: records which RD source the Mac selects (CA2/CA1/CA0/SEL)
- * plus the phase commands and ESP events, so the console can show what the
- * ROM polled right before it stopped the motor or ejected. Printed on
- * motor off / eject; cheap enough to leave enabled.
+ * Status-select trace: the RD sources the Mac selects (CA2/CA1/CA0/SEL), phase
+ * commands and ESP32 events, dumped on motor off and eject.
  */
 #define TRACE_LEN 1024
 struct trace_ent { uint8_t what; uint32_t t; };
@@ -395,11 +352,6 @@ void set_tach_freq(char c, char wobble)
                             {48, 63, 525},
                             {64, 79, 590}};
   
-  // To configure a clock, we need to know the following pieces of information:
-  // The frequency of the clock source
-  // The mux / aux mux position of the clock source
-  // The desired output frequency
-  // use 125 MHZ PLL as a source
   
   static uint32_t last_div = 0;
 
@@ -408,8 +360,7 @@ void set_tach_freq(char c, char wobble)
     if ((c >= tach_lut[i][0]) && (c <= tach_lut[i][1]))
     {
       uint32_t div = 125 * MHZ / (tach_lut[i][2] + wobble);
-      // reprogramming the clock output restarts it; a 40-cylinder seek used to
-      // do that 40 times in a row. Leave TACH alone unless the zone changed.
+      // reprogramming the clock output restarts it, so only on a zone change
       if (div != last_div)
       {
         clock_gpio_init_int_frac(TACH_OUT, CLOCKS_CLK_GPOUT0_CTRL_AUXSRC_VALUE_CLK_SYS, div, 0);
@@ -420,15 +371,11 @@ void set_tach_freq(char c, char wobble)
 }
 
 /**
- * Floppy write capture.
- *
- * In floppy mode the DCD receive state machine (SM_DCD_READ) runs the GCR
- * capture program instead, on the same WR pin; PIO0 has no room for both,
- * so the programs are swapped at each mode change. A DMA channel drains
- * the decoded bits into a 4 KB ring; the main loop forwards non-idle
- * stretches to the ESP32 as 'w' <len> <bytes> frames, closed by 'w' 0.
- * The line is static when the Mac is not writing, which decodes as 0x00
- * bytes, so a run of them marks the end of a write.
+ * Floppy write capture. In floppy mode SM_DCD_READ runs gcr_capture on the
+ * same WR pin instead of dcd_read; PIO0 has no room for both. DMA drains the
+ * bits into a 4 KB ring and the main loop forwards non-idle stretches to the
+ * ESP32 as 'w' <len> <bytes> frames, closed by 'w' 0. An idle line decodes as
+ * 0x00 bytes, so a run of them ends a write.
  */
 #define CAP_RING_BITS 12
 #define CAP_RING_SIZE (1 << CAP_RING_BITS)
@@ -540,30 +487,25 @@ static void capture_service(void)
 
 void switch_to_floppy()
 {
-  // commands
-  // Wait for the host's latch strobe to deassert so we don't swap command
-  // interpreters mid-strobe, but never wait forever: if the Mac is hung or
-  // idle with LSTRB high we would otherwise spin here and stop servicing
-  // the ESP32 UART until power cycle.
+  // Don't swap command interpreters mid-strobe, but bound the wait: a hung Mac
+  // holding LSTRB high would otherwise stop the ESP32 UART being serviced.
   absolute_time_t deadline = make_timeout_time_ms(10);
   while (gpio_get(LSTRB) && !time_reached(deadline));
-  pio_sm_set_enabled(pioblk_read_only, SM_DCD_CMD, false); // stop the DCD command interpreter
-  pio_commands(pioblk_read_only, SM_FPY_CMD, pio_floppy_cmd_offset, MCI_CA0); // read phases starting on pin 8
+  pio_sm_set_enabled(pioblk_read_only, SM_DCD_CMD, false);
+  pio_commands(pioblk_read_only, SM_FPY_CMD, pio_floppy_cmd_offset, MCI_CA0);
   capture_start();
 }
 
 void switch_to_dcd()
 {
-  // commands
-  pio_sm_set_enabled(pioblk_read_only, SM_FPY_CMD, false); // stop the floppy command interpreter
+  pio_sm_set_enabled(pioblk_read_only, SM_FPY_CMD, false);
   capture_stop();
-  pio_dcd_commands(pioblk_read_only, SM_DCD_CMD, pio_dcd_cmd_offset, MCI_CA0); // read phases starting on pin 8
+  pio_dcd_commands(pioblk_read_only, SM_DCD_CMD, pio_dcd_cmd_offset, MCI_CA0);
 }
 
 void set_num_dcd()
 {
-      // need to set number in DCD mux PIO and reset the machine
-      // pause the machine, change the instruction, move the PC, resume
+      // patch the mux's first instruction (set x, <number of DCDs>) and restart it
       pio_sm_set_enabled(pioblk_rw, SM_MUX, false);
       uint32_t save = hw_claim_lock();
       pioblk_rw->instr_mem[pio_mux_offset] = pio_encode_set(pio_x, num_dcd_drives) | pio_encode_sideset_opt(3, 0);
@@ -582,7 +524,6 @@ void setup()
     setup_default_uart();
     setup_esp_uart();
 
-    // merged setup
     current_track = 0;
     set_tach_freq(current_track, 0); // start TACH clock
     preset_latch();
@@ -594,27 +535,18 @@ void setup()
     */
     pio_floppy_cmd_offset = pio_add_program(pioblk_read_only, &commands_program);
     printf("\nLoaded Floppy cmd program at %d", pio_floppy_cmd_offset);
-    // pio_commands(pioblk_read_only, SM_FPY_CMD, pio_floppy_cmd_offset, MCI_CA0); // read phases starting on pin 8
     
     pio_dcd_cmd_offset = pio_add_program(pioblk_read_only, &dcd_commands_program);
     printf("\nLoaded DCD commands program at %d", pio_dcd_cmd_offset);
-    pio_dcd_commands(pioblk_read_only, SM_DCD_CMD, pio_dcd_cmd_offset, MCI_CA0); // read phases starting on pin 8
+    pio_dcd_commands(pioblk_read_only, SM_DCD_CMD, pio_dcd_cmd_offset, MCI_CA0);
 
     pio_read_offset = pio_add_program(pioblk_read_only, &dcd_read_program);
     printf("\nLoaded DCD read program at %d\n", pio_read_offset);
     pio_dcd_read(pioblk_read_only, SM_DCD_READ, pio_read_offset, MCI_WR);
 
-    /** 
-     * put the output SM's in PIO1: echo, dcd write, common latch
-     * 
-     * from Section 3.5.6.1 in RP2040 datasheet:
-     * For each GPIO, PIO collates the writes from all four state machines, 
-     * and applies the write from the highest-numbered state machine. 
-     * This occurs separately for output levels and output values — 
-     * it is possible for a state machine to change both the level and 
-     * direction of the same pin on the same cycle (e.g. via simultaneous
-     * SET and side-set), or for one state  machine to change a GPIO’s 
-     * direction while another changes that GPIO’s level.
+    /**
+     * Output SMs in PIO1: echo, dcd write, latch, mux. Where several drive one
+     * GPIO, the highest-numbered SM wins (RP2040 datasheet 3.5.6.1).
     */
     offset = pio_add_program(pioblk_rw, &latch_program);
     printf("\nLoaded latch program at %d\n", offset);
@@ -633,34 +565,34 @@ void setup()
  
     channel_config_set_read_increment(&cfg_latch_data,false);
     channel_config_set_write_increment(&cfg_latch_data,false);
-    channel_config_set_dreq(&cfg_latch_data, pio_get_dreq(pioblk_rw, SM_LATCH, true)); // mux PIO
+    channel_config_set_dreq(&cfg_latch_data, pio_get_dreq(pioblk_rw, SM_LATCH, true));
     channel_config_set_chain_to(&cfg_latch_data, chan_latch_addr);
     channel_config_set_transfer_data_size(&cfg_latch_data, DMA_SIZE_8);
     channel_config_set_irq_quiet(&cfg_latch_data, true);
     channel_config_set_enable(&cfg_latch_data, true);
     dma_channel_configure(
-        chan_latch_data,                          // Channel to be configured
-        &cfg_latch_data,                        // The configuration we just created
-        &pioblk_rw->txf[SM_LATCH],                   // The initial write address
-        latch_lut,                      // The initial read address
-        1,                                  // Number of transfers; in this case each is 1 byte.
-        false                               // do not Start immediately.      
+        chan_latch_data,
+        &cfg_latch_data,
+        &pioblk_rw->txf[SM_LATCH],
+        latch_lut,
+        1,
+        false
       );
 
     channel_config_set_read_increment(&cfg_latch_addr,false);
     channel_config_set_write_increment(&cfg_latch_addr,false);
-    channel_config_set_dreq(&cfg_latch_addr, pio_get_dreq(pioblk_rw, SM_LATCH, false)); // mux PIO
+    channel_config_set_dreq(&cfg_latch_addr, pio_get_dreq(pioblk_rw, SM_LATCH, false));
     channel_config_set_chain_to(&cfg_latch_addr, chan_latch_data);
     channel_config_set_transfer_data_size(&cfg_latch_addr, DMA_SIZE_32);
     channel_config_set_irq_quiet(&cfg_latch_addr, true);
     channel_config_set_enable(&cfg_latch_addr, true);
     dma_channel_configure(
-        chan_latch_addr,                          // Channel to be configured
-        &cfg_latch_addr,                        // The configuration we just created
-        &dma_channel_hw_addr(chan_latch_data)->read_addr,   // The initial write address
-        &pioblk_rw->rxf[SM_LATCH],            // The initial read address
-        1,                                  // Number of transfers; in this case each is 1 byte.
-        true                               // do not Start immediately.      
+        chan_latch_addr,
+        &cfg_latch_addr,
+        &dma_channel_hw_addr(chan_latch_data)->read_addr,
+        &pioblk_rw->rxf[SM_LATCH],
+        1,
+        true
       );
 
     offset = pio_add_program(pioblk_rw, &echo_program);
@@ -690,7 +622,6 @@ enum disk_mode_t {
 int main()
 {
   setup();
-  // switch_to_floppy();
   while (true)
   {
     esp_loop();
@@ -728,12 +659,10 @@ void esp_loop()
   if (uart_is_readable(UART_ID))
   {
     c = uart_getc(UART_ID);
-    // handle comms from ESP32
     switch (c)
     {
     case 'h': // harddisk is mounted/unmounted
-      // bounded read: a stray byte during an ESP32 reset must not park us
-      // here forever waiting for the count that never comes
+      // bounded: a stray byte during an ESP32 reset must not hang us here
       if (!uart_is_readable_within_us(UART_ID, 50 * 1000))
       {
         printf("\n'h' with no count byte - ignored");
@@ -744,8 +673,8 @@ void esp_loop()
       if (num_dcd_drives > 4)
         num_dcd_drives = 0;
       printf("\nNumber of DCD's mounted: %d", num_dcd_drives);
-      set_num_dcd(); // tell SM_MUX how many DCD's and restart it
-      c = 0; // need to clear c so not picked up by floppy loop although it would never respond to 'h'
+      set_num_dcd(); // tell SM_MUX how many DCDs and restart it
+      c = 0; // keep it from floppy_loop
       break;
     case 's':
       // single sided disk: identify as a 400K drive (SIDES low). The 64K ROM
@@ -794,12 +723,9 @@ void esp_loop()
   if (!pio_sm_is_rx_fifo_empty(pioblk_rw, SM_MUX))
   {
     int m = pio_sm_get_blocking(pioblk_rw, SM_MUX);
-    // printf("m%dm",m);
-    // The mux pushes X on every pass. In DCD mode X counts down through
-    // the drives (1..num_dcd_drives); in floppy mode X holds whatever
-    // phase pattern the Mac last presented, which is NOT a drive number
-    // and must not be forwarded (it decodes to floppy command bytes on
-    // the ESP32, including eject).
+    // The mux pushes X every pass: 1..num_dcd_drives in DCD mode, but in floppy
+    // mode the last phase pattern, which the ESP32 would read as floppy
+    // commands (eject included), so it is not forwarded.
     if (m >= 1 && m <= (int)num_dcd_drives)
     {
       char sel = num_dcd_drives + 'A' - m;
@@ -810,8 +736,6 @@ void esp_loop()
     }
     else if (m == 0)
     {
-      // if (!latch_val(CSTIN))
-      // pio_sm_put_blocking(pioblk_rw, SM_LATCH, get_latch()); // send the register word to the PIO
       if (disk_mode != FPY)
         disk_mode = TO_FPY;
     }
@@ -822,8 +746,7 @@ void floppy_loop()
 {
   static bool step_state = false;
 
-  // I settled on a flutter cycle period of 640 ms and a flutter amplitude of about 0.25%.
-  // tach ranges approx 400-600 Hz, so that's about 1.0-1.5 Hz. Call it 1 Hz.
+  // flutter: about 0.25%, toggled every 640 ms
   static char wobble = 1;
 
   if (gpio_get(ENABLE) && (num_dcd_drives > 0))
@@ -838,24 +761,12 @@ void floppy_loop()
   if (!pio_sm_is_rx_fifo_empty(pioblk_read_only, SM_FPY_CMD))
   {
     a = pio_sm_get_blocking(pioblk_read_only, SM_FPY_CMD);
-    // printf("%d",a);
     trace_put(0x80 | (a & 0x0f));
     if (latch_val(CSTIN))
       return;
     switch (a)
     {
-      // !READY
-      // This status line is used to indicate that the host system can read the recorded data on the disk or write data to the disk.
-      // !READY is a zero when
-      //      the head position is settled on disired track,
-      //      motor is at the desired speed,
-      //      and a diskette is in the drive.
     case 0:
-      // !DIRTN
-      // This signal sets the direction of head motion.
-      // A zero sets direction toward the center of the disk and a one sets direction towards outer edge.
-      // When !ENBL is high !DIRTN is set to zero.
-      // Change of !DIRTN command is not allowed during head movement nor head settlying time.
       // set direction to increase track number
       clr_latch(DIRTN);
       break;
@@ -863,25 +774,16 @@ void floppy_loop()
       set_latch(DIRTN);
       break;
     case 1:
-      // !STEP
-      // At the falling edge of this signal the destination track counter is counted up or down depending on the !DIRTN level.
-      // After the destination counter in the drive received the falling edge of !STEP, the drive sets !STEP to high.
-      // step the head. !READY is left alone: the ESP32 coalesces a burst of
-      // steps and copies the new track a couple of ms after the last one, and
-      // the ROM was seen stopping the motor and ejecting right after a long
-      // seek when !READY was still high at the end of its own settle time.
+      // !READY is not set here: the ESP32 coalesces a burst of steps, and the ROM
+      // ejected after a long seek when !READY was still high past its settle time.
       clr_latch(STEP);
       step_state = true;
       settling = true; // !READY high until the ESP32 has the new track loaded ('S')
       break;
     case 2:
-      // !MOTORON
-      // When this signal is set to low, the disk motor is turned on.
-      // When !ENBL is high, /MOTORON is set to high.
-      // turn motor on. A real drive holds !READY high for a few hundred ms
-      // while the spindle comes up to speed (MAME's model: two revolutions);
-      // the SE/30 ROM reads READY 74 ms after motor on and ejects an 800K
-      // disk if the drive already claims to be ready, so emulate the spin-up.
+      // A real drive holds !READY high for a few hundred ms of spin-up (MAME: two
+      // revolutions); the SE/30 ROM reads READY 74 ms after motor on and ejects
+      // an 800K disk if the drive already claims to be ready.
       if (latch_val(MOTORON))
       {
         motor_on_time = time_us_64();
@@ -898,13 +800,8 @@ void floppy_loop()
       trace_dump("motor off");
       break;
     case 7:
-      // EJECT
-      // At the rising edge of the LSTRB, EJECT is set to high and the ejection operation starts.
-      // EJECT is set to low at rising edge of !CSTIN or 2 sec maximum after rising edge of EJECT.
-      // When power is turned on, EJECT is set to low.
-      // eject. The Mac always ejects right after a motor on / seek / motor off
-      // sequence; an eject out of the blue is the floating bus of a Mac being
-      // switched off or on, and must not throw the mounted image away.
+      // The Mac ejects after a motor on / seek / motor off sequence; an eject out
+      // of the blue is the floating bus of a Mac powering off or on.
       if (latch_val(MOTORON) && (time_us_64() - motor_off_time) > 2000000)
       {
         printf("\nSpurious eject ignored (motor never ran)");
@@ -933,9 +830,7 @@ void floppy_loop()
     uart_putc_raw(UART_ID, (char)(a + '0'));
     }
 
-    // !STEP - a little state machine with !STEP required to make this work
-    // At the falling edge of this signal the destination track counter is counted up or down depending on the !DIRTN level.
-    // After the destination counter in the drive received the falling edge of !STEP, the drive sets !STEP to high.
+    // release !STEP on the pass after the step
     if (step_state)
     {
       set_latch(STEP);
@@ -945,14 +840,6 @@ void floppy_loop()
     if (c != 0)
     {
 
-    // !READY
-    // This status line is used to indicate that the host system can read the recorded data on the disk or write data to the disk.
-    // !READY is a zero when
-    //      the head position is settled on disired track,
-    //      motor is at the desired speed,
-    //      and a diskette is in the drive.
-
-    // to do: figure out when to clear !READY
     trace_put(0x40 | ((c & 128) ? ('T' - 0x40) : (c - 0x40) & 0x3f));
     if (c & 128)
     {
@@ -967,10 +854,6 @@ void floppy_loop()
       switch (c)
       {
       case 'E':
-        // EJECT
-        //  At the rising edge of the LSTRB, EJECT is set to high and the ejection operation starts.
-        //  EJECT is set to low at rising edge of !CSTIN or 2 sec maximum after rising edge of EJECT.
-        //  When power is turned on, EJECT is set to low.
           set_latch(CSTIN);
           clr_latch(EJECT);
           clr_latch(WRTPRT); // no disk reads as protected
@@ -985,8 +868,7 @@ void floppy_loop()
       default:
           break;
       }
-      // printf("latch %04x", get_latch());
-      c = 0; // clear c because processed it and don't want infinite loop
+      c = 0; // consumed
     }
     // to do: read both enable lines and indicate which drive is active when sending single char to esp32
 
@@ -1039,17 +921,12 @@ struct dcd_triad {
 
 bool host = false;
 
-// forward declarations
 void dcd_process(uint8_t nrx, uint8_t ntx);
 
 
 /**
- * DCD protocol robustness. Every wait on the Mac used to be unbounded and
- * every protocol check was an assert(), which halts the Pico. If the Mac
- * abandons a transfer (reset, hang, the ESP32 answering late) the Pico
- * was stuck until power cycle. Now: bounded waits, and on any timeout or
- * protocol mismatch dcd_timeout is set, the current command bails out,
- * and dcd_recover() puts the state machines back to idle.
+ * On a timeout or protocol mismatch dcd_timeout is set, the command bails out
+ * and dcd_recover() returns the state machines to idle.
  */
 static bool dcd_timeout = false;
 
@@ -1109,24 +986,6 @@ void dcd_loop()
     return;
   }
 
-  // if (!pio_sm_is_rx_fifo_empty(pioblk_rw, SM_MUX))
-  // {
-  //   int m = pio_sm_get_blocking(pioblk_rw, SM_MUX);
-  //   // printf("m%dm",m);
-  //   if (m != 0)
-  //   {
-  //     active_disk_number = num_dcd_drives + 'A' - m;
-  //     printf("%c", active_disk_number);
-  //     uart_putc_raw(UART_ID, active_disk_number);
-  //   }
-  //   else
-  //   {
-  //     // if (!latch_val(CSTIN))
-  //     // pio_sm_put_blocking(pioblk_rw, SM_LATCH, get_latch()); // send the register word to the PIO 
-  //     disk_mode = TO_FPY;
-  //     return;
-  //   }
-  // }
 
   if (!pio_sm_is_rx_fifo_empty(pioblk_read_only, SM_DCD_CMD))
   {
@@ -1137,13 +996,10 @@ void dcd_loop()
       case 0: 
         host = true;
         break;
-      case 1: // for now receiving a command
+      case 1: // receiving a command
         host = true;
-        // The Macintosh's data transfer begins with three bytes which are not encoded using the 7-to-8 encoding. 
-        // The first is an 0xAA "sync" byte. 
-        // The second indicates the number of 7-to-8-encoded groups contained in the transfer to follow, plus 0x80 (because the MSB must be set). 
-        // The third indicates the number of 7-to-8-encoded groups that the Macintosh expects to receive in response, plus 0x80. 
-        // These three bytes are followed by 7-to-8-encoded groups, the number of which was indicated by the second byte.
+        // Three unencoded bytes start a transfer: 0xAA sync, then 0x80 + the number
+        // of 7-to-8 groups to follow, then 0x80 + the number of groups expected back.
         cmd.sync = dcd_get(pioblk_read_only, SM_DCD_READ, 1000);
         DCD_EXPECT(cmd.sync == 0xaa);
         cmd.num_rx = dcd_get(pioblk_read_only, SM_DCD_READ, 1000);
@@ -1153,10 +1009,6 @@ void dcd_loop()
     case 2:
       host = false;
       // idle
-      // if (olda == 6)
-      // {
-      //   dcd_assert_hshk();
-      // }
       break;
     case 3: // handshake: the Mac asserted HOST and is watching !HSHK on RD
       host = true;
@@ -1202,11 +1054,9 @@ void handshake_before_send()
 {
     dcd_assert_hshk();
     a = dcd_get(pioblk_read_only, SM_DCD_CMD, 1000);
-  DCD_EXPECT(a==3); // now back to idle and awaiting DCD response
+  DCD_EXPECT(a==3);
     a = dcd_get(pioblk_read_only, SM_DCD_CMD, 1000);
-  DCD_EXPECT(a==1); // now back to idle and awaiting DCD response
-  // to do: handshaking error recovery -
-  // case 1: TNFS seek timeout and abort - need to capture on LogAn to see what's going on
+  DCD_EXPECT(a==1);
 }
 
 void handshake_after_send()
@@ -1230,7 +1080,7 @@ void send_packet(uint8_t ntx)
   pio_dcd_write(pioblk_rw, SM_DCD_WRITE, pio_write_offset, LATCH_OUT);
   pio_sm_set_enabled(pioblk_rw, SM_DCD_WRITE, true);
   send_byte(0xaa);
-  // send_byte(ntx | 0x80); - NOT SENT - OOPS
+  // no group-count byte in the reply
   uint8_t *p = payload;
   for (int i=0; i<ntx && !dcd_timeout; i++)
   {
@@ -1247,20 +1097,17 @@ void send_packet(uint8_t ntx)
     uint8_t lsb = 0;
     for (int j = 0; j < 7; j++)
     {
-      // lsb <<= 1;
       lsb |= ((*p) & 0x01) << j;
       send_byte(((*p) >> 1) | 0x80);
       p++;
     }
     send_byte(lsb | 0x80); 
   }
-  // printf("\nsent %d\n",ct);
-  // send_byte(0xff); // send_byte(0x80);
   send_byte(0x00); // dummy data for a pause to allow the last byte to send 
   wait_tx_empty(pioblk_rw, SM_DCD_WRITE, 200);
   
   dcd_deassert_hshk();
-  pio_sm_set_enabled(pioblk_rw, SM_DCD_WRITE, false); // re-aquire the READ line for the LATCH function
+  pio_sm_set_enabled(pioblk_rw, SM_DCD_WRITE, false); // reacquire the RD line for the LATCH function
   pio_sm_set_enabled(pioblk_rw, SM_LATCH, true);
 
   handshake_after_send();
@@ -1302,24 +1149,18 @@ void dcd_read(uint8_t ntx)
   value at offset 1 in the command and ending at 0x01.
   */
 
-//  printf("\nRead Command: ");
-//   for (int i=0; i<7; i++)
-//     printf("%02x ",payload[i]);
-//   while(1);
 
   
   uint8_t num_sectors = payload[1];
   uint32_t sector = (payload[2] << 16) + (payload[3] << 8) + payload[4];
-  // uint32_t sector_offset = ((uint32_t)payload[2] << 16) + ((uint32_t)payload[3] << 8) + (uint32_t)payload[4];
   printf("read %d sectors\n", num_sectors);
 
-  // clear out UART buffer cause there was a residual byte
+  // drop a residual byte
   while(uart_is_readable(UART_ID))
     uart_getc(UART_ID);
 
   for (uint8_t i=0; i<num_sectors && !dcd_timeout; i++)
   {
-    // printf("sending sector %06x in %d groups\n", sector, ntx);
     
     uart_putc_raw(UART_ID, 'R');
     uart_putc_raw(UART_ID, (sector >> 16) & 0xff);
@@ -1386,10 +1227,6 @@ OR
 
   */
 
-  //  printf("\nRead Command: ");
-  //   for (int i=0; i<7; i++)
-  //     printf("%02x ",payload[i]);
-  //   while(1);
 
   uint8_t num_sectors = payload[1];
   static uint32_t sector = 0;
@@ -1403,13 +1240,11 @@ OR
     printf("write %06x sectors\n", sector);
   }
 
-  ///  TODO FROM HERE CHANGE FROM READ TO WRITE
 
-  // clear out UART buffer cause there was a residual byte
+  // drop a residual byte
   while(uart_is_readable(UART_ID))
     uart_getc(UART_ID);
 
-  // printf("writing sector %06x in %d groups\n", sector, ntx);
 
   uart_putc_raw(UART_ID, 'W');
   uart_putc_raw(UART_ID, (sector >> 16) & 0xff);
@@ -1417,16 +1252,11 @@ OR
   uart_putc_raw(UART_ID, sector & 0xff);
   sector++;
   uart_write_blocking(UART_ID, &payload[26], 512);
-  // for (int x=0; x<512; x++)
-  // {
-  //   printf("%02x ", payload[26+x]);
-  // }
   if (!uart_is_readable_within_us(UART_ID, 2000 * 1000))
     printf("\nESP32 write ack timeout");
   c = uart_getc(UART_ID);
   if (c=='e')
     printf("\nMac WROTE TO READONLY DISK!\n");
-  // assert(c=='w'); // error handling?
   // response packet
   memset(payload, 0, sizeof(payload));
   payload[0] = (!verf) ? 0x81 : 0x82;
@@ -1461,11 +1291,10 @@ void dcd_status(uint8_t ntx)
 
   */
   printf("status\n");
-  // memcpy(payload,s,sizeof(s));
   memset(payload, 0, sizeof(payload));
   payload[0] = 0x83;
   
-  // clear out UART buffer cause there was a residual byte
+  // drop a residual byte
   while (uart_is_readable(UART_ID))
     uart_getc(UART_ID);
 
@@ -1508,7 +1337,6 @@ void dcd_id(uint8_t ntx)
     48	Checksum
   */
   printf("id\n");
-  // memcpy(payload,s,sizeof(s));
   memset(payload, 0, sizeof(payload));
   payload[0] = 0x84;
   strcpy("FujiNet DCD", &payload[6]);
@@ -1527,37 +1355,15 @@ void dcd_id(uint8_t ntx)
   compute_checksum(48);
 
   send_packet(ntx);
-  // simulate_packet(ntx);
-  // assert(false);
 }
 
-// void dcd_unknown(uint8_t ntx)
-// {
-//   /*
-//   DCD Device:
-//     Offset	Value	Sample Value from HD20
-//     0	0x83	
-//     1	0x00	
-//     2-5	Status	
-//     6 checksum
-//   */
-//   printf("sending0x22 ");
-//   memset(payload, 0, sizeof(payload));
-//   payload[0] = 0x80 | 0x22;
-//   compute_checksum(6);
-//   assert(ntx==1);
-
-//   send_packet(ntx);
-//   // simulate_packet(ntx);
-//   // assert(false);
-// }
 
 void dcd_format(uint8_t ntx)
 {
   /*
   DCD Device:
     Offset	Value	Sample Value from HD20
-    0	0x83	
+    0	0x99
     1	0x00	
     2-5	Status	
     6 checksum
@@ -1569,8 +1375,6 @@ void dcd_format(uint8_t ntx)
   printf("format\n");
 
   send_packet(ntx);
-  // simulate_packet(ntx);
-  // assert(false);
 }
 
 void dcd_verify(uint8_t ntx)
@@ -1597,13 +1401,10 @@ void dcd_verify(uint8_t ntx)
   printf("verify format\n");
 
   send_packet(ntx);
-  // simulate_packet(ntx);
-  // assert(false);
 }
 
 void dcd_process(uint8_t nrx, uint8_t ntx)
 {
-  // printf("\n\nEncoded data: aa %02x %02x ",nrx | 0x80, ntx | 0x80);
   uint8_t *p = payload;
   for (int i=0; i < nrx; i++)
   {
@@ -1623,35 +1424,23 @@ void dcd_process(uint8_t nrx, uint8_t ntx)
     if (dcd_timeout)
       break;
     uint8_t lsb = dcd_get(pioblk_read_only, SM_DCD_READ, 1000);
-    // printf("%02x ",lsb);
     for (int j=0; j < 7; j++)
     {
       uint8_t b = dcd_get(pioblk_read_only, SM_DCD_READ, 1000);
-      // printf("%02x ", b);
        *p = (b<<1) | (lsb & 0x01);
        lsb >>= 1;
        p++;
     }
   }
   pio_sm_set_enabled(pioblk_read_only, SM_DCD_READ, false); // stop the read state machine
-  //
   // handshake
-  //
   wait_pin_low(MCI_WR, 1000); // WR needs to return to 0 (at least from a status command at boot)
   a = dcd_get(pioblk_read_only, SM_DCD_CMD, 1000);
   DCD_EXPECT(a==3);
-  //busy_wait_us_32(10);
   dcd_deassert_hshk();
   a = dcd_get(pioblk_read_only, SM_DCD_CMD, 1000);
   DCD_EXPECT(a==2); // now back to idle and awaiting DCD response
-  // busy_wait_us_32(3000);
-  // dcd_assert_hshk();
-  //   a = pio_sm_get_blocking(pio_dcd, SM_DCD_CMD);
-  // assert(a==3); // now back to idle and awaiting DCD response
-  //   a = pio_sm_get_blocking(pio_dcd, SM_DCD_CMD);
-  // assert(a==1); // now back to idle and awaiting DCD response
 
-  // //
   if (dcd_timeout)
     return;
 
@@ -1662,18 +1451,11 @@ void dcd_process(uint8_t nrx, uint8_t ntx)
   }
   printf("\n");
 
-  // simulate_receive_packet(nrx, ntx);
-  // assert(false);
 
   switch (payload[0])
   {
   case 0x00:
     // read sectors
-    // the boot read command is: aa 81 84 c1 81 c0 c1 80 80 80 fd
-    // decoded: 00 82 00 00 00 00 7e
-    // 0x82+0x7e=0x100 - check
-    // going to read 0x82 (130) sectors
-    // but it only asked for 4 groups back - hmmmmm 
     dcd_read(ntx);
     break;
   case 0x01:
@@ -1686,12 +1468,7 @@ void dcd_process(uint8_t nrx, uint8_t ntx)
     break;
   case 0x03:
     // status
-    // during boot sequence:
-    // Received Command Sequence: aa 81 b1 c1 81 80 80 80 80 80 fe
-    // aa - sync
-    // 81 - will send 1 x 7-to-8 group
-    // b1 - want 0x31 (49) groups: 49*7 = 343 bytes
-    // The 7-to-8 group should decode to 03 00 00 00 00 00 FD
+    // b1: the Mac wants 0x31 (49) groups = 343 bytes back
     dcd_status(ntx);
     break;
   case 0x04:

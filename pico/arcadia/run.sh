@@ -8,8 +8,7 @@
 #   FUJINET_BOOTDUMP=prefix write pushed streams to prefix.rom/.cfg
 #   MAME_DIR=path           MAME tree with the fujinet device applied
 #
-# The arcadia driver needs no BIOS ROMs; the device must be grafted in by
-# ./emu/apply.sh (see README.md).
+# The arcadia driver needs no BIOS ROMs; graft the device in with ./emu/apply.sh.
 
 set -euo pipefail
 cd "$(dirname "$0")"

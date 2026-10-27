@@ -2,9 +2,7 @@
 # Capture golden ROMC traces by running the console clients under a MAME whose
 # F8 core has been instrumented by emu/f8trace.py.
 #
-# The traces are what test_romc.c replays. Without them that test skips, and
-# nothing at all covers the cart's ROMC state machine -- MAME's cart device
-# only ever sees flat reads and writes.
+# test_romc.c replays them and skips without them.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -28,10 +26,8 @@ for c in hello romctest; do
           -autoboot_script "$OLDPWD/emu/shot.lua" \
           -snapshot_directory "$OLDPWD/build/snap" \
           -video none -sound none -nothrottle -seconds_to_run 30 >/dev/null 2>&1 )
-    # Stamp the image the trace was captured from. A trace is only meaningful
-    # against the exact bytes that produced it -- edit a shared include and
-    # every client shifts, and the replay then fails deep in the run with a
-    # register divergence that looks like an observer bug.
+    # Stamp the source image: a stale trace fails as a register divergence
+    # that looks like an observer bug.
     sha256sum "build/$c.bin" | cut -d" " -f1 > "$OUT/$c.sha"
     n=$(( $(stat -c%s "$OUT/$c.trace") / 10 ))
     echo "mktrace: $c.trace: $n bus cycles"

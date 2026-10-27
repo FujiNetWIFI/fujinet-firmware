@@ -1,23 +1,13 @@
 #!/usr/bin/env python3
 """checkdepth.py -- bound the 2650 subroutine-call depth of a client.
 
-The Signetics 2650's return address stack is EIGHT entries deep and on
-chip; there is no RAM stack. A call graph deeper than 8 silently corrupts
-returns (MAME wraps the stack), so every client must stay within it. This
-walks the assembler source, builds the static call graph from BSTA/BSTR
-(subroutine branches) to local labels, and reports the deepest chain.
-
-It is a linter, not an assembler: it treats every `LABEL:` as a node and
-every `BSTA,cc TARGET` / `BSTR,cc TARGET` whose TARGET is a known label as
-an edge from the enclosing label. Tail calls (BCTA/BCTR) are branches, not
-calls, so they do not add depth -- which is exactly why the clients use
-them for dispatch. Indirect calls (BSXA and friends) are not used by any
-client and are flagged if seen.
+The 2650's return address stack is 8 entries deep, on chip; a deeper call graph
+silently corrupts returns. Builds the static graph from BSTA/BSTR to known labels;
+BCTA/BCTR tail calls add no depth, and an indirect BSXA is flagged.
 
   checkdepth.py [--max N] [--warn N] file.asm [file2.asm ...]
 
-Exit nonzero if the deepest chain exceeds --max (default 8) or a cycle
-(recursion -- unbounded on this stack) is found.
+Exits nonzero if the deepest chain exceeds --max (default 8) or on recursion.
 """
 
 import re
@@ -38,7 +28,7 @@ def parse(paths):
     for path in paths:
         with open(path) as f:
             for lineno, line in enumerate(f, 1):
-                line = line.split(';', 1)[0]          # strip comments
+                line = line.split(';', 1)[0]
                 m = LABEL_RE.match(line)
                 if m:
                     cur = m.group(1)

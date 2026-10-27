@@ -1,9 +1,8 @@
 /* s2map.h -- the Studio II image planner: which 256-byte console pages the
  * cart claims, and where each one's bytes come from.
  *
- * One planner, three consumers: core1 (through the view, s2_cart.h), the MAME
- * device, and the host tests, which hold it to a transcription of MAME's own
- * loader (studio2.cpp cart_load).
+ * Shared by core1, the MAME device and the host tests, which check it against
+ * a transcription of MAME's loader (studio2.cpp cart_load).
  *
  * A game is served the way MAME serves it: $0400-$07FF always (zeroes where
  * the image has nothing), $0C00-$0FFF whenever a block names page $0C, and
@@ -17,9 +16,9 @@
  * Protocol 2: an ST2 may have up to 192 blocks (its header's whole page map).
  * $C400-$CFFF is a bank window: in file order, each block naming $C4 after
  * the first opens the next bank, and window blocks belong to the bank open
- * when they come (bank 0 before any). A read of
- * FN_STUB's page + FN_HOT_BANK + n shows bank n there (s2map_bank); a page a
- * bank lacks reads $FF. Every page a block backs is writable (s2map_poke).
+ * when they come (bank 0 before any). A read of FN_STUB's page +
+ * FN_HOT_BANK + n shows bank n there; a page a bank lacks reads $FF. Every
+ * page a block backs is writable.
  */
 
 #ifndef S2MAP_H

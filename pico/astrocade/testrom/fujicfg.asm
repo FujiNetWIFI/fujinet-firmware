@@ -1,17 +1,11 @@
 ; fujicfg.asm -- FujiNet CONFIG for the Bally Astrocade.
 ;
-; Milestone 3: pick a host slot, browse the root of its TNFS tree, pick an
-; image, boot it. Navigation is the player 1 hand controller: stick up/down
-; moves, left/right pages the file list, trigger selects. RESET on the
-; console returns to the host page (the client restarts; the cart keeps its
-; state, which is why sequence numbers derive from ACKSEQ -- see
-; fujilib.inc).
+; Pick a host slot, browse the root of its TNFS tree, pick an image, boot it.
+; Player 1 hand controller: stick up/down moves, left/right pages the file
+; list, trigger selects. Console RESET returns to the host page.
 ;
-; Kept to the o2 CONFIG's proven scope: root listing only, no subdirectory
-; descent yet. Display names are crunched to the row width, so the boot
-; path re-reads the selected entry at full length first (READ_DIR_ENTRY
-; returns what fits in the maxlen it is given; a crunched name would never
-; open).
+; Root listing only, no subdirectories. Display names are crunched to the
+; row width, so booting re-reads the selected entry at full length.
 
         INCLUDE "HVGLIB.H"
 
@@ -78,8 +72,7 @@ PRGSTR: DI
 HOSTPG: XOR     A
         LD      (V_HOST),A
 
-; READ_HOST_SLOTS: the reply is 8 records of 32 bytes = 256, which is
-; exactly slice 0 on this port -- no slice paging needed anywhere here.
+; READ_HOST_SLOTS: 8 records of 32 bytes, exactly slice 0.
         LD      A,FNDFUJI
         LD      E,FCRHSL
         LD      L,0
@@ -170,7 +163,7 @@ HK2:    CP      BTRIG
         JP      NZ,FAILN
 
 ; OPEN_DIRECTORY(host): payload is "path\0filter\0" NUL-padded to exactly
-; 256 bytes (the ESP32 reads it into a fixed buffer and fails a short one).
+; 256 bytes; the ESP32 fails a short one.
         LD      A,FNDFUJI
         LD      E,FCODIR
         LD      L,1

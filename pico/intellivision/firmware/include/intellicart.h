@@ -24,19 +24,15 @@ typedef struct {
    char flashfile[512];
    vfs_file_t *filesave;
 
-   // RAM window claimed by the bus loop ahead of mm_lookup() -- see
-   // update_ram_window() and cartridge.c. $8000-$9FFF (all of it) once a
-   // JLP game is loaded; otherwise, on a FujiNet-capable board, just the
-   // mailbox range so game ROM can still be mapped at e.g. $9000.
+   // RAM window the bus loop claims ahead of mm_lookup(): $8000-$9FFF for
+   // JLP, else just the mailbox, so game ROM can sit at e.g. $9000.
    bool ramWindow;
    uint16_t ramLo, ramHi;
 #endif
 
 #if CONFIG_FUJINET
-   bool FujiSupport;   // this board serves the FujiNet mailbox; set once by
-                        // RunFujiConfig() and never cleared
-   bool MailboxActive; // session flag: cleared when a game's map overlaps
-                        // the mailbox; restored by RunFujiConfig()
+   bool FujiSupport;   // set once by RunFujiConfig(), never cleared
+   bool MailboxActive; // cleared when a booted game cannot have the mailbox
 #endif
 
 #if CONFIG_ECS_AUDIO || CONFIG_INTELLIVOICE
@@ -60,9 +56,8 @@ void apply_pokes(char *filename);
 void config_jlp(int jlp_value, int jlpflash_value, char *filename);
 int collect_info(char *filename, INFO_ENTRY *info_entries);
 #if CONFIG_JLP
-void update_ram_window(void);   // recompute ramLo/ramHi/ramWindow from
-                                 // JLPAccel/JLPFlash/FujiSupport -- call
-                                 // after changing any of those
+void update_ram_window(void);   // call after changing JLPAccel/JLPFlash/
+                                 // FujiSupport/MailboxActive
 #endif
 
 #endif

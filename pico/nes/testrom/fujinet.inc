@@ -1,11 +1,9 @@
 ; fujinet.inc -- equates for the FujiNet cartridge mailbox on the NES.
 ;
-; Hand-mirrored from firmware/include/fuji_mailbox.h; keep the two in step.
-; Console address = $5000 + arena offset.
+; Mirrors firmware/include/fuji_mailbox.h; console address = $5000 + offset.
 ;
-; THE ONE RULE: only STA/STX/STY to $5500-$57FF, plain or indexed. Never an
-; RMW instruction (INC/DEC/ASL/LSR/ROL/ROR abs): the 6502 writes the old value
-; back first, and that lands as a spurious event. tools/checkrom.py rejects it.
+; Only STA/STX/STY to $5500-$57FF, plain or indexed. An RMW instruction writes
+; the old value back first, a spurious event; tools/checkrom.py rejects it.
 
 ; ---------------- cart -> console, painted ----------------
 FN_RPLY   = $5000               ; the 1K reply window (also the loader's slices)
@@ -38,7 +36,7 @@ FN_RDAT   = $5600               ; raw REGDATA half; unused by clients
 FN_TX     = $5700               ; a write anywhere in the page appends
 FN_LOADER = $5800               ; the loader ROM: JMP here to boot a staged image
 
-; Registers, unchanged from the sibling ports.
+; Registers.
 FR_DEV    = $00
 FR_CMD    = $01
 FR_NPAR   = $02

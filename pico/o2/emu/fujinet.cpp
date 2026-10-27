@@ -15,16 +15,14 @@
 #include <cstdlib>
 #include <cstring>
 
-// The cartridge firmware's own sources, compiled in verbatim as C++ (copied
-// next to this file by pico/o2/emu/apply-mame.sh).
+// The cartridge firmware's own sources, copied in by apply-mame.sh.
 #include "fuji_mailbox.h"
 #include "fujimail.h"
 #include "fujitcp.h"
 
 DEFINE_DEVICE_TYPE(O2_ROM_FUJINET, o2_fujinet_device, "o2_fujinet", "Odyssey 2 FujiNet Cartridge")
 
-// fujimail's port is C function pointers with no context argument, so the one
-// device instance is reached through this. One cart slot, one cart.
+// fujimail's port callbacks take no context argument.
 static o2_fujinet_device *s_fujinet = nullptr;
 
 /*-------------------------------------------------
@@ -138,9 +136,8 @@ void o2_fujinet_device::device_reset()
 		return;
 	m_init_done = true;
 
-	// The loaded image is what the firmware has baked in as its client, so
-	// the mailbox is live whatever the image claims -- fuji_config_boot()'s
-	// rule. A protocol 2 image is served through o2app.h from the start.
+	// The loaded image stands in for the baked-in client, so the mailbox is
+	// live whatever the image claims.
 	if (m_rom && o2map_plan(m_rom.get(), m_rom_size, &plan) == O2MAP_OK)
 	{
 		if (plan.appbank)

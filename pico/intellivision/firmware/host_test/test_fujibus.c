@@ -1,5 +1,5 @@
-// Host-buildable test driver for fujibus.c -- no RP2040/pico-sdk involved.
-// Run: gcc -Wall -Wextra -I.. -o /tmp/test_fujibus test_fujibus.c ../fujibus.c && /tmp/test_fujibus
+// Host test for fujibus.c.
+// Run: gcc -Wall -Wextra -I../include -o /tmp/test_fujibus test_fujibus.c ../src/fujibus.c && /tmp/test_fujibus
 #include <stdio.h>
 #include "fujibus.h"
 

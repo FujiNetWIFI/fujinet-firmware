@@ -37,17 +37,10 @@ bool fuji_cart_next_read(uint16_t *offset)
     return true;
 }
 
-/* Publish one mailbox byte. core0 cannot read the live serve state safely
- * (core1 writes it, and nothing orders the load), so it publishes into both
- * windows: whichever core1 is serving gets the byte, and the other is
- * either dead memory or a staged image that wants the same publishes. A
- * staged image that does NOT claim the mailbox keeps its bytes pristine --
- * and the mailbox stays live on the current window until the swap actually
- * happens, so the client still sees BOOT_READY. (Deactivating at stage
- * time, as the o2 firmware port does, drops that publish and strands the
- * client at the progress screen.) Every mailbox offset is >= 0x1B00 -- the
- * high half -- which an APPBANK image always serves from the RAM window, so
- * banking never hides a publish. */
+/* core0 can't safely read core1's live serve state, so it publishes into both
+ * windows; a staged image that does not claim the mailbox is left untouched.
+ * The mailbox stays live until the swap so the client still sees BOOT_READY.
+ * Every mailbox offset is in the high half, which APPBANK serves from RAM. */
 void fuji_cart_poke(unsigned offset, uint8_t value)
 {
     if (!fuji_mailbox_active)
@@ -57,10 +50,8 @@ void fuji_cart_poke(unsigned offset, uint8_t value)
         fuji_staged[offset & 0x1FFF] = value;
 }
 
-/* Take a committed image and build the staged serve state. Arming is
- * separate and client-driven (FN_REG_BOOTLOCK): a stray can never swap what
- * was never armed, and nothing is overwritten under the running client
- * either way. */
+/* Arming is separate and client-driven (FN_REG_BOOTLOCK), so a stray read
+ * can't swap an unarmed image. */
 void fuji_cart_stage(const uint8_t *image, const astromap_plan_t *plan)
 {
     astromap_serve_t s;
@@ -72,10 +63,8 @@ void fuji_cart_stage(const uint8_t *image, const astromap_plan_t *plan)
         serve_flat(&fuji_next, fuji_staged);
         break;
     case ASTROMAP_APPBANK:
-        /* The high half always serves from the RAM window so mailbox
-         * repaints stay visible; only the low half banks, out of the store.
-         * The low half is never poked, so the store's page 0 and the staged
-         * copy's never diverge. */
+        /* High half from the RAM window so repaints show; the low half banks
+         * out of the store and is never poked, so page 0 copies match. */
         memcpy(fuji_staged, image, sizeof fuji_staged);
         fuji_next.bank[0] = image + s.bank_off[0];
         fuji_next.bank[1] = fuji_staged + 0x1000;

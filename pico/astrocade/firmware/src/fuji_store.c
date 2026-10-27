@@ -11,9 +11,8 @@
 
 extern char __flash_binary_end;
 
-/* Where the firmware image ends, as a flash offset. A seam, because the host
- * test builds this file with a fake flash array for XIP_BASE and the cast
- * below is a 32-bit truncation of a 64-bit pointer there. */
+/* Overridable: on the host test XIP_BASE is a fake array and this cast would
+ * truncate a 64-bit pointer. */
 #ifndef FUJI_STORE_BINARY_END
 #define FUJI_STORE_BINARY_END ((uint32_t)&__flash_binary_end - XIP_BASE)
 #endif
@@ -50,13 +49,8 @@ static enum tier serve_tier(const fuji_serve_t *s)
     return TIER_NONE;
 }
 
-/* Which stores are spoken for right now? Reads of core1's fields are single
- * aligned loads; the answer only matters when the client streams another
- * image, which the protocol serializes well after any swap.
- *
- * fuji_next counts as much as fuji_live: between the close that stages an
- * image and the console's armed swap read it is not being served yet, but
- * overwriting it would boot garbage just the same. */
+/* core1's fields are single aligned loads, and the protocol serializes the
+ * next push well after any swap. A staged image counts as in use too. */
 static bool store_in_use(enum tier t)
 {
     return serve_tier(&fuji_live) == t || serve_tier(&fuji_next) == t;
@@ -75,15 +69,12 @@ uint8_t fuji_store_open(uint32_t size)
         return 0;
     }
     if (size <= FUJI_STORE_FLASH_SIZE && !store_in_use(TIER_FLASH)) {
-        /* Belt and braces; the binary is a fraction of the 1.5MB below. */
         if (FUJI_STORE_BINARY_END > FUJI_STORE_FLASH_OFF) {
             open_tier = TIER_NONE;
             return FN_BOOT_ERR_TOOBIG;
         }
         open_tier = TIER_FLASH;
-        /* A close zeroes flash_off, so a non-zero one here means the last
-         * session was abandoned without one: its programmed prefix is dirty
-         * and the sweep has to start over. */
+        /* Non-zero means the last session never closed: its prefix is dirty. */
         if (flash_off != 0)
             blank_off = 0;
         flash_off = 0;
@@ -94,10 +85,8 @@ uint8_t fuji_store_open(uint32_t size)
                                            : FN_BOOT_ERR_TOOBIG;
 }
 
-/* Erase or program with interrupts off: TinyUSB's handlers live in flash, and
- * vectoring there with XIP suspended is a lockup. core1 needs no such care --
- * its loop and inlined callees are SRAM-resident, and the busy rule above
- * keeps it from serving out of this region meanwhile. */
+/* Interrupts off: TinyUSB's handlers live in flash, and vectoring there with
+ * XIP suspended locks up. core1 is SRAM-resident and never serving from here. */
 static void flash_op(uint32_t off, const uint8_t *src)
 {
     uint32_t irq = save_and_disable_interrupts();
@@ -121,10 +110,8 @@ void fuji_store_idle(void)
     blank_off += FLASH_SECTOR_SIZE;
 }
 
-/* Runs BEFORE the chunk's ACK goes back, so a committed ACK always means
- * committed bytes. The erase is normally already done -- see fuji_store_idle()
- * -- leaving a program, which fits the ESP32's read window; it only happens
- * here when a mount beat the idle sweep to this sector. */
+/* Runs before the chunk's ACK, so an ACK means committed bytes. The erase
+ * here only happens when a mount beats the idle sweep to this sector. */
 static void flush_sector(uint32_t len)
 {
     if (flash_off + FLASH_SECTOR_SIZE > FUJI_STORE_FLASH_SIZE)
@@ -185,10 +172,8 @@ const uint8_t *fuji_store_close(bool aborted, uint32_t *kept)
     if (t == TIER_FLASH) {
         if (!aborted && written > 0 && sec_fill > 0)
             flush_sector(sec_fill);
-        /* Whatever was programmed leaves the prefix dirty, abort included, so
-         * the idle sweep starts over -- and gets to run as soon as this image
-         * stops being the one served. Zeroing the write cursor too is what
-         * lets OPEN tell a finished session from an abandoned one. */
+        /* The prefix is dirty even on abort, so the sweep restarts. A zero
+         * flash_off tells OPEN this session closed. */
         blank_off = 0;
         flash_off = 0;
     }

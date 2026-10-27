@@ -1,18 +1,8 @@
--- Reset survival: the cartridge must NOT restart when the console does.
+-- Reset survival: sample ACKSEQ, soft-reset, run again, and require the next
+-- sequence to be one higher. A client using a local counter would replay 01.
 --
--- The client derives every sequence number from the cart's own persisted
--- ACKSEQ + 1, never from a counter in its own RAM, because a console reset
--- re-zeroes the client's variables while the cart keeps running. On this
--- console that is not just convention -- the connector carries no reset line
--- at all, so the cart cannot be reset by the console even in principle.
---
--- So: run, sample ACKSEQ, soft-reset, run again, and require the second
--- sequence to be one HIGHER. A client using a local counter would replay 01
--- and read a stale reply as a fresh one.
---
--- MAME re-executes an autoboot script on soft reset but does NOT restart the
--- emulated clock, so the guard below keeps the original notifier and its frame
--- count rather than arming a second one.
+-- MAME re-runs an autoboot script on soft reset without restarting the clock,
+-- so the guard below keeps the original notifier rather than arming another.
 if _G._rt_armed then return end
 _G._rt_armed = true
 

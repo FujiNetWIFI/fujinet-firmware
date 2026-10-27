@@ -15,8 +15,7 @@
         INCLUDE "fujinet.inc"
         INCLUDE "s2macro.inc"
 
-; Field offsets in GET_ADAPTERCONFIG_EXTENDED (lib/device/fujiDevice/
-; fujiDevice.h, packed).
+; Field offsets in GET_ADAPTERCONFIG_EXTENDED's packed reply.
 AC_SSID EQU     0                       ; char[33]
 AC_VER  EQU     125                     ; char[15]
 AC_SIP  EQU     140                     ; char[16], the IP as text

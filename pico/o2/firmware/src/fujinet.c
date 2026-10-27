@@ -1,12 +1,5 @@
-/* fujinet.c -- the cartridge's side of the mailbox.
- *
- * The protocol itself lives in fujimail.c, which the o2em model drives too;
- * this is only the port: where a published byte goes, how a frame reaches the
- * ESP32-S3, and what to do with a committed image.
- *
- * NOT YET RUN ON HARDWARE -- there is no Odyssey 2 or cartridge board yet.
- * fujimail.c has been exercised against a real fujinet-pc-rs232 through the
- * emulator, which is exactly why it is shared rather than reimplemented here.
+/* fujinet.c -- the cartridge's port for the mailbox protocol in fujimail.c,
+ * which the o2em model shares. Not yet run on hardware.
  */
 
 #include <string.h>
@@ -24,10 +17,8 @@
 extern unsigned char new_rom_table[8][4096];
 extern volatile bool fuji_boot_armed;
 
-/* Lay a committed image into the spare bank array and arm the swap. core1
- * performs the swap itself, with a single pointer store, on the console's next
- * fetch of the cartridge reset vector -- so nothing is overwritten underneath
- * the client while it is still executing. */
+/* core1 swaps to the staged image with one pointer store at the console's next
+ * reset-vector fetch, so the running client is never overwritten. */
 static void port_stream_end(int stream, const uint8_t *data, unsigned len,
                             bool aborted)
 {
@@ -43,11 +34,9 @@ static void port_stream_end(int stream, const uint8_t *data, unsigned len,
     }
 
     if (plan.appbank) {
-        /* Protocol 2: up to 63K, served where it already lies. There is not
-         * RAM for a second copy, which is why fujimail refuses any further
-         * push while this one is live -- `data` is the stage buffer, and from
-         * the boot fetch on it is also the console's program memory (the
-         * fixed half is written through FN_REG_POKE). */
+        /* Protocol 2: up to 63K, served from the stage buffer in place; there
+         * is no RAM for a second copy. The fixed half is written through
+         * FN_REG_POKE. */
         o2app_init(&fuji_app, (uint8_t *) data, plan.npages);
         fujimail_stage_live = true;
         fuji_app_armed = true;
@@ -60,17 +49,14 @@ static void port_stream_end(int stream, const uint8_t *data, unsigned len,
     }
 
     o2map_apply(data, &plan, new_rom_table);
-    /* The mailbox lives in the program window a real game needs for its own
-     * code. Keep the game, drop the mailbox for the session -- the same call
-     * the Intellivision cart makes with cart.MailboxActive -- unless the image
-     * reserved the page and said so. */
+    /* A game needs the mailbox page for its own code, so the mailbox is off
+     * for the session unless the image claims it. */
     fuji_mailbox_active = plan.mailbox_ok;
     fuji_cart_stage_boot();
     fuji_boot_armed = true;
 
-    /* o2map_apply has just written the image over the staged table's mailbox
-     * page. A mailbox that survives the boot has to be published into it again
-     * before the console fetches $400 and the client looks for the magic. */
+    /* o2map_apply overwrote the staged mailbox page; republish it before the
+     * console fetches $400. */
     if (fuji_mailbox_active)
         fujimail_paint();
 }

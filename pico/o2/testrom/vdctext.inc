@@ -1,14 +1,12 @@
 ; vdctext.inc -- direct VDC character output, no BIOS.
 ;
-; The VDC's character-pointer byte is a BYTE OFFSET into the 512-byte character
-; generator, and the VDC adds (Y>>1) to it while drawing. Glyphs are 7 rows in
-; an 8-byte slot, so for glyph index N at row Y the register value is
-;   N*8 - (Y>>1)
-; with bit 8 of that going into bit 0 of the char's control byte. Verified
-; against o2em's cset.c and vdc.c:536 (`c = chr + ypos; if (col&1) c += 256`).
+; The character pointer is a byte offset into the 512-byte character generator
+; (7-row glyphs in 8-byte slots), and the VDC adds (Y>>1) while drawing, so for
+; glyph N at row Y the value is N*8 - (Y>>1), bit 8 in bit 0 of the control
+; byte. Matches o2em's vdc.c (`c = chr + ypos; if (col&1) c += 256`).
 
 CHRPTR  function idx,y,(idx*8-(y/2))&0FFh          ; low byte -> char reg byte 2
-CHRCTL  function idx,y,col,col|((idx*8-(y/2))>>8&1) ; colour + 9th pointer bit
+CHRCTL  function idx,y,col,col|((idx*8-(y/2))>>8&1) ; color + 9th pointer bit
 
 ; P1 bits (all active low unless noted)
 P1_BANK0    equ 001h    ; P10 cart bank select, low bit
@@ -20,12 +18,10 @@ P1_NC       equ 020h    ; P15 not connected
 P1_COPY     equ 040h    ; P16 1 = RAM->VDC copy mode (also gates cart ~WR off)
 P1_LUM      equ 080h    ; P17 1 = VDC luminance to the video mixer
 
-; VDC selected: P13 low, everything else parked. Copy mode MUST stay low or the
-; cartridge write strobe is disabled.
+; VDC selected: P13 low, the rest parked. P16 must stay low or the cartridge
+; write strobe is disabled.
 P1_SEL_VDC  equ P1_BANK0|P1_BANK1|P1_KBD|P1_XRAM|P1_NC|P1_LUM
 
-; Joysticks and keyboard: VDC and external RAM both OFF the bus (P13, P14 high)
-; and the scanner enabled (P12 low). Getting this wrong is not a quiet failure --
-; with the VDC still selected the bus read never reaches the joystick path at
-; all and returns 0, which is every direction pressed at once.
+; Joysticks and keyboard: P13, P14 high and P12 low. With the VDC still
+; selected the read returns 0, every direction pressed at once.
 P1_SEL_JOY  equ P1_BANK0|P1_BANK1|P1_VDC|P1_XRAM|P1_NC|P1_LUM

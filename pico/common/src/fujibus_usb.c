@@ -1,8 +1,4 @@
-/* fujibus_usb.c -- FujiBus transport over USB CDC to the ESP32-S3.
- *
- * The ESP32-S3 is the USB host and this cartridge is the device, so nothing
- * here enumerates anything; it reads and writes the CDC pipe TinyUSB gives us.
- */
+/* fujibus_usb.c -- FujiBus over USB CDC to the ESP32-S3, which is the USB host. */
 
 #include <string.h>
 
@@ -11,10 +7,8 @@
 
 #include "fujibus_usb.h"
 
-/* Sized for the largest SLIP-encoded frame: a 6-byte header plus a 1K reply
- * (FUJIMAIL_RX_MAX), doubled for SLIP's worst case, plus two delimiters.
- * Undersizing this fails replies and ROM pushes with a cause nowhere near
- * where either end looks. */
+/* A 6-byte header plus a 1K reply (FUJIMAIL_RX_MAX), doubled for SLIP's worst case, plus
+ * two delimiters. */
 #define FUJIBUS_RAW_RX_MAX (2 * (6 + 1024) + 2)
 #define FUJIBUS_TX_MAX     640
 
@@ -37,9 +31,8 @@ void fujibus_set_idle(fujibus_idle_fn hook)
     idle_fn = hook;
 }
 
-/* core1's bus loop shares the SRAM fabric with core0. Calling tud_task() with
- * no gap turns a brief contention burst into contention for the whole wait;
- * the gap costs nothing against a multi-second budget. */
+/* The gap keeps core0's SRAM traffic from contending with core1's bus loop for the
+ * whole wait. */
 static void pump(void)
 {
     tud_task();
@@ -130,8 +123,7 @@ fb_status_t fujibus_transact(uint8_t device, uint8_t command,
             if (!fujibus_parse_reply(rxbuf, rxlen, reply))
                 return FB_EBADFRAME;
             if (inbound_handler != NULL && inbound_handler(reply)) {
-                /* A push frame: it proves the link is alive rather than
-                 * stalled, so the deadline restarts instead of counting down. */
+                /* A push frame proves the link alive, so the deadline restarts. */
                 rxlen = 0;
                 ends = 0;
                 deadline = make_timeout_time_ms(timeout_ms);

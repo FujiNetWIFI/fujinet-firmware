@@ -1,8 +1,6 @@
 /* fuji7800_rp2354b.h -- board header for the FujiNet Atari 7800 cartridge.
- *
- * Modelled on the SDK's pimoroni_pico_plus2_rp2350.h: pico2.h hard-defines
- * the A variant, so a B board declares itself. The bus pin map lives in
- * include/a78_cart.h; nothing here may claim a GPIO.
+ * pico2.h hard-defines the A variant, so a B board declares itself. The bus
+ * pin map is in include/a78_cart.h; nothing here may claim a GPIO.
  */
 #ifndef FUJI7800_RP2354B_H
 #define FUJI7800_RP2354B_H

@@ -44,7 +44,7 @@ void a78_pio_init(void)
     for (i = 0; i < 5 + A78_PIO_SIDE_BITS; i++)
         pio_gpio_init(TABLE_PIO, SLOT_PIN + i);
     pio_sm_set_consecutive_pindirs(TABLE_PIO, TABLE_SM, SLOT_PIN, 5 + A78_PIO_SIDE_BITS, true);
-    /* A13-A15 skip the 2-cycle synchroniser: they are stable long before
+    /* A13-A15 skip the 2-cycle synchronizer: they are stable long before
      * the SRAM is read, and this takes 10 ns off every slot change. */
     TABLE_PIO->input_sync_bypass |= 7u << (A0_PIN + 13 - 16);
 

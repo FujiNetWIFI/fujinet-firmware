@@ -1,16 +1,9 @@
-/* fujitcp.h -- FujiBus over a TCP socket, for emulator models.
+/* fujitcp.h -- FujiBus over TCP to fujinet-pc's BoIP listener, for emulator models.
+ * Unsolicited DBC push frames go to fujimail_inbound mid-transaction.
  *
- * The transport half of the o2em model's fujinet.c, split out so the MAME
- * cart device can reuse it unchanged: SLIP-framed FujiBus request/reply to
- * fujinet-pc's BoIP listener (default 127.0.0.1:9995), with unsolicited DBC
- * push frames handed to fujimail_inbound mid-transaction.
- *
- * Fidelity note: the socket round trip is synchronous, so an emulated
- * console calling it from the read sees ACKSEQ already updated on its first
- * poll. Real hardware makes it wait, as the 5200 device does when it runs
- * this on a worker thread. The client code is identical either way -- it
- * must poll regardless (test_fujimail.c and the SLICE_ECHO handshake catch
- * one that forgets to).
+ * The round trip is synchronous, so an emulated console calling it from the read sees
+ * ACKSEQ updated on its first poll; on hardware (or a worker thread, as the 5200 device
+ * runs it) it waits. A client must poll either way.
  */
 
 #ifndef FUJITCP_H
@@ -25,8 +18,7 @@
 extern "C" {
 #endif
 
-/* Called every few ms while a transaction waits for its reply: the work a
- * cart's core0 keeps doing meanwhile (fujibus_usb.h's idle hook). */
+/* Called every few ms while a transaction waits, as fujibus_usb.h's idle hook is. */
 void fujitcp_set_idle(void (*hook)(void));
 
 /* Connect to "host:port" (NULL: $FUJINET_TCP, else 127.0.0.1:9995).

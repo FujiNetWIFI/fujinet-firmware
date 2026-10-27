@@ -207,7 +207,7 @@ FBCA1:  CALL    FBSEND
         CALL    FBRECV
         CALL    NC,FBCHK
         JP      NC,FBCA2
-        CALL    PFLUSH          ; resynchronise, then ask again
+        CALL    PFLUSH          ; resynchronize, then ask again
         LD      A,(FBTRY)
         DEC     A
         LD      (FBTRY),A

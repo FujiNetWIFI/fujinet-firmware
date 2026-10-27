@@ -4,8 +4,7 @@
  * MA0-7: a page the cart owns raises CART CS at once, ahead of console RAM.
  * The low byte follows within ~634 ns; it is sampled twice, the byte goes
  * out through the 74HCT541, and the cart lets go when the next TPA rises.
- * The decision itself is s2_bus_read (s2_cart.h). At 1.76 MHz a read leaves
- * ~2.4 µs between TPA and the CPU latching data.
+ * At 1.76 MHz a read leaves ~2.4 µs between TPA and the CPU latching data.
  *
  * Interrupts stay off on this core and every byte of it lives in SRAM
  * (fujicart_checksram), so no XIP miss can stall a read.

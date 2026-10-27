@@ -30,18 +30,13 @@ bool fuji_cart_next_read(uint16_t *offset)
     return true;
 }
 
-/* Publish one mailbox byte. core0 writes the live slot directly (core1 only
- * switches slots on the swap, while the client runs its stub from RAM), and
- * also the staged slot while one is pending and claims the mailbox, so a
- * client that boots a claiming image never sees a stale status page. Every
- * mailbox offset is >= 0x1B00, inside the 8K base of either slot. */
+/* Also written into a pending claiming staged slot, so its client never sees a stale
+ * status page. Mailbox offsets are >= 0x1B00, inside either slot's 8K base. */
 void fuji_cart_poke(unsigned offset, uint8_t value)
 {
     if (!fuji_mailbox_active)
-        return;                 /* a booted game owns these pages now */
-    /* The tick is the timer's alone. fujimail.c paints the status page with
-     * zeros, and is shared with the sibling ports, so the filter lives here
-     * rather than there. */
+        return;                 /* a booted game owns these pages */
+    /* The tick is the timer's; the shared fujimail.c paints it with zeros. */
     if (offset == FN_R_TICK_LO || offset == FN_R_TICK_HI)
         return;
     fuji_slot[fuji_live][offset & 0x1FFF] = value;
@@ -59,10 +54,7 @@ volatile uint16_t *fuji_tick_target(void)
                                : NULL;
 }
 
-/* Take a committed image and lay it into the slot that is not being served.
- * Arming is separate and client-driven (FN_REG_BOOTLOCK): a stray can never
- * swap what was never armed, and nothing under the running client is
- * touched -- the swap happens on core1, at the client's own read. */
+/* Arming is separate (FN_REG_BOOTLOCK), so a stray read can never swap an unarmed image. */
 void fuji_cart_stage(const uint8_t *image, const arcmap_plan_t *plan)
 {
     uint8_t *slot = fuji_cart_stage_slot();

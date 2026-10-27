@@ -3,11 +3,8 @@
 ; Pick a host, browse it, boot a cartridge. Joystick up/down moves, the action
 ; button selects.
 ;
-; The display is the binding constraint: the VDC can show 12 single characters
-; and 4 quad groups of 4, and the screen is only 20 glyphs wide, so the two
-; cannot share a row. That gives exactly two lines -- a 16-character name built
-; from the quad groups, and a 12-character status line from the singles. A
-; scrolling list is not on the table; this browses one entry at a time.
+; The VDC gives two usable lines: the 12 single characters carry the name and
+; one quad group a 4-character status cell, so this shows one entry at a time.
 
     cpu 8048
     org 400h
@@ -91,8 +88,8 @@ file_loop:
     call read_entry             ; leaves the name in V_NAME, A = 1 if EOF
     jz file_show
     mov r0,#V_POS               ; walked off the end -- back up until we land
-    mov a,@r0                   ; on a real entry, which a page jump may take
-    jz file_show                ; several steps
+    mov a,@r0                   ; on a real entry
+    jz file_show
     dec a
     mov @r0,a
     jmp file_loop

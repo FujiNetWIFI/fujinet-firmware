@@ -5,17 +5,8 @@
 ; Reads the drive phases (pushed to RX FIFO) and output a latch bit (pulled to TX_FIFO) 
 ; Uses 2 DMA channels to read the desired latch bit
 ;
-; the Y register is set prior to enabling the SM using 
-    ; put LUT address into the FIFO
-    ; pull
-    ; mov y, osr
-    ; out null, 1
-    ;
-    ; or using c code:
-    ; pio_sm_put(pioblk_rw, SM_LATCH, (uintptr_t)latch_lut >> 5);
-    ; pio_sm_exec_wait_blocking(pioblk_rw, SM_LATCH, pio_encode_pull(false, true));
-    ; pio_sm_exec_wait_blocking(pioblk_rw, SM_LATCH, pio_encode_mov(pio_y, pio_osr));
-    ; pio_sm_exec_wait_blocking(pioblk_rw, SM_LATCH, pio_encode_out(pio_null, 1)); 
+; Y holds the LUT address >> 5, loaded before the SM is enabled (pull,
+; mov y osr, out null 1).
 
 .program latch
     mov isr, y      ; put the base address in ISR
@@ -23,10 +14,8 @@
     out pins, 1     ; output the latch bit value 
 
 % c-sdk {
-// this is a raw helper function for use by the user which sets up the GPIO input and output, and configures the SM to output on a particular pin
 
 void latch_program_init(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin) {
-   // configure a SM
    pio_sm_config c = latch_program_get_default_config(offset);
    
    // get 1 bit latch values through the OSR and output on out_pin
@@ -37,11 +26,8 @@ void latch_program_init(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin
    sm_config_set_in_pins(&c, in_pin); 
    sm_config_set_in_shift(&c, false, true, 5);
 
-   // set out_pin as a GPIO output connected to this SM
    pio_gpio_init(pio, out_pin);
    pio_sm_set_consecutive_pindirs(pio, sm, out_pin, 1, true);
-   // sm_config_set_set_pins(&c, pin, 1);
-   // initialize
    pio_sm_init(pio, sm, offset, &c);
 }
 %}

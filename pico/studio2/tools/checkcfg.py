@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """checkcfg.py -- the client build-cart.sh bakes must be a claimed ST2 image: "FUJI" at
-$07FC, every page one the cart may claim for an app (tools/checkrom.py checks the same).
+$07FC, every page one the cart may claim for an app (as tools/mkst2.py checks).
 
     tools/checkcfg.py build/config.st2
 """

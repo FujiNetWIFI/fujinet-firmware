@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Build Channel F console clients with Macroassembler AS (CPU F3850).
 #
-# AS is the same assembler the Arcadia (2650) and O2 (8048) ports already use,
-# so CI reuses their cache block verbatim. Usage: ./build.sh [client ...]
+# Usage: ./build.sh [client ...]
 set -euo pipefail
 
 cd "$(dirname "$0")"
@@ -31,18 +30,15 @@ clients=("$@")
 
 for c in "${clients[@]}"; do
     echo "=== $c ==="
-    # A FujiNet client must be exactly 16K, because the "FUJI" claim sits at the
-    # very top of the window ($47FC) and that is what tells the cart to keep the
-    # mailbox alive after a boot. hello and romctest are plain 2K Videocarts
-    # that never touch the mailbox, so they stay the size a real cart would be.
+    # A FujiNet client fills the 16K window so its "FUJI" claim lands at $47FC;
+    # hello and romctest are plain 2K Videocarts.
     case "$c" in
         hello|romctest) rom_end=0x0fff; claim="" ;;
         fujibank)       rom_end=0x87ff; claim="--banked" ;;  # 16K + 2 pages
         *)              rom_end=0x47ff; claim="--claim" ;;
     esac
     ( cd testrom && "$ASL" "$c.asm" -L -i . -q )
-    # -l 0xff fills the gaps; note p2bin's -f FILTERS records out and would
-    # silently produce an empty image, and -s would append a checksum byte.
+    # p2bin's -f filters records out (an empty image); -s appends a checksum.
     "$P2BIN" "testrom/$c.p" "build/$c.bin" -r "$ROM_BASE-$rom_end" -l 0xff -q
     mv -f "testrom/$c.lst" "build/$c.lst" 2>/dev/null || true
     rm -f "testrom/$c.p"

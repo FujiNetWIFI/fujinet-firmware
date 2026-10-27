@@ -1,13 +1,5 @@
-/* fujinet.c -- the cartridge's side of the mailbox.
- *
- * The protocol itself lives in fujimail.c, which the MAME model drives too;
- * this is only the port: where a published byte goes, how a frame reaches the
- * ESP32-S3, where a pushed image is kept, and the two register writes the
- * loader adds (FN_HOT_SWAP and FN_REG_SLICE_ACK).
- *
- * NOT YET RUN ON HARDWARE -- there is no board yet. fujimail.c is exercised
- * against a real fujinet-pc through the MAME model.
- */
+/* fujinet.c -- this cart's port for fujimail.c, plus the loader's FN_HOT_SWAP
+ * and FN_REG_SLICE_ACK. */
 
 #include <string.h>
 
@@ -100,9 +92,8 @@ void fuji_service_init(void)
     fujibus_set_inbound_handler(fujimail_inbound);
 }
 
-/* One hotspot write, decoded the way channelf_cart.h does: a store to the
- * REGSEL page is a whole register write, expanded into the REGSEL/REGDATA
- * pair the shared decoder expects; a store to the DATA page appends. */
+/* A store to the REGSEL page is a whole register write, expanded into the
+ * REGSEL/REGDATA pair the shared decoder expects; one to DATA appends. */
 static void mailbox_event(uint16_t offset, uint8_t data)
 {
     unsigned page = offset & FN_H_PAGE_MASK;

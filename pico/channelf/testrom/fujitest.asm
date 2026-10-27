@@ -1,17 +1,12 @@
 ; ---------------------------------------------------------------------------
-; fujitest.asm -- M1: one FujiNet round trip, on screen.
+; fujitest.asm -- one FujiNet round trip, on screen.
 ;
-; Burned to a plain EPROM with no cart hardware behind it, it shows
-; NO FUJINET CART together with the two bytes it read instead of the magic --
-; which proves the header, the toolchain and the whole screen path on real
-; iron with no link at all. On the FujiNet cart (or the MAME model) it runs
+; On a plain EPROM it shows NO FUJINET CART and the two bytes read instead of
+; the magic. On the FujiNet cart (or the MAME model) it runs
 ; GET_ADAPTERCONFIG_EXTENDED and prints the SSID, firmware version and IP.
 ;
-; The last line is the point of the test: SEQ is the sequence number the cart
-; acknowledged, and it comes from the CART's persisted ACKSEQ, not from a
-; counter here. Reset the console and it reads 02, then 03 -- proof the client
-; survives a reset that the cartridge never sees. (This console has no reset
-; line on the connector at all.)
+; SEQ comes from the cart's persisted ACKSEQ: each console reset shows it one
+; higher.
 ;
 ; Build: ../build.sh fujitest
 ; ---------------------------------------------------------------------------
@@ -115,9 +110,8 @@ FOUND:	LI FD_FUJI
 	PI DSTR
 HALT2:	BR HALT2
 
-; The reply carries everything we show in one piece: ssid at +0, fn_version at
-; +125, sLocalIP at +140 (AdapterConfigExtended, lib/device/fujiDevice.h).
-; sLocalIP is dotted-decimal TEXT in the reply, not binary octets.
+; AdapterConfigExtended reply: ssid at +0, fn_version at +125, sLocalIP at
+; +140 as dotted-decimal text.
 GOTCFG:	LI CVAL1
 	LR 3,A
 	LI DORGX
@@ -172,9 +166,7 @@ SQSTR:	DB "SEQ ",0
 	INCLUDE "fujilib.inc"
 	INCLUDE "font.inc"
 
-; The claim signature, at the very top of the 16K window ($47FC). Only an
-; exactly-16K image reaches it, so no commercial Videocart can carry it by
-; accident; the cart reads it to decide whether the mailbox survives a boot.
+; The claim signature at $47FC keeps the mailbox alive after a boot.
 	ORG 0800H+FN_ROM_CLAIM
 	DB "FUJI"
 

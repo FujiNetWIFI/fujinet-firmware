@@ -6,11 +6,10 @@
 For each image in build/ab/table.tsv, at the BIOS's first read of $BFFD:
 once with the image served from power-on (the device's DIRECT mode), once
 after fujiboot pushed it and the cart's stub swapped it in. RAM $0000-$3FFF
-must match, and so must SP, X and the flags. A, Y and the chips' timers are
-not compared: the BIOS sets A and Y before using them, and a hand-over
-cannot fix a timer's phase.
-Results: build/soak/results-tierb.tsv, resumable. Workers' fujinet-pc
-copies listen from port 9930.
+must match, and so must SP, X and the flags. A and Y are not compared (the
+BIOS sets them before use), nor the chips' timers (a hand-over cannot fix
+their phase). Results: build/soak/results-tierb.tsv, resumable. Workers'
+fujinet-pc copies listen from port 9930.
 """
 
 import argparse

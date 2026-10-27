@@ -1,15 +1,11 @@
 /* astromap.h -- how a raw Astrocade cartridge image maps into the console's
- * 8K window at 0x2000-0x3FFF, including the two banking schemes of protocol
- * v2 (see fuji_mailbox.h for the spec prose).
+ * 8K window at 0x2000-0x3FFF, including the protocol v2 banking schemes
+ * (see fuji_mailbox.h).
  *
- * Hardware-free on purpose, same as o2map: this and fujibus.c are the pieces
- * most likely to be wrong in a way that is painful to diagnose on real
- * hardware, so both build with plain gcc, both have desktop regression tests,
- * and both are linked by the MAME cart model as well as the cartridge
- * firmware -- emulator and cart stay identical by construction. The serve
- * model below is what MAME's read_rom runs directly; core1 runs a
- * hand-transcribed equivalent that test_bankserve.c fuzzes against the MAME
- * reference handlers.
+ * Hardware-free so it builds with plain gcc for the host tests and links into
+ * the MAME cart model as well as the firmware. MAME's read_rom runs the serve
+ * model below directly; core1 runs a hand-transcribed equivalent that
+ * test_bankserve.c fuzzes against MAME's handlers.
  */
 
 #ifndef ASTROMAP_H
@@ -31,7 +27,7 @@
 typedef enum {
     ASTROMAP_OK = 0,
     ASTROMAP_EEMPTY,    /* zero bytes                                    */
-    ASTROMAP_ETOOBIG,   /* kept for source compat; plan() now maps or ENOMAPs */
+    ASTROMAP_ETOOBIG,   /* unused; plan() maps or returns ENOMAP        */
     ASTROMAP_ENOMAP,    /* no scheme fits this size/claim combination    */
 } astromap_err_t;
 
@@ -51,16 +47,15 @@ typedef struct {
 } astromap_plan_t;
 
 /* Decide the layout for an image of `size` bytes. `image` may be NULL when
- * only the layout is wanted; mailbox_ok then reads false, the safe answer
- * (which also means a NULL 256K/512K query plans as a GAME, never APPBANK).
- * Decision order: EEMPTY; <= 8K FLAT (rules identical to v1); claimed
- * app-shaped -> APPBANK; exact 256K/512K -> GAME; else ENOMAP. */
+ * only the layout is wanted; mailbox_ok then reads false, so a NULL 256K/512K
+ * query plans as a GAME, never APPBANK.
+ * Decision order: EEMPTY; <= 8K FLAT; claimed app-shaped -> APPBANK; exact
+ * 256K/512K -> GAME; else ENOMAP. */
 astromap_err_t astromap_plan(const uint8_t *image, uint32_t size,
                              astromap_plan_t *out);
 
-/* OPEN-time size gate, shared by every port: 0 = some scheme could accept
- * this size (the claim is not known yet), else the FN_BOOT_ERR_* to report.
- * Storage availability is the store's to judge, not this. */
+/* OPEN-time size gate: 0 if some scheme could accept this size (the claim is
+ * not known yet), else the FN_BOOT_ERR_* to report. Storage is not checked. */
 uint8_t astromap_gate(uint32_t size);
 
 /* Does the image carry FN_R_CLAIM_SIG at FN_R_CLAIM? Only a full 8K image
@@ -68,10 +63,8 @@ uint8_t astromap_gate(uint32_t size);
  * bytes into the mailbox pages. */
 bool astromap_claims_mailbox(const uint8_t *image, const astromap_plan_t *plan);
 
-/* Lay a FLAT image into `window` exactly as the console will see it.
- * Power-of-two images mirror (matching how a masked ROM decodes); anything
- * else is padded with 0xFF. FLAT only -- banked kinds serve from the image
- * itself. */
+/* Lay a FLAT image into `window` as the console will see it. Power-of-two
+ * images mirror (as a masked ROM decodes); anything else is padded with 0xFF. */
 void astromap_apply(const uint8_t *image, const astromap_plan_t *plan,
                     uint8_t window[ASTROMAP_WINDOW]);
 
@@ -91,9 +84,8 @@ typedef struct {
 void astromap_serve_reset(const astromap_plan_t *plan, astromap_serve_t *s);
 
 /* Game hotspot: when off >= hot_base, *data = the new bank number (the read
- * RETURNS it, an assignment-expression in the MAME original) and, when
- * `commit`, bank_off[1] moves. `commit` false is the debugger's no-side-
- * effects read. Returns whether the offset was a hotspot. */
+ * returns it, as in MAME) and, if `commit`, bank_off[1] moves. `commit` false
+ * is the debugger's side-effect-free read. Returns whether it was a hotspot. */
 bool astromap_serve_hot(astromap_serve_t *s, uint16_t off, uint8_t *data,
                         bool commit);
 

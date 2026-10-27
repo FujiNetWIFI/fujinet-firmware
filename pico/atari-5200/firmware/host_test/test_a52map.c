@@ -2,7 +2,7 @@
  * handlers (src/devices/bus/a800: rom.cpp, bbsb.cpp, a5200_supercart.cpp),
  * the plan order, .car headers, the claim and the 16K guess.
  *
- * Every access sequence is random with a bias towards the hotspots; the
+ * Every access sequence is random with a bias toward the hotspots; the
  * whole window is compared as the CPU would read it every few hundred steps.
  * A52_CORPUS=/tmp/a5200 also plans every image there and checks the guess
  * against the database.

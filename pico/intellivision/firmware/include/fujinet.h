@@ -3,18 +3,14 @@
 
 #include "fujibus.h"
 
-// Services at most one FujiNet mailbox transaction per call (see
-// fuji_mailbox.h for the SEQ/ACKSEQ interlock) and, independent of that,
-// checks the BOOTSEL doorbell. Call from the core0 loop alongside tud_task().
+// At most one mailbox transaction per call, plus the BOOTSEL doorbell.
+// Call from the core0 loop alongside tud_task().
 void fuji_mailbox_service(void);
 
 // sleep_ms() that keeps USB alive.
 void fuji_wait_ms_pumped(uint32_t ms);
 
-// Registered with fujibus_set_inbound_handler() in Inty_cart_main(): handles
-// the ESP32-S3 pushing a ROM (and optional .cfg sibling) to
-// FUJI_DEVICEID_DBC mid-MOUNT_IMAGE-transaction. See fujinet.c for the full
-// protocol writeup.
+// Inbound handler for the ESP32-S3's ROM push to FUJI_DEVICEID_DBC.
 bool dbc_inbound_handler(const fb_reply_t *req);
 
 #endif /* FUJINET_H */

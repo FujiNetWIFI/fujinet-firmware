@@ -1,5 +1,5 @@
 // main.c -- the FujiNet S-100 card's RP2354B: core1 answers bus cycles, core0
-// runs USB and the link to the ESP32-S3. The card's behaviour is the shared core
+// runs USB and the link to the ESP32-S3. The card's behavior is the shared core
 // (s100_regs.c and friends), the same C the SIMH graft and the host tests run.
 #include <string.h>
 

@@ -11,9 +11,7 @@ option(CONFIG_JLP "Enable JLP" ON)
 option(CONFIG_ECS_AUDIO "Enable ECS audio" OFF)
 option(CONFIG_INTELLIVOICE "Enable Intellivoice" OFF)
 
-# FujiNet needs the USB CDC link to the ESP32-S3 live in Release too -- it's
-# not just a debug convenience here, it's the whole point (see fujicard.cmake,
-# which needs the same thing for the same reason).
+# FujiNet needs the USB CDC link to the ESP32-S3 in Release too
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
    set(CONFIG_USB_DEVICE 1)
    set(MAX_ROM_SIZE 1024*225)    # ~450 kb

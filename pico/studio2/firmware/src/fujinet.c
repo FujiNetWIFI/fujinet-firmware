@@ -1,10 +1,6 @@
-/* fujinet.c -- the cartridge's side of the mailbox.
- *
- * The protocol lives in fujimail.c, which the MAME model drives too, and
- * fuji_port.c binds it to the USB link; this is the rest of the port: where a
- * published byte goes, where a pushed image is kept (straight into the buffer
- * core1 is not serving), the cart's own register FN_REG_CONFIG, and the text
- * engine's share of the hotspot reads.
+/* fujinet.c -- this cart's fujimail port: where a published byte goes, where
+ * a pushed image lands (the buffer core1 is not serving), FN_REG_CONFIG, and
+ * the text engine's share of the hotspot reads.
  */
 
 #include <string.h>

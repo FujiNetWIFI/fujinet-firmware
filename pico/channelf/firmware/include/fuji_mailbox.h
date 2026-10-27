@@ -1,41 +1,15 @@
 /* fuji_mailbox.h -- FujiNet cartridge mailbox layout for the Fairchild
- * Channel F.
+ * Channel F. Shared by the RP2040 cart firmware and the MAME device;
+ * hand-mirrored in testrom/fujilib.inc.
  *
- * Single source of truth, shared by the RP2040 cart firmware, the MAME cart
- * device model, and (hand-mirrored) the F8 console client in
- * testrom/fujilib.inc.
+ * ROMC 05 is a store cycle, so console -> cart is an ordinary write and
+ * cart -> console is memory the cart paints. Reads of the register and TX
+ * pages have no side effect, and the F8 gives every device the full 16-bit
+ * address, so there is no aliasing.
  *
- * WHAT IS DIFFERENT HERE, AND WHY IT MAKES EVERYTHING EASIER
- *
- * The Astrocade, Arcadia and ColecoVision carts push BOTH mailbox directions
- * through the read path, because none of those cartridge edges carries a write
- * strobe. That is where the read-hotspot scheme comes from: the console cannot
- * hand the cart a byte, so it encodes the byte in the low half of an address
- * and performs a read.
- *
- * The Channel F cart is not a ROM. It is a peer on the F8 bus, and ROMC 05 is
- * a store cycle: the console CAN hand it a byte. So console -> cart is an
- * ordinary write, and cart -> console is ordinary memory the cart paints.
- *
- * Two consequences worth stating plainly, because they delete hazards the
- * sibling ports spend real complexity on:
- *
- *   1. Reads of the register and TX pages are INERT. The whole stray-READ
- *      hazard class -- a crashed program fetching through a hotspot page, an
- *      un-maskable vblank NMI landing mid-transaction -- simply does not
- *      exist. The REGSEL/REGDATA arm-and-disarm pairing is kept anyway (see
- *      below), but as protocol shape rather than as a defence.
- *
- *   2. There is no address aliasing to defend against. The F8 gives every
- *      device the full 16-bit register value, so decode is exact -- unlike the
- *      ColecoVision, where A15 never reached the connector and a RAM access at
- *      $7C00-$7FFF was bit-identical to the entire mailbox.
- *
- * The hazard that remains is a stray WRITE, and it has one specific shape:
- * DC0 AUTO-INCREMENTS on every LM and ST. A block copy that runs off the end
- * of the RAM arena walks straight into $FD00 and up, writing registers and
- * streaming garbage into TX. Client-side rule: never let a DC0 run cross
- * $F800 unintentionally, and treat the reply window as the top of RAM.
+ * The remaining hazard is a stray write: DC0 auto-increments on every LM and
+ * ST, so a block copy past the RAM arena writes registers and TX. Never let a
+ * DC0 run cross $F800 unintentionally.
  *
  * MEMORY MAP (console addresses; the BIOS owns $0000-$07FF)
  *
@@ -51,20 +25,13 @@
  *   $FE00-$FEFF  raw REGDATA      kept so fujimail.c compiles verbatim
  *   $FF00-$FFFF  TX stream        a write anywhere in the page appends its data
  *
- * The ROM window sits at $0800 because that is where the BIOS enters a cart
- * ($55 at $0800, jump to $0802); it cannot be moved. Everything else lives in
- * a 32K "arena" at $8000, whose OFFSETS below are deliberately identical to
- * the ColecoVision port's cart-image offsets -- FN_R_DATA 0x7800, FN_R_BASE
- * 0x7C00, and so on -- so that the shared fujimail.c serves it unchanged.
- * Console address = FN_ARENA_BASE + offset.
+ * The BIOS enters a cart at $0800 ($55 at $0800, jump to $0802). The 32K
+ * arena at $8000 uses the offsets the shared fujimail.c expects; console
+ * address = FN_ARENA_BASE + offset.
  *
- * THE TX PAGE AND DC0. A write ANYWHERE in $FF00-$FFFF appends its data byte,
- * rather than only a write to $FF00. That is what lets the client set DC0 once
- * with a single DCI and then run STs: DC0 walks $FF00, $FF01, ... and each
- * store appends. One DCI plus N stores, instead of an address computation per
- * byte. The run is 256 stores long; a longer payload re-issues the DCI. (After
- * 256 stores DC0 has wrapped to $0000, which is BIOS ROM and ignores writes,
- * so overrunning is inert rather than destructive.)
+ * A write anywhere in the TX page appends, so a client sets DC0 once with DCI
+ * and runs up to 256 STs. Overrunning wraps DC0 to $0000, BIOS ROM, which
+ * ignores writes.
  */
 
 #ifndef FUJI_MAILBOX_H
@@ -83,12 +50,8 @@
 
 /* ---------------- cart -> console: painted memory ---------------- */
 
-/* The whole reply in one piece at $F800-$FBFF, as on the ColecoVision. There
- * the reason was that the console had ~700 usable bytes of RAM; here there is
- * 30K, so it is no longer forced -- but it is still right. Reading a directory
- * entry straight out of the reply window and streaming it back into the next
- * transaction avoids a copy, and FN_R_SLICE_ECHO stays in the register file so
- * fujimail.c compiles verbatim (with one slice it is always 0). */
+/* The whole reply in one 1K slice; FN_R_SLICE_ECHO is kept for fujimail.c
+ * and is always 0. */
 #define FN_R_DATA        0x7800   /* the whole reply ($F800)                 */
 #define FN_R_SLICE_LEN   0x400
 #define FN_R_NSLICES     1        /* x 1024 = FUJIMAIL_RX_MAX                */
@@ -114,91 +77,50 @@
 
 #define FN_R_PAINT_END   0x7CFC   /* paint covers [FN_R_BASE, FN_R_PAINT_END) */
 
-/* THE TICK. The Channel F has no frame interrupt the cart can see, the BIOS
- * PSUs' timers are not something a client can share, and a client that counts
- * its own loop passes loses time to every transaction. So the cart keeps the
- * clock: FN_R_TICK_LO/HI count at 60 Hz from cart power-up, wrap at 65536,
- * and keep counting while the cart is busy with a transaction -- the whole
- * point is a client that never stops to wait.
- *
- * It is painted by the cart, not computed on a read, so reading it is as inert
- * as reading any other painted byte. The two bytes change together, but the
- * console reads them one at a time: read HI, LO, HI again, and retry if the
- * two HI readings differ. Not painted while the mailbox is dead. Under MAME it
- * is emulated time, which stands still across a transaction because MAME runs
- * the whole round trip inside one store. */
+/* The tick: the console has no frame interrupt a client can use, so the
+ * cart paints a 60 Hz count from power-up that keeps running during a
+ * transaction. Read HI, LO, HI and retry if the HIs differ. Not painted while
+ * the mailbox is dead. Under MAME it stands still across a transaction, which
+ * runs inside one store. */
 
-/* The claim signature is carried by the cartridge IMAGE, at the very top of
- * the 16K ROM window -- console $47FC. An image with "FUJI" there promises it
- * is a FujiNet client, so the mailbox stays live after it boots. A booted
- * Videocart carries no such claim, and the mailbox goes dead for the session:
- * on this console that also means the arena stops answering at all and
- * $8000-$FFFF reverts to open bus, exactly as a real cart with no RAM fitted.
- *
- * Putting it at the TOP of the window is what makes it safe. Every commercial
- * Videocart is 2K to 6K, so none of them reaches $47FC at all -- past the end
- * of an image is open bus, not a coincidental "FUJI". Client images are
- * therefore exactly FN_ROM_SIZE bytes, or FN_ROM_SIZE plus whole APPBANK
- * pages (below); that is the only layout rule, and tools/checkrom.py enforces
- * it. */
+/* "FUJI" at console $47FC marks a FujiNet client, so the mailbox stays live
+ * after it boots; without it the mailbox goes dead for the session. Commercial
+ * Videocarts are 2K-6K and never reach $47FC. Client images are exactly
+ * FN_ROM_SIZE bytes plus whole APPBANK pages; tools/checkrom.py enforces it. */
 #define FN_ROM_CLAIM     (FN_ROM_SIZE - 4)   /* image offset; console $47FC   */
 
-/* Reply-window stability invariant: the reply and RXLEN are repainted ONLY by
- * a SEQ commit or an RXSLICE select. Between those, a client may stream bytes
- * straight out of the reply window into the TX page while building the next
- * transaction, with no bounce buffer. Writes to the TX page do not disturb it. */
+/* The reply and RXLEN are repainted only by a SEQ commit or an RXSLICE
+ * select, so a client may stream reply bytes straight into the TX page. */
 
 /* ---------------- console -> cart: writes ---------------- */
 
-/* A write of value V to FN_H_REGSEL + n (n < 0x80) is one complete register
- * write: the cart synthesises the REGSEL/REGDATA pair that fujimail.c decodes.
- * The pair survives in the protocol because keeping it is free and it lets
- * this cart use the shared fujimail.c; on this console it is shape, not
- * defence. */
+/* A write of V to FN_H_REGSEL + n (n < 0x80) is one complete register write;
+ * the cart synthesizes the REGSEL/REGDATA pair fujimail.c decodes. */
 #define FN_H_REGSEL      0x7D00   /* write V to +n: register n = V ($FD00)   */
 #define FN_H_REGDATA     0x7E00   /* raw REGDATA half, for the shared decoder */
 #define FN_H_DATA        0x7F00   /* write anywhere in page: append data byte */
 
 #define FN_H_PAGE_MASK   0x7F00
 
-/* FN_H_REGSEL offsets 0x80-0xFF are one-shot special operations rather than
- * register numbers, in the bit7-set half as on the Astrocade and Arcadia. */
+/* FN_H_REGSEL offsets 0x80-0xFF are one-shot operations, not registers. */
 #define FN_HOT_BANK      0x80     /* +n: map APPBANK page n at $4800         */
 #define FN_HOT_BANK_LAST 0xEF
 #define FN_HOT_SWAP      0xFE     /* serve the staged image; armed-only      */
 
 /* A .cfg sibling (FN_STREAM_CFG) is accepted and discarded: there are no mapper variants. */
 
-/* APPBANK: a FujiNet client bigger than the 16K window.
+/* APPBANK: a client bigger than the 16K window. The image is the usual 16K
+ * followed by k 8K pages, 1 <= k <= FN_APP_MAX_PAGES; page n is image bytes
+ * [FN_APP_FIXED + n*FN_APP_PAGE, +FN_APP_PAGE) and appears at $4800-$67FF.
  *
- * The image is the usual 16K -- $55 at offset 0, the "FUJI" claim at $3FFC --
- * followed by k 8K pages, 1 <= k <= FN_APP_MAX_PAGES. The first 16K is served
- * at $0800-$47FF as always, fixed; page n is image bytes
- * [FN_APP_FIXED + n*FN_APP_PAGE, +FN_APP_PAGE) and appears at $4800-$67FF
- * when selected. The window sits right after the fixed 16K, so a client sees
- * $0800-$67FF as one code space.
+ * A store of any value to $FD80+n selects page n, decoded inline so the next
+ * fetch already comes from it. A missing page reads $FF. A swap maps page 0;
+ * a console reset does not, since the BIOS re-enters in the fixed 16K.
  *
- * Selecting is one store, of any value, to $FD80+n. The cart decodes it on the
- * bus, inline, so the very next fetch already comes from page n; a client may
- * select and jump into the window in consecutive instructions. Selecting a
- * page the image does not have makes the window read $FF. Reads of $FD80-$FDEF
- * stay as inert as every other read of the register page.
- *
- * What resets the page: a swap maps page 0. A console RESET does NOT -- it
- * arrives as ROMC 08 and the cart keeps all of its state, as it does for
- * ACKSEQ -- and nothing has to: the BIOS always re-enters at $0802, in the
- * fixed 16K, so a client's start code selects whatever it needs.
- *
- * Banking is only decoded while the mailbox is live. An image with pages but
- * without the claim is refused (FN_BOOT_ERR_NOMAP): a banked image that let
- * the mailbox die could never select a page again. A DC0 run of stores that
- * strays into $FD80-$FDEF switches pages, on top of the register-write hazard
- * the rule above already covers. Old firmware refuses a banked image cleanly,
- * with FN_BOOT_ERR_TOOBIG.
- *
- * The cap is the cart's SRAM, not the protocol: two slots of the largest image
- * (the ping-pong above, so a running client can stage another) have to fit
- * next to the arena, the ring and core0's own memory, and core1 may never
+ * Banking is decoded only while the mailbox is live, so an image with pages
+ * but no claim is refused (FN_BOOT_ERR_NOMAP). Older firmware refuses a banked
+ * image with FN_BOOT_ERR_TOOBIG. The page cap is cart SRAM: two slots of the
+ * largest image must fit beside the arena and the ring, since core1 may never
  * fault out to flash. */
 #define FN_APP_FIXED     0x4000   /* image offset of page 0                  */
 #define FN_APP_WIN       0x4800   /* console address of the page window      */
@@ -211,24 +133,14 @@
  *   2. write FN_REG_BOOTLOCK = FN_BOOTLOCK_MAGIC (one store to $FD11);
  *   3. copy the swap stub into the RAM arena and jump to it;
  *   4. the stub writes any value to $FDFE (FN_H_REGSEL + FN_HOT_SWAP): the
- *      cart flips the ROM window to the staged image between that store and
- *      the next fetch;
- *   5. the stub jumps to $0000 -- the BIOS cold-starts, re-reads the new
- *      image's own $0800 header and $55 behaves exactly as on a real cart.
+ *      cart flips the ROM window to the staged image before the next fetch;
+ *   5. the stub jumps to $0000 and the BIOS cold-starts the new image.
  *
- * The stub must run from the RAM arena, because the swap replaces every byte
- * of the ROM window including whatever code triggered it. The Channel F makes
- * this the easiest of the family: there is no VDP to silence and no NMI to
- * hold off, and 30K of RAM to put the stub in.
+ * The stub runs from the arena because the swap replaces the whole ROM window.
  *
- * CRITICAL, inherited from the Intellivision/O2/Astrocade/Arcadia/Coleco
- * bring-ups: the client derives its next sequence number from the cart's own
- * persisted FN_R_ACKSEQ + 1 (wrapping 255 -> 1; 0 is reserved as "never
- * used"), never from a program-local counter. A console RESET restarts the
- * client and re-zeroes its variables but does NOT reset the cart. On this
- * console the cart can actually SEE that reset -- it arrives as ROMC 08 -- but
- * the rule stands regardless, because a client can also be restarted by a jump
- * to $0000 that the bus never distinguishes. */
+ * The client derives its next sequence number from FN_R_ACKSEQ + 1 (wrapping
+ * 255 -> 1; 0 means never used), never a local counter: a console reset or a
+ * jump to $0000 restarts the client but not the cart. */
 
 #include "fuji_mailbox_check.h"
 

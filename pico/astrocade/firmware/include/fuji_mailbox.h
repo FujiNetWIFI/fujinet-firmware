@@ -1,35 +1,30 @@
 /* fuji_mailbox.h -- FujiNet cartridge mailbox layout for the Bally Astrocade.
  *
- * Single source of truth, shared by the RP2040 cart firmware, the MAME cart
- * device model, and (hand-mirrored) the Z80 console client in fujilib.inc.
+ * Shared by the RP2040 cart firmware, the MAME cart device and (mirrored by
+ * hand) the Z80 client in fujilib.inc.
  *
- * The Astrocade cartridge port is the most asymmetric in the family: it
- * carries A0-A12, D0-D7, one pre-decoded Enable (asserted for reads in
- * 0x2000-0x3FFF) and power. No /RD, no /WR, no /IORQ. So BOTH directions ride
- * the read path:
+ * The cartridge port carries A0-A12, D0-D7, one pre-decoded Enable (asserted
+ * for reads in 0x2000-0x3FFF) and power: no /RD, /WR or /IORQ. So both
+ * directions ride the read path:
  *
- *   console -> cart   reads inside a hotspot window; A0-A7 of the address ARE
- *                     the payload byte. Established Astrocade idiom: the 512K
- *                     homebrew mapper selects banks with reads at 0x3F80-3FFF
- *                     and AstroBASIC toggles its tape relay the same way.
+ *   console -> cart   reads inside a hotspot window; A0-A7 of the address are
+ *                     the payload byte (the 512K homebrew mapper and
+ *                     AstroBASIC's tape relay use the same idiom).
  *
- *   cart -> console   bytes the cart paints into the ROM window it already
- *                     serves; by the time the console reads them they are just
- *                     ROM (the O2 "reads are free" rule, now used both ways).
+ *   cart -> console   bytes the cart paints into the ROM window it serves.
  *
- * Stray reads are the design hazard here, not stray writes. Z80 refresh
- * cycles put I on A8-A15 and R on A0-A7; if the console's Enable decode does
- * not qualify /RFSH, a program whose I register selects one of the hotspot
- * pages sprays phantom reads across offsets 0x00-0x7F of that page. Defenses,
- * in depth:
+ * Stray reads are the hazard. Z80 refresh puts I on A8-A15 and R on A0-A7; if
+ * the console's Enable decode does not qualify /RFSH, a program whose I
+ * selects a hotspot page sprays phantom reads across offsets 0x00-0x7F of
+ * that page. Defenses:
  *   - a REGDATA read with no immediately-preceding REGSEL read is a no-op
  *     (regsel disarms after one use), so an isolated stray mutates nothing;
  *   - a transaction launches only on the SEQ register with a value that is
  *     nonzero and differs from the last acknowledged sequence;
  *   - the ROM-swap trigger lives at offset 0xFE (bit 7 set -- the R register
  *     never reaches it) and fires only after the client armed it;
- *   - our own clients keep I pointed at screen RAM (0x4F), so refresh never
- *     lands in cart space at all;
+ *   - our own clients never point I at cart space, so their refresh never
+ *     lands there;
  *   - booting an image that does not claim the mailbox clears
  *     fuji_mailbox_active and hotspot decode goes dead for the session.
  */
@@ -39,9 +34,8 @@
 
 #include "fuji_mailbox_proto.h"
 
-/* Everything below is a CART OFFSET (0x0000-0x1FFF); the console address is
- * offset + 0x2000. The Z80 client's equates in fujilib.inc are the +0x2000
- * forms and must be kept in step by hand. */
+/* Cart offsets (0x0000-0x1FFF); the console address is offset + 0x2000.
+ * fujilib.inc carries the +0x2000 forms, kept in step by hand. */
 
 #define FN_WINDOW_SIZE   0x2000   /* the whole cartridge window              */
 #define FN_ROM_TOP       0x1B00   /* client code/data must stay below this   */
@@ -66,21 +60,16 @@
 #define FN_R_MAGIC1      0x1C0A   /* 'N'                                     */
 #define FN_R_PROTO_VER   0x1C0B
 #define FN_PROTO_VER     2        /* the value painted there; 2 = banking    */
-/* Published LAST after every slice repaint, with the slice number just
- * painted. The repaint is asynchronous on real hardware (core0 does it while
- * the Z80 keeps running), so the client selects a slice and polls this until
- * it echoes; reading the slice before that races the repaint. The O2 protocol
- * lacks this byte and its emulator model admits it cannot catch a client
- * that forgets to poll -- here the byte makes polling possible at all. */
+/* Written last after each slice repaint, with that slice's number. core0
+ * repaints while the Z80 runs, so the client polls this for its slice's echo
+ * before reading the slice. */
 #define FN_R_SLICE_ECHO  0x1C0C
 
 #define FN_R_PAINT_END   0x1CFC   /* paint covers [FN_R_BASE, FN_R_PAINT_END) */
 
-/* 0x1CFC-0x1CFF is never painted: it is where a cartridge image declares
- * itself. An image carrying "FUJI" here promises that 0x1B00-0x1FFF holds no
- * code or data, so the mailbox may keep painting and decoding after it boots.
- * An ordinary game uses that space for its own bytes, which is why booting
- * one disables the mailbox for the session. */
+/* 0x1CFC-0x1CFF is never painted. An image carrying "FUJI" here promises
+ * 0x1B00-0x1FFF holds no code or data, so the mailbox stays live after it
+ * boots; booting any other image disables the mailbox for the session. */
 #define FN_R_CLAIM       0x1CFC
 
 /* ---------------- console -> cart: hotspot reads ---------------- */
@@ -91,38 +80,31 @@
 
 #define FN_H_PAGE_MASK   0x1F00   /* offset & this == FN_H_REGSEL: REGSEL page */
 
-/* FN_H_REGSEL offsets 0x80-0xFF are one-shot special operations, not
- * register numbers. Placed in the bit7-set half so default-R-register
- * refresh strays (R bit 7 does not count) can never reach them. */
+/* FN_H_REGSEL offsets 0x80-0xFF are one-shot operations, not registers;
+ * refresh strays can't reach them because R bit 7 does not count. */
 #define FN_HOT_SWAP      0xFE     /* serve the staged image; armed-only      */
 
 /* ---------------- banked images (protocol v2) ----------------
  *
- * Two schemes, mutually exclusive by construction.
- *
- * GAME (mailbox dead): an image of exactly 256K or 512K with no claim uses
- * the established homebrew mapper, byte-compatible with MAME's rom_256k /
- * rom_512k. Console 0x2000-0x2FFF is fixed to the LAST 4K bank of the image;
- * 0x3000 up to the hotspot base is the switched 4K bank; a read anywhere in
- * 0x3FC0-0x3FFF (256K) / 0x3F80-0x3FFF (512K) sets bank = address & mask AND
- * returns the new bank number as the data byte. Those hotspots sit inside
- * the FN_H_DATA page, which is exactly why game banking exists only with the
- * mailbox dead -- a claim-less boot already guarantees that. Bank state is
- * NOT reset by console RESET (the cart edge carries no reset line); the
+ * GAME (mailbox dead): an unclaimed image of exactly 256K or 512K uses the
+ * homebrew mapper, byte-compatible with MAME's rom_256k / rom_512k. Console
+ * 0x2000-0x2FFF is fixed to the image's last 4K bank; 0x3000 up to the
+ * hotspot base is the switched bank; a read in 0x3FC0-0x3FFF (256K) /
+ * 0x3F80-0x3FFF (512K) sets bank = address & mask and returns the new bank
+ * number. Those hotspots sit in the FN_H_DATA page, hence mailbox dead.
+ * Console RESET does not reset the bank (no reset line on the cart edge); the
  * fixed low half holds the 0x55 sentinel, so restarts still work.
  *
- * APPBANK (mailbox fully live): a claimed image of 8192 + k*4096 bytes,
- * k >= 1. Image page N = bytes [N*4096, (N+1)*4096). Boot state: page 0 at
- * console 0x2000-0x2FFF (the LOW half is what banks), page 1 fixed at
- * 0x3000-0x3FFF and always served from the RAM window so mailbox repaints
- * stay visible. Bank select is ONE read at FN_H_REGSEL + FN_HOT_BANK + page,
- * handled inline by the bus-serving layer like the swap, so the very next
- * read sees the new page; the data byte the select read returns is
- * undefined. Selecting page 1 low is legal and harmless. A console RESET
- * does not restore page 0, so every selectable page should begin with the
- * 7-byte sentinel header (0x55, DW menu-link, DW name, DW start) whose start
- * vector points at high-half code that re-selects page 0 --
- * tools/mkbanked.py stamps this. */
+ * APPBANK (mailbox live): a claimed image of 8192 + k*4096 bytes, k >= 1.
+ * Image page N = bytes [N*4096, (N+1)*4096). Boot state: page 0 at console
+ * 0x2000-0x2FFF (the low half banks), page 1 fixed at 0x3000-0x3FFF and
+ * served from the RAM window so mailbox repaints stay visible. Bank select is
+ * one read at FN_H_REGSEL + FN_HOT_BANK + page, handled inline like the swap,
+ * so the next read sees the new page; the select read's data byte is
+ * undefined. Selecting page 1 low is harmless. RESET does not restore page 0,
+ * so every selectable page should begin with the 7-byte sentinel header
+ * (0x55, DW menu-link, DW name, DW start) whose start vector points at
+ * high-half code that re-selects page 0; tools/mkbanked.py stamps this. */
 #define FN_HOT_BANK      0x80     /* + page: map image page into the low 4K  */
 #define FN_HOT_BANK_LAST 0xEF     /* 0xF0-0xFF stay reserved for special ops */
 #define FN_APP_PAGE_SIZE 0x1000
@@ -142,11 +124,9 @@
  * After the swap: an APPBANK image keeps the mailbox live with page 0 in the
  * low half; a GAME image kills the mailbox and its own hotspots take over.
  *
- * CRITICAL, inherited from the Intellivision/O2 bring-ups: the client derives
- * its next sequence number from the cart's own persisted FN_R_ACKSEQ + 1
- * (wrapping 255 -> 1; 0 is reserved as "never used"), never from a
- * program-local counter. A console RESET restarts the client and re-zeroes
- * its variables but does NOT reset the cart. */
+ * The client derives its next sequence number from the cart's FN_R_ACKSEQ + 1
+ * (wrapping 255 -> 1; 0 means "never used"), never from a local counter: a
+ * console RESET re-zeroes the client's variables but not the cart. */
 
 #include "fuji_mailbox_check.h"
 

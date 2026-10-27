@@ -1,17 +1,15 @@
 #!/usr/bin/env python3
 """mkcorpus.py -- synthetic .nes images for the soak.
 
-There is no NES ROM set on this machine, so the soak drives synthetic images:
-one per Tier-1 mapper at the sizes that matter, every 1K PRG and CHR bank
-stamped so a Lua harness can tell which bank a slot is showing:
+One image per Tier-1 mapper at the sizes that matter, every 1K PRG and CHR
+bank stamped so a Lua harness can tell which bank a slot is showing:
 
     PRG bank b (1K units), offset 0:  'P', b_lo, b_hi, ~b_lo, then a hash run
     CHR bank b (1K units), offset 0:  'C', b_lo, b_hi, ~b_lo, then a hash run
 
-Every 16K PRG bank ends with a reset vector into a two-byte `SEI / JMP *`
-stub at its own start (offset 4), so whatever bank is fixed at $C000 at
-power-on, the console idles instead of executing stamps. The last 16 bytes of
-PRG carry no claim: these are "games", and the mailbox must go dead.
+Every 16K PRG bank has an `SEI; JMP $8004` idle loop at offset 4 and vectors
+to it, so whatever bank is mapped at power-on the console idles. No claim:
+these are "games", and the mailbox must go dead.
 
 Usage: mkcorpus.py [outdir]   (default build/soak)
 """

@@ -1,9 +1,7 @@
-; pokeytest.s -- M2p: a fixed script of POKEY sounds through the cart's
-; POKEY at $0450, for tools/pokeycmp.py to compare MAME's recording with the
-; firmware's synthesiser. The TIA is never touched, so the recording is the
-; POKEY alone. Each step is one row of `steps` (AUDCTL, AUDF1, AUDC1, AUDF2,
-; AUDC2), held for 30 frames; tools/pokeycmp.py reads the table back out of
-; the built image.
+; pokeytest.s -- M2p: a fixed script of sounds on the cart's POKEY at $0450,
+; for tools/pokeycmp.py to compare MAME's recording with the firmware's
+; synthesizer. The TIA is never touched. Each row of `steps` is held for 30
+; frames; pokeycmp.py reads the table out of the built image.
 
         .include "fujinet.inc"
 

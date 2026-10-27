@@ -1,10 +1,10 @@
 -- handover.lua -- Tier B: the machine as the game first finds it. When the
--- BIOS's interpreter first reads the cart's $0400 (P = 4, R5 = $0400 as the
--- tap runs, before LDA R5 bumps it:
--- the boot byte-code's jump to the cart) after the image is live -- a
--- power-on into the image (DIRECT), or fujiboot's hand-over -- write the CPU's
--- registers, flags and the console's 512 bytes of RAM to $TIERB_OUT, one
--- "name value" per line, and exit. tools/tierb.py compares the two.
+-- BIOS's interpreter first reads the cart's $0400 (the boot byte-code's jump
+-- to the cart: P = 4, R5 = $0400 before LDA R5 bumps it) after the image is
+-- live -- a power-on into the image (DIRECT), or fujiboot's hand-over --
+-- write the CPU's registers, flags and the console's 512 bytes of RAM to
+-- $TIERB_OUT, one "name value" per line, and exit. tools/tierb.py compares
+-- the two.
 local out = os.getenv("TIERB_OUT")
 local cpu = manager.machine.devices[":ic1"]
 local space = cpu.spaces["program"]

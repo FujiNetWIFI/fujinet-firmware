@@ -5,20 +5,13 @@
 #   SD=... FUJINET_TCP=host:port ./tools/soak.sh      the synthetic corpus
 #   CORPUS=~/roms SD=... FUJINET_TCP=... ./tools/soak.sh   any .bin/.chf images
 #
-# SD (the fujinet-pc SD root the images are copied into) and FUJINET_TCP (that
-# fujinet-pc's BoIP listener) have no defaults on purpose: fujinet-pc takes one
-# BoIP client at a time, and a soak aimed at someone's everyday instance by
-# default would starve it for the length of the run.
+# SD (the fujinet-pc SD root) and FUJINET_TCP (its BoIP listener) have no
+# defaults: fujinet-pc takes one BoIP client at a time.
 #
-# An image named *_errN.bin must be REFUSED by the cart with FN_BOOT_ERR N
-# (tools/mkcorpus.py makes a banked image without its claim, and a ragged one).
+# An image named *_errN.bin must be refused with FN_BOOT_ERR N.
 #
-# Resumable: results land in build/soak.log and an image already recorded is
-# skipped, so an interrupted run picks up where it stopped. Re-run from scratch
-# with FRESH=1.
-#
-# Each image needs its own fujiboot build, because the boot path is baked into
-# the client -- assembling is a second, and the MAME run dominates anyway.
+# Resumable via build/soak.log; FRESH=1 starts over. Each image gets its own
+# fujiboot build, since the boot path is baked into the client.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 HERE="$PWD"
