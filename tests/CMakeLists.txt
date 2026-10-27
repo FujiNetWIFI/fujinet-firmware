@@ -336,6 +336,7 @@ if(NOT WIN32)
       ${CMAKE_SOURCE_DIR}/lib/media/adam/mediaTypeDSK.cpp
       ${CMAKE_SOURCE_DIR}/lib/media/adam/mediaTypeROM.cpp
       ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFS.cpp
+      ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnDirCache.cpp
       ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFsSPIFFS.cpp
   )
   if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
@@ -474,6 +475,7 @@ if(NOT FUJINET_TARGET STREQUAL "APPLE")
       ${CMAKE_SOURCE_DIR}/lib/printer-emulator/pdf_printer.cpp
       ${CMAKE_SOURCE_DIR}/lib/printer-emulator/printer_emulator.cpp
       ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFS.cpp
+      ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnDirCache.cpp
       ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFsSPIFFS.cpp
   )
   if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")

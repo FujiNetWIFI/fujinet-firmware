@@ -15,10 +15,6 @@ private:
     struct smb2_context *_smb;
     struct smb2_url *_url;
 
-    // directory cache
-    char _last_dir[MAX_PATHLEN];
-    DirCache _dircache;
-
     void _release();
 
 public:
@@ -46,11 +42,8 @@ public:
     success_is_true rmdir(const char* path) override { RETURN_ERROR_AS_FALSE(); };
     bool dir_exists(const char* path) override { return true; };
 
-    success_is_true dir_open(const char *path, const char *pattern, uint16_t diropts) override;
-    fsdir_entry *dir_read() override;
-    void dir_close() override;
-    uint16_t dir_tell() override;
-    success_is_true dir_seek(uint16_t pos) override;
+protected:
+    success_is_true fill_dircache(const char *path) override;
 };
 
 #endif // FN_FSSMB_H

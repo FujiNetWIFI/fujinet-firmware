@@ -9,6 +9,9 @@
 
 #include "pdf_printer.h"
 
+// FileSystem links DirCache, which filters with this; these tests never list a directory.
+bool util_wildcard_match(const char *, const char *) { return true; }
+
 // Link-time stand-ins: only pdf_add_fonts() reads the font files, and no test closes a job.
 long util_parseInt(FILE *f) { (void)f; return 0; }
 long util_parseInt(FILE *f, char skipChar) { (void)f; (void)skipChar; return 0; }

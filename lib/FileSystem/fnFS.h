@@ -5,9 +5,13 @@
 
 #include <stdio.h>
 #include <cstdint>
+#include <cstring>
+#include <memory>
 
 #include "fnio.h"
 #include "global_types.h"
+#include "fnFSDirEntry.h"
+#include "fnDirCache.h"
 
 #ifndef ESP_PLATFORM
 #include "compat_dirent.h"
@@ -24,14 +28,6 @@
 #define FILE_READ_WRITE_TEXT "r+t"
 #endif
 
-#ifdef ESP_PLATFORM
-#define MAX_PATHLEN 256
-#else
-#define MAX_PATHLEN 1024
-#endif
-
-#define FNFS_INVALID_DIRPOS 0xFFFF
-
 enum fsType
 {
     FSTYPE_SPIFFS = 0,
@@ -45,22 +41,6 @@ enum fsType
     FSTYPE_COUNT
 };
 
-enum dir_option_t : uint16_t
-{
-    DIR_OPTION_UNSORTED   = 0x0001, // Don't sort
-    DIR_OPTION_DESCENDING = 0x0002, // Sort descending, not ascending
-    DIR_OPTION_FILEDATE   = 0x0004, // Sort by date, not name
-};
-
-
-struct fsdir_entry
-{
-    char filename[MAX_PATHLEN];
-    bool isDir;
-    uint32_t size;
-    time_t modified_time;
-};
-typedef struct fsdir_entry fsdir_entry_t;
 
 class FileSystem
 {
@@ -73,9 +53,29 @@ protected:
     bool _started = false;
     fsdir_entry _direntry;
 
+    // The listing dir_open() reads with fill_dircache(), made on first use and held in PSRAM so
+    // an idle filesystem costs one pointer of DRAM. A filesystem that pages its own listing
+    // overrides the dir_* functions and never allocates it.
+    std::unique_ptr<DirCache> _dircache;
+
     char *_make_fullpath(const char *path);
 
+    // Add every entry of path to _dircache
+    virtual success_is_true fill_dircache(const char *path) { RETURN_ERROR_AS_FALSE(); }
+
+    // Whether the filesystem can list right now
+    virtual success_is_true ready_to_list() { RETURN_SUCCESS_IF(_started); }
+
+    // Whether the listing outlives dir_close(), so opening the same path again skips fill_dircache()
+    virtual bool keeps_listing() { return true; }
+
 public:
+    FileSystem() = default;
+    // Another handle on the same filesystem, with a listing of its own
+    FileSystem(const FileSystem &other) : _started(other._started), _direntry(other._direntry)
+    {
+        memcpy(_basepath, other._basepath, sizeof(_basepath));
+    }
     virtual ~FileSystem() {};
 
     // The globals (fnSDFAT and fsFlash) will return true so we can check before attempting to free/delete
@@ -119,13 +119,16 @@ public:
     virtual bool dir_exists(const char* path) = 0;
 
     // By default, a directory should be sorted and special/hidden items should be filtered out
-    virtual success_is_true dir_open(const char *path, const char *pattern, uint16_t diroptions) = 0;
-    virtual fsdir_entry_t *dir_read() = 0;
-    virtual void dir_close() = 0;
+    virtual success_is_true dir_open(const char *path, const char *pattern, uint16_t diroptions);
+    virtual fsdir_entry_t *dir_read() { return _dircache ? _dircache->read(_direntry) : nullptr; }
+    virtual void dir_close();
     // Returns current position in directory stream or FNFS_INVALID_DIRPOS on error
-    virtual uint16_t dir_tell() = 0;
+    virtual uint16_t dir_tell() { return _dircache ? _dircache->tell() : FNFS_INVALID_DIRPOS; }
     // Sets current position in directory stream.
-    virtual success_is_true dir_seek(uint16_t position) = 0;
+    virtual success_is_true dir_seek(uint16_t position)
+    {
+        RETURN_SUCCESS_IF(_dircache && _dircache->seek(position).is_success());
+    }
 };
 
 #endif //_FN_FS_

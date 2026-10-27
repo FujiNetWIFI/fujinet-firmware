@@ -28,14 +28,10 @@ private:
     std::unique_ptr<PeoplesUrlParser> _url;
 
     // HTTP client
-    HTTP_CLIENT_CLASS *_http;
+    std::unique_ptr<HTTP_CLIENT_CLASS> _http;
 
     // directory index parser
     IndexParser _parser;
-
-    // directory cache
-    char _last_dir[MAX_PATHLEN];
-    DirCache _dircache;
 
     // Build the fully-qualified, url-encoded URL for a file path under this host.
     std::string make_file_url(const char *path);
@@ -65,16 +61,13 @@ public:
     success_is_true rmdir(const char* path) override { RETURN_ERROR_AS_FALSE(); };
     bool dir_exists(const char* path) override { return true; };
 
-    success_is_true dir_open(const char *path, const char *pattern, uint16_t diropts) override;
-    fsdir_entry *dir_read() override;
-    void dir_close() override;
-    uint16_t dir_tell() override;
-    success_is_true dir_seek(uint16_t pos) override;
 
 #ifndef FNIO_IS_STDIO
     FileHandler *cache_file(const char *path, const char *mode);
 #endif
 
+protected:
+    success_is_true fill_dircache(const char *path) override;
 };
 
 #endif // FN_FSHTTP_H

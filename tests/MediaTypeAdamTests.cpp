@@ -8,6 +8,9 @@
 #include "mediaTypeDSK.h"
 #include "mediaTypeROM.h"
 
+// FileSystem links DirCache, which filters with this; these tests never list a directory.
+bool util_wildcard_match(const char *, const char *) { return true; }
+
 namespace
 {
 

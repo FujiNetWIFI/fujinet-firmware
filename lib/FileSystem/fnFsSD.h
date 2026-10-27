@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "fnFS.h"
-#include "fnDirCache.h"
+
 
 class FileSystemSDFAT : public FileSystem
 {
@@ -20,8 +20,6 @@ private:
     DIR * _dir;
 #endif
     uint64_t _card_capacity = 0;
-    // Cached so the listing can be sorted and support dir_tell()/dir_seek()
-    DirCache _dircache;
 public:
     FileSystemSDFAT() = default;
     // Another handle on the mounted card, with its own directory listing
@@ -56,12 +54,6 @@ public:
     success_is_true rmdir(const char* path) override;
     bool dir_exists(const char* path) override { return true; };
 
-    success_is_true dir_open(const char * path, const char *pattern, uint16_t diropts) override;
-    fsdir_entry *dir_read() override;
-    void dir_close() override;
-    uint16_t dir_tell() override;
-    success_is_true dir_seek(uint16_t) override;
-
     success_is_true create_path(const char *path);
     
     uint64_t card_size();
@@ -71,6 +63,11 @@ public:
 
     // TODO: make it part of base FileSystem class (similar to filesize)
     long mtime(const char *path);
+protected:
+    success_is_true fill_dircache(const char *path) override;
+    success_is_true ready_to_list() override { RETURN_SUCCESS_AS_TRUE(); }
+    // The card changes under it, so each open reads it afresh
+    bool keeps_listing() override { return false; }
 };
 
 extern FileSystemSDFAT fnSDFAT;
