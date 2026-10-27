@@ -28,7 +28,7 @@ private:
     std::unique_ptr<PeoplesUrlParser> _url;
 
     // HTTP client
-    HTTP_CLIENT_CLASS *_http;
+    std::unique_ptr<HTTP_CLIENT_CLASS> _http;
 
     // directory index parser
     IndexParser _parser;

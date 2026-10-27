@@ -406,7 +406,7 @@ success_is_true FileSystemFTP::fill_dircache(const char *path)
 
     // get first directory entry
     res = _ftp->read_directory(filename, filesz, is_dir);
-    while(res == FUJI_ERROR::NONE)
+    while (res == FUJI_ERROR::NONE)
     {
         // skip hidden (must still advance to next entry, else infinite loop)
         if (filename[0] == '.')

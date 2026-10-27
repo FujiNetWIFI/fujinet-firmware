@@ -149,7 +149,7 @@ success_is_true FileSystemSDFAT::fill_dircache(const char *path)
 #ifdef ESP_PLATFORM
     FILINFO finfo;
 
-    while(f_readdir(&_dir, &finfo) == FR_OK)
+    while (f_readdir(&_dir, &finfo) == FR_OK)
     {
         // An empty name indicates the end of the directory
         if(finfo.fname[0] == '\0')
@@ -180,7 +180,7 @@ success_is_true FileSystemSDFAT::fill_dircache(const char *path)
     struct dirent *d;
     struct stat s;
 
-    while((d = readdir(_dir)) != nullptr)
+    while ((d = readdir(_dir)) != nullptr)
     {
         // Ignore items starting with '.'
         if(d->d_name[0] == '.')

@@ -30,7 +30,6 @@
 FileSystemHTTP::FileSystemHTTP()
 {
     Debug_printf("FileSystemHTTP::ctor\n");
-    _http = nullptr;
     _url = nullptr;
 }
 
@@ -41,8 +40,6 @@ FileSystemHTTP::~FileSystemHTTP()
     {
 //        _http->logout();
     }
-    if (_http != nullptr)
-        delete _http;
 }
 
 success_is_true FileSystemHTTP::start(const char *url, const char *user, const char *password)
@@ -53,11 +50,7 @@ success_is_true FileSystemHTTP::start(const char *url, const char *user, const c
     if(url == nullptr || url[0] == '\0')
         RETURN_ERROR_AS_FALSE();
 
-    if (_http != nullptr)
-    {
-        delete _http;
-        _http = nullptr;
-    }
+    _http.reset();
 
     // _http = new HTTP_CLIENT_CLASS();
     // if (_http == nullptr)
@@ -154,9 +147,7 @@ FileHandler *FileSystemHTTP::cache_file(const char *path, const char *mode)
         return nullptr;
 
     // Setup HTTP client
-    if (_http != nullptr)
-        delete _http;
-    _http = new HTTP_CLIENT_CLASS();
+    _http = std::make_unique<HTTP_CLIENT_CLASS>();
     if (_http == nullptr)
     {
         Debug_println("FileSystemHTTP::cache_file() - failed to create HTTP client\n");
@@ -255,8 +246,7 @@ FileHandler *FileSystemHTTP::cache_file(const char *path, const char *mode)
     free(buf);
 
     // Dispose HTTP client
-    delete _http;
-    _http = nullptr;
+    _http.reset();
 
     if (cancel)
     {
@@ -283,14 +273,10 @@ bool FileSystemHTTP::is_dir(const char *path)
 
 success_is_true FileSystemHTTP::fill_dircache(const char *path)
 {
-    if (_http != nullptr)
-    {
-        delete _http;
-        _http = nullptr;
-    }
+    _http.reset();
 
     // Setup HTTP client
-    _http = new HTTP_CLIENT_CLASS();
+    _http = std::make_unique<HTTP_CLIENT_CLASS>();
     if (_http == nullptr)
     {
         Debug_println("FileSystemHTTP::dir_open() - failed to create HTTP client\n");
@@ -399,8 +385,7 @@ success_is_true FileSystemHTTP::fill_dircache(const char *path)
     free(buf);
 
     // Dispose http client
-    delete _http;
-    _http = nullptr;
+    _http.reset();
 
     if (cancel)
     {

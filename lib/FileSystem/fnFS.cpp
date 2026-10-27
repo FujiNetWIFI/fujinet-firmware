@@ -105,15 +105,9 @@ success_is_true FileSystem::dir_open(const char *path, const char *pattern, uint
 
     if (!_dircache)
     {
-#ifdef ESP_PLATFORM
-        PSRAMAllocator<DirCache> allocator;
-        void *memory = allocator.allocate(1);
-        if (memory == nullptr)
+        _dircache = std::make_unique<DirCache>();
+        if (!_dircache)
             RETURN_ERROR_AS_FALSE();
-        _dircache.reset(new (memory) DirCache());
-#else
-        _dircache.reset(new DirCache());
-#endif
     }
 
     if (keeps_listing() && _dircache->holds(path))

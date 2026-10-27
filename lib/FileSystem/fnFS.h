@@ -7,7 +7,6 @@
 #include <cstdint>
 #include <cstring>
 #include <memory>
-#include <new>
 
 #include "fnio.h"
 #include "global_types.h"
@@ -57,11 +56,7 @@ protected:
     // The listing dir_open() reads with fill_dircache(), made on first use and held in PSRAM so
     // an idle filesystem costs one pointer of DRAM. A filesystem that pages its own listing
     // overrides the dir_* functions and never allocates it.
-#ifdef ESP_PLATFORM
-    std::unique_ptr<DirCache, PSRAMDeleter<DirCache>> _dircache;
-#else
     std::unique_ptr<DirCache> _dircache;
-#endif
 
     char *_make_fullpath(const char *path);
 

@@ -44,6 +44,16 @@ private:
     const char *name_of(uint32_t idx) const { return &_names[_records[idx].name_offset]; }
 
 public:
+#ifdef ESP_PLATFORM
+    // Hold a listing in PSRAM, not the DRAM the default heap would give it. Returns nullptr when
+    // PSRAM and DRAM are both full, which a new-expression checks for.
+    static void *operator new(size_t size) noexcept
+    {
+        return PSRAMAllocator<char>().allocate(size);
+    }
+    static void operator delete(void *ptr) noexcept { heap_caps_free(ptr); }
+#endif
+
     void clear();
     // Which directory the entries hold, so a caller can skip reading it again
     void set_path(const char *path);
