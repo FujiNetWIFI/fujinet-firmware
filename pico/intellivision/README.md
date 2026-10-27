@@ -22,7 +22,8 @@ accelerator/expanded-RAM peripheral some Intellivision homebrews use) emulation 
 *same* `$8000-$9FFF` window for JLP RAM — so the two need to coexist. The mailbox now lives
 at the *top* of the window, `$9C00-$9F3F` (832 words: a 64-word header, a 256-byte TX
 payload, and a 512-byte RX payload — shrunk from 1536, since nothing FujiNet CONFIG sends
-needs more), leaving `$8000-$9BFF` (7168 of 8192 words, ~87%) free for JLP. See
+needs more), leaving `$8000-$9BFF` (7168 of 8192 words, ~87%) free for JLP. A network-booted JLP game
+gets the mailbox only if its `.cfg` `[vars]` sets `fujinet = 1`. See
 `firmware/include/fuji_mailbox.h` for the exact layout and `firmware/src/cartridge.c` for
 how the two windows share the same RAM-claim branch in the bus loop at effectively zero
 extra cost in the timing-critical path.

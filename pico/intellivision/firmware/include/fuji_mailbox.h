@@ -14,6 +14,8 @@
 // of the window so $8000-$9BFF stays a contiguous free block for JLP RAM
 // (7168 of 8192 words, ~87%). See cartridge.c for how the JLP window and
 // this mailbox window share the same RAM-claim branch in the bus loop.
+// A network-booted JLP game gets the mailbox only if its .cfg [vars] sets
+// fujinet = 1; otherwise the mailbox is off for the session.
 //
 // Handshake: Inty fills in DEVICE/CMD/NPARAM/params/TX payload, then bumps
 // SEQ last. The RP2040 notices SEQ != ACKSEQ, runs the transaction, fills

@@ -61,7 +61,7 @@ typedef struct {
 
     // [vars]. 0 = not requested. ecs/voice are recorded even on builds that
     // can't act on them, so the parser stays board-independent.
-    int  jlp, jlpflash, ecs, voice;
+    int  jlp, jlpflash, ecs, voice, fujinet;
 
     bool     paging;    // at least one PAGE-qualified mapping line
     uint32_t rom_bytes; // bytes actually received on the ROM stream
