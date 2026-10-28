@@ -18,6 +18,12 @@ enum {
   OPCODE_HAS_PAYLOAD = 0x02,
 };
 
+// First byte of every command response, followed by any reply data
+enum {
+  TRANSACTION_STATUS_OK    = 0x00,
+  TRANSACTION_STATUS_ERROR = 0x01,
+};
+
 class iecDrive;
 class iecFuji;
 
