@@ -142,6 +142,8 @@ class FujiDeviceChain : public FujiDeviceMixins...
     }
 };
 
+class Cartridge;
+
 class fujiDevice : public virtual virtualDevice,
                    public FujiDeviceChain<Base64Mixin, HashMixin, QRMixin, AppKeyMixin>
 {
@@ -169,6 +171,9 @@ protected:
 
     std::atomic<bool> _startup_mount_lock{false};
     unsigned char _active_rotate_slot = 0;
+
+    // Set by a platform whose ROMs mount into a cartridge instead of a slot
+    Cartridge *_cartridge = nullptr;
 
     virtual size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                                    uint8_t maxlen) = 0;
