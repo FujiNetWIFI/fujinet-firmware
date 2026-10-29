@@ -140,7 +140,7 @@ void systemBus::transaction_send(const void *data, size_t len, bool is_error)
    len = length
    Returns TRUE on success, FALSE on error
 */
-success_is_true systemBus::transaction_get(void *data, size_t len)
+size_result_t systemBus::transaction_get_length(void *data, size_t len)
 {
     // Retrieve data frame from computer
     Debug_printf("<-SIO read %hu bytes\n", len);
@@ -151,11 +151,11 @@ success_is_true systemBus::transaction_get(void *data, size_t len)
     if (len)
     {
         if (_activeFrame->setDataLength(len).is_error())
-            RETURN_ERROR_AS_FALSE();
+            RETURN_SIZE_ERROR();
         std::copy(_activeFrame->data()->begin(), _activeFrame->data()->end(),
                   static_cast<uint8_t *>(data));
     }
-    RETURN_SUCCESS_AS_TRUE();
+    RETURN_SIZE(len);
 }
 
 void systemBus::transaction_accept(transState_t expectMoreData)

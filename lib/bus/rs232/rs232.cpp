@@ -63,24 +63,24 @@ void systemBus::transaction_error()
     _transaction_state = TRANS_STATE::INVALID;
 }
 
-success_is_true systemBus::transaction_get(void *data, size_t len)
+size_result_t systemBus::transaction_get_length(void *data, size_t len)
 {
     assert(_transaction_state == TRANS_STATE::WILL_GET);
     _transaction_state = TRANS_STATE::DID_GET;
 
     if (!len)
-        RETURN_SUCCESS_AS_TRUE();
+        RETURN_SIZE(0);
 
     // A frame with no data block is an empty payload, not a failure: fujinet-lib
     // clears a login or password by sending one (#1861).
     auto optional_data = _activePacket->data();
     if (!optional_data.has_value())
-        RETURN_SUCCESS_AS_TRUE();
+        RETURN_SIZE(0);
     size_t avail = optional_data.value().size() - _activePacketDataPosition;
     avail = std::min(avail, (size_t) len);
     memcpy(data, optional_data.value().data() + _activePacketDataPosition, avail);
     _activePacketDataPosition += avail;
-    RETURN_SUCCESS_AS_TRUE();
+    RETURN_SIZE(avail);
 }
 
 void systemBus::transaction_send(const void *data, size_t len, bool is_error)
