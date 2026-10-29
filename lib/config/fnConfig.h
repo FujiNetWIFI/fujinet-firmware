@@ -8,8 +8,10 @@
 #include "../../include/debug.h"
 
 #define MAX_HOST_SLOTS 8
-#ifdef BUILD_APPLE
+#if defined(BUILD_APPLE)
 #define MAX_MOUNT_SLOTS 10
+#elif defined(BUILD_ADAM)
+#define MAX_MOUNT_SLOTS 4
 #else
 #define MAX_MOUNT_SLOTS 8
 #endif
