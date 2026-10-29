@@ -7,6 +7,7 @@ class drivewireNetwork : public NDevice
 {
 protected:
     void fujidev_set_parser(const FUJI_COMMAND_PACKET &packet) override;
+    void fujidev_open(const FUJI_COMMAND_PACKET &packet) override;
 };
 
 #endif /* DRIVEWIRENETWORK_H */

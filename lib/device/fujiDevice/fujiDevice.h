@@ -282,7 +282,10 @@ public:
     uint8_t fujicore_net_get_wifi_status();
     uint8_t fujicore_net_get_wifi_enabled();
     success_is_true fujicore_open_directory_success(uint8_t hostSlot, const std::string &dirpath);
-    success_is_true fujicore_open_directory_success(uint8_t hostSlot, const std::string &dirpath,
+    // Platform hook: drivewireFuji overrides this to report the directory
+    // being browsed to the centipede board's OLED status display, rather
+    // than a #ifdef BUILD_* (banned here, see tests/check_no_build_ifdefs.py).
+    virtual success_is_true fujicore_open_directory_success(uint8_t hostSlot, const std::string &dirpath,
                                                     const std::optional<std::string> &pattern);
     std::optional<std::string> fujicore_read_directory_entry(size_t maxlen, uint8_t addtl);
     uint16_t fujicore_get_directory_position();
@@ -298,7 +301,9 @@ public:
     success_is_true fujicore_mount_all_at_startup();
     success_is_true fujicore_new_disk_success(const DISK_DEVICE::NewDiskRequest &req);
     void fujicore_net_scan_networks();
-    success_is_true fujicore_net_set_ssid_success(const char *ssid, const char *password, bool save);
+    // Platform hook: drivewireFuji overrides this to report WiFi connect
+    // attempts to the centipede board's OLED status display.
+    virtual success_is_true fujicore_net_set_ssid_success(const char *ssid, const char *password, bool save);
 
     // Should be protected but being called by drivewire.cpp
     virtual void insert_boot_device(uint8_t image_id, mediatype_t disk_type, DISK_DEVICE *disk_dev);

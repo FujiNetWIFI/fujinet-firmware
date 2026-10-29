@@ -14,6 +14,10 @@
 
 #include "../../include/debug.h"
 
+#ifdef ENABLE_OLED_DISPLAY
+#include "oled_display.h"
+#endif
+
 using namespace std;
 
 namespace
@@ -109,6 +113,10 @@ bool fnHttpBrowse::render_hostdir(int host_slot, const string &path, const strin
         Debug_printf("render_hostdir couldn't open host %d path \"%s\"\n", host_slot, path.c_str());
         return false;
     }
+
+#ifdef ENABLE_OLED_DISPLAY
+    fnOledDisplay.show_browsing(host->get_type(), host->get_hostname(), path.c_str());
+#endif
 
     const string slot_str = to_string(host_slot);
     const string enc_path = util_url_encode(path);

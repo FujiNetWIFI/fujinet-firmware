@@ -48,6 +48,10 @@ Console console;
 #include "display.h"
 #endif
 
+#ifdef ENABLE_OLED_DISPLAY
+#include "oled_display.h"
+#endif
+
 #ifndef ESP_PLATFORM
 #include "fnTaskManager.h"
 #include "version.h"
@@ -475,6 +479,10 @@ void main_setup(int argc, char *argv[])
 
 #ifdef ENABLE_DISPLAY
     DISPLAY.start();
+#endif
+
+#ifdef ENABLE_OLED_DISPLAY
+    fnOledDisplay.start();
 #endif
 
 #ifdef ENABLE_CONSOLE

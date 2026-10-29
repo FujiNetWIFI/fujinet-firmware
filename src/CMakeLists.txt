@@ -68,6 +68,7 @@ set(INCLUDES
     ${CMAKE_SOURCE_DIR}/lib/media
     ${CMAKE_SOURCE_DIR}/lib/modem-sniffer
     ${CMAKE_SOURCE_DIR}/lib/network-protocol
+    ${CMAKE_SOURCE_DIR}/lib/oled
     ${CMAKE_SOURCE_DIR}/lib/printer-emulator
     ${CMAKE_SOURCE_DIR}/lib/qrcode
     ${CMAKE_SOURCE_DIR}/lib/runcpm
@@ -147,6 +148,7 @@ FILE(GLOB_RECURSE SOURCES
     ${CMAKE_SOURCE_DIR}/lib/media/**/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/modem-sniffer/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/network-protocol/*.cpp
+    ${CMAKE_SOURCE_DIR}/lib/oled/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/printer-emulator/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/qrcode/*.c
     ${CMAKE_SOURCE_DIR}/lib/qrcode/*.cpp

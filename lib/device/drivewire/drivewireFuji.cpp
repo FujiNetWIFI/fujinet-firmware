@@ -5,6 +5,12 @@
 #include "compat_string.h"
 #include "led.h"
 
+#include <cstdio>
+
+#ifdef ENABLE_OLED_DISPLAY
+#include "oled_display.h"
+#endif
+
 #define IMAGE_EXTENSION ".dsk"
 #define LOBBY_URL       "tnfs://tnfs.fujinet.online/COCO/lobby.dsk"
 
@@ -184,6 +190,52 @@ success_is_true drivewireFuji::fujicore_mount_disk_image_success(uint8_t deviceS
     fujiDisk &disk = *get_disk(deviceSlot);
     fujiHost &host = _fnHosts[disk.host_slot];
     get_disk_dev(deviceSlot)->set_media_host(&host);
+
+    RETURN_SUCCESS_AS_TRUE();
+}
+
+success_is_true drivewireFuji::fujicore_open_directory_success(uint8_t hostSlot, const std::string &dirpath,
+                                                                const std::optional<std::string> &pattern)
+{
+    if (!fujiDevice::fujicore_open_directory_success(hostSlot, dirpath, pattern))
+        RETURN_ERROR_AS_FALSE();
+
+#ifdef ENABLE_OLED_DISPLAY
+    fujiHost &host = _fnHosts[hostSlot];
+    fnOledDisplay.show_browsing(host.get_type(), host.get_hostname(), dirpath.c_str());
+#endif
+
+    RETURN_SUCCESS_AS_TRUE();
+}
+
+void drivewireFuji::fujicmd_net_scan_networks()
+{
+#ifdef ENABLE_OLED_DISPLAY
+    fnOledDisplay.show_activity("WiFi: Scan");
+#endif
+    fujiDevice::fujicmd_net_scan_networks();
+}
+
+success_is_true drivewireFuji::fujicore_net_set_ssid_success(const char *ssid, const char *password, bool save)
+{
+#ifdef ENABLE_OLED_DISPLAY
+    char line[24];
+    snprintf(line, sizeof(line), "WiFi: %.17s", ssid);
+    fnOledDisplay.show_activity(line);
+#endif
+
+    if (!fujiDevice::fujicore_net_set_ssid_success(ssid, password, save))
+    {
+#ifdef ENABLE_OLED_DISPLAY
+        fnOledDisplay.show_activity("WiFi: FAILED");
+#endif
+        RETURN_ERROR_AS_FALSE();
+    }
+
+#ifdef ENABLE_OLED_DISPLAY
+    snprintf(line, sizeof(line), "WiFi OK: %.14s", ssid);
+    fnOledDisplay.show_activity(line);
+#endif
 
     RETURN_SUCCESS_AS_TRUE();
 }
