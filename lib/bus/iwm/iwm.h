@@ -233,7 +233,7 @@ public:
   void transaction_error(spError_t err);
   void transaction_error() override { transaction_error(SP_ERR::IOERROR); }
   using SystemBusBase::transaction_get;
-  success_is_true transaction_get(void *data, size_t len) override;
+  size_result_t transaction_get_length(void *data, size_t len) override;
   using SystemBusBase::transaction_send;
   void transaction_send(const void *data, size_t len, bool is_error=false) override;
 

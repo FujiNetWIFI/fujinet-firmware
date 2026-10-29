@@ -56,7 +56,7 @@ void systemBus::toggleBaudrate() {}
 void systemBus::transaction_accept(transState_t expectMoreData) {}
 void systemBus::transaction_success() { bus.success++; }
 void systemBus::transaction_error() { bus.error++; }
-success_is_true systemBus::transaction_get(void *data, size_t len) { RETURN_ERROR_AS_FALSE(); }
+size_result_t systemBus::transaction_get_length(void *data, size_t len) { RETURN_SIZE_ERROR(); }
 void systemBus::transaction_send(const void *data, size_t len, bool is_error)
 {
     bus.sent.assign((const char *)data, len);

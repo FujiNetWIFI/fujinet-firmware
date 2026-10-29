@@ -77,10 +77,14 @@ public:
     // Terminate the transaction without sending response data due to an error.
     virtual void transaction_error() = 0;
 
-    // Receive up to len bytes of the current transaction's payload into data.
-    // An empty or absent payload copies nothing and is success; only a transport
-    // failure (timeout, bad checksum, short fixed-length frame) is an error.
-    virtual success_is_true transaction_get(void *data, size_t len) = 0;
+    // Receive up to len bytes of the current transaction's payload
+    // into data. Returns the length copied or -1 on error.
+    virtual size_result_t transaction_get_length(void *data, size_t len) = 0;
+
+    inline success_is_true transaction_get(void *data, size_t len) {
+        auto got = transaction_get_length(data, len);
+        RETURN_SUCCESS_IF(got.is_success());
+    }
 
     inline success_is_true transaction_get(ByteBuffer &buffer) {
         return transaction_get(buffer.data(), buffer.size());

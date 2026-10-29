@@ -1046,16 +1046,16 @@ void systemBus::transaction_error()
     _transaction_state = TRANS_STATE::INVALID;
 }
 
-success_is_true systemBus::transaction_get(void *data, size_t len)
+size_result_t systemBus::transaction_get_length(void *data, size_t len)
 {
     assert(_transaction_state == TRANS_STATE::WILL_GET);
     _transaction_state = TRANS_STATE::DID_GET;
     _activeFrame->setDataLength(len);
     if (_activeFrame->data()->size() != len)
-        RETURN_ERROR_AS_FALSE();
+        RETURN_SIZE_ERROR();
     std::copy(_activeFrame->data()->begin(), _activeFrame->data()->end(),
               static_cast<uint8_t *>(data));
-    RETURN_SUCCESS_AS_TRUE();
+    RETURN_SIZE(len);
 }
 
 void systemBus::transaction_send(const void *data, size_t len, bool is_error)

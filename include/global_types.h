@@ -92,6 +92,26 @@ public:
     template <typename T> friend ssize_t operator-(T, file_size_t) = delete;
 };
 
+struct [[nodiscard]] size_result_t {
+    size_result_t() = delete;
+    size_result_t(ssize_t v) : _value(v) {}   // implicit: `return n;` works too
+
+    bool is_success() const { return _value >= 0; }
+    bool is_error()   const { return _value <  0; }
+
+    operator ssize_t() const { return _value; }
+
+    // Blocks `if (x)`, `!x`, `x && y`, `x || y`, `x ? a : b`.
+    // Overload resolution prefers this exact match over the ssize_t path,
+    // so the deleted function is chosen and the compile fails.
+    explicit operator bool() const = delete;
+
+private:
+    ssize_t _value;
+};
+#define RETURN_SIZE(n)       return size_result_t(static_cast<ssize_t>(n))
+#define RETURN_SIZE_ERROR()  return size_result_t(-1)
+
 struct u16le_t {
   uint8_t bytes[2];
   operator uint16_t() const { uint16_t v; std::memcpy(&v, bytes, 2); return le16toh(v); }
