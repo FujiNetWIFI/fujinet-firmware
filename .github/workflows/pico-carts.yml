@@ -477,6 +477,14 @@ jobs:
           # CONFIG comes from firmware/baked/; the 2650 client job assembles the clients.
           ./build-cart.sh --baked
 
+      - name: ColecoVision cartridge (fujicoleco)
+        working-directory: pico/coleco
+        env:
+          PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
+        run: |
+          # CONFIG comes from firmware/baked/; the z88dk clients are not built in CI.
+          ./build-cart.sh --baked
+
       # Drives the same [fujinet] pico_* keys the ESP32 build uses, so a
       # broken ini key, a missing ROM, or an uninitialized submodule fails
       # here rather than halfway through an ESP-IDF build. --no-generate
