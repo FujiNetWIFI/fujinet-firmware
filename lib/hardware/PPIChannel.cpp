@@ -14,6 +14,7 @@
 #define PPI_TX_TIMEOUT_US   1000000 // host stopped reading the reply
 #define PPI_TX_SPIN_US      2000    // busy-poll this long, then yield between polls
 #define PPI_STROBE_US       100     // 82C55 raises IBF within ns of /STB
+#define PPI_HOLD_US         1       // 82C55 latches port A as /STB rises
 #define PPI_WARN_US         1000000
 
 static const gpio_num_t dataPins[8] = {
@@ -41,8 +42,7 @@ void PPIChannel::begin()
     gpio_config(&io);
 
     // Driven through the card's 5V dividers, so no pulls
-    io.pin_bit_mask = BIT64(PIN_PPI_IBF) | BIT64(PIN_PPI_OBF)
-        | BIT64(PIN_PPI_DIR) | BIT64(PIN_PPI_OE);
+    io.pin_bit_mask = BIT64(PIN_PPI_IBF) | BIT64(PIN_PPI_OBF);
     io.mode = GPIO_MODE_INPUT;
     gpio_config(&io);
 
@@ -56,12 +56,11 @@ void PPIChannel::begin()
     io.mode = GPIO_MODE_INPUT;
     io.pull_down_en = GPIO_PULLDOWN_ENABLE;
     gpio_config(&io);
-    // Route GPIO_OUT without enabling it: the host may already hold DIR toward us
+    // Route GPIO_OUT without enabling it: D0-D7 drive only to strobe a byte in
     for (gpio_num_t pin : dataPins)
         gpio_ll_matrix_out_default(&GPIO, pin);
 
-    Debug_printf("PPIChannel: DIR=%d /OE=%d IBF=%d /OBF=%d\n",
-                 gpio_get_level(PIN_PPI_DIR), gpio_get_level(PIN_PPI_OE),
+    Debug_printf("PPIChannel: IBF=%d /OBF=%d\n",
                  gpio_get_level(PIN_PPI_IBF), gpio_get_level(PIN_PPI_OBF));
 }
 
@@ -72,7 +71,7 @@ void PPIChannel::end()
     gpio_set_level(PIN_PPI_ACK, 1);
 }
 
-// D0-D7 only drive while a byte is strobed out; otherwise the 245 may be driving them
+// D0-D7 only drive while a byte is strobed out; port A drives them while /ACK is low
 void PPIChannel::releaseData()
 {
     REG_WRITE(GPIO_ENABLE_W1TC_REG, _dataMask0);
@@ -126,14 +125,8 @@ void PPIChannel::updateFIFO()
     // /OBF low: the host wrote a byte to port A
     while (!gpio_get_level(PIN_PPI_OBF))
     {
-        // /ACK makes the 82C55 drive port A, so the 245 must be pointing at us
-        if (!gpio_get_level(PIN_PPI_DIR) || gpio_get_level(PIN_PPI_OE))
-        {
-            warn("PPIChannel: /OBF low but 245 not set host->ESP32");
-            return;
-        }
-
-        // The host flips DIR back soon after /OBF rises; don't get preempted mid-read
+        // /OBF rises on /ACK and frees the host to write the next byte into port A;
+        // don't get preempted mid-read
         portENTER_CRITICAL(&_mux);
         gpio_set_level(PIN_PPI_ACK, 0);
         esp_rom_delay_us(1);
@@ -152,13 +145,12 @@ size_t PPIChannel::dataOut(const void *buffer, size_t length)
 
     for (idx = 0; idx < length; idx++)
     {
-        // Wait for the host to empty the input latch with the 245 pointing at it
+        // Wait for the host to empty the input latch
         uint64_t start = esp_timer_get_time();
-        while (gpio_get_level(PIN_PPI_IBF) || gpio_get_level(PIN_PPI_DIR)
-               || gpio_get_level(PIN_PPI_OE))
+        while (gpio_get_level(PIN_PPI_IBF))
         {
-            // A new request means the host stopped reading this reply; it holds
-            // DIR toward us until /ACK, so waiting here would deadlock
+            // A new request means the host stopped reading this reply and IBF
+            // won't fall, so waiting here would stall the request
             if (!gpio_get_level(PIN_PPI_OBF))
             {
                 warn("PPIChannel: host sending, reply cut short");
@@ -187,6 +179,7 @@ size_t PPIChannel::dataOut(const void *buffer, size_t length)
             }
         }
         gpio_set_level(PIN_PPI_STB, 1);
+        esp_rom_delay_us(PPI_HOLD_US);
         releaseData();
     }
 
