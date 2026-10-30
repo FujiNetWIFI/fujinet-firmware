@@ -2,7 +2,7 @@
 #ifdef PINMAP_H89
 
 // H89-ESP32 card: an 82C55 in Mode 2 at H89 port 0xD0, port A
-// through a 74LVC245 to the ESP32. Builds as BUILD_RS232; PIN_PPI_OBF selects
+// wired straight to the ESP32. Builds as BUILD_RS232; PIN_PPI_OBF selects
 // PPIChannel in lib/bus/rs232/rs232.h. Self-contained: common.h would put
 // card detect on IO15 and the DAC on IO25, both bus lines here.
 
@@ -25,7 +25,7 @@
 #define PIN_LED_BUS             GPIO_NUM_NC
 #define PIN_LED_BT              GPIO_NUM_NC
 
-/* 82C55 port A via the 74LVC245 - PPIChannel.cpp */
+/* 82C55 port A - PPIChannel.cpp */
 #define PIN_PPI_D0              GPIO_NUM_32
 #define PIN_PPI_D1              GPIO_NUM_33
 #define PIN_PPI_D2              GPIO_NUM_25
@@ -38,7 +38,5 @@
 #define PIN_PPI_ACK             GPIO_NUM_15 // (OUT) PC6 /ACK
 #define PIN_PPI_IBF             GPIO_NUM_34 // (IN) PC5 IBF
 #define PIN_PPI_OBF             GPIO_NUM_35 // (IN) PC7 /OBF
-#define PIN_PPI_DIR             GPIO_NUM_22 // (IN) PC0, 245 DIR, 1 = H89->ESP32
-#define PIN_PPI_OE              GPIO_NUM_21 // (IN) PC1, 245 /OE
 
 #endif /* PINMAP_H89 */
