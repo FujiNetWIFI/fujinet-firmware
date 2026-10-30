@@ -1,6 +1,7 @@
 #ifdef BUILD_ADAM
 
 #include "adamNetwork.h"
+#include "NParser.h"
 #include "debug.h"
 
 #define MAX_ADAM_PACKET_LEN 1024
@@ -41,6 +42,16 @@ void adamNetwork::fujidev_write(const FUJI_COMMAND_PACKET &packet)
     }
 
     SYSTEM_BUS.transaction_success();
+}
+
+// The program that opened the channel is gone once the Adam reboots
+void adamNetwork::adamnet_after_reset()
+{
+    if (_protocol != nullptr)
+        _protocol->close();
+    _protocol = nullptr;
+    _parser = nullptr;
+    closeFailed = false;
 }
 
 void adamNetwork::adamnet_control_receive()

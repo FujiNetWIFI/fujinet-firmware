@@ -6,7 +6,7 @@ Bus-over-IP (BoIP) to an emulator on the PC build.
 ## Layout
 | File | Defines |
 |---|---|
-| `adamnet.h`, `adamnet.cpp` | `virtualDevice` (devices implement `adamnet_control_send()` and `deviceStatus()`, and may override `adamnet_control_ready()`, `adamnet_control_receive()`, `adamnet_idle()`, `reportsCommandFailed()` and `reset()`) and `systemBus` (command dispatch, ACK/NAK reply packets, `deviceExists()`, `deviceEnabled()`, `start_bus_task()`) |
+| `adamnet.h`, `adamnet.cpp` | `virtualDevice` (devices implement `adamnet_control_send()` and `deviceStatus()`, and may override `adamnet_control_ready()`, `adamnet_control_receive()`, `adamnet_idle()`, `reportsCommandFailed()`, `reset()` and `adamnet_after_reset()`) and `systemBus` (command dispatch, ACK/NAK reply packets, `deviceExists()`, `deviceEnabled()`, `start_bus_task()`) |
 | `AdamNetPhase.h`, `AdamNetPhase.cpp` | `AdamNetPhase`, the per-transaction phase state machine |
 | `FujiAdamPacket.h`, `FujiAdamPacket.cpp` | `FujiAdamPacket`, this bus's `FUJI_COMMAND_PACKET`; parameters are big-endian and read through `PacketParamProxy` |
 
