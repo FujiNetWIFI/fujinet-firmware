@@ -33,6 +33,7 @@ private:
     // can't stand in for it: that's already true while the last chunk is still
     // being handed over.
     volatile bool _subtask_exiting = false;
+    volatile bool _headers_seen = false;
     bool _keep_alive = false;
     int _redirect_count = 0;
     int _max_redirects = 0;

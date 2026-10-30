@@ -18,6 +18,7 @@ using namespace fujinet;
 
 #define HTTPCLIENT_WAIT_FOR_CONSUMER_TASK 20000 // 20s
 #define HTTPCLIENT_WAIT_FOR_HTTP_TASK 20000     // 20s
+#define HTTPCLIENT_NO_BODY_POLL 50              // ms
 // perform_subtask runs the TLS handshake; TLS 1.3 to an RSA server peaked at 4156 bytes (S3)
 #define HTTPCLIENT_SUBTASK_STACK 6144
 
@@ -331,6 +332,7 @@ esp_err_t fnHttpClient::_httpevent_handler(esp_http_client_event_t *evt)
 #ifdef VERBOSE_HTTP
         Debug_printf("HTTP_EVENT_ON_HEADER %u\r\n", uxTaskGetStackHighWaterMark(nullptr));
 #endif
+        client->_headers_seen = true;
         // Check to see if we should store this response header
         if (client->_stored_headers.size() == 0)
             break;
@@ -514,6 +516,7 @@ int fnHttpClient::_perform()
     // Clear here rather than in the subtask, so it's already false by the time we
     // block below however late the subtask gets scheduled
     _subtask_exiting = false;
+    _headers_seen = false;
 
     // Start a new task to perform the http client work
     _delete_subtask_if_running();
@@ -534,14 +537,30 @@ int fnHttpClient::_perform()
     // Debug_printf("%08lx _perform subtask created\r\n", fnSystem.millis());
 #endif
 
-    // Wait until we have headers returned
-    if (ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(HTTPCLIENT_WAIT_FOR_HTTP_TASK)) == 0)
+    // Wait until we have headers returned. esp_http_client reads a Content-Length
+    // body even on a 204 or 304, so stop it there instead of waiting it out.
+    int waited = 0;
+    while (ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(HTTPCLIENT_NO_BODY_POLL)) == 0)
     {
+        int early_status = _headers_seen ? esp_http_client_get_status_code(_handle) : 0;
+        if (early_status == 204 || early_status == 304)
+        {
+            _delete_subtask_if_running();
+            esp_http_client_close(_handle);
+            // Drop a notification the subtask may have sent before it was deleted
+            ulTaskNotifyTake(pdTRUE, 0);
+            _client_err = ESP_OK;
+            _transaction_done = true;
+            break;
+        }
+        waited += HTTPCLIENT_NO_BODY_POLL;
+        if (waited >= HTTPCLIENT_WAIT_FOR_HTTP_TASK)
+        {
 #ifdef VERBOSE_HTTP
-        Debug_printf("Timed-out waiting for headers to load\r\n");
+            Debug_printf("Timed-out waiting for headers to load\r\n");
 #endif
-        //_delete_subtask_if_running();
-        return -1;
+            return -1;
+        }
     }
     // Debug_printf("%08lx _perform notified\r\n", fnSystem.millis());
     // Debug_printf("Notification of headers loaded\r\n");
