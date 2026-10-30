@@ -68,6 +68,12 @@ into the RP2040's clamp diodes, and its README warns *"DO NOT CONNECT PICO WHILE
 INSERTED IN A POWERED ON CONSOLE!"*. Any board FujiNet ships should level-shift
 DB0–DB7 and the address lines properly.
 
+FujiNet's own board, the FujiNet-O2 Rev0 cart (fujinet-hardware
+`Magnavox-Odyssey2/FujiNet-O2-Rev0`, `boards/fujio2_rp2354b.h`), keeps PicoPAC's
+pin map on an RP2354B instead. Its GPIO0-39 are 5 V tolerant, and every line
+goes through 330R. It also senses the console's 5 V, so it never drives an
+unpowered console.
+
 ## Local changes to the vendored files
 
 Kept as small and as obvious as possible, so a future upstream merge stays
@@ -109,3 +115,15 @@ still produces a stock PicoPAC, and it is built as a regression check.
   `fuji_clock_init()`, which raises the core voltage before setting 270 MHz.
 - `picopac_cart.c`: core1 acts on a mailbox write once, when /WR releases, not on
   every poll pass while it is low, since the registers auto-increment.
+- `CMakeLists.txt`: `-DPICO_BOARD=fujio2_rp2354b` (`boards/`) builds for the
+  FujiNet-O2 cart. PicoPAC's own path is untouched: the SDK resolves the board
+  when it is imported, before `myboard` is set, so PicoPAC builds use the SDK's
+  `pico.h`, and they stay byte-identical (`pico/tools/cmpfw.py`). The 16 MB flash
+  size and the 270 MHz / 1.20 V clock now apply to `myboard` only.
+- `main.c`, `picopac_cart.c`: on a board that senses the console's 5 V
+  (`FUJI_VSENSE_PIN`), the cart starts straight away, without waiting for /PSEN,
+  since USB may power it before the console is on. Core1 serves /PSEN and takes
+  /WR only while the console is on, and the bus pins' pulls are turned off
+  (RP2350-E9).
+- `main.c`, `msc_disk.c`: on a board without a flash disk (`FUJI_NO_FLASH_DISK`),
+  mounting over USB leaves the flash alone, and the MSC LUN reports no medium.

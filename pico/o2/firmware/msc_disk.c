@@ -45,6 +45,12 @@ bool tud_msc_test_unit_ready_cb(uint8_t lun)
 {
   (void) lun;
 
+#ifdef FUJI_NO_FLASH_DISK
+  /* FUJINET: no flash disk on this board, so never a medium to read or write */
+  tud_msc_set_sense(lun, SCSI_SENSE_NOT_READY, 0x3a, 0x00);
+  return false;
+#endif
+
   // RAM disk is ready until ejected
   if (ejected) {
     // Additional Sense 3A-00 is NOT_FOUND

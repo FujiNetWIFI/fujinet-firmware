@@ -34,11 +34,25 @@ double pitch** — 16 pixels apart rather than 8 — so sixteen of them would wa
 quad group carries a four-character status cell. A scrolling list was never on
 the table.
 
+## Boards
+
+The cartridge firmware builds for two boards:
+- **PicoPAC** (the default): aotta's design on a "purple" RP2040 clone with
+  16 MB of flash. `./build-cart.sh` (FujiNet) or `./build-cart.sh --stock`.
+- **FujiNet-O2 Rev0** (fujinet-hardware `Magnavox-Odyssey2/FujiNet-O2-Rev0`): an
+  RP2354B and the ESP32-S3 on one cart, PicoPAC's pin map on 5 V-tolerant pads
+  behind 330R. `./build-cart.sh --board fujio2_rp2354b`.
+  - It senses the console's 5 V on GPIO40 and serves the bus only while the
+    console is on, so it may start on USB power first.
+  - It has no flash disk.
+  - Pin B (the Videopac+ video-mixer input) is on GPIO28, left low.
+
 ## Layout
 
 | Path | What it is |
 |---|---|
-| `firmware/` | the RP2040 cartridge: mailbox map, FujiBus codec, image mapper, host tests |
+| `firmware/` | the cartridge: mailbox map, FujiBus codec, image mapper, host tests |
+| `firmware/boards/` | board files other than PicoPAC's (`fujio2_rp2354b`) |
 | `firmware/include/fuji_mailbox.h` | the mailbox address map — single source of truth for all three sides |
 | `firmware/src/o2map.c` | how a raw cart image maps into the program window; linked by the emulator too |
 | `firmware/include/o2app.h` | protocol 2: how an APPBANK image is served, inlined by core1, o2em and MAME alike |

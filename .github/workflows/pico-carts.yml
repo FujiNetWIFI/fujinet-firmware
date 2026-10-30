@@ -383,6 +383,12 @@ jobs:
           PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
         run: ./build-cart.sh --stock
 
+      - name: Odyssey 2 cartridge (FujiNet-O2 Rev0 board, RP2354B)
+        working-directory: pico/o2
+        env:
+          PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
+        run: ./build-cart.sh --board fujio2_rp2354b
+
       # Pulls no-OS-FatFS-SD (v3.6.2) and littlefs (master) over the network via
       # FetchContent. Its `git describe --tags` falls back to version 0.0 on a
       # shallow checkout, which is fine here.
