@@ -517,6 +517,8 @@ int fnHttpClient::_perform()
 
     // Start a new task to perform the http client work
     _delete_subtask_if_running();
+    // Drop any notification an earlier subtask left behind, or the wait below takes it
+    ulTaskNotifyTake(pdTRUE, 0);
     // Task stacks come from internal DRAM only, so this fails under internal-heap
     // pressure. Unchecked, that surfaces 20s later as an indistinguishable timeout.
     if (xTaskCreate(_perform_subtask, "perform_subtask", HTTPCLIENT_SUBTASK_STACK, this, 5,
