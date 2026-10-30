@@ -10,10 +10,31 @@
 
 #include "compat_string.h"
 #include "fujiDevice.h"
+#include "fujiROMType.h"
 #include "utils.h"
 
 #define ROM_PUSH_STREAM_MAP   1
 #define ROM_PUSH_STREAM_IMAGE 0
+
+// An MSX megaROM's mapper is named in its file name, e.g. "game[ASCII8].rom".
+static fujiROMType_t rom_type_from_name(const char *filename)
+{
+    static const struct { const char *tag; fujiROMType_t type; } tags[] = {
+        { "[ASCII8].rom",    ROM_TYPE_MSX_ASCII8 },
+        { "[ASCII16].rom",   ROM_TYPE_MSX_ASCII16 },
+        { "[Konami].rom",    ROM_TYPE_MSX_KONAMI },
+        { "[KonamiSCC].rom", ROM_TYPE_MSX_KONAMI_SCC },
+    };
+    size_t len = strlen(filename);
+
+    for (const auto &t : tags)
+    {
+        size_t tag_len = strlen(t.tag);
+        if (len >= tag_len && strcasecmp(filename + len - tag_len, t.tag) == 0)
+            return t.type;
+    }
+    return ROM_TYPE_UNKNOWN;
+}
 
 // Relays `source` as NET_WRITE frames on DBC stream `stream_id`, which the
 // RP2040's dbc_inbound_handler() demuxes on.
@@ -23,9 +44,13 @@
 // payload to callers. It uses the size to reject an oversized ROM before we
 // pull it over TNFS; older builds read data[0] and ignore the rest.
 //
+// A known `rom_type` also goes out as params (segment 0, type): the MSX carts
+// (fujiversal, openMSX) take the mapper from param 1.
+//
 // CLOSE always goes out or the RP2040's stream state wedges; on failure it
 // carries a 0x01 abort so partial data isn't booted.
-static bool push_stream(MediaTypeROM *rom, RomStream source, uint16_t stream_id)
+static bool push_stream(MediaTypeROM *rom, RomStream source, uint16_t stream_id,
+                        fujiROMType_t rom_type = ROM_TYPE_UNKNOWN)
 {
     uint8_t buffer[DISK_SECTORBUF_SIZE];
     uint32_t expected_size = rom->stream_size(source);
@@ -41,8 +66,11 @@ static bool push_stream(MediaTypeROM *rom, RomStream source, uint16_t stream_id)
     open_hdr.id = (uint8_t)stream_id;
     open_hdr.size = expected_size;
 
-    auto reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_OPEN,
-                                        std::string((const char *)&open_hdr, sizeof(open_hdr)));
+    std::string open_payload((const char *)&open_hdr, sizeof(open_hdr));
+    auto reply = rom_type == ROM_TYPE_UNKNOWN
+        ? SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_OPEN, open_payload)
+        : SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_OPEN,
+                                 (uint16_t)0, (uint8_t)rom_type, open_payload);
     if (!reply || reply->command() != CMD::FUJI_ACK)
     {
         Debug_printv("ROM push: failed to open DBC stream %u (%lu bytes)\n",
@@ -100,7 +128,8 @@ static bool push_rom_streams(MediaTypeROM *rom)
         return false;
     }
 
-    if (!push_stream(rom, RomStream::Image, ROM_PUSH_STREAM_IMAGE))
+    if (!push_stream(rom, RomStream::Image, ROM_PUSH_STREAM_IMAGE,
+                     rom_type_from_name(rom->_disk_filename)))
     {
         Debug_printv("ROM push: ROM push failed\n");
         return false;
