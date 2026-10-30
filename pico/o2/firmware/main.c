@@ -92,6 +92,12 @@ int main(void)
     gpio_set_dir(PICO_DEFAULT_LED_PIN,true);
     gpio_put(PICO_DEFAULT_LED_PIN,true);
    
+#ifdef FUJI_VSENSE_PIN
+    /* FUJINET: a board that senses the console's 5 V runs from USB too, so it
+     * may start long before the console does. It goes straight to the cart:
+     * core1 serves the bus only while the console is on. */
+    picopac_cart_main();
+#endif
     while(1) {          
       
     while (to_ms_since_boot(get_absolute_time()) < 200)
@@ -126,8 +132,10 @@ int main(void)
 void tud_mount_cb(void)
 {
   printf("Device mounted\n"); 
+#ifndef FUJI_NO_FLASH_DISK  /* FUJINET: no flash disk on this board */
   if (!mount_fatfs_disk())
     create_fatfs_disk();
+#endif
 }
 
 // Invoked when device is unmounted

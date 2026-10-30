@@ -9,11 +9,14 @@
 // Deliberately no PIN_UART1_RX/PIN_UART2_RX: their absence is what selects the
 // USB transport in lib/bus/rs232/rs232.h rather than a wired UART.
 //
-// PROVISIONAL. Pin numbers are the Freenove ESP32-S3 CAM assignments carried
-// over from fujiversal-rs232.h so the SD/UART/LED paths need no change. There
-// is no combined O2 board yet: unlike fujiversal-intv's single-PCB design, the
-// cartridge is a separate RP2040 board joined only by USB, so there are no
-// RP2040 RUN/BOOTSEL control lines to declare. Revisit when hardware exists.
+// Pin numbers are the Freenove ESP32-S3 CAM assignments carried over from
+// fujiversal-rs232.h, and the FujiNet-O2 Rev0 cart (fujinet-hardware
+// Magnavox-Odyssey2/FujiNet-O2-Rev0: the S3 and an RP2354B on one board) keeps
+// them: SD 38-41, UART0 43/44, WS2812 48. On that cart IO4 / IO5 drive the RP's
+// RUN and BOOTSEL through 1k, as on the other on-cart S3 boards; on a Freenove
+// board with a separate PicoPAC they go nowhere and stay inputs. The cart also
+// wires the microSD's card detect to IO42; it stays NC here until that is
+// tested, since a Freenove board leaves IO42 free.
 
 #define PIN_BUTTON_A            GPIO_NUM_NC
 #define PIN_BUTTON_B            GPIO_NUM_NC
@@ -41,6 +44,11 @@
 // USB on the S3's host pins and has no GPIO of its own.
 #define PIN_UART0_RX            GPIO_NUM_44
 #define PIN_UART0_TX            GPIO_NUM_43
+
+// The RP2354B's RUN / BOOTSEL on the FujiNet-O2 cart (active low, idle as
+// inputs): fnPicoUpdater::forceBootselViaPins() resets it into its USB boot ROM.
+#define PIN_RP2040_RUN          GPIO_NUM_4
+#define PIN_RP2040_BOOTSEL      GPIO_NUM_5
 
 // USB device filter for the cartridge. VID-only: 0xCafe is TinyUSB's default
 // and is what both the PicoPAC-derived O2 cart and Minty enumerate as, while

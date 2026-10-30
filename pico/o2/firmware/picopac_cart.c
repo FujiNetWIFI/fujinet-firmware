@@ -107,6 +107,15 @@
 #define NOTCS_PIN_MASK  0x04000000L //gpio 26  
 #define TD_PIN_MASK     0x08000000L //gpio 27 
 
+/* FUJINET: a board that senses the console's 5 V serves the bus only while the
+ * console is on; with it off, /PSEN and /WR float low and must be ignored, and
+ * D0-D7 must not drive an unpowered console. Without the sense: always on. */
+#ifdef FUJI_VSENSE_PIN
+#define CONSOLE_ON()    gpio_get(FUJI_VSENSE_PIN)
+#else
+#define CONSOLE_ON()    1
+#endif
+
 // Aggregate Pico pin usage masks
 #define ALL_GPIO_MASK  	0x0FFFFFFFL
 #define BUS_PIN_MASK    0x00003FFFL
@@ -216,7 +225,7 @@ void __not_in_flash_func(core1_main()) {
 		 	pins=gpio_get_all();
 	        addr = (pins & 0b0111111111111);  
 			bank=3-((gpio_get(P10_PIN)+(gpio_get(P11_PIN)*2)));
-	   		if (gpio_get(PSEN_PIN)==0) {
+	   		if (gpio_get(PSEN_PIN)==0 && CONSOLE_ON()) {
 #if CONFIG_FUJINET
 				/* FUJINET: a fetch of the cartridge reset vector with a staged
 				 * image waiting means the console has just restarted. Swap
@@ -242,7 +251,7 @@ void __not_in_flash_func(core1_main()) {
     			gpio_put_masked(DATA_PIN_MASK,(fuji_rom[bank][addr])<<D0_PIN);
 #endif
 			} 
-		  	if((gpio_get(CS_PIN)==0) && (gpio_get(WR_PIN)==0)) {
+		  	if((gpio_get(CS_PIN)==0) && (gpio_get(WR_PIN)==0) && CONSOLE_ON()) {
 				   uint8_t wa = addr & 0xff;
 				   uint8_t wd = ((pins & DATA_PIN_MASK)>>D0_PIN);
 				   extram[wa]=wd;
@@ -931,6 +940,18 @@ void picopac_cart_main()
    
 
     gpio_init_mask(ALL_GPIO_MASK);
+#ifdef FUJI_VSENSE_PIN
+    /* FUJINET: RP2350 pads reset with their pull-downs on, and erratum
+     * RP2350-E9 makes a pulled-down input latch near 2 V: the bus pins float
+     * free, and so do the console-5V sense and pin B (the board pulls B down). */
+    for (uint pin = 0; pin < 32; pin++)
+        if (ALL_GPIO_MASK & (1u << pin))
+            gpio_disable_pulls(pin);
+    gpio_init(FUJI_VSENSE_PIN);
+    gpio_disable_pulls(FUJI_VSENSE_PIN);
+    gpio_init(FUJI_VPB_PIN);
+    gpio_disable_pulls(FUJI_VPB_PIN);
+#endif
   
     
     stdio_init_all();   // for serial output, via printf()
