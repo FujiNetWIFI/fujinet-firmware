@@ -218,7 +218,6 @@ void NetworkProtocolTCP::status_server(NetworkStatus *status)
     {
         status->connected = server->hasClient();
         status->error = error;
-        Debug_printf("TCP::status_server C:%d E:%d\n", status->connected, (int) status->error);
     }
 }
 
