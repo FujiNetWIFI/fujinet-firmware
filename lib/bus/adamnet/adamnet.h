@@ -97,6 +97,9 @@ protected:
      */
     virtual void reset();
 
+    // Like reset() after the RESET line, but on the bus task
+    virtual void adamnet_after_reset() {}
+
     virtual void adamnet_control_ready();   // Check if device is ready for command
     virtual void adamnet_control_receive(); // Tell device to queue up data
     virtual void adamnet_control_send(const FujiAdamPacket &packet) = 0; // Send data to device
@@ -161,6 +164,7 @@ private:
 
     std::optional<ByteBuffer> _transaction_reply_encoded;
     bool _stall_silent = false;
+    volatile bool _reset_pending = false;
     AdamNetPhase busPhase;
 
     /**

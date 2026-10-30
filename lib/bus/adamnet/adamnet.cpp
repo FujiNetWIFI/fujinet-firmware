@@ -440,6 +440,13 @@ void systemBus::_adamnet_process_queue()
 
 void systemBus::service()
 {
+    if (_reset_pending)
+    {
+        _reset_pending = false;
+        for (auto devicep : _daisyChain)
+            devicep->adamnet_after_reset();
+    }
+
 #ifdef ESP_PLATFORM
     // process queue messages (disk swap)
     _adamnet_process_queue();
@@ -558,6 +565,7 @@ void systemBus::reset()
 {
     for (auto devicep : _daisyChain)
         devicep->reset();
+    _reset_pending = true;
 }
 
 #endif /* BUILD_ADAM */
