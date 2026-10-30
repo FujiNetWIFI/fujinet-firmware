@@ -149,7 +149,7 @@ set(INCLUDE_DIRS include
     lib/modem-sniffer lib/printer-emulator
     lib/network-protocol
     lib/fuji lib/bus lib/device lib/media
-    lib/device/fujiDevice lib/device/fujiClock lib/device/NDevice
+    lib/device/fujiDevice lib/device/fujiClock lib/device/NDevice lib/device/Cartridge
     lib/encrypt
     lib/devrelay/commands lib/devrelay/service lib/devrelay/slip lib/devrelay/types
     lib/encoding
@@ -319,6 +319,7 @@ set(SOURCES src/main.cpp
     lib/device/modem.h
     lib/device/cassette.h
     lib/device/fujiDevice/fujiDevice.h lib/device/fujiDevice/fujiDevice.cpp
+    lib/device/Cartridge/Cartridge.h lib/device/Cartridge/Cartridge.cpp
     lib/device/fujiDevice/FujiDeviceMixin.h
     lib/device/fujiDevice/Base64Mixin.h lib/device/fujiDevice/Base64Mixin.cpp
     lib/device/fujiDevice/HashMixin.h lib/device/fujiDevice/HashMixin.cpp
@@ -465,6 +466,7 @@ if(FUJINET_TARGET STREQUAL "COCO")
     lib/media/drivewire/decbLayout.h lib/media/drivewire/decbLayout.cpp
 
     lib/device/drivewire/drivewireFuji.h lib/device/drivewire/drivewireFuji.cpp
+    lib/device/drivewire/drivewireCartridge.h lib/device/drivewire/drivewireCartridge.cpp
     lib/device/drivewire/disk.h lib/device/drivewire/disk.cpp
     lib/device/drivewire/printer.h lib/device/drivewire/printer.cpp
     lib/device/drivewire/printerlist.h lib/device/drivewire/printerlist.cpp
@@ -526,6 +528,7 @@ if(FUJINET_TARGET STREQUAL "RS232")
     lib/device/rs232/printer.cpp lib/device/rs232/printer.h
     lib/device/rs232/printerlist.cpp lib/device/rs232/printerlist.h
     lib/device/rs232/rs232Fuji.cpp lib/device/rs232/rs232Fuji.h
+    lib/device/rs232/rs232Cartridge.cpp lib/device/rs232/rs232Cartridge.h
     lib/device/rs232/rs232cpm.cpp lib/device/rs232/rs232cpm.h
 
     )

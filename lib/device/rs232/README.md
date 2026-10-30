@@ -6,9 +6,10 @@ cartridge board.
 ## Layout
 | File | Defines |
 |---|---|
-| `rs232Fuji.h`, `rs232Fuji.cpp` | `rs232Fuji : fujiDevice` (`.img` images, MS-DOS lobby) |
+| `rs232Fuji.h`, `rs232Fuji.cpp` | `rs232Fuji : fujiDevice` (`.img` images, MS-DOS lobby); owns the `rs232Cartridge` |
+| `rs232Cartridge.h`, `rs232Cartridge.cpp` | `rs232Cartridge : Cartridge`, for the `pico/<console>` carts: OPEN carries stream id and size, 512-byte blocks, every frame ACKed, a failed stream's CLOSE aborts; `MediaTypeROM` finds the `.cfg` memory map, pushed before the image |
 | `h89Fuji.h` | `h89Fuji : rs232Fuji`, the H89 card's Fuji; mounts no boot disk, since the MS-DOS one means nothing to CP/M or HDOS |
-| `disk.h`, `disk.cpp` | `rs232Disk`, the `DISK_DEVICE`; `mount()` takes the owning `fujiHost` so `MediaTypeROM` can open a memory-map sibling file |
+| `disk.h`, `disk.cpp` | `rs232Disk`, the `DISK_DEVICE`; `mount()` takes the owning `fujiHost` for media that open sibling files |
 | `rs232Network.h`, `rs232Network.cpp` | `rs232Network : NDevice` |
 | `rs232Clock.h`, `rs232Clock.cpp` | `rs232Clock : fujiClock`; defines `platformClock` |
 | `printer.h`, `printer.cpp`, `printerlist.h`, `printerlist.cpp` | `rs232Printer` and `printerlist`; defines `fnPrinters` |

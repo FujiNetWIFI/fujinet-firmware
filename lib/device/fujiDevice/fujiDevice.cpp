@@ -20,6 +20,7 @@
  */
 
 #include "fujiDevice.h"
+#include "Cartridge.h"
 
 #include "fnConfig.h"
 #include "fnSystem.h"
@@ -634,7 +635,19 @@ success_is_true fujiDevice::fujicore_mount_disk_image_success(uint8_t deviceSlot
         RETURN_ERROR_AS_FALSE();
     }
     DISK_DEVICE *disk_dev = get_disk_dev(deviceSlot);
-    disk.disk_type = mount_media(disk_dev, disk, host, access_mode);
+    if (_cartridge != nullptr && _cartridge->is_rom(disk.filename, disk.disk_size))
+    {
+        // The whole ROM goes to the cartridge and is closed, leaving the slot
+        // empty; drop whatever the disk had mounted.
+        disk_dev->unmount();
+        success_is_true pushed =
+            _cartridge->mount(disk.fileh, disk.filename, disk.disk_size, host);
+        disk.fileh = nullptr;
+        disk.disk_type = pushed.is_success() ? MediaType::discover_mediatype(disk.filename)
+                                             : MEDIATYPE_UNKNOWN;
+    }
+    else
+        disk.disk_type = mount_media(disk_dev, disk, host, access_mode);
     disk_dev->is_config_device = false;
 
     // mount() returns MEDIATYPE_UNKNOWN on failure
