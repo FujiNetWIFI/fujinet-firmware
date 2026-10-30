@@ -209,6 +209,15 @@ int fnTcpClient::connect(in_addr_t ip, uint16_t port, int32_t timeout)
 int fnTcpClient::connect(const char *host, uint16_t port, int32_t timeout)
 {
     in_addr_t ip = get_ip4_addr_by_name(host);
+    if (ip == IPADDR_NONE)
+    {
+#if defined(_WIN32)
+        compat_setsockerr(WSAEHOSTUNREACH);
+#else
+        compat_setsockerr(EHOSTUNREACH);
+#endif
+        return 0;
+    }
     return connect(ip, port, timeout);
 }
 
