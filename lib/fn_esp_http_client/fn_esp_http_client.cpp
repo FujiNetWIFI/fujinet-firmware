@@ -740,7 +740,9 @@ static int esp_http_client_get_data(esp_http_client_handle_t client)
         return ESP_FAIL;
     }
 
-    if (client->connection_info.method == HTTP_METHOD_HEAD) {
+    // Local edit: a 204 or 304 has no body either, whatever Content-Length says
+    if (client->connection_info.method == HTTP_METHOD_HEAD
+        || client->response->status_code == 204 || client->response->status_code == 304) {
         return 0;
     }
 
