@@ -123,6 +123,7 @@ typedef enum class CMD : uint8_t {
     NET_GET_REMOTE                  = 0x72, // r
     NET_CLOSE_CLIENT                = 0x63, // c
     NET_SET_INT_RATE                = 0x5A, // Z
+    NET_SET_SEQUENCE                = 0x59, // Y
     NET_WRITE                       = 0x57, // W
     NET_TRANSLATION                 = 0x54, // T
     NET_STATUS                      = 0x53, // S

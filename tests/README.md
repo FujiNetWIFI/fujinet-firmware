@@ -15,6 +15,7 @@ Host-side unit tests and policy checks for the FujiNet-PC build. ctest runs them
 | `FnxmlQueryTests.cpp` | `lib/fnxml/fnxml_query.cpp` XPath subset over tinyxml2 (`fnxml_query_tests`) |
 | `CalendarTests.cpp` | `lib/utils/fn_time.cpp` and `lib/network-protocol/calendar_draft.cpp` (`calendar_tests`) |
 | `QRCodeTests.cpp` | `lib/qrcode/qrcode.c` version and ECC selection (`qrcode_tests`) |
+| `ReadSequenceTests.cpp` | `lib/device/NDevice/ReadSequence.h`: which READ is a retry under `NET_SET_SEQUENCE` and what it gets back (`read_sequence_tests`) |
 | `MailDraftTests.cpp` | `lib/network-protocol/mail_draft.cpp` RFC822 compose and reply (`mail_tests`) |
 | `IMDImageTests.cpp`, `IMDFixture.h` | `lib/media/IMDImage.cpp`, including `probe()`, through a `std::fstream`, a `std::FILE` and a handle with `fnFile`'s methods (`imdimage_tests`; no FujiNet include paths) |
 | `MediaTypeIMDTests.cpp` | `lib/media/rs232/diskTypeIMD.cpp` adapter, and `diskType.cpp` finding an IMD by its contents (`mediatypeimd_tests`; built with `BUILD_RS232`) |
@@ -27,7 +28,7 @@ Host-side unit tests and policy checks for the FujiNet-PC build. ctest runs them
 | `DirCacheTests.cpp` | `lib/FileSystem/fnDirCache.cpp` sorting for each directory option (`dircache_tests`) |
 | `PDFPrinterTests.cpp` | `lib/printer-emulator/pdf_printer.cpp` page breaks when one buffer holds more than one line (`pdf_printer_tests`; not on the APPLE target) |
 | `sioNetwork-DSTATS-test.cpp` | `sioNetwork` command recognition and DSTATS (`sio_dstats_tests`; ATARI target only) |
-| `sioNetworkTests.cpp` | What `sioNetwork` sends to the bus for a failed CLOSE, its repeat and a failed READ (`sio_network_tests`; ATARI target only) |
+| `sioNetworkTests.cpp` | What `sioNetwork` sends to the bus for a failed CLOSE, its repeat, a failed READ and a retried READ (`sio_network_tests`; ATARI target only) |
 | `NDeviceTests.cpp` | The shared `NDevice` without a bus subclass: a QUERY whose flags byte the parser refuses (`ndevice_tests`; ATARI target only) |
 | `sioNetworkStubs.cpp`, `sioNetworkStubs.h` | Link-time stubs shared by `sio_dstats_tests`, `sio_network_tests` and `ndevice_tests`; the `systemBus` stubs record into `bus` |
 | `AdamNetworkReceiveTests.cpp`, `adamNetworkReceiveStubs.cpp`, `adamNetworkReceiveStubs.h` | `lib/device/adamnet/adamNetwork.cpp` RECEIVE sending at most 1024 bytes and keeping the rest; the stubs record bus replies (`adam_network_receive_tests`; ADAM target only) |
