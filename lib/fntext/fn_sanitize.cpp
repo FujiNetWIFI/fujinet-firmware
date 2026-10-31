@@ -391,6 +391,32 @@ static const size_t kTransliterationsCount =
     sizeof(kTransliterations) / sizeof(kTransliterations[0]);
 
 // ============================================================================
+// Atari Remap Tables (UTF-8 -> Atari)
+// ============================================================================
+
+struct Remap {
+    const char *from;
+    const char *to;
+};
+
+// ATASCII international character set (switched on with POKE 756,204).
+static const Remap kAtariInternational[] = {
+    {"á", "\x00"}, {"ù", "\x01"}, {"Ñ", "\x02"}, {"É", "\x03"}, {"ç", "\x04"},
+    {"ô", "\x05"}, {"ò", "\x06"}, {"ì", "\x07"}, {"£", "\x08"}, {"ï", "\x09"},
+    {"ü", "\x0a"}, {"ä", "\x0b"}, {"Ö", "\x0c"}, {"ú", "\x0d"}, {"ó", "\x0e"},
+    {"ö", "\x0f"}, {"Ü", "\x10"}, {"â", "\x11"}, {"û", "\x12"}, {"î", "\x13"},
+    {"é", "\x14"}, {"è", "\x15"}, {"ñ", "\x16"}, {"ê", "\x17"}, {"å", "\x18"},
+    {"à", "\x19"}, {"Å", "\x1a"}, {"¡", "\x60"}, {"Ä", "\x7b"}, {"ß", "ss"},
+};
+
+// Plain ASCII spellings, for the standard character set.
+static const Remap kAtariAscii[] = {
+    {"Ä", "Ae"}, {"Ö", "Oe"}, {"Ü", "Ue"}, {"ä", "ae"}, {"ö", "oe"},
+    {"ü", "ue"}, {"ß", "ss"}, {"é", "e"},  {"è", "e"},  {"á", "a"},
+    {"à", "a"},  {"ó", "o"},  {"ò", "o"},  {"ú", "u"},  {"ù", "u"},
+};
+
+// ============================================================================
 // Utility Functions
 // ============================================================================
 
@@ -538,6 +564,20 @@ static const char *lookup_entity(const char *name, size_t len) {
     return nullptr;
 }
 
+// Replace every occurrence of each table entry.
+static std::string remap(std::string in, const Remap *table, size_t count) {
+    for (size_t i = 0; i < count; i++) {
+        size_t from_len = std::strlen(table[i].from);
+        size_t to_len = std::strlen(table[i].to);
+        size_t pos = 0;
+        while ((pos = in.find(table[i].from, pos)) != std::string::npos) {
+            in.replace(pos, from_len, table[i].to);
+            pos += to_len;
+        }
+    }
+    return in;
+}
+
 }  // namespace
 
 // ============================================================================
@@ -681,4 +721,13 @@ std::string fn_utf8_to_ascii(const std::string &in) {
 
 std::string fn_sanitize_ascii(const std::string &in) {
     return fn_utf8_to_ascii(fn_decode_entities(in));
+}
+
+std::string fn_remap_atari_ascii(const std::string &in) {
+    return remap(in, kAtariAscii, sizeof(kAtariAscii) / sizeof(kAtariAscii[0]));
+}
+
+std::string fn_remap_atari_international(const std::string &in) {
+    return remap(in, kAtariInternational,
+                 sizeof(kAtariInternational) / sizeof(kAtariInternational[0]));
 }
