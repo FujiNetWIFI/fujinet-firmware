@@ -14,15 +14,15 @@
 #include "fuji_mailbox.h"
 #include "o2map.h"
 
-extern unsigned char new_rom_table[8][4096];
-extern volatile bool fuji_boot_armed;
-
 /* core1 swaps to the staged image with one pointer store at the console's next
- * reset-vector fetch, so the running client is never overwritten. */
+ * reset-vector fetch (fuji_cart_swap), so the running client is never
+ * overwritten and keeps its status page until then: the reply to the MOUNT_IMAGE
+ * that staged the image is for it. */
 static void port_stream_end(int stream, const uint8_t *data, unsigned len,
                             bool aborted)
 {
     o2map_plan_t plan;
+    unsigned char (*table)[4096];
 
     if (aborted || stream != 0 || len == 0)
         return;                 /* the .cfg sibling means nothing to an O2 cart */
@@ -33,32 +33,28 @@ static void port_stream_end(int stream, const uint8_t *data, unsigned len,
         return;
     }
 
+    table = fuji_cart_stage_table();
+
     if (plan.appbank) {
         /* Protocol 2: up to 63K, served from the stage buffer in place; there
          * is no RAM for a second copy. The fixed half is written through
-         * FN_REG_POKE. */
-        o2app_init(&fuji_app, (uint8_t *) data, plan.npages);
+         * FN_REG_POKE. The table only carries its status bytes. */
+        o2app_init(&fuji_app_next, (uint8_t *) data, plan.npages);
         fujimail_stage_live = true;
+        fuji_cart_stage_boot(table, true);
         fuji_app_armed = true;
-        fuji_mailbox_active = true;
-        fuji_cart_stage_boot();
-        __sync_synchronize();   /* fuji_app is whole before core1 can see armed */
+        __sync_synchronize();   /* fuji_app_next is whole before core1 can see armed */
         fuji_boot_armed = true;
-        fujimail_paint();
         return;
     }
 
-    o2map_apply(data, &plan, new_rom_table);
+    o2map_apply(data, &plan, table);
     /* A game needs the mailbox page for its own code, so the mailbox is off
-     * for the session unless the image claims it. */
-    fuji_mailbox_active = plan.mailbox_ok;
-    fuji_cart_stage_boot();
+     * once it runs unless the image claims it. */
+    fuji_cart_stage_boot(table, plan.mailbox_ok);
+    fuji_app_armed = false;
+    __sync_synchronize();
     fuji_boot_armed = true;
-
-    /* o2map_apply overwrote the staged mailbox page; republish it before the
-     * console fetches $400. */
-    if (fuji_mailbox_active)
-        fujimail_paint();
 }
 
 static void port_bootsel(void)
@@ -88,6 +84,10 @@ void fuji_mailbox_service(void)
 {
     uint8_t addr, data;
 
-    while (fuji_cart_next_write(&addr, &data))
-        fujimail_write(addr, data);
+    while (fuji_cart_next_write(&addr, &data)) {
+        /* A running game that did not claim the mailbox may write these
+         * addresses for its own reasons; none of it is ours to act on. */
+        if (fuji_mailbox_active)
+            fujimail_write(addr, data);
+    }
 }

@@ -4,6 +4,7 @@
 #include "fuji_mailbox.h"
 
 #define TIMEOUT_MS        5000
+#define TIMEOUT_SCAN_MS  20000
 #define TIMEOUT_MOUNT_MS 60000
 #define LINK_WAIT_MS      3000
 
@@ -129,7 +130,7 @@ bool fujimail_inbound(const fb_reply_t *req)
             memcpy(stage + stage_len, req->data, req->data_len);
             stage_len += req->data_len;
         }
-        if (stage_expect)
+        if (dbc_stream == 0 && stage_expect)
             poke(FN_R_BOOT_PCT, (uint8_t)((stage_len * 100u) / stage_expect));
         port->send_bare(FUJI_DEVICEID_DBC, CMD_FUJI_ACK, NULL, 0);
         return true;
@@ -166,6 +167,19 @@ bool fujimail_inbound(const fb_reply_t *req)
 
 /* ---- the transaction ---- */
 
+/* How long a reply may take. MOUNT_IMAGE ACKs after the whole ROM has been
+ * pushed and COPY_FILE after the copy, and a WiFi scan ACKs when the radio has
+ * swept the channels; a reply after the window closes would answer the next
+ * request. */
+static uint32_t txn_timeout(uint8_t cmd)
+{
+    if (cmd == CMD_FUJI_MOUNT_IMAGE || cmd == CMD_FUJI_COPY_FILE)
+        return TIMEOUT_MOUNT_MS;
+    if (cmd == CMD_FUJI_SCAN_NETWORKS)
+        return TIMEOUT_SCAN_MS;
+    return TIMEOUT_MS;
+}
+
 static void run_transaction(uint8_t seq)
 {
     fb_param_t params[8];
@@ -189,6 +203,14 @@ static void run_transaction(uint8_t seq)
             params[i].value |= (uint32_t) txbuf[p++] << (8 * k);
     }
 
+    /* A new mount starts from idle: the push that follows reports through these
+     * bytes, and a client that polls them must not read the last mount's. */
+    if (mb_cmd == CMD_FUJI_MOUNT_IMAGE) {
+        poke(FN_R_BOOT_STATE, FN_BOOT_IDLE);
+        poke(FN_R_BOOT_PCT, 0);
+        poke(FN_R_BOOT_ERR, 0);
+    }
+
     if (st == FB_OK) {
         /* The first transaction comes before the ESP32-S3 enumerates, and this
          * runs once per SEQ bump, so one "no link" answer would stick. */
@@ -197,9 +219,7 @@ static void run_transaction(uint8_t seq)
 
         st = port->transact(mb_device, mb_cmd, params, nparam,
                             txbuf + p, (uint16_t)(txptr - p),
-                            (mb_cmd == CMD_FUJI_MOUNT_IMAGE) ? TIMEOUT_MOUNT_MS
-                                                             : TIMEOUT_MS,
-                            &reply);
+                            txn_timeout(mb_cmd), &reply);
     }
 
     fujimail_rxn = 0;
