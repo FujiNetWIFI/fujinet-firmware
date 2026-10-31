@@ -223,12 +223,10 @@ void __not_in_flash_func(core1_main()) {
 				 * before serving the byte, so the restart reads the new image
 				 * from its very first fetch rather than a torn mixture. */
 				if (fuji_boot_armed && addr == 0x400) {
-					fuji_rom = new_rom_table;
-					fuji_app_live = fuji_app_armed;
-					fuji_boot_armed = false;
-					/* core0 filled fuji_app before arming: nothing read
-					 * from it may be hoisted above this point. */
+					/* core0 filled the staged image before arming: nothing
+					 * read from it may be hoisted above this point. */
 					__compiler_memory_barrier();
+					fuji_cart_swap();
 				}
 				SET_DATA_MODE_OUT;
 				if (fuji_app_live)
