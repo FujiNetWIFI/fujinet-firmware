@@ -260,8 +260,9 @@ against real Channel F idioms: `ST`=`17`, `LR H,DC`=`11`, `LR Q,DC`=`0E`,
 ## Licence note
 
 [`ZX-80/PicoVideocart`](https://github.com/ZX-80/PicoVideocart), an RP2040
-Channel F flashcart, is **unlicensed** — the GitHub API reports
-`"license": null` and there is no LICENSE file. This is the third time in this
-family, after PicoPAC and PiRTO II. Treat it as an electrical reference only:
-no code, no schematics. Everything protocol-related here comes from MAME's F8
-core (BSD-3-Clause) and the F8 User's Guide instead.
+Channel F flashcart, is **unlicensed**. Andrea Ottaviani's port of it,
+[`aotta/PicoVideocart`](https://github.com/aotta/PicoVideocart), is GPL-3.0.
+This firmware takes no code from either: everything protocol-related comes from
+MAME's F8 core (BSD-3-Clause) and the F8 User's Guide. The FujiNet-ChannelF-Rev0
+board (fujinet-hardware) takes its outline, key slot and shell holes from
+aotta's port.
