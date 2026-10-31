@@ -63,9 +63,8 @@ void FujiIECPacket::fillParams(size_t count, size_t psize) const
 
 const std::optional<ByteBuffer>& FujiIECPacket::data() const
 {
-    if (!_data.has_value())
+    if (!_data.has_value() && _payload.has_value())
     {
-        assert(_payload.has_value());
         _data = _payload;
     }
     return _data;
