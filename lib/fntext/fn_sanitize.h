@@ -45,4 +45,16 @@ std::string fn_utf8_to_ascii(const std::string &in);
  */
 std::string fn_sanitize_ascii(const std::string &in);
 
+/**
+ * The *_REMAP_CHARS query option for an Atari host: accented letters become
+ * plain ASCII spellings ("ae", "ss", ...).
+ */
+std::string fn_remap_atari_ascii(const std::string &in);
+
+/**
+ * The same with *_REMAP_ATASCII_INTERNATIONAL also set: accented letters
+ * become their codes in the ATASCII international character set.
+ */
+std::string fn_remap_atari_international(const std::string &in);
+
 #endif /* FN_SANITIZE_H */
