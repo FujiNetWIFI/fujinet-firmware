@@ -68,6 +68,12 @@ target_include_directories(PicoPAC_cart PUBLIC
     ${FUJI_COMMON}/include
 )
 
+# FUJINET: build-cart.sh's fresh fujiconfigrom.h, when it found a CONFIG to bake,
+# comes ahead of the committed one in include/.
+if(DEFINED ENV{FUJI_GEN})
+    target_include_directories(PicoPAC_cart BEFORE PUBLIC $ENV{FUJI_GEN})
+endif()
+
 # stdio_usb would print on the CDC port FujiBus owns, so only a stock build gets it.
 if(CONFIG_FUJINET)
     pico_enable_stdio_usb(PicoPAC_cart 0)

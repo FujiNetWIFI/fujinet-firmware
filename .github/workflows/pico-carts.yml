@@ -143,7 +143,7 @@ jobs:
       # the 8048 are page-relative.
       - name: Assemble
         working-directory: pico/o2
-        run: ./build.sh hello fujitest fujiboot fujicfg apptest
+        run: ./build.sh hello fujitest fujiboot fujicfg apptest appmount
 
       # No code may live above $7FF. CALL and JMP carry 11 address bits and the
       # twelfth comes from the MB flag, which the assembler sets on the
@@ -175,7 +175,7 @@ jobs:
           make -C firmware/host_test
           build/host_test/test_o2map build/hello.bin build/fujitest.bin \
                                      build/fujiboot.bin build/fujicfg.bin \
-                                     build/apptest.bin
+                                     build/apptest.bin build/appmount.bin
 
   astrocade-console-client:
     name: "Astrocade Z80 clients"
