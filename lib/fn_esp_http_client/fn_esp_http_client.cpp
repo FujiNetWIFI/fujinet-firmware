@@ -179,7 +179,9 @@ static int http_on_headers_complete(http_parser *parser)
     client->response->data_process = 0;
     ESP_LOGD(TAG, "http_on_headers_complete, status=%d, offset=%d, nread=%d", parser->status_code, client->response->data_offset, (int)parser->nread);
     client->state = HTTP_STATE_RES_COMPLETE_HEADER;
-    return 0;
+    // Complete no-body responses without changing representation metadata.
+    return (client->connection_info.method == HTTP_METHOD_HEAD && parser->status_code >= 200)
+        || parser->status_code == 204 || parser->status_code == 304 ? 1 : 0;
 }
 
 static int http_on_body(http_parser *parser, const char *at, size_t length)
@@ -759,6 +761,10 @@ static int esp_http_client_get_data(esp_http_client_handle_t client)
 
 int esp_http_client_read(esp_http_client_handle_t client, char *buffer, int len)
 {
+    if ((client->connection_info.method == HTTP_METHOD_HEAD && client->response->status_code >= 200)
+        || client->response->status_code == 204 || client->response->status_code == 304) {
+        return 0;
+    }
     esp_http_buffer_t *res_buffer = client->response->buffer;
 
     int rlen = ESP_FAIL, ridx = 0;
