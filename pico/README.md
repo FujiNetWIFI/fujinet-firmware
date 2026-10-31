@@ -6,12 +6,12 @@ on its floppy port and relays bus traffic to the ESP32 running FujiNet.
 ## Layout
 | Directory | Target | Build | Embedded by `build_pico.py` | ESP32 side | README |
 |---|---|---|---|---|---|
-| `intellivision/` | Intellivision cartridge on the RP2354A `fujicard` board; a fork of Minty (GPLv3, see `intellivision/PROVENANCE.md`) | pico-sdk CMake in `intellivision/firmware/` | yes, for `fujiversal-intv` | [lib/bus/rs232/](../lib/bus/rs232/) over USB CDC | yes |
+| `intellivision/` | Intellivision cartridge on the RP2354A `fujicard` board; a fork of Minty (GPLv3), itself derived from aotta's PiRTO II (GPL-3.0); see `intellivision/PROVENANCE.md` | pico-sdk CMake in `intellivision/firmware/` | yes, for `fujiversal-intv` | [lib/bus/rs232/](../lib/bus/rs232/) over USB CDC | yes |
 | `fujiversal/` | Generic ROM-emulating cartridge for the CoCo and MSX, RP2350B; a git submodule | upstream Makefile, or CMake with the board passed as `BOARD` | yes, for `fujiversal-drivewire` and `fujiversal-msx` | [lib/bus/drivewire/](../lib/bus/drivewire/) or [lib/bus/rs232/](../lib/bus/rs232/) over USB CDC | upstream `fujiversal/readme.md` |
 | `fujiversal-roms/msx/` | Prebuilt MSX CONFIG ROM that the `fujiversal-msx` cartridge serves | not built here (needs z88dk) | input to the `fujiversal-msx` prebuild step | | yes |
 | `astrocade/` | Bally Astrocade cartridge on an RP2040 `fujicade` board | `astrocade/build.sh` (Z80 clients) and `astrocade/build-cart.sh` (pico-sdk) | no | [lib/bus/rs232/](../lib/bus/rs232/) over USB CDC | yes |
 | `arcadia/` | Emerson Arcadia 2001 cartridge, RP2040 | `arcadia/build.sh` (2650 clients, Macroassembler AS) and `arcadia/build-cart.sh` (pico-sdk) | no | [lib/bus/rs232/](../lib/bus/rs232/) over USB CDC | yes |
-| `o2/` | Odyssey 2 and Videopac cartridge, RP2040; a fork of PicoPAC | `o2/build.sh` (8048 clients) and `o2/build-cart.sh` (pico-sdk) | no | [lib/bus/rs232/](../lib/bus/rs232/) over USB CDC | yes |
+| `o2/` | Odyssey 2 and Videopac cartridge, RP2040; a fork of aotta's PicoPAC (GPL-3.0, see `o2/firmware/PROVENANCE.md`) | `o2/build.sh` (8048 clients) and `o2/build-cart.sh` (pico-sdk) | no | [lib/bus/rs232/](../lib/bus/rs232/) over USB CDC | yes |
 | `channelf/` | Fairchild Channel F Videocart on an RP2040 `fujichannelf` board | `channelf/build.sh` (F8 clients, Macro Assembler AS) and `channelf/build-cart.sh` (pico-sdk) | no | [lib/bus/rs232/](../lib/bus/rs232/) over USB CDC | yes |
 | `nes/` | NES cartridge on an RP2354B with two 512K SRAMs for PRG and CHR | `nes/build.sh` (6502 clients, cc65) and `nes/build-cart.sh` (pico-sdk) | no | [lib/bus/rs232/](../lib/bus/rs232/) over USB CDC | yes |
 | `studio2/` | RCA Studio II cartridge on an RP2354B; serves the CDP1861's display raster itself | `studio2/build.sh` (1802 clients, Macroassembler AS) and `studio2/build-cart.sh` (pico-sdk) | no | [lib/bus/rs232/](../lib/bus/rs232/) over USB CDC | yes |
