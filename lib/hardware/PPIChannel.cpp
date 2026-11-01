@@ -131,8 +131,17 @@ void PPIChannel::updateFIFO()
         gpio_set_level(PIN_PPI_ACK, 0);
         esp_rom_delay_us(1);
         uint8_t c = sampleData();
+        int obfAfterAck = gpio_get_level(PIN_PPI_OBF);
         gpio_set_level(PIN_PPI_ACK, 1);
         portEXIT_CRITICAL(&_mux);
+
+        // The 82C55 raises /OBF on /ACK; still low means the pin floats (82C55 not
+        // in Mode 2 yet), not a byte, and looping on it would fill the heap
+        if (!obfAfterAck)
+        {
+            warn("PPIChannel: /OBF stuck low, no byte taken");
+            return;
+        }
 
         _fifo += (char) c;
     }
