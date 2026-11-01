@@ -6,6 +6,9 @@
 
 #define BOIP_DEFAULT_PORT     65504
 #define BOIP_IOWAIT_MS        500
+// Once nothing has arrived for BOIP_IDLE_AFTER_MS, an idle wait stretches to BOIP_IDLE_WAIT_MS
+#define BOIP_IDLE_AFTER_MS    100
+#define BOIP_IDLE_WAIT_MS     10
 #define BOIP_CONNECT_TMOUT    2000
 #define BOIP_SUSPEND_MS       5000
 
@@ -87,6 +90,9 @@ private:
 #endif
     int _suspend_period;
 
+    // when bytes last arrived (low 32 bits of fnSystem.millis())
+    uint32_t _last_rx_ms;
+
 protected:
     void start_connection();
     void listen_for_connection();
@@ -102,6 +108,7 @@ protected:
 
     bool connected();
     bool poll_connection(int ms);
+    int idle_wait_ms(int min_ms) const;
 
     static timeval timeval_from_ms(const uint32_t millis);
 
