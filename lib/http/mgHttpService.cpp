@@ -543,7 +543,12 @@ void fnHttpService::add_sse_client(struct mg_connection* c)
 
 void fnHttpService::remove_sse_client(struct mg_connection* c)
 {
-    m_sseClients.erase(std::remove(m_sseClients.begin(), m_sseClients.end(), c), m_sseClients.end());
+    // Called for every closed connection, not just event streams
+    auto found = std::remove(m_sseClients.begin(), m_sseClients.end(), c);
+    if (found == m_sseClients.end())
+        return;
+
+    m_sseClients.erase(found, m_sseClients.end());
     Debug_printf("SSE client disconnected, remaining clients: %d\n", m_sseClients.size());
 }
 
