@@ -500,7 +500,7 @@ void mgHttpClient::handle_read(struct mg_connection *c)
     Debug_printf("  Received: %lu\n", c->recv.len);
 #endif
 
-    if (_transaction_begin)
+    while (_transaction_begin)
     {
         // Waiting for all headers to arrive
         struct mg_http_message hm;
@@ -521,11 +521,19 @@ void mgHttpClient::handle_read(struct mg_connection *c)
 #endif
         if (hdrs_len > 0)
         {
+            // Skip interim headers, but preserve the existing 101 response handling.
+            if (mg_http_status(&hm) >= 100 && mg_http_status(&hm) < 200 && mg_http_status(&hm) != 101)
+            {
+                mg_iobuf_del(&c->recv, 0, hdrs_len);
+                continue;
+            }
             // We received all headers
             process_response_headers(c, hm, hdrs_len);
             _transaction_begin = false; // indicate the headers are processed
             _processed = true; // stop polling, headers are available
         }
+        else
+            return;
     }
 
     // Append body data to buffer, if any
@@ -570,8 +578,9 @@ void mgHttpClient::process_response_headers(struct mg_connection *c, struct mg_h
         std::string cls(clh->buf, clh->len);
         _declared_len = atol(cls.c_str());
     }
-    // No-body responses on reused connections and empty fixed-length messages complete at headers.
-    if ((_keep_alive && (_method == HTTP_HEAD || _status_code == 204 || _status_code == 304)) ||
+    // Retain HEAD/101 reuse behavior; final no-body responses complete independently of reuse.
+    if ((_method == HTTP_HEAD && (_status_code >= 200 || (_status_code == 101 && _keep_alive))) ||
+        _status_code == 204 || _status_code == 304 ||
         (!_is_chunked && _declared_len == 0))
         _transaction_done = true;
 
@@ -771,7 +780,8 @@ void mgHttpClient::_httpevent_handler(struct mg_connection *c, int ev, void *ev_
 #ifdef VERBOSE_HTTP
         Debug_printf("mgHttpClient: Connection closed\n");
 #endif
-        if (client->_is_chunked && !client->_chunked_complete && client->_status_code >= 200 && client->_status_code < 400)
+        if (client->_is_chunked && !client->_chunked_complete && !client->_transaction_done &&
+            client->_status_code >= 200 && client->_status_code < 400)
         {
             Debug_println("mgHttpClient: Chunked response ended before final chunk");
             client->_status_code = 902; // Fake HTTP status code to indicate truncated chunked body. Maybe should be 204-"Connection was reset during read/write"

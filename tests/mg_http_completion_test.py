@@ -10,12 +10,12 @@ PARSER = argparse.ArgumentParser()
 PARSER.add_argument("probe")
 PARSER.add_argument("--expect-peer-close", action="store_true")
 PARSER.add_argument("--expect-chunked-peer-close", action="store_true")
-ARGS = PARSER.parse_args()
+ARGS, TEST_ARGS = PARSER.parse_known_args()
 BODY = b"fixed\x00body\n"
 
 
 class HttpCompletionTests(unittest.TestCase):
-    def read_request(self, peer, path, reuse=False):
+    def read_request(self, peer, path, reuse=False, method="GET"):
         peer.settimeout(3)
         request = b""
         while b"\r\n\r\n" not in request:
@@ -23,7 +23,7 @@ class HttpCompletionTests(unittest.TestCase):
             self.assertTrue(part)
             request += part
             self.assertLessEqual(len(request), 8192)
-        self.assertIn(f"GET {path} HTTP/1.1\r\n".encode(), request)
+        self.assertIn(f"{method} {path} HTTP/1.1\r\n".encode(), request)
         self.assertIn(b"Connection: " + (b"keep-alive" if reuse else b"close") + b"\r\n", request)
 
     def assert_result(self, lines, body):
@@ -275,6 +275,165 @@ class HttpCompletionTests(unittest.TestCase):
         lines = result.stdout.decode().splitlines()
         self.assertEqual(lines, ["GET_RETURNED", "900 0 0 -1 -1 -1 0 1 "])
 
+    def run_no_body(self, method, status, reuse, informational=None):
+        length = None if status == 204 else 123
+        mode = "head" if method == "HEAD" else "no-body"
+        if reuse:
+            mode += "-twice"
+        with socket.socket() as listener:
+            listener.bind(("127.0.0.1", 0))
+            listener.listen(1)
+            listener.settimeout(3)
+            process = subprocess.Popen(
+                [ARGS.probe, f"http://127.0.0.1:{listener.getsockname()[1]}/fixture",
+                 "reuse" if reuse else "close", mode],
+                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0,
+            )
+            try:
+                with listener.accept()[0] as peer:
+                    self.read_request(peer, "/fixture", reuse, method)
+                    response = (f"HTTP/1.1 {status} Final\r\nConnection: keep-alive\r\n"
+                                'ETag: "representation"\r\nContent-Type: text/plain\r\n').encode()
+                    if length is not None:
+                        response += f"Content-Length: {length}\r\n".encode()
+                    response += b"\r\n"
+                    if informational:
+                        interim = b"HTTP/1.1 100 Continue\r\n\r\nHTTP/1.1 103 Early Hints\r\n\r\n"
+                        if informational == "separate":
+                            peer.sendall(interim)
+                            self.assertFalse(select.select([process.stdout], [], [], 0.25)[0],
+                                             "request completed at informational headers")
+                        else:
+                            response = interim + response
+                    started = time.monotonic()
+                    peer.sendall(response)
+                    lines = []
+                    for _ in range(3):
+                        self.assertTrue(select.select([process.stdout], [], [], 1.5)[0],
+                                        "no-body response did not complete while peer held open")
+                        lines.append(process.stdout.readline().decode().strip())
+                    self.assertEqual(lines[0], f"{method}_RETURNED")
+                    fields = lines[1].split()
+                    self.assertEqual(len(fields), 8, "no-body response exposed body bytes")
+                    self.assertEqual(list(map(int, fields)),
+                                     [status, length or 0, 0, 0, 0, 0, 0, 1])
+                    self.assertEqual(lines[2],
+                                     f'{length if length is not None else ""}|"representation"|text/plain|')
+                    print(f"{method}_{status}_reuse={reuse}_interim={informational}: "
+                          f"complete_before_peer_close=true elapsed_ms={int((time.monotonic()-started)*1000)} "
+                          "metadata_preserved=true empty_body=true eof_read=0 transaction_done=true",
+                          flush=True)
+                    if reuse:
+                        process.stdin.write(b"\n")
+                        process.stdin.flush()
+                        self.read_request(peer, "/fixture", reuse=True)
+                        peer.sendall(f"HTTP/1.1 200 OK\r\nContent-Length: {len(BODY)}\r\n\r\n".encode())
+                        self.assertFalse(select.select([process.stdout], [], [], 0.25)[0],
+                                         "ordinary GET completed before its declared body arrived")
+                        peer.sendall(BODY)
+                        lines = []
+                        for _ in range(3):
+                            self.assertTrue(select.select([process.stdout], [], [], 1.5)[0])
+                            lines.append(process.stdout.readline().decode().strip())
+                        self.assert_result(lines[:2], BODY)
+                    output, errors = process.communicate(timeout=3)
+                    self.assertEqual(process.returncode, 0, errors.decode())
+                    self.assertEqual(output, b"")
+            finally:
+                if process.poll() is None:
+                    process.kill()
+                process.communicate(timeout=3)
+
+    def test_no_body(self):
+        for method, status in (("GET", 304), ("HEAD", 200), ("GET", 204)):
+            for reuse in (False, True):
+                with self.subTest(method=method, status=status, reuse=reuse):
+                    self.run_no_body(method, status, reuse)
+
+    def test_head_informational(self):
+        for reuse in (False, True):
+            for informational in ("separate", "coalesced"):
+                with self.subTest(reuse=reuse, informational=informational):
+                    self.run_no_body("HEAD", 200, reuse, informational)
+
+    def run_review_response(self, method, status, reuse, close_peer, chunked=False, body=b""):
+        mode = "head" if method == "HEAD" else "no-body"
+        if close_peer:
+            mode += "-close"
+        with socket.socket() as listener:
+            listener.bind(("127.0.0.1", 0))
+            listener.listen(1)
+            listener.settimeout(3)
+            process = subprocess.Popen(
+                [ARGS.probe, f"http://127.0.0.1:{listener.getsockname()[1]}/fixture",
+                 "reuse" if reuse else "close", mode],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0,
+            )
+            try:
+                with listener.accept()[0] as peer:
+                    self.read_request(peer, "/fixture", reuse, method)
+                    response = f"HTTP/1.1 {status} Response\r\n".encode()
+                    if status == 101:
+                        response += b"Connection: Upgrade\r\nUpgrade: example\r\n"
+                    else:
+                        response += b"Connection: keep-alive\r\n"
+                    if chunked:
+                        response += b"Transfer-Encoding: chunked\r\n"
+                    response += b'ETag: "review"\r\n\r\n' + body
+                    peer.sendall(response)
+                    ready = None
+                    if close_peer:
+                        peer.shutdown(socket.SHUT_WR)
+                    else:
+                        deadline = 0.25 if status == 101 else 1.5
+                        ready = bool(select.select([process.stdout], [], [], deadline)[0])
+                        if not ready:
+                            peer.shutdown(socket.SHUT_WR)
+                    output, errors = process.communicate(timeout=3)
+                    self.assertEqual(process.returncode, 0, errors.decode())
+                    lines = output.decode().splitlines()
+                    self.assertEqual(len(lines), 3)
+                    fields = list(map(int, lines[1].split()[:8]))
+                    print(f"review method={method} status={status} reuse={reuse} close={close_peer} "
+                          f"chunked={chunked} input_body={body.hex()} ready_held_open={ready} "
+                          f"result={fields} metadata={lines[2]}", flush=True)
+                    return ready, fields, lines[2]
+            finally:
+                if process.poll() is None:
+                    process.kill()
+                process.communicate(timeout=3)
+
+    def test_switching_protocols(self):
+        for method in ("GET", "HEAD"):
+            for reuse in (False, True):
+                for close_peer in (False, True):
+                    with self.subTest(method=method, reuse=reuse, close=close_peer):
+                        ready, fields, metadata = self.run_review_response(method, 101, reuse, close_peer)
+                        self.assertEqual(fields, [101, -1, 0, 0, 0, 0, 0, 1])
+                        self.assertEqual(metadata, '|"review"||')
+                        if not close_peer:
+                            self.assertEqual(ready, method == "HEAD" and reuse)
+
+    def test_no_body_transfer_encoding(self):
+        for method, status in (("HEAD", 200), ("GET", 304)):
+            for reuse in (False, True):
+                for close_peer in (False, True):
+                    with self.subTest(method=method, status=status, reuse=reuse, close=close_peer):
+                        ready, fields, metadata = self.run_review_response(
+                            method, status, reuse, close_peer, chunked=True)
+                        self.assertEqual(fields, [status, -1, 0, 0, 0, 0, 0, 1])
+                        self.assertEqual(metadata, '|"review"||chunked')
+                        if not close_peer:
+                            self.assertTrue(ready, "bodyless Transfer-Encoding waited for peer close")
+
+    def test_truncated_chunked(self):
+        for reuse in (False, True):
+            for body in (b"3\r\nabc\r\n", b"5\r\nabc"):
+                with self.subTest(reuse=reuse, body=body):
+                    _, fields, _ = self.run_review_response("GET", 200, reuse, True, chunked=True, body=body)
+                    self.assertEqual(fields[0], 902)
+                    self.assertEqual(fields[5:], [-1, 0, 1])
+
 
 if __name__ == "__main__":
-    unittest.main(argv=[__file__], verbosity=2)
+    unittest.main(argv=[__file__] + TEST_ARGS, verbosity=2)
