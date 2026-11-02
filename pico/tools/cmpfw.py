@@ -18,7 +18,7 @@ import subprocess
 import sys
 import tarfile
 
-CARTS = ["arcadia", "astrocade", "channelf", "nes", "sms", "studio2",
+CARTS = ["arcadia", "astrocade", "channelf", "coleco", "nes", "sms", "studio2",
          "atari-5200", "atari-7800", "s100", "o2", "template"]
 
 ROOT = subprocess.run(["git", "rev-parse", "--show-toplevel"], check=True,
