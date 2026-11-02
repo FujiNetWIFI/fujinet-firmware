@@ -186,26 +186,13 @@ std::string FNJSON::processString(std::string in)
         if (_queryParam & JSON_REMAP_ATASCII_INTERNATIONAL)
         {
             Debug_printf("Applying international charset mapping\r\n");
-            // yes, mapping to international charset
-            std::string mapFrom[] = {"á", "ù", "Ñ", "É", "ç", "ô", "ò", "ì", "£", "ï", "ü", "ä", "Ö", "ú", "ó", "ö", "Ü", "â", "û", "î", "é", "è", "ñ", "ê", "å", "à", "Å", "¡", "Ä", "ß"};
-            std::string mapTo[] = {"\x00", "\x01", "\x02", "\x03", "\x04", "\x05", "\x06", "\x07", "\x08", "\x09", "\x0a", "\x0b", "\x0c", "\x0d", "\x0e", "\x0f", "\x10", "\x11", "\x12", "\x13", "\x14", "\x15", "\x16", "\x17", "\x18", "\x19", "\x1a", "\x60", "\x7b", "ss"};
-            int elementCount = sizeof(mapFrom) / sizeof(mapFrom[0]);
-            for (int elementIndex = 0; elementIndex < elementCount; elementIndex++)
-                if (in.find(mapFrom[elementIndex]) != std::string::npos)
-                    in.replace(in.find(mapFrom[elementIndex]), std::string(mapFrom[elementIndex]).size(), mapTo[elementIndex]);
+            in = fn_remap_atari_international(in);
         }
         else
         {
             Debug_printf("Applying umlaut removal mapping\r\n");
-            // no, mapping to normal ASCI (workaround)
-            std::string mapFrom[] = {"Ä", "Ö", "Ü", "ä", "ö", "ü", "ß", "é", "è", "á", "à", "ó", "ò", "ú", "ù"};
-            std::string mapTo[] = {"Ae", "Oe", "Ue", "ae", "oe", "ue", "ss", "e", "e", "a", "a", "o", "o", "u", "u"};
-            int elementCount = sizeof(mapFrom) / sizeof(mapFrom[0]);
-            for (int elementIndex = 0; elementIndex < elementCount; elementIndex++)
-                if (in.find(mapFrom[elementIndex]) != std::string::npos)
-                    in.replace(in.find(mapFrom[elementIndex]), std::string(mapFrom[elementIndex]).size(), mapTo[elementIndex]);
+            in = fn_remap_atari_ascii(in);
         }
-
     }
 #endif
 

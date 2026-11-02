@@ -149,6 +149,15 @@ TEST_CASE("only the defined query flags are accepted")
     CHECK_FALSE(fn_query_param_is_valid(0x40)); // above the field
 }
 
+TEST_CASE("the remap flag converts every occurrence of a character, not just the first")
+{
+    Session session("<r><t>M\xc3\xbcller \xc3\xbc" "ber</t></r>");
+    REQUIRE(session.parser.parse().is_success());
+
+    std::string remapped = session.query("/r/t", FN_QUERY_REMAP_CHARS);
+    CHECK(remapped.find("Mueller ueber") != std::string::npos);
+}
+
 // ----------------------------------------------------------------------------
 // Link stubs. Only XMLParser, NParser and the fnxml/fntext libraries are
 // compiled into this target; everything the bus headers drag in behind them is

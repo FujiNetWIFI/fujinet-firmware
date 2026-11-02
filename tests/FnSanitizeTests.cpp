@@ -377,4 +377,26 @@ TEST_CASE("fn_sanitize text transformation functions")
         // Euro should be gone (no ASCII equivalent)
         CHECK(output.find("\xE2\x82\xAC") == std::string::npos);
     }
+
+    // ========================================================================
+    // fn_remap_atari_*: The Atari *_REMAP_CHARS query option
+    // ========================================================================
+
+    SUBCASE("fn_remap_atari_ascii: Every occurrence is remapped")
+    {
+        // Müller über -> Mueller ueber
+        CHECK(fn_remap_atari_ascii("M\xC3\xBCller \xC3\xBC" "ber") == "Mueller ueber");
+
+        // ßß -> ssss
+        CHECK(fn_remap_atari_ascii("\xC3\x9F\xC3\x9F") == "ssss");
+    }
+
+    SUBCASE("fn_remap_atari_international: Every occurrence is remapped")
+    {
+        // été -> 0x14 t 0x14
+        CHECK(fn_remap_atari_international("\xC3\xA9t\xC3\xA9") == "\x14t\x14");
+
+        // á maps to an empty string, so it's dropped
+        CHECK(fn_remap_atari_international("\xC3\xA1" "b\xC3\xA1") == "b");
+    }
 }

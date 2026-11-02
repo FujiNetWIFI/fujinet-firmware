@@ -7,7 +7,7 @@ that turns web text into something an 8-bit host can print.
 | File | Defines |
 |---|---|
 | `fn_query_flags.h` | `fnQueryFlags_t`: the remap bits (`FN_QUERY_REMAP_CHARS`, `FN_QUERY_REMAP_ATASCII_INTERNATIONAL`, `FN_QUERY_DELETE_SGML_TAGS`) and the output mode (`FN_QUERY_OUTPUT_VERBATIM`, `FN_QUERY_OUTPUT_ASCII`); `fn_query_param_is_valid()` |
-| `fn_sanitize.h`, `fn_sanitize.cpp` | `fn_decode_entities` (numeric and a curated named-entity table), `fn_utf8_to_ascii`, `fn_sanitize_ascii` |
+| `fn_sanitize.h`, `fn_sanitize.cpp` | `fn_decode_entities` (numeric and a curated named-entity table), `fn_utf8_to_ascii`, `fn_sanitize_ascii`, `fn_remap_atari_ascii` and `fn_remap_atari_international` (the Atari remap tables) |
 
 ## How it fits
 - `NDevice` validates the query parameter with `fn_query_param_is_valid`; [lib/fnjson/](../fnjson/),
