@@ -12,8 +12,8 @@
 
 #include <freertos/FreeRTOS.h>
 
-// Byte pipe to the host through an 82C55 port A in Mode 2 and a 74LVC245. The host
-// owns the 245: DIR=1 passes host->ESP32, /OE low enables it.
+// Byte pipe to the host through an 82C55 port A in Mode 2. Port A drives D0-D7 only
+// while our /ACK is low, so the ESP32 decides which way the data lines run.
 class PPIChannel : public IOChannel, public RS232ChannelProtocol
 {
 private:
