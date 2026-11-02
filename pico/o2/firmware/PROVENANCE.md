@@ -23,13 +23,9 @@ lineage below, and avoids relicensing anything belonging to wilco2009 or bwack.
 
 ## Licence status
 
-**The upstream repository carries no licence file at all.** The GitHub API
-reports `"license": null`, `/license` 404s, and there is no LICENSE, COPYING or
-NOTICE anywhere in the tree. By default that means all rights reserved.
-
-**Andrea Ottaviani has granted permission for FujiNet to use his work here**
-(reported by Thomas Cherryhomes, 2026-09-02; the grant itself was obtained
-directly from the author). That covers aotta's own contributions.
+PicoPAC is Andrea Ottaviani's, licensed **GPL-3.0**: upstream added its
+`LICENSE` in `9ee28bb5`, and the vendored `f0b3ebcd` is that commit's parent,
+the same code. This fork is GPL-3.0 like the rest of fujinet-firmware.
 
 ### One gap that remains, and is not aotta's to close
 
@@ -38,18 +34,13 @@ Every C file in PicoPAC carries the header:
 > parts of code are directly from the A8PicoCart project by Robin Edwards 2023
 
 [robinhedwards/A8PicoCart](https://github.com/robinhedwards/A8PicoCart) is
-**also unlicensed**, and the file set here is a close clone of it — `main.c`,
+**unlicensed**, and the file set here is a close clone of it — `main.c`,
 `msc_disk.c`, `usb_descriptors.c`, `fatfs_disk.c`, `flash_fs.c`, `myboard.h`,
 `tusb_config.h`, `fatfs/`, down to the flash-filesystem magic `"RHE!FS30"`
-(Robin **H**enry **E**dwards). A permission from aotta does not extend to Robin
-Edwards's code, because it was never aotta's to license.
-
-This is the same situation the Intellivision port hit with PiRTO II — see
-[[../../intellivision/PROVENANCE.md]] and the note there about A8PicoCart. It was
-resolved there by re-vendoring onto Minty, which ships GPLv3. **Someone should
-seek the same grant from Robin Edwards before this is published**, or the
-A8PicoCart-derived files should be replaced. Flagging it rather than assuming
-one permission settles the whole tree.
+(Robin **H**enry **E**dwards). aotta's licence cannot cover Robin Edwards's
+code, and the Intellivision fork carries the same files (see
+[`../../intellivision/PROVENANCE.md`](../../intellivision/PROVENANCE.md)).
+A grant from Robin Edwards, or replacing those files, would close it.
 
 Third-party components with clear licences of their own, unaffected by any of
 the above: **FatFs** (ChaN, BSD-1-Clause) under `fatfs/`, and **TinyUSB** (MIT),

@@ -1,8 +1,8 @@
 # `pico/o2/firmware` — the RP2040 cartridge
 
-A fork of [aotta/PicoPAC](https://github.com/aotta/PicoPAC) with the FujiNet
-mailbox added — see `PROVENANCE.md` for what is vendored, what is not, and the
-licence position.
+A fork of Andrea Ottaviani's [aotta/PicoPAC](https://github.com/aotta/PicoPAC)
+(GPL-3.0) with the FujiNet mailbox added — see `PROVENANCE.md` for what is
+vendored, what is not, and the licence position.
 
 **It builds and links; it has never run on hardware.** There is no Odyssey 2 and
 no cartridge board here yet, so everything below is verified by construction and

@@ -244,7 +244,7 @@ char const* string_desc_arr [] =
   FUJI_USB_PRODUCT,                // 2: Product
   "123456789012",                  // 3: Serials, should use chip ID
   "FujiNet CDC",                   // 4: CDC Interface
-  "SDPicoCart MSC",                // 5: MSC Interface
+  "FujiNet MSC",                   // 5: MSC Interface
 };
 
 static uint16_t _desc_str[32];

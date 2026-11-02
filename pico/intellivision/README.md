@@ -2,9 +2,9 @@
 
 RP2040/RP2350 firmware that lets Intellivision programs talk to FujiNet. The cartridge
 firmware (`firmware/`, see `PROVENANCE.md` for license status) is a fork of Gennaro
-Tortone's **Minty** — GPLv3, unlike the unlicensed PiRTO II fork this branch used
-previously — extended so it also bridges the Intellivision's CP-1610 bus to an ESP32-S3
-running fujinet-firmware's `fujiversal-rs232` build over USB CDC.
+Tortone's **Minty** (GPLv3), itself a refactor of Andrea Ottaviani's **PiRTO II** (GPL-3.0),
+extended so it also bridges the Intellivision's CP-1610 bus to an ESP32-S3 running
+fujinet-firmware's `fujiversal-rs232` build over USB CDC.
 
 ```
 Intellivision --CP-1610 bus--> RP2040/RP2350 (Minty fork) --USB CDC--> ESP32-S3 fujiversal-rs232

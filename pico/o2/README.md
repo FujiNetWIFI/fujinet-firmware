@@ -348,11 +348,9 @@ Not vendored here; fetch as needed.
 
 ## Licensing
 
-**PicoPAC cannot be forked.** `aotta/PicoPAC` carries no licence at all *and*
-redistributes GPL-3.0 (`wilco2009/Videopac-micro-SD-Cart`) and LGPL-3.0
-(`bwack/Videopac_USBCART`) material. Read it as a hardware reference — it wires
-every cartridge-port signal this design needs — but build the firmware on
-`wilco2009/Videopac-micro-SD-Cart` (GPL-3.0, PicoPAC's own ancestor) instead.
+The cartridge firmware is a fork of Andrea Ottaviani's
+[aotta/PicoPAC](https://github.com/aotta/PicoPAC) (GPL-3.0). Its files that came
+from A8PicoCart are unlicensed; see `firmware/PROVENANCE.md`.
 
 `g7000.h` is Sören Gust's, MIT-style. o2em is Clarified Artistic License, so our
 changes stay a patch file. `bios/` is gitignored: console BIOS dumps are

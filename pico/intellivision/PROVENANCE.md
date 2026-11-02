@@ -9,31 +9,21 @@ Minty is itself a refactor of **PiRTO II** by Andrea Ottaviani
 (https://github.com/aotta/PiRTOII), and its storage layer traces further back to
 **A8PicoCart** by Robin Edwards (https://github.com/robinhedwards/A8PicoCart).
 
-## License status: resolved for firmware — Minty is GPLv3
+## License status
 
-Minty carries its own `LICENSE` file (GPLv3, vendored verbatim at `firmware/LICENSE`), so
-unlike the previous PiRTO II-based bring-up on this branch, **the firmware licensing
-blocker is resolved**. This vendored copy may be redistributed and merged upstream under
-the same terms as the rest of fujinet-firmware.
+Minty (`firmware/LICENSE`) and PiRTO II are both GPL-3.0, so this fork is GPL-3.0 like the
+rest of fujinet-firmware.
 
-This does **not** retroactively license the original PiRTO II or A8PicoCart source —
-Minty's own author (Gennaro Tortone) is the one who applied a license to his refactor of
-that code; we are relying on Minty's license grant, not on any grant from Andrea Ottaviani
-or Robin Edwards.
+The one gap is A8PicoCart, which is unlicensed. Files whose header says "parts of code are
+directly from the A8PicoCart project" carry Robin Edwards's code, which neither Minty's nor
+PiRTO II's licence can cover. `pico/o2` has the same gap; see
+[`../o2/firmware/PROVENANCE.md`](../o2/firmware/PROVENANCE.md).
 
-## What's still unresolved: the cartridge PCB
+## Hardware
 
-`~/Workspace/PiRTOII-Fuji/HARDWARE.md` and `HARDWARE-PROVENANCE.md` describe a cartridge PCB
-derived from PiRTO II's own hardware design (schematic sheet 1 — the Inty bus interface and
-reset circuit — copied near-verbatim; board outline, 44-pin edge connector, and enclosure
-also derived). **Neither upstream repository has a hardware license either**, and the PCB
-question is independent of the firmware question resolved above: Minty being GPLv3 says
-nothing about the license status of Andrea Ottaviani's KiCad sources. Do not publish
-gerbers, BOM, or STL files, and do not treat the PCB as clear to redistribute, until a
-separate grant is obtained from Andrea Ottaviani for the hardware design specifically. (That
-PCB was never taken past schematic planning in the KiCad GUI, per HARDWARE.md, so this is
-presently a documentation-only concern — `boards/fujicard.h` in this firmware does not
-assume any specific committed pin map from that design; see its own comments.)
+PiRTO II's PCB is GPL-3.0 as well. The FujiNet-INTV-Rev0 cartridge (fujinet-hardware
+`INTV/FujiNet-INTV-Rev0`) follows PiRTO II's outline and shell-post holes, and PiNTY CARD
+(CERN-OHL-W-2.0) for its edge and support circuit.
 
 ## What we're adding
 

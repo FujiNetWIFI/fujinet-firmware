@@ -10,7 +10,7 @@ The boards using this design today:
 | Board env | Machine | Cartridge firmware | Cartridge board | Chip |
 |---|---|---|---|---|
 | `fujiversal-intv` | Intellivision | `pico/intellivision/firmware` (in tree) | `fujicard` | RP2354A |
-| `fujiversal-intv-pirto-ii-duo` | Intellivision | `pico/intellivision/firmware` (in tree) | `pirto_ii_duo` | RP2350A |
+| `fujiversal-intv-pirto-ii-duo` | Intellivision | `pico/intellivision/firmware` (in tree) | `pirto_ii_duo` ([aotta's PiRTO II DUO](https://github.com/aotta/PiRTOIIDuo)) | RP2350A |
 | `fujiversal-drivewire` | Tandy CoCo | `pico/fujiversal` (submodule) | `coco_proto_260402` | RP2350B |
 | `fujiversal-msx` | MSX | `pico/fujiversal` (submodule) | `msx_proto_260402` | RP2350B |
 
