@@ -307,7 +307,7 @@ void adamFuji::fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl)
     std::string &dirpath = *current_entry;
 
     // Hack-o-rama to add file type character to beginning of path.
-    if (maxlen == 31)
+    if (maxlen == 31 && !(addtl & 0x80))
     {
         dirpath.resize(dirpath.size() + 2);
         memmove(&dirpath[2], &dirpath[0], dirpath.size() - 2);
