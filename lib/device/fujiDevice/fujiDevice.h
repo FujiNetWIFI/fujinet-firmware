@@ -99,6 +99,13 @@ enum DET_file_flags_t {
     DET_FF_TRUNC = 0x02,
 };
 
+// READ DIRECTORY ENTRY addtl bits
+enum fujiDirFlags_t : uint8_t {
+    FUJI_DIR_FLAG_ADDITIONAL_DATA = 0x80,
+    FUJI_DIR_FLAG_BLOCK_MODE      = 0xC0,
+    FUJI_DIR_BLOCK_GROUP_MASK     = 0x3F,
+};
+
 /* Mixin handling. This allows adding additional commands to a
    fujiDevice without having to mess around with the command handling
    in each subclass. Just add a mixin and add more commands.

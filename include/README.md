@@ -8,7 +8,7 @@ device ID enums, the debug macros and the per-board pin maps.
 | File | Defines |
 |---|---|
 | `global_types.h` | `ByteBuffer`; `fujiError_t` with `FUJI_ERROR::NONE`; the `success_is_true` and `error_is_true` result wrappers and their `RETURN_*` macros; the packed wire integers `u16le_t`, `u24le_t`, `u32le_t`, `u16be_t`, `u24be_t`, `u32be_t`; the native aliases `u16ne_t`, `u24ne_t`, `u32ne_t`, which are big-endian only under `BUILD_COCO` |
-| `fujiCommandID.h` | `enum class CMD` (`fujiCommandID_t`): the `FUJI_`, `NET_`, `APETIME_`, `MODEM_`, `DISK_`, `CPM_`, `PCLINK_` and `PRINTER_` command families in one enum. Values overlap between families; the target device gives a byte its meaning. Also the `FUJI_DIR_*` bits of the `FUJI_READ_DIR_ENTRY` `addtl` byte |
+| `fujiCommandID.h` | `enum class CMD` (`fujiCommandID_t`): the `FUJI_`, `NET_`, `APETIME_`, `MODEM_`, `DISK_`, `CPM_`, `PCLINK_` and `PRINTER_` command families in one enum. Values overlap between families; the target device gives a byte its meaning |
 | `fujiDeviceID.h` | `enum class FUJI_DEVICEID` (`fujiDeviceID_t`) with two maps: a small ADAM map and the Atari-SIO-style map every other platform uses, plus `operator+` for ranged IDs |
 | `fuji_endian.h` | portable `htobe16` and friends over Linux, ESP-IDF, macOS, BSD and Windows (public domain); used by `global_types.h` |
 | `global_defines.h` | product constants and EOL strings (from Meatloaf) |

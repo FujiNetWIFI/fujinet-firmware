@@ -8,7 +8,7 @@ browsing and image mounting, and it is the model for how device code should be s
 
 | File | Defines |
 |---|---|
-| `fujiDevice.h`, `fujiDevice.cpp` | `fujiDevice`, `FujiDeviceChain`, the `FujiPacketLike` concept, `disk_slot`, `dirEntryDetails`, and the `handlers` table of `FUJI_*` commands |
+| `fujiDevice.h`, `fujiDevice.cpp` | `fujiDevice`, `FujiDeviceChain`, the `FujiPacketLike` concept, `disk_slot`, `dirEntryDetails`, the `fujiDirFlags_t` READ DIRECTORY ENTRY bits, and the `handlers` table of `FUJI_*` commands |
 | `FujiDeviceMixin.h` | `FujiDeviceMixin`: a base whose `processCommand()` looks the command up in the map returned by `commandHandlers()`; `FM_CMD_HANDLER` builds a map entry |
 | `Base64Mixin.h`, `.cpp` | `FUJI_BASE64_ENCODE_*` and `FUJI_BASE64_DECODE_*` over `Base64` from [lib/encoding/](../../encoding/) |
 | `HashMixin.h`, `.cpp` | `FUJI_HASH_*` over `Hash` from [lib/encoding/](../../encoding/) |

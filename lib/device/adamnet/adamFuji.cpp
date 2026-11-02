@@ -292,6 +292,8 @@ void adamFuji::adamnet_control_send(const FujiAdamPacket &packet)
     return; // true;
 }
 
+constexpr size_t ADAM_CONFIG_DIR_ENTRY_LEN = 31; // Adam CONFIG's DIR_MAX_LEN
+
 void adamFuji::fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl)
 {
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
@@ -307,7 +309,7 @@ void adamFuji::fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl)
     std::string &dirpath = *current_entry;
 
     // Hack-o-rama to add file type character to beginning of path.
-    if (maxlen == 31 && !(addtl & FUJI_DIR_FLAG_ADDITIONAL_DATA))
+    if (maxlen == ADAM_CONFIG_DIR_ENTRY_LEN && !(addtl & FUJI_DIR_FLAG_ADDITIONAL_DATA))
     {
         dirpath.resize(dirpath.size() + 2);
         memmove(&dirpath[2], &dirpath[0], dirpath.size() - 2);
