@@ -48,7 +48,8 @@ BoIPChannel::BoIPChannel() :
     _fd(-1),
     _listen_fd(-1),
     _state(BoIPStopped),
-    _errcount(0)
+    _errcount(0),
+    _last_rx_ms(0)
 {}
 
 BoIPChannel::~BoIPChannel()
@@ -611,11 +612,21 @@ bool BoIPChannel::wait_sock_writable(uint32_t timeout_ms)
     return true;
 }
 
+// How long an idle wait may block: min_ms while data is flowing, longer once the link has been
+// quiet. Data ends the wait at once, so this only bounds how soon the caller's other work runs.
+int BoIPChannel::idle_wait_ms(int min_ms) const
+{
+    uint32_t quiet_ms = (uint32_t)fnSystem.millis() - _last_rx_ms;
+    if (quiet_ms > BOIP_IDLE_AFTER_MS && min_ms < BOIP_IDLE_WAIT_MS)
+        return BOIP_IDLE_WAIT_MS;
+    return min_ms;
+}
+
 void BoIPChannel::updateFIFO()
 {
-    // Block 1ms by default so callers without their own idle throttle don't
+    // Block in select() by default so callers without their own idle throttle don't
     // spin at 100% CPU; non_blocking callers (e.g. AdamNet) throttle via poll().
-    poll_connection(_non_blocking ? 0 : 1);
+    poll_connection(_non_blocking ? 0 : idle_wait_ms(1));
 
     // only in connected state
     if (_state != BoIPConnected)
@@ -643,6 +654,7 @@ void BoIPChannel::updateFIFO()
     {
         ssize_t result;
 
+        _last_rx_ms = (uint32_t)fnSystem.millis();
         for (count = res; count; count -= result)
         {
             size_t old_len = _fifo.size();
@@ -698,6 +710,7 @@ void BoIPChannel::setHost(std::string host, int port)
 
 void BoIPChannel::poll(int ms)
 {
+    ms = idle_wait_ms(ms);
     if (_state == BoIPConnected)
         wait_sock_readable(ms);
     else
