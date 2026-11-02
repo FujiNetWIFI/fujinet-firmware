@@ -113,6 +113,8 @@ size_result_t systemBus::transaction_get_length(void *data, size_t len)
     assert(_activePacket);
     assert(data);
     _transaction_state = TRANS_STATE::DID_GET;
+    if (!_activePacket->data().has_value())
+        RETURN_SIZE(0);
     len = std::min(len, _activePacket->data()->size());
     std::copy(_activePacket->data()->begin(), _activePacket->data()->begin() + len,
               static_cast<uint8_t *>(data));
