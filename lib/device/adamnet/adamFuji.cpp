@@ -309,6 +309,9 @@ void adamFuji::fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl)
     // Hack-o-rama to add file type character to beginning of path.
     if (maxlen == 31)
     {
+        // Strip the core's terminator so the checks below see the name.
+        while (!dirpath.empty() && dirpath.back() == '\0')
+            dirpath.pop_back();
         dirpath.resize(dirpath.size() + 2);
         memmove(&dirpath[2], &dirpath[0], dirpath.size() - 2);
         dirpath[0] = dirpath[1] = 0x20;
