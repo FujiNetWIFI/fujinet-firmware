@@ -199,4 +199,9 @@ typedef enum class CMD : uint8_t {
     PCLINK_HSI                      = 0x3F, // ?
 } fujiCommandID_t;
 
+// FUJI_READ_DIR_ENTRY addtl bits
+constexpr uint8_t FUJI_DIR_FLAG_ADDITIONAL_DATA = 0x80;
+constexpr uint8_t FUJI_DIR_FLAG_BLOCK_MODE      = 0xC0;
+constexpr uint8_t FUJI_DIR_BLOCK_GROUP_MASK     = 0x3F;
+
 #endif /* FUJI_COMMANDS_H */

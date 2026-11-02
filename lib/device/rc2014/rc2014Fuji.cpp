@@ -417,7 +417,7 @@ void rc2014Fuji::rc2014_read_directory_entry()
         int bufsize = sizeof(dirpath);
         char *filenamedest = dirpath;
 
-        if (addtl & 0x80)
+        if (addtl & FUJI_DIR_FLAG_ADDITIONAL_DATA)
         {
             size_t details_len = set_additional_direntry_details(f, (uint8_t *)dirpath, maxlen);
             bufsize = sizeof(dirpath) - details_len;
