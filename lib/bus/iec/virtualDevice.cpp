@@ -98,7 +98,7 @@ void virtualDevice::process_cmd()
     if (!_activePacket)
     {
         if (_payload.size() != 2
-            || (_payload[0] == OPCODE_NO_PAYLOAD && _payload[0] == OPCODE_HAS_PAYLOAD))
+            || (_payload[0] != OPCODE_NO_PAYLOAD && _payload[0] != OPCODE_HAS_PAYLOAD))
             return;
 
         Debug_printv("RAW command:\n%s",
@@ -118,7 +118,8 @@ void virtualDevice::process_cmd()
     }
 
     SYSTEM_BUS._activePacket = _activePacket.get();
-    processCommand(*_activePacket);
+    if (!processCommand(*_activePacket))
+        SYSTEM_BUS.transaction_error();
     _activePacket = NULL;
 }
 
