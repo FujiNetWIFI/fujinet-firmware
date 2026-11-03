@@ -48,3 +48,11 @@ TEST_CASE("getFilePath is canonical like path")
     PeoplesUrlParser p("TNFS://host/dir/plain.atr");
     CHECK(p.getFilePath() == p.path);
 }
+
+TEST_CASE("root is what an absolute Nn:/path keeps of the prefix (#2211)")
+{
+    CHECK(PeoplesUrlParser("TNFS://host/a/").root() == "TNFS://host");
+    CHECK(PeoplesUrlParser("SMB://u:pw@host:445/share/d/").root() == "SMB://u:pw@host:445");
+    CHECK(PeoplesUrlParser("SD:/dir/").root() == "SD:");
+    CHECK(PeoplesUrlParser("/a/").root() == "");
+}
