@@ -12,7 +12,7 @@ jobs:
   cleanup-nightly:
     name: "Clean up old nightly assets"
     if: ${{ vars.RUN_NIGHTLY == 'true' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -32,7 +32,7 @@ jobs:
     name: "PlatformIO CI"
     needs: cleanup-nightly
     if: ${{ vars.RUN_NIGHTLY == 'true' }}
-    runs-on: "ubuntu-latest"
+    runs-on: "ubuntu-24.04"
     strategy:
       matrix:
         target-platform: [ATARI, ATARI-8mb, ADAM, APPLE, IEC-LOLIN-D32, IEC-NUGGET, COCO, MASTERIES-REVAB, MASTERIES-REVA-SPIFIX, RS232, FUJIVERSAL-INTV, FUJIVERSAL-INTV-PIRTO-II-DUO, FUJIVERSAL-DRIVEWIRE, FUJIVERSAL-MSX]

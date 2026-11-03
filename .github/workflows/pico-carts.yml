@@ -37,7 +37,7 @@ concurrency:
 jobs:
   host-tests:
     name: "host tests (no hardware, no SDK)"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -73,7 +73,7 @@ jobs:
 
   a7800-console-client:
     name: "Atari 7800 6502 clients"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - name: Install cc65
@@ -86,7 +86,7 @@ jobs:
 
   a5200-console-client:
     name: "Atari 5200 6502 clients"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - name: Install cc65
@@ -99,7 +99,7 @@ jobs:
 
   o2-console-client:
     name: "Odyssey 2 8048 client"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -179,7 +179,7 @@ jobs:
 
   astrocade-console-client:
     name: "Astrocade Z80 clients"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -198,7 +198,7 @@ jobs:
 
   channelf-console-client:
     name: "Channel F F8 clients"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -239,7 +239,7 @@ jobs:
 
   studio2-console-client:
     name: "Studio II 1802 clients"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -273,7 +273,7 @@ jobs:
 
   nes-console-client:
     name: "NES 6502 clients"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -288,7 +288,7 @@ jobs:
 
   arcadia-console-client:
     name: "Arcadia 2001 2650 clients"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -340,7 +340,7 @@ jobs:
   # it branches to, must be in SRAM.
   cartridge-firmware:
     name: "RP2040 cartridge firmware"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:

@@ -14,7 +14,7 @@ on:
 jobs:
   tagged-release:
     name: "Tagged Release"
-    runs-on: "ubuntu-latest"
+    runs-on: "ubuntu-24.04"
     strategy:
       matrix:
         target-platform:
@@ -193,7 +193,7 @@ jobs:
   push-changelog:
     name: "Push Change Log"
     needs: tagged-release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       TAG_NAME: ${{ github.event.inputs.tag || github.ref_name }}
     steps:
