@@ -3,7 +3,8 @@
  * DBC push receiver, and stray hotspot events that must launch, arm and reboot nothing.
  *
  * The cart's host_test/fujimail_test.h names its mapper's gate, a large image the gate
- * accepts (FUJIMAIL_TEST_GAME) and one it refuses (FUJIMAIL_TEST_TOOBIG).
+ * accepts (FUJIMAIL_TEST_GAME), one it refuses (FUJIMAIL_TEST_TOOBIG) and, where 100 bytes
+ * is not accepted, a small one (FUJIMAIL_TEST_SMALL).
  */
 
 #include <assert.h>
@@ -14,6 +15,11 @@
 #include "fujimail.h"
 #include "fuji_mailbox.h"
 #include "fujimail_test.h"
+
+/* Accepted by the gate, and more than the 50 bytes the abort tests send. */
+#ifndef FUJIMAIL_TEST_SMALL
+#define FUJIMAIL_TEST_SMALL 100
+#endif
 
 /* ---- the stub port ---- */
 
@@ -319,22 +325,23 @@ static void test_whole_reply_window(void)
 /* Several slices: the client selects one and waits for its echo. */
 static void test_slice_echo(void)
 {
+    const unsigned last = FN_R_NSLICES - 1;
     unsigned i;
 
     fresh();
     for (i = 0; i < sizeof reply_data; i++)
         reply_data[i] = (uint8_t) i;
-    reply_len = 700;                    /* spans 3 slices */
+    reply_len = last * FN_R_SLICE_LEN + 188;    /* ends part way into the last slice */
 
     run_txn(1, 0x70, 0xC4);
     assert(window[FN_R_SLICE_ECHO] == 0);
     assert(window[FN_R_DATA + 5] == 5);
 
-    reg_write(FN_REG_RXSLICE, 2);
-    assert(window[FN_R_SLICE_ECHO] == 2);
-    assert(window[FN_R_DATA + 0] == (uint8_t)(2 * FN_R_SLICE_LEN));
+    reg_write(FN_REG_RXSLICE, last);
+    assert(window[FN_R_SLICE_ECHO] == last);
+    assert(window[FN_R_DATA + 5] == (uint8_t)(last * FN_R_SLICE_LEN + 5));
     /* Bytes past rxlen in the last occupied slice read zero. */
-    assert(window[FN_R_DATA + (700 - 2 * FN_R_SLICE_LEN)] == 0);
+    assert(window[FN_R_DATA + 188] == 0);
 
     /* The handshake: the echo must be the LAST publish of the repaint. */
     for (i = 0; i < FN_R_SLICE_LEN; i++)
@@ -507,7 +514,7 @@ static void test_dbc_abort_and_toobig(void)
     uint8_t abortbyte = 0x01;
 
     fresh();
-    dbc_open(0, 100);
+    dbc_open(0, FUJIMAIL_TEST_SMALL);
     dbc_frame(CMD_NET_WRITE, junk, 50);
     dbc_frame(CMD_NET_CLOSE, &abortbyte, 1);
     assert(pushed.closes == 1 && pushed.aborted);
@@ -632,12 +639,12 @@ static void test_mount_resets_boot(void)
     uint8_t abortbyte = 0x01;
 
     fresh();
-    dbc_open(0, 100);
+    dbc_open(0, FUJIMAIL_TEST_SMALL);
     dbc_frame(CMD_NET_WRITE, junk, 50);
     dbc_frame(CMD_NET_CLOSE, &abortbyte, 1);
     assert(window[FN_R_BOOT_STATE] == FN_BOOT_FAILED);
     COUNT_IS(FN_R_BOOT_GOT0, 50);
-    COUNT_IS(FN_R_BOOT_TOT0, 100);
+    COUNT_IS(FN_R_BOOT_TOT0, FUJIMAIL_TEST_SMALL);
 
     run_txn(1, FUJI_DEVICEID_FUJINET, CMD_FUJI_MOUNT_IMAGE);
     assert(window[FN_R_ACKSEQ] == 1);
