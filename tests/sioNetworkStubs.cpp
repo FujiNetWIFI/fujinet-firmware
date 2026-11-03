@@ -1,5 +1,6 @@
-// Link-time stand-ins for everything sioNetwork and NDevice pull in, shared by
-// the tests that build them. The systemBus stubs record into `bus`.
+// Link-time stand-ins for what sioNetwork and NDevice pull in, other than the
+// URL and path helpers, shared by the tests that build them. The systemBus stubs
+// record into `bus`.
 
 #include "sio/sioNetwork.h"
 #include "sioNetworkStubs.h"
@@ -94,17 +95,7 @@ void FNXML::setReadQuery(const std::string &queryString, uint8_t queryParam) {}
 bool FNXML::readValue(uint8_t *buf, unsigned short len) { return false; }
 bool FNXML::parse() { return false; }
 
-void util_debug_printf(const char *fmt, ...) {}
-std::string util_hexdump(const void *buf, size_t len) { return ""; }
-std::string util_remove_n_prefix(std::string url) { return url; }
-std::string util_get_canonical_path(std::string path) { return ""; }
-std::string util_devicespec_fix_for_parsing(std::string deviceSpec, std::string prefix, bool is_directory_read, bool process_fs_dot) { return ""; }
-void util_devicespec_fix_9b(uint8_t* buf, unsigned short len) {}
-
-void PeoplesUrlParser::resetURL(const std::string u) {}
-bool PeoplesUrlParser::isValidUrl() { return false; }
-std::string PeoplesUrlParser::getFilePath(bool decode) const { return ""; }
-std::string PeoplesUrlParser::root(void) { return ""; }
+int sam(int argc, char **argv) { return 0; }
 
 #include "NetworkProtocolFactory.h"
 

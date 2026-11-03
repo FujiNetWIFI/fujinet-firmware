@@ -28,7 +28,7 @@ Host-side unit tests and policy checks for the FujiNet-PC build. ctest runs them
 | `PDFPrinterTests.cpp` | `lib/printer-emulator/pdf_printer.cpp` page breaks when one buffer holds more than one line (`pdf_printer_tests`; not on the APPLE target) |
 | `sioNetwork-DSTATS-test.cpp` | `sioNetwork` command recognition and DSTATS (`sio_dstats_tests`; ATARI target only) |
 | `sioNetworkTests.cpp` | What `sioNetwork` sends to the bus for a failed CLOSE, its repeat and a failed READ (`sio_network_tests`; ATARI target only) |
-| `NDeviceTests.cpp` | The shared `NDevice` without a bus subclass: a QUERY whose flags byte the parser refuses (`ndevice_tests`; ATARI target only) |
+| `NDeviceTests.cpp` | The shared `NDevice` without a bus subclass: a QUERY whose flags byte the parser refuses, and SET PREFIX (`ndevice_tests`; ATARI target only) |
 | `sioNetworkStubs.cpp`, `sioNetworkStubs.h` | Link-time stubs shared by `sio_dstats_tests`, `sio_network_tests` and `ndevice_tests`; the `systemBus` stubs record into `bus` |
 | `AdamNetworkReceiveTests.cpp`, `adamNetworkReceiveStubs.cpp`, `adamNetworkReceiveStubs.h` | `lib/device/adamnet/adamNetwork.cpp` RECEIVE sending at most 1024 bytes and keeping the rest; the stubs record bus replies (`adam_network_receive_tests`; ADAM target only) |
 | `NQueryOutputModeTests.cpp`, `NParserReadTests.cpp` | `NParser` and `XMLParser` query output modes and short reads (`nquery_output_mode_tests`; ATARI target only) |
