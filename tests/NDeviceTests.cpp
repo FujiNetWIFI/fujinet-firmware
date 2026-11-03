@@ -11,7 +11,9 @@ class TestableNDevice : public NDevice
 {
 public:
     using NDevice::fujicore_set_query;
+    using NDevice::fujicore_set_prefix;
     using NDevice::_parser;
+    using NDevice::prefix;
 
     // The test build's virtualDevice is SIO's; these hooks are never called here.
     void sio_status(const FujiSIOPacket &) override {}
@@ -42,4 +44,48 @@ TEST_CASE("a QUERY whose flags byte the parser refuses fails (#1697)")
 
     CHECK(dev.fujicore_set_query("/a", FN_QUERY_OUTPUT_ASCII).is_error());
     CHECK(dev.fujicore_set_query("/a", 0).is_success()); // no flags byte: nothing to refuse
+}
+
+// --------------------------------------------------------------------------------
+// SET PREFIX, against the real URL and path helpers.
+// --------------------------------------------------------------------------------
+
+static std::string prefix_after(const std::string &start, const std::string &path)
+{
+    TestableNDevice dev;
+    dev.prefix = start;
+    CHECK(dev.fujicore_set_prefix(path).is_success());
+    return dev.prefix;
+}
+
+TEST_CASE("an absolute path replaces the path and keeps the host (#2211)")
+{
+    CHECK(prefix_after("/a/", "/b") == "/b/");
+    CHECK(prefix_after("TNFS://host/a/", "/b") == "TNFS://host/b/");
+    CHECK(prefix_after("SMB://u:pw@host:445/share/d/", "/b") == "SMB://u:pw@host:445/b/");
+    CHECK(prefix_after("SD:/dir/", "/b") == "SD:/b/");
+}
+
+TEST_CASE("a bare / goes back to the host")
+{
+    CHECK(prefix_after("TNFS://host/a/b/", "/") == "TNFS://host/");
+    CHECK(prefix_after("/a/b/", "/") == "/");
+}
+
+TEST_CASE("a relative path is appended to the prefix")
+{
+    CHECK(prefix_after("TNFS://host/a/", "c") == "TNFS://host/a/c/");
+    CHECK(prefix_after("/a/", "c") == "/a/c/");
+    CHECK(prefix_after("", "c") == "c/");
+    CHECK(prefix_after("TNFS://host/a/b/", "..") == "TNFS://host/a/");
+}
+
+TEST_CASE("a full URL replaces the prefix")
+{
+    CHECK(prefix_after("TNFS://host/a/", "SMB://other/d") == "SMB://other/d/");
+}
+
+TEST_CASE("an empty path clears the prefix")
+{
+    CHECK(prefix_after("TNFS://host/a/", "") == "");
 }

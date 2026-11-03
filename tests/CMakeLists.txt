@@ -530,13 +530,33 @@ add_test(
 )
 
 if(FUJINET_TARGET STREQUAL "ATARI")
-  # sioNetwork and NDevice with stubs for everything they pull in, shared by
-  # the DSTATS test, the sioNetwork command tests and the NDevice tests.
+  # sioNetwork and NDevice with stubs for what they pull in, other than the URL
+  # and path helpers, shared by the DSTATS test, the sioNetwork command tests and
+  # the NDevice tests.
   add_library(sio_network_stubs OBJECT
     sioNetworkStubs.cpp
     ${CMAKE_SOURCE_DIR}/lib/device/NDevice/NDevice.cpp
     ${CMAKE_SOURCE_DIR}/lib/device/sio/sioNetwork.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/peoples_url_parser.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/string_utils.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/utils.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/U8Char.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/punycode.cpp
+    ${CMAKE_SOURCE_DIR}/lib/compat/compat_gettimeofday.c
     )
+  if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    target_sources(sio_network_stubs PRIVATE
+      ${CMAKE_SOURCE_DIR}/lib/compat/strlcat.c
+      ${CMAKE_SOURCE_DIR}/lib/compat/strlcpy.c
+    )
+  endif()
+  target_link_libraries(sio_network_stubs PUBLIC ${MBEDCRYPTO_STATIC_LIB})
+  if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    target_include_directories(sio_network_stubs PRIVATE
+      ${CMAKE_SOURCE_DIR}/components_pc/libsmb2/include/   # asprintf.h
+    )
+    target_link_libraries(sio_network_stubs PUBLIC bcrypt)
+  endif()
   target_include_directories(sio_network_stubs PUBLIC
     ${CMAKE_SOURCE_DIR}/include/
     ${CMAKE_SOURCE_DIR}/lib/
