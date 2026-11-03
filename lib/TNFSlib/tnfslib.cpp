@@ -1,6 +1,7 @@
 
 #include "tnfslib.h"
 
+#include <algorithm>
 #include <cstdlib>
 #include <sys/stat.h>
 #include <errno.h>
@@ -29,6 +30,9 @@
 #define ENODATA 61
 #endif
 
+// Caps each wait so the shutdown check still runs
+constexpr int TNFS_RECV_WAIT_MS = 100;
+
 typedef enum
 {
     SUCCESS,
@@ -50,6 +54,7 @@ bool _tnfs_send(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t pay
 int _tnfs_recv(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt);
 bool _tnfs_tcp_send(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_size);
 int _tnfs_tcp_recv(tnfsMountInfo *m_info, tnfsPacket &pkt);
+void _tnfs_wait_recv(fnUDP *udp, tnfsMountInfo *m_info, int timeout_ms);
 _tnfs_send_recv_result _tnfs_send_recv(fnUDP &udp, tnfsMountInfo *m_info, tnfsPacket &req_pkt, uint16_t payload_size, tnfsPacket &res_pkt);
 _tnfs_recv_result _tnfs_recv_and_validate(fnUDP &udp, tnfsMountInfo *m_info, tnfsPacket &req_pkt, uint16_t payload_size, tnfsPacket &res_pkt);
 uint8_t _tnfs_session_recovery(tnfsMountInfo *m_info, uint8_t command);
@@ -1404,6 +1409,17 @@ int _tnfs_recv(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt)
     }
 }
 
+// Blocks rather than polls so lower-priority tasks, lwIP included, can run
+void _tnfs_wait_recv(fnUDP *udp, tnfsMountInfo *m_info, int timeout_ms)
+{
+    if (m_info->protocol == TNFS_PROTOCOL_UDP)
+        udp->wait_readable(timeout_ms);
+    else if (m_info->tcp_client.connected())
+        m_info->tcp_client.wait_readable(timeout_ms);
+    else
+        fnSystem.delay(timeout_ms);
+}
+
 int _tnfs_tcp_recv(tnfsMountInfo *m_info, tnfsPacket &pkt)
 {
     fnTcpClient *tcp = &m_info->tcp_client;
@@ -1534,11 +1550,9 @@ _tnfs_send_recv_result _tnfs_send_recv(fnUDP &udp, tnfsMountInfo *m_info, tnfsPa
             break;
         }
 
-#ifdef ESP_PLATFORM
-        fnSystem.yield();
-#else
-        fnSystem.delay_microseconds(5000); // wait more time for (remote) data to arrive
-#endif
+        int remaining_ms = m_info->timeout_ms - (int)(fnSystem.millis() - ms_start);
+        if (remaining_ms > 0)
+            _tnfs_wait_recv(&udp, m_info, std::min(remaining_ms, TNFS_RECV_WAIT_MS));
 
     } while ((fnSystem.millis() - ms_start) < m_info->timeout_ms); // packet receive loop
 
@@ -1558,9 +1572,6 @@ _tnfs_send_recv_result _tnfs_send_recv(fnUDP &udp, tnfsMountInfo *m_info, tnfsPa
 
 _tnfs_recv_result _tnfs_recv_and_validate(fnUDP &udp, tnfsMountInfo *m_info, tnfsPacket &req_pkt, uint16_t payload_size, tnfsPacket &res_pkt)
 {
-#ifndef ESP_PLATFORM
-    fnSystem.delay_microseconds(2000); // wait short time for (local) data to arrive
-#endif
     int l = _tnfs_recv(&udp, m_info, res_pkt);
     if (l < 0)
     {

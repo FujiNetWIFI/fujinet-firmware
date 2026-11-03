@@ -469,6 +469,21 @@ size_t fnTcpClient::available()
     return _rxBuffer.size();
 }
 
+void fnTcpClient::wait_readable(uint32_t timeout_ms)
+{
+    int sockfd = fd();
+    if (!_rxBuffer.empty() || sockfd < 0)
+        return;
+
+    fd_set readset;
+    FD_ZERO(&readset);
+    FD_SET(sockfd, &readset);
+    struct timeval tv;
+    tv.tv_sec = timeout_ms / 1000;
+    tv.tv_usec = (timeout_ms % 1000) * 1000;
+    select(sockfd + 1, &readset, nullptr, nullptr, &tv);
+}
+
 // Send all pending data and clear receive buffer
 void fnTcpClient::flush()
 {

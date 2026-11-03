@@ -42,6 +42,7 @@ public:
     size_t write(const uint8_t *buffer, size_t size);
 
     int parsePacket();
+    void wait_readable(uint32_t timeout_ms);
 
     int read();
     int read(unsigned char* buffer, size_t len);
