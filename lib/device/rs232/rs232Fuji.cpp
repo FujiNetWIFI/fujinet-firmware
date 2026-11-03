@@ -87,7 +87,7 @@ void rs232Fuji::rs232_net_set_ssid(bool save) // was aux1
 {
     SSIDConfig cfg;
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
-    auto len = SYSTEM_BUS.transaction_get_length((uint8_t *)&cfg, sizeof(cfg));
+    auto len = SYSTEM_BUS.transaction_get_length(&cfg, sizeof(cfg));
     if (len.is_error() || len != sizeof(cfg) ||
         !fujicore_net_set_ssid_success(cfg.ssid, cfg.password, save))
     {
