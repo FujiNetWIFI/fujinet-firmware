@@ -848,13 +848,13 @@ fujiError_t fnFTP::open_file(string path, bool stor)
 
     if (parse_response() != FUJI_ERROR::NONE)
     {
-        Debug_printf("Timed out waiting for 150 response.\r\n");
+        Debug_printf("Timed out waiting for transfer to start.\r\n");
         if (_active_mode)
             _active_server.stop();
         return FUJI_ERROR::UNSPECIFIED;
     }
 
-    if ((is_positive_preliminary_reply() == FUJI_ERROR::NONE) && is_filesystem_related())
+    if (is_transfer_starting())
     {
         _stor = stor;
         _expect_control_response = !stor;
@@ -897,7 +897,7 @@ fujiError_t fnFTP::open_directory(string path, string pattern)
 
     if (parse_response() != FUJI_ERROR::NONE)
     {
-        Debug_printf("fnFTP::open_directory(%s%s) Timed out waiting for 150 response.\r\n", path.c_str(), pattern.c_str());
+        Debug_printf("fnFTP::open_directory(%s%s) Timed out waiting for transfer to start.\r\n", path.c_str(), pattern.c_str());
         if (_active_mode)
             _active_server.stop();
         return FUJI_ERROR::UNSPECIFIED;
@@ -905,14 +905,14 @@ fujiError_t fnFTP::open_directory(string path, string pattern)
 
     Debug_printf("fnFTP::open_directory(%s%s) - %s\r\n", path.c_str(), pattern.c_str(), controlResponse.c_str());
 
-    if ((is_positive_preliminary_reply() == FUJI_ERROR::NONE) && is_filesystem_related())
+    if (is_transfer_starting())
     {
         // Do nothing.
-        Debug_printf("Got our 150\r\n");
+        Debug_printf("Server began transfer.\r\n");
     }
     else
     {
-        Debug_printf("Didn't get our 150\r\n");
+        Debug_printf("Server could not begin transfer.\r\n");
         if (_active_mode)
             _active_server.stop();
         return FUJI_ERROR::UNSPECIFIED;
