@@ -7,11 +7,37 @@
 #include <memory>
 #include <vector>
 #include "fnSystem.h"
-// Observe a real close after header completion without exposing a production test API.
-#define private public
 #include "mgHttpClient.h"
-#undef private
 #include "utils.h"
+
+namespace
+{
+mg_mgr *http_manager(mgHttpClient &client);
+mg_connection *active_connection(mgHttpClient &client);
+int response_status(mgHttpClient &client);
+
+// [temp.explicit] permits private member names in explicit instantiations.
+// Keep close observation test-only without changing the production class definition.
+template<auto Manager, auto Active, auto Status>
+struct CompletionProbeAccess
+{
+    friend mg_mgr *http_manager(mgHttpClient &client)
+    {
+        return (client.*Manager).get();
+    }
+    friend mg_connection *active_connection(mgHttpClient &client)
+    {
+        return client.*Active;
+    }
+    friend int response_status(mgHttpClient &client)
+    {
+        return client.*Status;
+    }
+};
+
+template struct CompletionProbeAccess<&mgHttpClient::_handle, &mgHttpClient::_active,
+                                      &mgHttpClient::_status_code>;
+}
 
 // Only the platform clock and string helper are substituted; HTTP and TCP are real.
 SystemManager::SystemManager() {}
@@ -52,11 +78,11 @@ int main(int argc, char **argv)
         if (mode == "no-body-close" || mode == "head-close")
         {
             const uint64_t deadline = fnSystem.millis() + 1500;
-            while (client._active != nullptr && fnSystem.millis() < deadline)
-                mg_mgr_poll(client._handle.get(), 10);
-            if (client._active != nullptr)
+            while (active_connection(client) != nullptr && fnSystem.millis() < deadline)
+                mg_mgr_poll(http_manager(client), 10);
+            if (active_connection(client) != nullptr)
                 return 5;
-            status = client._status_code;
+            status = response_status(client);
         }
         const int available = client.available();
         uint8_t body[128] = {};

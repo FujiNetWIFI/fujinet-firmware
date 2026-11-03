@@ -356,7 +356,7 @@ class HttpCompletionTests(unittest.TestCase):
                 with self.subTest(reuse=reuse, informational=informational):
                     self.run_no_body("HEAD", 200, reuse, informational)
 
-    def run_review_response(self, method, status, reuse, close_peer, chunked=False, body=b""):
+    def run_response_completion(self, method, status, reuse, close_peer, chunked=False, body=b""):
         mode = "head" if method == "HEAD" else "no-body"
         if close_peer:
             mode += "-close"
@@ -379,7 +379,7 @@ class HttpCompletionTests(unittest.TestCase):
                         response += b"Connection: keep-alive\r\n"
                     if chunked:
                         response += b"Transfer-Encoding: chunked\r\n"
-                    response += b'ETag: "review"\r\n\r\n' + body
+                    response += b'ETag: "completion"\r\n\r\n' + body
                     peer.sendall(response)
                     ready = None
                     if close_peer:
@@ -394,7 +394,7 @@ class HttpCompletionTests(unittest.TestCase):
                     lines = output.decode().splitlines()
                     self.assertEqual(len(lines), 3)
                     fields = list(map(int, lines[1].split()[:8]))
-                    print(f"review method={method} status={status} reuse={reuse} close={close_peer} "
+                    print(f"response_completion method={method} status={status} reuse={reuse} close={close_peer} "
                           f"chunked={chunked} input_body={body.hex()} ready_held_open={ready} "
                           f"result={fields} metadata={lines[2]}", flush=True)
                     return ready, fields, lines[2]
@@ -408,9 +408,9 @@ class HttpCompletionTests(unittest.TestCase):
             for reuse in (False, True):
                 for close_peer in (False, True):
                     with self.subTest(method=method, reuse=reuse, close=close_peer):
-                        ready, fields, metadata = self.run_review_response(method, 101, reuse, close_peer)
+                        ready, fields, metadata = self.run_response_completion(method, 101, reuse, close_peer)
                         self.assertEqual(fields, [101, -1, 0, 0, 0, 0, 0, 1])
-                        self.assertEqual(metadata, '|"review"||')
+                        self.assertEqual(metadata, '|"completion"||')
                         if not close_peer:
                             self.assertEqual(ready, method == "HEAD" and reuse)
 
@@ -419,10 +419,10 @@ class HttpCompletionTests(unittest.TestCase):
             for reuse in (False, True):
                 for close_peer in (False, True):
                     with self.subTest(method=method, status=status, reuse=reuse, close=close_peer):
-                        ready, fields, metadata = self.run_review_response(
+                        ready, fields, metadata = self.run_response_completion(
                             method, status, reuse, close_peer, chunked=True)
                         self.assertEqual(fields, [status, -1, 0, 0, 0, 0, 0, 1])
-                        self.assertEqual(metadata, '|"review"||chunked')
+                        self.assertEqual(metadata, '|"completion"||chunked')
                         if not close_peer:
                             self.assertTrue(ready, "bodyless Transfer-Encoding waited for peer close")
 
@@ -430,7 +430,7 @@ class HttpCompletionTests(unittest.TestCase):
         for reuse in (False, True):
             for body in (b"3\r\nabc\r\n", b"5\r\nabc"):
                 with self.subTest(reuse=reuse, body=body):
-                    _, fields, _ = self.run_review_response("GET", 200, reuse, True, chunked=True, body=body)
+                    _, fields, _ = self.run_response_completion("GET", 200, reuse, True, chunked=True, body=body)
                     self.assertEqual(fields[0], 902)
                     self.assertEqual(fields[5:], [-1, 0, 1])
 
