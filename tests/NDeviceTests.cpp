@@ -80,6 +80,20 @@ TEST_CASE("a relative path is appended to the prefix")
     CHECK(prefix_after("TNFS://host/a/b/", "..") == "TNFS://host/a/");
 }
 
+TEST_CASE("the SpartaDOS < and > go to the parent and the host (#2265)")
+{
+    for (const char *parent : {"<", "</"})
+    {
+        CHECK(prefix_after("TNFS://host/a/b/", parent) == "TNFS://host/a/");
+        CHECK(prefix_after("/a/b/", parent) == "/a/");
+    }
+    for (const char *host : {">", ">/"})
+    {
+        CHECK(prefix_after("TNFS://host/a/b/", host) == "TNFS://host/");
+        CHECK(prefix_after("/a/b/", host) == "/");
+    }
+}
+
 TEST_CASE("a full URL replaces the prefix")
 {
     CHECK(prefix_after("TNFS://host/a/", "SMB://other/d") == "SMB://other/d/");

@@ -361,6 +361,12 @@ error_is_true NDevice::fujicore_set_prefix(const std::string &pathSpec)
         RETURN_SUCCESS_AS_FALSE();
     }
 
+    // SpartaDOS spellings; NOS appends its own slash
+    if (path == "<" || path == "</")
+        path = "..";
+    else if (path == ">" || path == ">/")
+        path = "/";
+
     // Append trailing slash if not found
     if (path.back() != '/')
     {
@@ -370,11 +376,7 @@ error_is_true NDevice::fujicore_set_prefix(const std::string &pathSpec)
     if (!prefix.empty() && prefix.back() != '/')
         prefix += "/";
 
-    if (path == ".." || path == "<") // Devance path
-    {
-        prefix += "..";
-    }
-    else if (path == "/" || path == ">") // Truncate to host, e.g. TNFS://host/
+    if (path == "/") // Truncate to host, e.g. TNFS://host/
     {
         prefix = PeoplesUrlParser(prefix).root() + "/";
     }
