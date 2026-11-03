@@ -252,9 +252,19 @@ private:
 
     /**
      * @brief Is response a positive preliminary reply?
-     * @return true or false.
+     * @return FUJI_ERROR::NONE if it is.
      */
     fujiError_t is_positive_preliminary_reply() { return controlResponse[0] == '1' ? FUJI_ERROR::NONE : FUJI_ERROR::UNSPECIFIED; }
+
+    /**
+     * @brief Did the server start a data transfer? RFC 959 allows 125 or 150.
+     * @return true or false.
+     */
+    bool is_transfer_starting()
+    {
+        return is_positive_preliminary_reply() == FUJI_ERROR::NONE
+            && (is_filesystem_related() || _statusCode == 125);
+    }
 
     /**
      * @brief Is response a positive completion reply?
@@ -275,7 +285,7 @@ private:
     bool is_negative_transient_reply() { return controlResponse[0] == '4'; }
 
     /**
-     * @brief Is response a positive intermediate reply?
+     * @brief Is response a negative permanent reply?
      * @return true or false.
      */
     bool is_negative_permanent_reply() { return controlResponse[0] == '5'; }
