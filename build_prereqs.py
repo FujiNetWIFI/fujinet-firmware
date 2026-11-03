@@ -3,8 +3,9 @@
 # build_prereqs.py -- build.sh's check of every prerequisite it cannot set up by
 # itself: a host C/C++ compiler, PlatformIO's version, the Python modules in
 # python_modules.txt and, for a board with a companion MCU, what build_pico.py
-# needs. It lists everything missing in one report, asks once before installing
-# it, and exits 0 only when the build can go ahead.
+# needs. It lists everything missing in one report, installs what goes into the
+# build venv, asks once before installing the rest, and exits 0 only when the
+# build can go ahead.
 #
 # Runs in the build venv, so pip installs land there. Minimum versions come
 # from platformio-ini-files/platformio.common.ini and python_modules.txt.
@@ -201,10 +202,15 @@ def main() -> int:
         auto = bp.installable(found)
         if not auto:
             return 1
-        if not ask(auto, args.yes):
-            print(bp.install_commands(auto))
-            return 1
-        bp.install(found)
+        venv = [p for p in auto if p.pip]
+        system = [p for p in auto if not p.pip]
+        if venv:
+            bp.install(venv)
+        if system:
+            if not ask(system, args.yes):
+                print(bp.install_commands(system))
+                return 1
+            bp.install(system)
         found = check()
         if found:
             print(bp.format_problems(title, found), file=sys.stderr)
