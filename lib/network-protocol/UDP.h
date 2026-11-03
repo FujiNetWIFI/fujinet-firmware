@@ -69,7 +69,7 @@ public:
      */
     fujiError_t set_destination(const uint8_t *sp_buf, unsigned short len);
 
-    size_t available() override { return udp.available(); }
+    size_t available() override;
 
 protected:
 

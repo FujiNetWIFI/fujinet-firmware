@@ -196,6 +196,7 @@ NetworkProtocolUDP::NetworkProtocolUDP(std::string *rx_buf, std::string *tx_buf,
 NetworkProtocolUDP::~NetworkProtocolUDP() {}
 fujiError_t NetworkProtocolUDP::open(PeoplesUrlParser *urlParser, fileAccessMode_t access, netProtoTranslation_t translate) { return FUJI_ERROR::NONE; }
 fujiError_t NetworkProtocolUDP::close() { return FUJI_ERROR::NONE; }
+size_t NetworkProtocolUDP::available() { return 0; }
 fujiError_t NetworkProtocolUDP::read(unsigned short len) { (void)len; return FUJI_ERROR::NONE; }
 fujiError_t NetworkProtocolUDP::write(unsigned short len) { (void)len; return FUJI_ERROR::NONE; }
 fujiError_t NetworkProtocolUDP::status(NetworkStatus *status) { (void)status; return FUJI_ERROR::NONE; }
