@@ -819,8 +819,7 @@ void cx16Fuji::read_directory_entry()
         int bufsize = sizeof(current_entry);
         char *filenamedest = current_entry;
 
-        // If 0x80 is set on AUX2, send back additional information
-        if (cmdFrame.aux2 & 0x80)
+        if (cmdFrame.aux2 & FUJI_DIR_FLAG_ADDITIONAL_DATA)
         {
             _set_additional_direntry_details(f, (uint8_t *)current_entry, maxlen);
             // Adjust remaining size of buffer and file path destination

@@ -470,8 +470,7 @@ void s100spiFuji::s100spi_read_directory_entry()
             int bufsize = sizeof(dirpath);
             char *filenamedest = dirpath;
 
-            // If 0x80 is set on AUX2, send back additional information
-            if (addtl & 0x80)
+            if (addtl & FUJI_DIR_FLAG_ADDITIONAL_DATA)
             {
                 _set_additional_direntry_details(f, (uint8_t *)dirpath, maxlen);
                 // Adjust remaining size of buffer and file path destination

@@ -989,8 +989,7 @@ std::optional<std::string> fujiDevice::fujicore_read_directory_entry(size_t maxl
 
     std::string result;
 
-    // If 0x80 is set on ADDTL, send back additional information
-    if (addtl & 0x80)
+    if (addtl & FUJI_DIR_FLAG_ADDITIONAL_DATA)
     {
         result.resize(maxlen);
         size_t attrib_len = set_additional_direntry_details(entry, (uint8_t *) result.data(), maxlen);
@@ -1031,9 +1030,9 @@ void fujiDevice::fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl)
 
     // Block mode (addtl $C0-$FF) is handled entirely by fujicmd_read_directory_block,
     // which owns the transaction. Must not transaction_accept here first.
-    if ((addtl & 0xC0) == 0xC0)
+    if ((addtl & FUJI_DIR_FLAG_BLOCK_MODE) == FUJI_DIR_FLAG_BLOCK_MODE)
     {
-        fujicmd_read_directory_block(maxlen, addtl & 0x3F);
+        fujicmd_read_directory_block(maxlen, addtl & FUJI_DIR_BLOCK_GROUP_MASK);
         return;
     }
 
