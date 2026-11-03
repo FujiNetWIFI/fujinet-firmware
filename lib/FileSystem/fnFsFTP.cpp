@@ -120,7 +120,6 @@ success_is_true FileSystemFTP::remove(const char *path)
     Debug_printf("FileSystemFTP::remove(\"%s\")\n", path);
 
     // Attempt to delete the file
-    // delete_file returns FALSE on success, TRUE on error
     if (_ftp->delete_file(path) == FUJI_ERROR::NONE)
     {
         Debug_printf("File deleted successfully\n");
@@ -139,7 +138,6 @@ success_is_true FileSystemFTP::rename(const char *pathFrom, const char *pathTo)
     Debug_printf("FileSystemFTP::rename(\"%s\" -> \"%s\")\n", pathFrom, pathTo);
 
     // Attempt to rename the file
-    // rename_file returns FALSE on success, TRUE on error
     if (_ftp->rename_file(pathFrom, pathTo) == FUJI_ERROR::NONE)
     {
         Debug_printf("File renamed successfully\n");
@@ -350,7 +348,6 @@ success_is_true FileSystemFTP::mkdir(const char* path)
     Debug_printf("FileSystemFTP::mkdir(\"%s\")\n", path);
 
     // Attempt to create the directory
-    // make_directory returns FALSE on success, TRUE on error
     if (_ftp->make_directory(path) == FUJI_ERROR::NONE)
     {
         Debug_printf("Directory created successfully\n");
@@ -369,7 +366,6 @@ success_is_true FileSystemFTP::rmdir(const char* path)
     Debug_printf("FileSystemFTP::rmdir(\"%s\")\n", path);
 
     // Attempt to remove the directory
-    // remove_directory returns FALSE on success, TRUE on error
     if (_ftp->remove_directory(path) == FUJI_ERROR::NONE)
     {
         Debug_printf("Directory removed successfully\n");
@@ -404,27 +400,19 @@ success_is_true FileSystemFTP::fill_dircache(const char *path)
     bool is_dir;
     fsdir_entry fs_de;
 
-    // get first directory entry
-    res = _ftp->read_directory(filename, filesz, is_dir);
-    while (res == FUJI_ERROR::NONE)
+    while (_ftp->read_directory(filename, filesz, is_dir) == FUJI_ERROR::NONE)
     {
-        // skip hidden (must still advance to next entry, else infinite loop)
+        // skip hidden
         if (filename[0] == '.')
             continue;
-            // new dir entry
 
         fs_de = fsdir_entry();
-            // set entry members
-        // set entry members
         strlcpy(fs_de.filename, filename.c_str(), sizeof(fs_de.filename));
         fs_de.isDir = is_dir;
         fs_de.size = (uint32_t)filesz;
         fs_de.modified_time = 0; // TODO
         if (_dircache->add_entry(fs_de).is_error())
             RETURN_ERROR_AS_FALSE();
-
-        // get next
-        res = _ftp->read_directory(filename, filesz, is_dir);
     }
 
     RETURN_SUCCESS_AS_TRUE();
