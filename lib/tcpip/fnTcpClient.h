@@ -38,6 +38,7 @@ public:
 
     void updateFIFO();
     size_t available();
+    void wait_readable(uint32_t timeout_ms);
     int peek();
     void flush();
     uint8_t connected();
