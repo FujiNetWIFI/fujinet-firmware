@@ -18,6 +18,7 @@
 #endif
 
 #define COLMAP_WINDOW  0x8000u    /* the whole cartridge window ($8000-$FFFF) */
+#define COLMAP_OVERDUMP_MAX 0xC000u  /* an overdump is over 32K and under 48K    */
 #define COLMAP_SLOT    0x2000u    /* one chip-select block                    */
 #define COLMAP_NSLOTS  4
 
@@ -36,7 +37,7 @@ typedef enum {
 } colmap_err_t;
 
 typedef enum {
-    COLMAP_FLAT = 0,    /* <= 32K, padded with 0xFF; MAME std.cpp         */
+    COLMAP_FLAT = 0,    /* <= 32K, padded with 0xFF; an overdump keeps its first 32K */
     COLMAP_MEGACART,    /* 64K-512K, read hotspots; MAME megacart.cpp     */
     COLMAP_XIN1,        /* 1M/2M, 32K windows; MAME xin1.cpp              */
     COLMAP_ACTIVISION,  /* 16K fixed + 16K banked + I2C; activision.cpp   */

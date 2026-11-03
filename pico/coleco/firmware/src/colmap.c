@@ -37,10 +37,17 @@ static bool sgc_shaped(uint32_t size)
     return size > COLMAP_WINDOW && (size & 0x1FFF) == 0 && size <= 0x80000u;
 }
 
+/* An overdump: over 32K, under 48K and not whole 8K banks, so no banked mapper claims it. Only
+ * the first 32K is served, as a 32K EPROM burn would. */
+static bool overdump_shaped(uint32_t size)
+{
+    return size > COLMAP_WINDOW && size < COLMAP_OVERDUMP_MAX && (size & 0x1FFF) != 0;
+}
+
 static bool kind_fits(colmap_kind_t kind, uint32_t size)
 {
     switch (kind) {
-    case COLMAP_FLAT:       return size <= COLMAP_WINDOW;
+    case COLMAP_FLAT:       return size <= COLMAP_WINDOW || overdump_shaped(size);
     case COLMAP_MEGACART:   return megacart_shaped(size);
     case COLMAP_XIN1:       return xin1_shaped(size);
     case COLMAP_ACTIVISION: return activision_shaped(size);
@@ -81,6 +88,8 @@ colmap_err_t colmap_plan(const uint8_t *image, uint32_t size,
         kind = COLMAP_XIN1;
     } else if (megacart_shaped(size)) {
         kind = COLMAP_MEGACART;
+    } else if (overdump_shaped(size)) {
+        kind = COLMAP_FLAT;
     } else {
         return COLMAP_ENOMAP;
     }
@@ -119,7 +128,8 @@ uint8_t colmap_gate(uint32_t size)
         || megacart_shaped(size)
         || xin1_shaped(size)
         || activision_shaped(size)
-        || sgc_shaped(size))
+        || sgc_shaped(size)
+        || overdump_shaped(size))
         return 0;
     return FN_BOOT_ERR_TOOBIG;
 }
