@@ -370,29 +370,17 @@ error_is_true NDevice::fujicore_set_prefix(const std::string &pathSpec)
     if (!prefix.empty() && prefix.back() != '/')
         prefix += "/";
 
-    // Position of the 3rd "/" in prefix (i.e. right after the host, for SCHEME://host/...).
-    size_t pos = prefix.find("/");
-    if (pos != std::string::npos)
-    {
-        pos = prefix.find("/", pos + 1);
-        if (pos != std::string::npos)
-            pos = prefix.find("/", pos + 1);
-    }
-
     if (path == ".." || path == "<") // Devance path
     {
         prefix += "..";
     }
     else if (path == "/" || path == ">") // Truncate to host, e.g. TNFS://host/
     {
-        if (pos != std::string::npos)
-            prefix = prefix.substr(0, pos + 1);
+        prefix = PeoplesUrlParser(prefix).root() + "/";
     }
     else if (path[0] == '/') // Nn:/path/to/dir/ -- keep host, replace path
     {
-        if (pos != std::string::npos)
-            prefix = prefix.substr(0, pos);
-        prefix += path;
+        prefix = PeoplesUrlParser(prefix).root() + path;
     }
     else if (path.find_first_of(":") != std::string::npos) // SCHEME://host/... -- reset entirely
     {
