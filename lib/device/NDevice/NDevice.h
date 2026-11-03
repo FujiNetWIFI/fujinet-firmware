@@ -4,6 +4,7 @@
 #include "bus.h"
 #include "Protocol.h"
 #include "FS.h"
+#include "ReadSequence.h"
 
 #include <unordered_map>
 
@@ -91,6 +92,9 @@ protected:
 
     uint64_t readAck = 0;
 
+    /** NET_SET_SEQUENCE state of this channel. */
+    ReadSequence readSeq;
+
     /** Currently set prefix (CWD) for this N: device. */
     std::string prefix;
 
@@ -133,6 +137,8 @@ protected:
 
     error_is_true fujicore_write(const ByteBuffer &buf);
     error_is_true fujicore_read(ByteBuffer &buf, size_t len);
+    /** fujicore_read() that hands out the last chunk again for a retried READ. */
+    error_is_true fujicore_read_seq(ByteBuffer &buf, uint16_t length, uint16_t sequence);
     size_t fujicore_available();
     NDeviceStatus fujicore_status();
     error_is_true fujicore_set_query(const std::string &query, uint8_t parseFlags);
@@ -186,6 +192,7 @@ protected:
         SYSTEM_BUS.transaction_success();
     }
     void fujidev_set_timer_rate(const FUJI_COMMAND_PACKET &packet);
+    void fujidev_set_sequence(const FUJI_COMMAND_PACKET &packet);
 
 private:
     using Handler = void (NDevice::*)(const FUJI_COMMAND_PACKET &);

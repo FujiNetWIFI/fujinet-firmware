@@ -4,6 +4,14 @@
 
 void lynxNetwork::fujidev_read(const FUJI_COMMAND_PACKET &packet)
 {
+    // A plain READ sends what is available; with NET_SET_SEQUENCE on, the client
+    // sends a length field like every other bus, and its bit 15 is the sequence.
+    if (readSeq.enabled())
+    {
+        NDevice::fujidev_read(packet);
+        return;
+    }
+
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
     // Packet payload can't be larger than 16bit unsigned
