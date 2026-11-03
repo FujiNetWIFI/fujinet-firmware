@@ -564,7 +564,8 @@ success_is_true fujiDevice::fujicmd_net_set_ssid_success()
     Debug_println("Fuji cmd: SET SSID");
 
     SSIDConfig cfg;
-    if (!SYSTEM_BUS.transaction_get(&cfg, sizeof(cfg)))
+    auto len = SYSTEM_BUS.transaction_get_length(&cfg, sizeof(cfg));
+    if (len.is_error() || len != sizeof(cfg))
     {
         SYSTEM_BUS.transaction_error();
         RETURN_ERROR_AS_FALSE();
@@ -1218,7 +1219,8 @@ void fujiDevice::fujicmd_new_disk()
 
     Debug_println("Fuji cmd: NEW DISK");
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
-    if (SYSTEM_BUS.transaction_get(&req, sizeof(req)).is_error())
+    auto len = SYSTEM_BUS.transaction_get_length(&req, sizeof(req));
+    if (len.is_error() || len != sizeof(req))
     {
         SYSTEM_BUS.transaction_error();
         return;
