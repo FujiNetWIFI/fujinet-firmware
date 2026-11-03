@@ -29,7 +29,8 @@ void AppKeyMixin::appkey_open(const FUJI_COMMAND_PACKET &packet)
     appkey key;
 
     // The data expected for this command
-    if (!SYSTEM_BUS.transaction_get(&key, sizeof(key)))
+    auto len = SYSTEM_BUS.transaction_get_length(&key, sizeof(key));
+    if (len.is_error() || len != sizeof(key))
     {
         SYSTEM_BUS.transaction_error();
         return;
