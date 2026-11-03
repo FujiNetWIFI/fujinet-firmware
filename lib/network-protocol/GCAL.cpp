@@ -22,8 +22,8 @@
 using namespace fn_time;
 
 // Token refresh goes through the same relay as Google Drive; the shared grant
-// must carry the calendar.readonly scope for the returned token to reach the
-// Calendar API, plus calendar.events for compose/edit.
+// must carry calendar.calendarlist.readonly for the calendar list and
+// calendar.events to read, compose or edit events.
 #define GCAL_RELAY_REFRESH_URL "https://auth.fujinet.online/gdrive-refresh"
 
 // Bound the work when a selector names every calendar in an account.
@@ -217,7 +217,7 @@ void NetworkProtocolGCAL::sniff_auth_body(const std::string &body)
     {
         _scope_problem = true;
         Debug_printf("GCAL: the Google grant is missing a calendar scope "
-                     "(calendar.readonly / calendar.events) — re-authorize Google in the web UI\r\n");
+                     "(calendar.calendarlist.readonly / calendar.events) — re-authorize Google in the web UI\r\n");
     }
 }
 
