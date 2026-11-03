@@ -220,7 +220,7 @@ jobs:
   release:
     if: ${{ github.event_name == 'schedule' || github.event.inputs.prepRelease == 'true' }}
     # Create GitHub release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     name: Release
     needs: build
 
@@ -268,7 +268,7 @@ jobs:
   postrelease:
     if: ${{ github.event_name == 'schedule' }}
     # Delete old nightly releases
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     name: Post-Release
     needs: release
 

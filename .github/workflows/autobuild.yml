@@ -21,7 +21,7 @@ concurrency:
 jobs:
   tagged-release:
     name: "PlatformIO CI"
-    runs-on: "ubuntu-latest"
+    runs-on: "ubuntu-24.04"
     strategy:
       matrix:
         target-platform:
