@@ -886,11 +886,6 @@ void fujiDevice::fujicmd_read_directory_block(uint8_t num_pages, uint8_t group_s
 
     size_t max_block_size = num_pages * DIR_BLOCK_SIZE;
 
-#ifdef WE_NEED_TO_REWIND
-    // Save current directory position in case we need to rewind
-    uint16_t starting_pos = _fnHosts[_current_open_directory_slot].dir_tell();
-#endif /* WE_NEED_TO_REWIND */
-
     std::vector<DirectoryPageGroup> page_groups;
     size_t total_size = 0;
     bool is_last_entry = false;
