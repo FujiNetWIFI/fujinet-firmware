@@ -35,6 +35,35 @@ target_include_directories(daisychain_tests PRIVATE
 add_test(NAME daisychain_tests COMMAND daisychain_tests)
 
 # ------------------------------------------------------------------------------
+# lib/device/Cartridge: the frames the base push and rs232Cartridge's overrides
+# send, checked byte for byte against a fake bus.
+# UNIT_TESTS: keeps debug.h off <utils.h> (see imdimage_tests).
+# FNIO_IS_STDIO: fnFile in Cartridge.h is std::FILE (see imdimage_tests).
+# -U the platform: bus.h would otherwise pull in the real bus; the test brings
+# its own SystemBusBase.
+# ------------------------------------------------------------------------------
+add_executable(cartridge_tests
+    CartridgeTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/device/Cartridge/Cartridge.cpp
+    ${CMAKE_SOURCE_DIR}/lib/bus/DaisyChain.cpp
+    ${CMAKE_SOURCE_DIR}/lib/bus/FujiBusPacket.cpp
+)
+
+target_compile_definitions(cartridge_tests PRIVATE UNIT_TESTS FNIO_IS_STDIO)
+target_compile_options(cartridge_tests PRIVATE -U${FUJINET_BUILD_PLATFORM})
+
+target_include_directories(cartridge_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/include/
+    ${CMAKE_SOURCE_DIR}/lib/
+    ${CMAKE_SOURCE_DIR}/lib/bus/
+    ${CMAKE_SOURCE_DIR}/lib/device/Cartridge/
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+
+add_test(NAME cartridge_tests COMMAND cartridge_tests)
+
+# ------------------------------------------------------------------------------
 # UTF-8 / HTML-entity folding to ASCII. fn_sanitize is deliberately free of any
 # parser or protocol dependency, so the entity tables and the transliteration
 # edge cases are pinned here rather than on hardware.
@@ -514,6 +543,7 @@ add_test(
             ${CMAKE_SOURCE_DIR}/lib/device/fujiDevice
             ${CMAKE_SOURCE_DIR}/lib/device/fujiClock
             ${CMAKE_SOURCE_DIR}/lib/device/NDevice
+            ${CMAKE_SOURCE_DIR}/lib/device/Cartridge
 )
 
 # ------------------------------------------------------------------------------

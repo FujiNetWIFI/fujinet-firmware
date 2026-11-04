@@ -24,7 +24,9 @@
 rs232Network rs232NetDevs[MAX_NETWORK_DEVICES];
 
 rs232Fuji::rs232Fuji() : fujiDevice(MAX_DISK_DEVICES, IMAGE_EXTENSION, LOBBY_URL)
-{}
+{
+    _cartridge = &_rs232Cartridge;
+}
 
 // Initializes base settings and adds our devices to the RS232 bus
 void rs232Fuji::setup()

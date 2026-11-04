@@ -66,6 +66,8 @@ void say_swap_label()
 // Constructor
 drivewireFuji::drivewireFuji() : fujiDevice(MAX_DWDISK_DEVICES, IMAGE_EXTENSION, LOBBY_URL)
 {
+    _cartridge = &_drivewireCartridge;
+
     // Helpful for debugging
     for (int i = 0; i < MAX_HOSTS; i++)
         _fnHosts[i].slotid = i;

@@ -3,12 +3,14 @@
 #define RS232FUJI_H
 
 #include "fujiDevice.h"
+#include "rs232Cartridge.h"
 
 #include <cassert>
 
 class rs232Fuji : public fujiDevice
 {
 private:
+    rs232Cartridge _rs232Cartridge{SYSTEM_BUS};
 
 protected:
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,

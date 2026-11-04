@@ -2,6 +2,7 @@
 #define DRIVEWIREFUJI_H
 
 #include "fujiDevice.h"
+#include "drivewireCartridge.h"
 
 #include "cassette.h"
 
@@ -13,6 +14,7 @@ private:
 #ifdef ESP_PLATFORM
     drivewireCassette _cassetteDev;
 #endif
+    drivewireCartridge _drivewireCartridge{SYSTEM_BUS};
 
 protected:
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,

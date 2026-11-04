@@ -5,7 +5,8 @@ The CoCo and Dragon device set for `BUILD_COCO`.
 ## Layout
 | File | Defines |
 |---|---|
-| `drivewireFuji.h`, `drivewireFuji.cpp` | `drivewireFuji : fujiDevice` (`.dsk` images, `MAX_DWDISK_DEVICES` slots, CoCo lobby); defines `platformFuji` and sets `theFuji` |
+| `drivewireFuji.h`, `drivewireFuji.cpp` | `drivewireFuji : fujiDevice` (`.dsk` images, `MAX_DWDISK_DEVICES` slots, CoCo lobby); defines `platformFuji` and sets `theFuji`; owns the `drivewireCartridge` |
+| `drivewireCartridge.h`, `drivewireCartridge.cpp` | `drivewireCartridge : Cartridge`, for `pico/fujiversal`: the base push as is, from the platform's `MediaTypeROM` |
 | `disk.h`, `disk.cpp` | `drivewireDisk : drivewireDevice`, the `DISK_DEVICE` |
 | `drivewireNetwork.h`, `drivewireNetwork.cpp` | `drivewireNetwork : NDevice`; the bus creates one per unit on first use |
 | `drivewireClock.h`, `drivewireClock.cpp` | `drivewireClock : fujiClock`; defines `platformClock` |
