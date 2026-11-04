@@ -819,15 +819,16 @@ void systemBus::configureGPIO()
 
     return;
 }
+#endif /* ESP_PLATFORM */
 
-int systemBus::readBaudSwitch()
+int systemBus::readBaudConfig()
 {
-#ifdef COCO_HS_UART
-    int baud = 921600; // No A14/A15 switches on this board; fixed high-speed link to the RP2040/RP2350
-    Debug_printv("COCO_HS_UART build, defaulting to %d baud", baud);
-    bDragon = false;
-    return baud;
-#elif defined(PIN_EPROM_A14)
+#ifdef ESP_PLATFORM
+
+#  ifdef FORCE_UART_BAUD
+    Debug_printv("FORCE_UART_BAUD set to %u", FORCE_UART_BAUD);
+    return FORCE_UART_BAUD;
+#  elif defined(PIN_EPROM_A14)
     if (fnSystem.digital_read(PIN_EPROM_A14) == DIGI_LOW
         && fnSystem.digital_read(PIN_EPROM_A15) == DIGI_LOW)
     {
@@ -853,11 +854,15 @@ int systemBus::readBaudSwitch()
     Debug_printv("A14 and A15 High, (DRAGON) 57600 baud");
 
     return 57600; // Dragon ROM image
-#else             /* ! PIN_EPROM_A14 */
+#  else             /* ! PIN_EPROM_A14 */
     return 921600;
-#endif /* COCO_HS_UART / PIN_EPROM_A14 */
-}
+#  endif /* FORCE_UART_BAUD / PIN_EPROM_A14 */
+
+#else /* !ESP_PLATFORM */
+    // FujiNet-PC specific
+    return Config.get_serial_baud();
 #endif /* ESP_PLATFORM */
+}
 
 // Setup DRIVEWIRE bus
 void systemBus::setup()
@@ -867,28 +872,10 @@ void systemBus::setup()
     drivewire_evt_queue = xQueueCreate(10, sizeof(uint32_t));
     bDragon = false;
 
-#ifdef CONFIG_IDF_TARGET_ESP32S3
-    // Configure UART to RP2040
-  #ifdef FORCE_UART_BAUD
-    Debug_printv("FORCE_UART_BAUD set to %u", FORCE_UART_BAUD);
-    _drivewireBaud = FORCE_UART_BAUD;
-  #else /* !FORCE_UART_BAUD */
-    _drivewireBaud = 115200;
-  #endif /* FORCE_UART_BAUD */
-
-#else /* ! CONFIG_IDF_TARGET_ESP32S3 */
     configureGPIO();
-  #ifdef FORCE_UART_BAUD
-    Debug_printv("FORCE_UART_BAUD set to %u",FORCE_UART_BAUD);
-    _drivewireBaud = FORCE_UART_BAUD;
-  #else /* !FORCE_UART_BAUD */
-    _drivewireBaud = readBaudSwitch();
-  #endif /* FORCE_UART_BAUD */
-#endif /* CONFIG_IDF_TARGET_ESP32S3 */
-#else /* !ESP_PLATFORM */
-    // FujiNet-PC specific
-    _drivewireBaud = Config.get_serial_baud();
-#endif /* !ESP_PLATFORM */
+#endif /* ESP_PLATFORM */
+
+    _drivewireBaud = readBaudConfig();
 
     if (Config.get_boip_enabled())
     {
@@ -911,16 +898,10 @@ void systemBus::setup()
                       .readTimeout(500)
 #ifdef ESP_PLATFORM
                       .dcdPin(PIN_RS232_DCD)
-#ifndef COCO_HS_UART
+#ifndef PINMAP_COCO_CENTIPEDE
                       .txInverted(DW_UART_DEVICE == UART_NUM_2 && !bDragon)
                       .rxInverted(DW_UART_DEVICE == UART_NUM_2)
-#else
-                      // No line inversion on this board's direct link to the RP2040/RP2350.
-                      // Hardware flow control parked for now - not yet validated on this board.
-                      //.flowControl(UART_HW_FLOWCTRL_CTS_RTS)
-                      //.rtsPin(PIN_UART1_RTS)
-                      //.ctsPin(PIN_UART1_CTS)
-#endif /* COCO_HS_UART */
+#endif /* PINMAP_COCO_CENTIPEDE */
 #endif /* ESP_PLATFORM */
                       );
 #endif /* FUJINET_OVER_USB */
