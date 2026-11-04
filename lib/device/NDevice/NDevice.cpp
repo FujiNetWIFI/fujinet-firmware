@@ -267,7 +267,6 @@ void NDevice::fujidev_write(const FUJI_COMMAND_PACKET &packet)
 
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
 
-    // Nothing to send, but not an error: DOS writes zero bytes to set a file's length.
     if (!num_bytes)
     {
         if (_protocol == nullptr)
