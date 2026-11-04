@@ -32,7 +32,8 @@ MFile* FlashMFileSystem::getFile(std::string path)
 
 bool FlashMFile::pathValid(std::string path) 
 {
-    auto apath = std::string(basepath + path).c_str();
+    std::string fullPath = basepath + path;
+    const char *apath = fullPath.c_str();
     while (*apath) {
         const char *slash = strchr(apath, '/');
         if (!slash) {

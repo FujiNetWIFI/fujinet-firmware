@@ -63,7 +63,7 @@ public:
     // readStringUntil = (delimiter = 0x00) => this.containerStream.readStringUntil(delimiter);
     virtual std::string readStringUntil( uint8_t delimiter = '\0' );
 
-    virtual uint32_t write(const uint8_t *buf, uint32_t size);
+    uint32_t write(const uint8_t *buf, uint32_t size) override;
 
     // seek = (offset) => this.containerStream.seek(offset + this.media_header_size);
     bool seek(uint32_t offset) override;

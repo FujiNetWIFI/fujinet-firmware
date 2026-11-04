@@ -127,11 +127,11 @@ bool T64MStream::seekPath(std::string path) {
     if ( seekEntry(path) )
     {
         //auto entry = containerImage->entry;
-        auto type = decodeType(entry.file_type).c_str();
+        std::string type = decodeType(entry.file_type);
         uint32_t start_address = UINT16_FROM_HILOBYTES(entry.start_address[1], entry.start_address[0]);
         uint32_t end_address = UINT16_FROM_HILOBYTES(entry.end_address[1], entry.end_address[0]);
         uint32_t data_offset = UINT32_FROM_LE_UINT32(entry.data_offset);
-        Debug_printv("filename [%.16s] type[%s] start_address[%lu] end_address[%lu] data_offset[%lu]", entry.filename, type, start_address, end_address, data_offset);
+        Debug_printv("filename [%.16s] type[%s] start_address[%lu] end_address[%lu] data_offset[%lu]", entry.filename, type.c_str(), start_address, end_address, data_offset);
 
         // Calculate file size
         _size = ( end_address - start_address ) + 2; // 2 bytes for load address
