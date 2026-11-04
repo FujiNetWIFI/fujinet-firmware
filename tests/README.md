@@ -51,7 +51,7 @@ Host-side unit tests and policy checks for the FujiNet-PC build. ctest runs them
 | `SMBProtocolTests.cpp` | `lib/network-protocol/SMB.cpp` MKDIR and RMDIR failing on a URL with no share and on an unreachable server (`smb_protocol_tests`) |
 | `TelnetProtocolTests.cpp` | `lib/network-protocol/Telnet.cpp` reads (also after the peer closes), writes and separate channels over the same fake socket (`telnet_protocol_tests`) |
 | `tcp_harness/` | Stand-ins for `fnTcpClient.h`, `fnTcpServer.h`, `fnUDP.h`, `fnDNS.h` and `bus.h`, backed by the fake peer in `fnTcpClient.h`; used by `tcp_protocol_tests`, `udp_protocol_tests`, `telnet_protocol_tests`, `fs_protocol_tests` and `smb_protocol_tests` |
-| `check_no_build_ifdefs.py` | Policy: no `BUILD_*` macro in a preprocessor conditional under `lib/device/fujiDevice`, `lib/device/fujiClock` or `lib/device/NDevice` (`no_build_ifdefs_in_fujidevice`) |
+| `check_no_build_ifdefs.py`, `ifdef_check_config.json` | Policy: a preprocessor conditional under `lib/device/fujiDevice`, `lib/device/fujiClock` or `lib/device/NDevice` may name only an allowed macro; the JSON lists the allowed names globally, per directory or per file (`no_build_ifdefs_in_fujidevice`) |
 | `check_no_system_bus.py` | Policy: `SYSTEM_BUS` must not appear in any source under `lib/media` (`no_system_bus_in_media`) |
 | `unsit.c`, `stuffit_test.sh` | Host CLI over `lib/stuffit` and a comparison against `unar` (`stuffit_sample_tests`; registered only with `SIT_SAMPLES_DIR`) |
 | `ndif_blocks_test.c`, `ndif_test.sh` | NDIF decoding compared with ndif2raw (`ndif_sample_tests`; registered only with `NDIF2RAW_DIR`) |

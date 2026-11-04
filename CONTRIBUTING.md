@@ -98,7 +98,8 @@ workflow runs a linter or a formatter. So:
   (`no_build_ifdefs_in_fujidevice`, `no_system_bus_in_media`), two build only when
   `FUJINET_TARGET=ATARI` (`sio_dstats_tests`, `nquery_output_mode_tests`), and the StuffIt and
   NDIF sample tests register only when their sample corpus and tools are present.
-- Run them with `./build.sh -p ATARI`, or `ctest -V` from `build/` after a PC configure.
+- Run them with `./build.sh -p ATARI`, or `ctest -V` from `build/` after a PC configure. After
+  that configure, `make tests/<name>` builds and runs one.
 - To add one, add an `add_executable` + `add_test` pair to `tests/CMakeLists.txt`; keep the unit
   under test free of hardware and FujiNet globals so it links alone, as `fn_time.cpp` does.
 - `test/` (singular) is the stale PlatformIO/Unity on-hardware directory; nothing references it.
@@ -106,10 +107,13 @@ workflow runs a linter or a formatter. So:
 
 ## Enforced architecture rules
 
-No `BUILD_*` identifier may appear in a `#if`, `#ifdef`, `#ifndef` or `#elif` anywhere under
-`lib/device/fujiDevice`, `lib/device/fujiClock`, or `lib/device/NDevice`. `tests/check_no_build_ifdefs.py`
-enforces this as the `no_build_ifdefs_in_fujidevice` ctest; it strips comments and string literals
-first, so you cannot dodge it. Customize by overriding a virtual in the per-bus subclass under
+A `#if`, `#ifdef`, `#ifndef` or `#elif` anywhere under `lib/device/fujiDevice`,
+`lib/device/fujiClock`, or `lib/device/NDevice` may name only an allowed macro: `__cplusplus`, an
+include guard, an entry in `tests/ifdef_check_config.json`, or one named by a
+`// ifdef-check-allow: NAME` comment on that line or the line above. Every other name fails, so a
+new macro is no way around it. `tests/check_no_build_ifdefs.py` enforces this as the
+`no_build_ifdefs_in_fujidevice` ctest, ignoring comments and string literals. Customize by
+overriding a virtual in the per-bus subclass under
 `lib/device/<bus>/`, or by a mixin in `lib/device/fujiDevice/`.
 
 `SYSTEM_BUS` may not appear anywhere under `lib/media`; `tests/check_no_system_bus.py` enforces
