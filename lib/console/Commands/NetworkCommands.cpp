@@ -16,6 +16,10 @@
 #include "string_utils.h"
 #include "../improv/improv.h"
 
+#ifdef ENABLE_OLED_DISPLAY
+#include "oled_display.h"
+#endif
+
 // static const char *wlstatus2string(wl_status_t status)
 // {
 //     switch (status)
@@ -250,6 +254,10 @@ static int ipconfig(int argc, char **argv)
 
 static int scan(int argc, char **argv)
 {
+#ifdef ENABLE_OLED_DISPLAY
+    fnOledDisplay.show_activity("WiFi: Scan");
+#endif
+
     fnWiFi.scan_networks();
     printf("Found following networks:\r\n");
     std::vector<std::string> network_names = fnWiFi.get_network_names();
@@ -270,10 +278,25 @@ static int connect(int argc, char **argv)
             // Find SSID by CRC8 Number
             network = fnWiFi.get_network_name_by_crc8(std::stoi(argv[1]));
         }
+
+#ifdef ENABLE_OLED_DISPLAY
+        char line[24];
+        snprintf(line, sizeof(line), "WiFi: %.17s", network.c_str());
+        fnOledDisplay.show_activity(line);
+#endif
+
         int e = ( fnWiFi.connect(network.c_str(), argv[2]) );
 
         if ( e == ESP_OK)
             fnWiFi.store_wifi(network, argv[2]);
+
+#ifdef ENABLE_OLED_DISPLAY
+        if (e == ESP_OK)
+            snprintf(line, sizeof(line), "WiFi OK: %.14s", network.c_str());
+        else
+            snprintf(line, sizeof(line), "WiFi: FAILED");
+        fnOledDisplay.show_activity(line);
+#endif
 
         return e;
     }

@@ -90,6 +90,7 @@ the owning device or bus.
 | `hasher` | `Hash` | encoding/hash.h | |
 | `crypto` | `Crypto` | encrypt/crypt.h | WiFi passphrase obfuscation |
 | `DISPLAY` | `Display` | display/display.h | only with `ENABLE_DISPLAY` |
+| `fnOledDisplay` | `OledDisplay` | oled/oled_display.h | only with `ENABLE_OLED_DISPLAY` |
 
 ## ESP vs PC
 
@@ -133,6 +134,7 @@ the owning device or bus.
 | [media/](media/) | disk image formats | in-house | all | six platforms |
 | [modem-sniffer/](modem-sniffer/) | modem traffic dump for the web UI | in-house | yes | yes |
 | [network-protocol/](network-protocol/) | N: protocol adapters and their factory | in-house | yes | yes |
+| [oled/](oled/) | SSD1306 boot splash and runtime status, behind `ENABLE_OLED_DISPLAY` | in-house | yes | no |
 | [printer-emulator/](printer-emulator/) | printer models rendering to PDF, SVG, PNG, HTML | in-house | yes | yes |
 | [qrcode/](qrcode/) | QR encoder and `QRManager` | `qrcode/qrcode.c` MIT; manager in-house | yes | yes |
 | [runcpm/](runcpm/) | CP/M emulator, header-only | RunCPM | via users | via users |

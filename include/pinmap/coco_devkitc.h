@@ -10,6 +10,10 @@
 #define PIN_LED_BUS             GPIO_NUM_4
 #define PIN_LED_BT              GPIO_NUM_NC // No BT LED
 
+/* OLED - oled_display.cpp, ssd1306.cpp (centipede board only) */
+#define PIN_OLED_SDA            GPIO_NUM_27
+#define PIN_OLED_SCL            GPIO_NUM_32
+
 /* Buttons - keys.cpp */
 // A DevKitC has no Safe Reset button.  keys.cpp gives GPIO 14 no pull-up,
 // so left floating it picks up the UART beside it and reads as presses,

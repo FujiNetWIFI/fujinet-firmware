@@ -41,6 +41,7 @@
 #include <atomic>
 #include <forward_list>
 #include <map>
+#include <mutex>
 #include <cassert>
 #include "media.h"
 
@@ -169,6 +170,20 @@ private:
     int readBaudSwitch();
 #endif /* ESP_PLATFORM */
 
+public:
+    // Most recently completed sector transfer, for the centipede board's
+    // OLED status display. at_ms == 0 means no transfer has completed yet.
+    // Declared here (ahead of the private section below) so _last_sector_op
+    // can be typed with it.
+    struct LastSectorOp
+    {
+        uint8_t drive_num;
+        uint32_t lsn;
+        bool is_write;
+        uint64_t at_ms;
+    };
+
+private:
     /**
      * @brief Current Baud Rate
      */
@@ -183,6 +198,20 @@ private:
      * @brief Drive number (0-255)
      */
     uint8_t drive_num;
+
+    // Read from a different task by the OLED status display
+    // (get_last_sector_op()) - _last_sector_op_mutex guards every access, so
+    // a read can't land between this struct's fields and mix an old
+    // drive_num/lsn with a newer is_write/at_ms, the way four separately
+    // synchronized fields could.
+    mutable std::mutex _last_sector_op_mutex;
+    LastSectorOp _last_sector_op{0, 0, false, 0};
+
+    void set_last_sector_op(const LastSectorOp &op)
+    {
+        std::scoped_lock<std::mutex> lock(_last_sector_op_mutex);
+        _last_sector_op = op;
+    }
 
     /**
      * @brief Sector data (256 bytes)
@@ -264,6 +293,12 @@ public:
     bool getShuttingDown() { return shuttingDown; };
     bool motorActive = false;
     bool isDragon() { return bDragon; }
+
+    LastSectorOp get_last_sector_op() const
+    {
+        std::scoped_lock<std::mutex> lock(_last_sector_op_mutex);
+        return _last_sector_op;
+    }
 
     // When true, op_readex()'s named-object fallback opens /DGNLOBBY.DWL
     // instead of /AUTOLOAD.DWL. Set via CMD::FUJI_SET_BOOT_MODE mode 2 on Dragon.

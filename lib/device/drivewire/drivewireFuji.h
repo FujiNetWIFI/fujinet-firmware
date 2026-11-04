@@ -50,6 +50,13 @@ public:
     success_is_true fujicore_mount_disk_image_success(uint8_t deviceSlot,
                                                       disk_access_flags_t access_mode) override;
 
+    // Reports to the centipede board's OLED status display; see
+    // lib/oled/oled_display.h.
+    success_is_true fujicore_open_directory_success(uint8_t hostSlot, const std::string &dirpath,
+                                                    const std::optional<std::string> &pattern) override;
+    void fujicmd_net_scan_networks() override;
+    success_is_true fujicore_net_set_ssid_success(const char *ssid, const char *password, bool save) override;
+
     // Called by the bus between transfers.
     void rotate_disks();
 };

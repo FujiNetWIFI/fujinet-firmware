@@ -6,8 +6,13 @@
 #include "drivewire/cpm.h"
 #include "drivewire/drivewireNetwork.h"
 #include "fnWiFi.h"
+#include "fnSystem.h"
 #include "led.h"
 #include "debug.h"
+
+#ifdef ENABLE_OLED_DISPLAY
+#include "oled_display.h"
+#endif
 
 #include <queue>
 
@@ -109,6 +114,14 @@ void systemBus::op_reset()
         fclose(pNamedObjFp);
         pNamedObjFp = NULL;
     }
+
+    // Sector activity shown on the OLED status display is sticky across
+    // reads/writes, but a reboot invalidates it.
+    set_last_sector_op(LastSectorOp{0, 0, false, 0});
+
+#ifdef ENABLE_OLED_DISPLAY
+    fnOledDisplay.reset_to_boot_logo();
+#endif
 }
 
 void systemBus::op_readex()
@@ -233,6 +246,10 @@ void systemBus::op_readex()
                 }
             }
         }
+
+        if (rc == DISK_CTRL_STATUS_CLEAR)
+            set_last_sector_op(LastSectorOp{drive_num, lsn, false, fnSystem.millis()});
+
         // send zeros on error
         if (rc != DISK_CTRL_STATUS_CLEAR)
             memset(blk_buffer, 0x00, blk_size);
@@ -318,6 +335,8 @@ void systemBus::op_write()
         _port->write(0xF5);
         return;
     }
+
+    set_last_sector_op(LastSectorOp{drive_num, lsn, true, fnSystem.millis()});
 
     _port->write(0x00); // success
 }

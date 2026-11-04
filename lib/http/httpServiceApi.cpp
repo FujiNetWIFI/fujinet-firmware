@@ -19,6 +19,10 @@
 #include "httpService.h"
 #include "httpServiceBrowse.h"
 
+#ifdef ENABLE_OLED_DISPLAY
+#include "oled_display.h"
+#endif
+
 #ifdef BUILD_ATARI
 #include "sio/sioFuji.h"
 #endif /* BUILD_ATARI */
@@ -506,6 +510,10 @@ fnHttpApi::response h_printer_clear(const request &)
 // POST /api/v1/wifi/scan - Scan WiFi networks
 fnHttpApi::response h_wifi_scan(const request &)
 {
+#ifdef ENABLE_OLED_DISPLAY
+    fnOledDisplay.show_activity("WiFi: Scan");
+#endif
+
     uint8_t count = fnWiFi.scan_networks();
     cJSON *root = cJSON_CreateArray();
 

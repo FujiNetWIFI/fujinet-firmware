@@ -122,7 +122,10 @@ protected:
         calling protocol->setDirLongWidth() at all. */
     virtual int dir_long_width() const { return 0; }
 
-    void fujidev_open(const FUJI_COMMAND_PACKET &packet);
+    // Platform hook: drivewireNetwork overrides this to report the opened
+    // URL's host to the centipede board's OLED status display, rather than
+    // a #ifdef BUILD_* (banned here, see tests/check_no_build_ifdefs.py).
+    virtual void fujidev_open(const FUJI_COMMAND_PACKET &packet);
     void fujidev_close(const FUJI_COMMAND_PACKET &packet);
     virtual void fujidev_read(const FUJI_COMMAND_PACKET &packet);
     virtual void fujidev_write(const FUJI_COMMAND_PACKET &packet);
