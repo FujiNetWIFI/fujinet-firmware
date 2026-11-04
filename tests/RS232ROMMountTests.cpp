@@ -85,6 +85,17 @@ void check_closed_once(rs232Disk &disk, const MemFile &file)
     }
 }
 
+// A failed mount releases the drive straight away, not at the next unmount().
+void check_nothing_mounted(rs232Disk &disk, const MemFile &file)
+{
+    CHECK_FALSE(disk.device_active);
+    CHECK(disk.disktype() == MEDIATYPE_UNKNOWN);
+    CHECK(disk.mount_time() == 0);
+    CHECK(file.closes == 1);
+    for (const auto &opened : host_files.opened)
+        CHECK(opened->closes == 1);
+}
+
 void reset()
 {
     bus.reset();
@@ -219,6 +230,7 @@ TEST_CASE("an empty ROM image fails without touching the bus")
     rs232Disk disk;
     CHECK(disk.mount(&file, ROM_TEST_FILE, 0, DISK_ACCESS_MODE_READ) == MEDIATYPE_UNKNOWN);
     CHECK(bus.sent.empty());
+    check_nothing_mounted(disk, file);
     check_closed_once(disk, file);
 }
 
@@ -236,6 +248,7 @@ TEST_CASE("a refused or unanswered OPEN fails the mount and sends nothing more")
         CHECK(disk.mount(&file, ROM_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
               == MEDIATYPE_UNKNOWN);
         CHECK(commands() == std::vector<fujiCommandID_t>{CMD::NET_OPEN});
+        check_nothing_mounted(disk, file);
         check_closed_once(disk, file);
     }
 }
@@ -256,6 +269,7 @@ TEST_CASE("a refused or unanswered block sends an aborting CLOSE")
         REQUIRE(bus.sent.size() == 4);
         CHECK(bus.sent[3].command == CMD::NET_CLOSE);
         CHECK(bus.sent[3].payload == std::string(1, '\x01'));
+        check_nothing_mounted(disk, file);
         check_closed_once(disk, file);
     }
 }
@@ -270,6 +284,7 @@ TEST_CASE("a refused CLOSE fails the mount")
     rs232Disk disk;
     CHECK(disk.mount(&file, ROM_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
           == MEDIATYPE_UNKNOWN);
+    check_nothing_mounted(disk, file);
     check_closed_once(disk, file);
 }
 
@@ -287,6 +302,7 @@ TEST_CASE("a failed memory map push leaves the image unsent")
                      MEDIATYPE_UNKNOWN, &host) == MEDIATYPE_UNKNOWN);
     CHECK(commands() == std::vector<fujiCommandID_t>{CMD::NET_OPEN});
     CHECK(bus.sent[0].payload == open_header(1, 10));
+    check_nothing_mounted(disk, file);
     check_closed_once(disk, file);
 }
 
