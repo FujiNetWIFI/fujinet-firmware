@@ -37,6 +37,6 @@ tests/%: FORCE
 	@if cmake --build build --target help | grep -w '$*' > /dev/null; then \
 	  cmake --build build --target $*; \
 	fi
-	cd build && ctest -R '^$*$$' --output-on-failure
+	cd build && ctest -R '^$*$$' --output-on-failure --no-tests=error
 
 FORCE:
