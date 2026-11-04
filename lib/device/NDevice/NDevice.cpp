@@ -482,10 +482,6 @@ error_is_true NDevice::parse_and_instantiate_protocol(std::string &deviceSpec, b
         RETURN_ERROR_AS_TRUE();
     }
 
-#ifdef VERBOSE_PROTOCOL
-    Debug_printf("::parse_and_instantiate_protocol -> spec: >%s<, url: >%s<\r\n", deviceSpec.c_str(), url_out->getFullURL().c_str());
-#endif
-
     _protocol = NetworkProtocolFactory::createProtocol(url_out->scheme, receiveBuffer, transmitBuffer, specialBuffer, &login, &password);
 
     if (_protocol == nullptr)
