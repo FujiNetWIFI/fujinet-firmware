@@ -15,6 +15,10 @@ volatile bool fuji_boot_armed = false;
 volatile bool fuji_staged_claims = false;
 volatile bool fuji_have_staged = false;
 
+/* The claiming APPBANK image whose home window poke also paints; core0 only. Staged or live,
+ * and cleared when the RAM store is next opened, which STOREBUSY allows only once it isn't. */
+static uint8_t *appbank_home;
+
 uint8_t *fuji_cart_stage_window(void)
 {
     return fuji_win[fuji_live_win ^ 1u];
@@ -50,6 +54,13 @@ void fuji_cart_poke(unsigned offset, uint8_t value)
     fuji_win[fuji_live_win][offset & (COLMAP_WINDOW - 1)] = value;
     if (fuji_have_staged && fuji_staged_claims)
         fuji_cart_stage_window()[offset & (COLMAP_WINDOW - 1)] = value;
+    if (appbank_home != NULL)
+        appbank_home[offset & (COLMAP_WINDOW - 1)] = value;
+}
+
+void fuji_cart_home_release(void)
+{
+    appbank_home = NULL;
 }
 
 /* Arming is separate (FN_REG_BOOTLOCK), so a stray read can't swap an unarmed image. */
@@ -63,6 +74,8 @@ void fuji_cart_stage(const uint8_t *image, const colmap_plan_t *plan)
     } else {
         colmap_serve_reset(plan, &fuji_next.map);
         fuji_next.base = image;
+        if (plan->kind == COLMAP_APPBANK && plan->mailbox_ok)
+            appbank_home = (uint8_t *)image;    /* the store's RAM, ours to paint */
     }
     fuji_staged_claims = plan->mailbox_ok;
     fuji_have_staged = true;
@@ -76,6 +89,7 @@ void fuji_cart_init(void)
     fuji_staged_claims = false;
     fuji_have_staged = false;
     fuji_live_win = 0;
+    appbank_home = NULL;
     serve_flat(&fuji_live, fuji_win[0]);
     serve_flat(&fuji_next, fuji_win[1]);
 }

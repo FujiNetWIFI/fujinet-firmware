@@ -34,6 +34,8 @@
 #define FN_REGDAT   ((volatile unsigned char *)0xFE00)
 #define FN_TXPAGE   ((volatile unsigned char *)0xFF00)
 #define FN_SWAP     (*(volatile unsigned char *)0xFDFE)
+#define FN_BANKSEL  ((volatile unsigned char *)0xFD80)  /* APPBANK: +n shows page n at $C000 */
+#define FN_PAGE     ((volatile unsigned char *)0xC000)
 
 /* Register file */
 #define FNR_DEVICE   0x00
@@ -68,6 +70,9 @@
 /* Is a FujiNet cartridge actually underneath us? On a plain ROM cart these
  * two addresses are whatever the game put there (or 0xFF). */
 bool fn_present(void);
+
+/* APPBANK: show page `page` at $C000. Out-of-range pages are ignored. */
+void fn_bank(unsigned char page);
 
 /* Begin a transaction: rewind the outgoing stream and address a device. */
 void fn_start(unsigned char device, unsigned char command);

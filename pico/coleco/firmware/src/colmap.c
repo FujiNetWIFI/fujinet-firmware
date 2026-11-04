@@ -44,6 +44,13 @@ static bool overdump_shaped(uint32_t size)
     return size > COLMAP_WINDOW && size < COLMAP_OVERDUMP_MAX && (size & 0x1FFF) != 0;
 }
 
+/* APPBANK: the 32K boot window, then 1 to 12 more 8K pages. */
+static bool appbank_shaped(uint32_t size)
+{
+    return size > COLMAP_WINDOW && size <= COLMAP_WINDOW + (COLMAP_APPBANK_MAX - 1) * COLMAP_SLOT
+        && (size & (COLMAP_SLOT - 1)) == 0;
+}
+
 static bool kind_fits(colmap_kind_t kind, uint32_t size)
 {
     switch (kind) {
@@ -52,6 +59,7 @@ static bool kind_fits(colmap_kind_t kind, uint32_t size)
     case COLMAP_XIN1:       return xin1_shaped(size);
     case COLMAP_ACTIVISION: return activision_shaped(size);
     case COLMAP_SGC:        return sgc_shaped(size);
+    case COLMAP_APPBANK:    return appbank_shaped(size);
     default:                return false;
     }
 }
@@ -63,6 +71,7 @@ static uint16_t bank_count(colmap_kind_t kind, uint32_t size)
     case COLMAP_ACTIVISION: return (uint16_t)(size >> 14);
     case COLMAP_XIN1:       return (uint16_t)(size >> 15);
     case COLMAP_SGC:        return (uint16_t)(size >> 13);
+    case COLMAP_APPBANK:    return (uint16_t)(1 + ((size - COLMAP_WINDOW) >> 13));
     default:                return 0;
     }
 }
@@ -83,6 +92,10 @@ colmap_err_t colmap_plan(const uint8_t *image, uint32_t size,
         kind = hint;
     } else if (size <= COLMAP_WINDOW) {
         kind = COLMAP_FLAT;
+    } else if (appbank_shaped(size) && image != NULL
+               && memcmp(image + FN_R_CLAIM, FN_R_CLAIM_SIG, FN_R_CLAIM_LEN) == 0) {
+        /* The claim decides: a 64K or 128K claimed image is not a MegaCart. */
+        kind = COLMAP_APPBANK;
     } else if (xin1_shaped(size)) {
         /* X-in-1 before MegaCart, as MAME's get_default_card_software tests them. */
         kind = COLMAP_XIN1;
@@ -111,6 +124,7 @@ colmap_kind_t colmap_kind_named(const char *name)
         { "xin1",       COLMAP_XIN1 },
         { "activision", COLMAP_ACTIVISION },
         { "sgc",        COLMAP_SGC },
+        { "appbank",    COLMAP_APPBANK },
     };
     unsigned idx;
 
@@ -136,7 +150,7 @@ uint8_t colmap_gate(uint32_t size)
 
 bool colmap_claims_mailbox(const uint8_t *image, const colmap_plan_t *plan)
 {
-    if (image == NULL || plan->size != COLMAP_WINDOW)
+    if (image == NULL || (plan->size != COLMAP_WINDOW && plan->kind != COLMAP_APPBANK))
         return false;
     return memcmp(image + FN_R_CLAIM, FN_R_CLAIM_SIG, FN_R_CLAIM_LEN) == 0;
 }
@@ -182,6 +196,7 @@ const char *colmap_kindname(colmap_kind_t kind)
     case COLMAP_XIN1:       return "xin1";
     case COLMAP_ACTIVISION: return "activision";
     case COLMAP_SGC:        return "sgc";
+    case COLMAP_APPBANK:    return "appbank";
     default:                return "auto";
     }
 }

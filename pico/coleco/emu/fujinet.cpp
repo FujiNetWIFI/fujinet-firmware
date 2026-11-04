@@ -220,6 +220,10 @@ uint8_t colecovision_fujinet_cartridge_device::read(offs_t offset, int _8000, in
 			if (m_swap_armed)
 				do_swap();
 		}
+		else if (colmap_bank_select(&m_serve, uint16_t(offset)))
+		{
+			// An APPBANK page select; the next read sees the page.
+		}
 		else if (m_mailbox_live)
 			fujimail_read_hotspot(uint16_t(offset));
 	}
@@ -242,6 +246,11 @@ void colecovision_fujinet_cartridge_device::write(offs_t offset, uint8_t data, i
 void colecovision_fujinet_cartridge_device::poke(unsigned offset, uint8_t value)
 {
 	m_window[offset & (COLMAP_WINDOW - 1)] = value;
+	// An APPBANK client's home window is its image's first 32K, live or staged.
+	if (m_serve.kind == COLMAP_APPBANK && m_image.size() >= COLMAP_WINDOW)
+		m_image[offset & (COLMAP_WINDOW - 1)] = value;
+	if (m_have_staged && m_staged_claims && m_staged_plan.kind == COLMAP_APPBANK)
+		m_staged_image[offset & (COLMAP_WINDOW - 1)] = value;
 	// A staged claiming image gets the same publishes; any other stays pristine, and the
 	// mailbox stays live until the swap so the client sees BOOT_READY.
 	if (m_have_staged && m_staged_claims)

@@ -86,10 +86,17 @@ build_one() {
 targets=("$@")
 if [ ${#targets[@]} -eq 0 ]; then
     targets=()
-    for client in hello fujitest fujiboot fujicfg; do
+    for client in hello fujitest fujiboot fujicfg fujibank; do
         [ -f "testrom/$client.c" ] && targets+=("$client")
     done
 fi
 for client in "${targets[@]}"; do
     build_one "$client"
 done
+
+# fujibank is the APPBANK test client: its 32K plus pages 1.. (image sizes 0xA000 and up).
+if [ -f build/fujibank.bin ]; then
+    for pages in 4 6; do
+        python3 tools/mkbanked.py build/fujibank.bin "build/fujibank$pages.bin" --pages "$pages"
+    done
+fi
