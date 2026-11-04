@@ -44,6 +44,8 @@ public:
     const std::optional<ByteBuffer>& data() const;
     const std::optional<const std::string> dataAsString() const {
         auto d = data();
+        if (!d)
+            return std::nullopt;
         return std::string(reinterpret_cast<const char *>(d->data()), d->size());
     }
 
