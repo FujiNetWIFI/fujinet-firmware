@@ -99,7 +99,10 @@ void virtualDevice::process_cmd()
     {
         if (_payload.size() != 2
             || (_payload[0] != OPCODE_NO_PAYLOAD && _payload[0] != OPCODE_HAS_PAYLOAD))
+        {
+            SYSTEM_BUS.transaction_error();
             return;
+        }
 
         Debug_printv("RAW command:\n%s",
                      util_hexdump((uint8_t *) _payload.data(), _payload.size()).c_str());
