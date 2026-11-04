@@ -1,4 +1,10 @@
 /* FujiNet Hardware Pin Mapping */
+
+#ifdef PINMAP_COCO_CENTIPEDE
+// Centipede board shares bitbanger pinout
+#define PINMAP_COCO_DEVKITC
+#endif
+
 #ifdef PINMAP_COCO_DEVKITC
 
 

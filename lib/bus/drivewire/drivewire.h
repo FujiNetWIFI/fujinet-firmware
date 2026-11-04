@@ -166,8 +166,8 @@ private:
 
 #ifdef ESP_PLATFORM
     void configureGPIO();
-    int readBaudSwitch();
 #endif /* ESP_PLATFORM */
+    int readBaudConfig();
 
     /**
      * @brief Current Baud Rate
