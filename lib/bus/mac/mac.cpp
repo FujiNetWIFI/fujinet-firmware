@@ -13,7 +13,7 @@ void systemBus::setup(void)
   Debug_printf("\r\nMAC FujiNet based on FujiApple\r\n");
 
   _serial.begin(ChannelConfig()
-                    .deviceID(FN_UART_BUS)
+                    .deviceID(PIN_BUS_UART)
                     .baud(_mac_baud_rate));
 
   // The Pico keeps running across an ESP32 reset and still believes

@@ -29,6 +29,7 @@
 /* RS232 Pins */
 #define PIN_UART1_RX            GPIO_NUM_41 // (IN) ESP32S3 RX
 #define PIN_UART1_TX            GPIO_NUM_42 // (OUT) ESP32S3 TX
+#define PIN_BUS_UART            UART_NUM_1
 #define PIN_RS232_RI            GPIO_NUM_16 // (OUT) Ring Indicator
 #define PIN_RS232_DCD           GPIO_NUM_4  // (OUT) Data Carrier Detect
 #define PIN_RS232_RTS           GPIO_NUM_15 // (IN) Request to Send

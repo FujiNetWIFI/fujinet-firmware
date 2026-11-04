@@ -11,7 +11,7 @@
 #include "debug.h"
 
 #ifdef ESP_PLATFORM
-#define SIO_UART_DEVICE FN_UART_BUS
+#define SIO_UART_DEVICE PIN_BUS_UART
 #else /* !ESP_PLATFORM */
 #define SIO_UART_DEVICE Config.get_serial_port()
 #endif /* ESP_PLATFORM */

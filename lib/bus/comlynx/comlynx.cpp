@@ -12,7 +12,7 @@
 #include "debug.h"
 
 #ifdef ESP_PLATFORM
-#define SERIAL_DEVICE FN_UART_BUS
+#define SERIAL_DEVICE PIN_BUS_UART
 #else /* !ESP_PLATFORM */
 #define SERIAL_DEVICE Config.get_serial_port()
 #endif /* ESP_PLATFORM */
@@ -396,7 +396,7 @@ void systemBus::change_baud(int32_t baud)
     vTaskDelay(pdMS_TO_TICKS(10));
 #endif /* ESP_PLATFORM */
 
-    //uart_set_baudrate(FN_UART_BUS, baud);
+    //uart_set_baudrate(PIN_BUS_UART, baud);
     //_port->setBaudrate(baud);
 }
 

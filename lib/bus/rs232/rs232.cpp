@@ -19,7 +19,7 @@
 #include "fuji_endian.h"
 
 #ifdef ESP_PLATFORM
-#define SERIAL_DEVICE FN_UART_BUS
+#define SERIAL_DEVICE PIN_BUS_UART
 #else /* !ESP_PLATFORM */
 #define SERIAL_DEVICE Config.get_serial_port()
 #endif /* ESP_PLATFORM */
