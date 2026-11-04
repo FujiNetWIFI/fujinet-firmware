@@ -265,7 +265,7 @@ void NDevice::fujidev_write(const FUJI_COMMAND_PACKET &packet)
 {
     uint16_t num_bytes = packet.param(0);
 
-    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
+    SYSTEM_BUS.transaction_accept(num_bytes ? TRANS_STATE::WILL_GET : TRANS_STATE::NO_GET);
 
     if (!num_bytes)
     {
