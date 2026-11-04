@@ -70,10 +70,11 @@ make coco-lwm             # == ./build.sh -p COCO -g : host debug build
 ```
 
 The `%-lwm` pattern rule uppercases the name and adds `-g`, so `make atari-lwm`, `make apple-lwm`,
-`make coco-lwm`, `make rs232-lwm`, `make lynx-lwm` and `make adam-lwm` are the six host builds.
+`make coco-lwm`, `make rs232-lwm`, `make lynx-lwm`, `make adam-lwm` and `make iec-lwm` are the seven host
+builds.
 
 This is the fastest real feedback available without hardware and the only path that runs tests.
-Valid `-p` targets are exactly `ATARI`, `APPLE`, `COCO`, `RS232`, `LYNX`, `ADAM`; anything else is a
+Valid `-p` targets are exactly `ATARI`, `APPLE`, `COCO`, `RS232`, `LYNX`, `ADAM`, `IEC`; anything else is a
 CMake `FATAL_ERROR`. A failing test aborts the whole invocation. Switching targets triggers an
 automatic clean. Needs `cmake`, a C++20 compiler, MbedTLS 3.x, and `python_modules.txt`.
 

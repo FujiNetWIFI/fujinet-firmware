@@ -21,6 +21,9 @@
 
 #include "IECConfig.h"
 #include <stdint.h>
+#ifndef ESP_PLATFORM
+#include "global_types.h"
+#endif
 
 #if defined(__AVR__)
 #define IOREG_TYPE uint8_t
@@ -94,6 +97,18 @@ class IECBusHandler
   bool canServeATN();
   bool inTransaction();
   void sendSRQ();
+
+#ifndef ESP_PLATFORM
+  // Host builds have no bus lines: NetIEC hands over each transaction that the
+  // bus master (an emulator) has already decoded into bytes.
+  success_is_true atnCommand(uint8_t primary, uint8_t secondary);
+  int8_t  listenerCanWrite();
+  void    listenerWrite(uint8_t data, bool eoi);
+  int8_t  talkerCanRead();
+  uint8_t talkerRead();
+  void    busReset();
+  uint32_t deviceMask();
+#endif
 
   IECDevice *m_currentDevice;
   IECDevice *m_devices[MAX_DEVICES];

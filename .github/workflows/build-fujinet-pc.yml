@@ -79,6 +79,7 @@ jobs:
           - APPLE
           - ATARI
           - COCO
+          - IEC
           - LYNX
           - RS232
 

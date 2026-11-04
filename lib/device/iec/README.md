@@ -1,6 +1,6 @@
 # lib/device/iec
 
-The Commodore device set for `BUILD_IEC`. ESP32 only.
+The Commodore device set for `BUILD_IEC`, on ESP32 and FujiNet-PC.
 
 ## Layout
 | File | Defines |
@@ -25,7 +25,9 @@ The Commodore device set for `BUILD_IEC`. ESP32 only.
   supplies the `mediatype_t` values; image handling is in Meatloaf.
 
 ## Build
-ESP: globbed by `src/CMakeLists.txt`, compiled only under `BUILD_IEC`. Not compiled on PC.
+ESP: globbed by `src/CMakeLists.txt`, compiled only under `BUILD_IEC`. PC: `FUJINET_TARGET=IEC`. On PC
+the drives see the flash directory as `/`; images mounted from a TNFS host are not readable there yet
+because Meatloaf reaches TNFS through the ESP VFS.
 
 ## Notes
 `drive.h` can target a `USE_VDRIVE` backend whose headers are not in this tree.

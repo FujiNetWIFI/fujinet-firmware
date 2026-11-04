@@ -43,6 +43,9 @@
 #elif defined(BUILD_ADAM)
 // AdamNet-over-IP default port (matches ADAMEm's -fujinet default)
 #  define CONFIG_DEFAULT_BOIP_PORT 65216
+#elif defined(BUILD_IEC)
+// NetIEC default port for Commodore emulators
+#  define CONFIG_DEFAULT_BOIP_PORT 1541
 #else
 // Dev relay over network, used by Apple
 #  define CONFIG_DEFAULT_BOIP_PORT 1985

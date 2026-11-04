@@ -52,8 +52,15 @@ elseif(FUJINET_TARGET STREQUAL "ADAM")
     set(FUJINET_BUILD_BOARD fujinet-pc-adam)
     # fujinet.build_bus
     set(FUJINET_BUILD_BUS ADAMNET)
+elseif(FUJINET_TARGET STREQUAL "IEC")
+    # fujinet.build_platform
+    set(FUJINET_BUILD_PLATFORM BUILD_IEC)
+    # fujinet.build_board (used by build_webui.py)
+    set(FUJINET_BUILD_BOARD fujinet-pc-iec)
+    # fujinet.build_bus
+    set(FUJINET_BUILD_BUS IEC)
 else()
-    message(FATAL_ERROR "Invalid target: '${FUJINET_TARGET}'. Please choose from 'RS232', 'ATARI', 'APPLE', 'COCO', 'LYNX', or 'ADAM'.")
+    message(FATAL_ERROR "Invalid target: '${FUJINET_TARGET}'. Please choose from 'RS232', 'ATARI', 'APPLE', 'COCO', 'LYNX', 'ADAM', or 'IEC'.")
 endif()
 
 if(FUJINET_TARGET STREQUAL "APPLE")
@@ -556,6 +563,50 @@ if(FUJINET_TARGET STREQUAL "LYNX")
     lib/printer-emulator/coleco_printer.h lib/printer-emulator/coleco_printer.cpp
 
     components/lz4/lib/lz4.h components/lz4/lib/lz4.c
+    )
+endif()
+
+if(FUJINET_TARGET STREQUAL "IEC")
+    # Appended after the platform-dispatch directories, as for LYNX and ADAM, so shared names
+    # such as printer.h still resolve to the dispatch headers.
+    list(APPEND INCLUDE_DIRS lib/bus/iec lib/device/iec lib/meatloaf lib/media/cbm)
+
+    list(APPEND SOURCES
+
+    lib/bus/iec/iec.h lib/bus/iec/iec.cpp
+    lib/bus/iec/IECConfig.h lib/bus/iec/IEChost.h
+    lib/bus/iec/IECBusHandler.h lib/bus/iec/IECBusHandlerHost.cpp
+    lib/bus/iec/IECDevice.h lib/bus/iec/IECDevice.cpp
+    lib/bus/iec/IECFileDevice.h lib/bus/iec/IECFileDevice.cpp
+    lib/bus/iec/FujiIECPacket.h lib/bus/iec/FujiIECPacket.cpp
+    lib/bus/iec/virtualDevice.h lib/bus/iec/virtualDevice.cpp
+    lib/bus/iec/NetIEC.h lib/bus/iec/NetIEC.cpp
+    lib/hardware/BoIPChannel.h lib/hardware/BoIPChannel.cpp
+
+    lib/media/cbm/mediaType.h lib/media/cbm/mediaType.cpp
+
+    # Meatloaf without its HTTP, TNFS, CommodoreServer and ML: file systems, which need ESP-IDF
+    lib/meatloaf/meatloaf.h lib/meatloaf/meatloaf.cpp
+    lib/meatloaf/meat_media.h lib/meatloaf/meat_media.cpp
+    lib/meatloaf/meat_buffer.h
+    lib/meatloaf/device/flash.h lib/meatloaf/device/flash.cpp
+    lib/meatloaf/disk/d64.h lib/meatloaf/disk/d64.cpp
+    lib/meatloaf/file/p00.h lib/meatloaf/file/p00.cpp
+    lib/meatloaf/tape/t64.h lib/meatloaf/tape/t64.cpp
+    lib/meatloaf/tape/tcrt.h lib/meatloaf/tape/tcrt.cpp
+    lib/meatloaf/wrappers/iec_buffer.h lib/meatloaf/wrappers/iec_buffer.cpp
+
+    lib/printer-emulator/commodoremps803.h lib/printer-emulator/commodoremps803.cpp
+
+    lib/device/iec/iecFuji.h lib/device/iec/iecFuji.cpp
+    lib/device/iec/drive.h lib/device/iec/drive.cpp
+    lib/device/iec/iecNetwork.h lib/device/iec/iecNetwork.cpp
+    lib/device/iec/iecClock.h lib/device/iec/iecClock.cpp
+    lib/device/iec/printer.h lib/device/iec/printer.cpp
+    lib/device/iec/printerlist.h lib/device/iec/printerlist.cpp
+    lib/device/iec/modem.h lib/device/iec/modem.cpp
+    lib/device/iec/cpm.h lib/device/iec/cpm.cpp
+
     )
 endif()
 

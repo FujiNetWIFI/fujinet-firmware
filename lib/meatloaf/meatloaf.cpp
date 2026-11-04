@@ -1,6 +1,7 @@
 #include "meatloaf.h"
 
 #include <dirent.h>
+#include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <algorithm>
@@ -10,6 +11,7 @@
 std::unordered_map<std::string, MFile*> FileBroker::file_repo;
 std::unordered_map<std::string, MStream*> StreamBroker::stream_repo;
 
+#ifdef ESP_PLATFORM
 #ifdef FLASH_SPIFFS
 #include "esp_spiffs.h"
 #endif
@@ -17,6 +19,7 @@ std::unordered_map<std::string, MStream*> StreamBroker::stream_repo;
 #ifdef FLASH_LITTLEFS
 #include "esp_littlefs.h"
 #endif
+#endif /* ESP_PLATFORM */
 
 
 //#include "meat_broker.h"
@@ -58,8 +61,11 @@ std::unordered_map<std::string, MStream*> StreamBroker::stream_repo;
 // Loaders
 
 // Network
+// HTTP needs esp_http_client, TNFS needs the ESP VFS
+#ifdef ESP_PLATFORM
 #include "network/http.h"
 #include "network/tnfs.h"
+#endif
 // #include "network/ipfs.h"
 // #include "network/smb.h"
 // #include "network/ws.h"
@@ -67,8 +73,11 @@ std::unordered_map<std::string, MStream*> StreamBroker::stream_repo;
 // Scanners
 
 // Service
+// CommodoreServer needs lwIP and ML: needs HTTP
+#ifdef ESP_PLATFORM
 #include "service/csip.h"
 #include "service/ml.h"
+#endif
 
 // Tape
 #include "tape/t64.h"
@@ -110,15 +119,19 @@ D90MFileSystem d90FS;
 DNPMFileSystem dnpFS;
 
 // Network
+#ifdef ESP_PLATFORM
 HTTPMFileSystem httpFS;
 TNFSMFileSystem tnfsFS;
+#endif
 // IPFSFileSystem ipfsFS;
 // TcpFileSystem tcpFS;
 //WSFileSystem wsFS;
 
 // Service
+#ifdef ESP_PLATFORM
 CSIPMFileSystem csipFS;
 MLMFileSystem mlFS;
+#endif
 
 // Tape
 T64MFileSystem t64FS;
@@ -136,8 +149,10 @@ std::vector<MFileSystem*> MFSOwner::availableFS {
     &d64FS, &d71FS, &d80FS, &d81FS, &d82FS, &d90FS, &dnpFS,
     &d8bFS, &dfiFS,
     &p00FS,
+#ifdef ESP_PLATFORM
     &httpFS, &tnfsFS,
     &csipFS, &mlFS,
+#endif
     &t64FS, &tcrtFS
 //    &ipfsFS, &tcpFS,
 //    &tnfsFS
@@ -679,6 +694,7 @@ uint64_t MFile::getAvailableSpace()
     }
     else
     {
+#ifdef ESP_PLATFORM
         size_t total = 0, used = 0;
 #ifdef FLASH_SPIFFS
         esp_spiffs_info("flash", &total, &used);
@@ -688,6 +704,7 @@ uint64_t MFile::getAvailableSpace()
         size_t free = total - used;
         //Debug_printv("total[%d] used[%d] free[%d]", total, used, free);
         return free;
+#endif /* ESP_PLATFORM */
     }
 
     return 65535;

@@ -5,6 +5,7 @@
 #include "iecClock.h"
 #include "fsFlash.h"
 #include "fnSystem.h"
+#include "../meatloaf/device/flash.h"
 
 #include <sstream>
 
@@ -81,6 +82,9 @@ void iecFuji::setup()
     //Debug_printf("iecFuji::setup()\r\n");
 
     populate_slots_from_config();
+
+    // The drives' "/" is wherever the flash file system lives
+    FlashMFile::basepath = fsFlash.basepath();
 
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
 //    iecPrinter::printer_type ptype = Config.get_printer_type(0);

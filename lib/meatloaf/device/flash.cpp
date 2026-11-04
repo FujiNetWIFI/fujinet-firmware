@@ -14,6 +14,8 @@
  * MFileSystem implementations
  ********************************************************/
 
+std::string FlashMFile::basepath;
+
 bool FlashMFileSystem::handles(std::string path) 
 {
     return true; // fallback fs, so it must be last on FS list
@@ -248,7 +250,7 @@ MFile* FlashMFile::getNextFileInDir()
         }
         else {
             struct stat info;
-            stat( std::string(entry_name).c_str(), &info);
+            stat( std::string(basepath + entry_name).c_str(), &info);
             file->size = info.st_size;
         }
 
@@ -306,7 +308,7 @@ bool FlashMFile::readEntry( std::string filename )
                     {
                         // Set filename to this filename
                         Debug_printv( "Found! file[%s] -> entry[%s]", filename.c_str(), entryFilename.c_str() );
-                        resetURL(apath + "/" + entryFilename);
+                        resetURL(apath.substr(basepath.size()) + "/" + entryFilename);
                         found = true;
                     }
                 }

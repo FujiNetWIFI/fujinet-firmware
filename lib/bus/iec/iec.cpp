@@ -3,6 +3,7 @@
 #include "iec.h"
 #include "fujiDevice.h"
 #include "fnSystem.h"
+#include "fnConfig.h"
 #include "led.h"
 #include "debug.h"
 
@@ -10,6 +11,12 @@
 #define MAIN_PRIORITY    17
 #define MAIN_CPUAFFINITY 1
 
+#ifndef ESP_PLATFORM
+// No IEC lines on a host build
+systemBus::systemBus() : IECBusHandler(0xFF, 0xFF, 0xFF)
+{
+}
+#else
 systemBus::systemBus() : IECBusHandler(PIN_IEC_ATN, PIN_IEC_CLK_OUT, PIN_IEC_DATA_OUT,
                                        PIN_IEC_RESET==GPIO_NUM_NC ? 0xFF : PIN_IEC_RESET,
                                        0xFF,
@@ -28,11 +35,24 @@ systemBus::systemBus() : IECBusHandler(PIN_IEC_ATN, PIN_IEC_CLK_OUT, PIN_IEC_DAT
 #endif
 #endif
 }
+#endif /* ESP_PLATFORM */
 
 void systemBus::setup()
 {
   Debug_printf("IEC systemBus::setup()\r\n");
   begin();
+#ifndef ESP_PLATFORM
+  if (Config.get_boip_enabled())
+    {
+      Debug_printf("IEC NetIEC listening on %s:%d\r\n", Config.get_boip_host().c_str(),
+                   Config.get_boip_port());
+      _boip.begin(BoIPConfig()
+                  .hostName(Config.get_boip_host())
+                  .portNum(Config.get_boip_port())
+                  );
+      _netiec.begin(&_boip);
+    }
+#endif
 #ifdef SUPPORT_JIFFY
   Debug_printf("JiffyDOS protocol supported\r\n");
 #endif
@@ -57,6 +77,9 @@ void systemBus::setup()
 
 void systemBus::service()
 {
+#ifndef ESP_PLATFORM
+  _netiec.service();
+#endif
   task();
 
   bool error = false, active = false;
