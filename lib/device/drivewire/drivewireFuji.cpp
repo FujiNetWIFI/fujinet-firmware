@@ -8,9 +8,6 @@
 #define IMAGE_EXTENSION ".dsk"
 #define LOBBY_URL       "tnfs://tnfs.fujinet.online/COCO/lobby.dsk"
 
-drivewireFuji platformFuji;
-fujiDevice *theFuji = &platformFuji; // Global fuji object.
-
 NDevice drivewireNetDevs[MAX_NETWORK_DEVICES];
 
 /**

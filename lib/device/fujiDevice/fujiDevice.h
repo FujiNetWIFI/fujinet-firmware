@@ -310,6 +310,10 @@ public:
     // Should be protected but being called by drivewire.cpp
     virtual void insert_boot_device(uint8_t image_id, mediatype_t disk_type, DISK_DEVICE *disk_dev);
     void insert_boot_device(std::string boot_img, mediatype_t disk_type, DISK_DEVICE *disk_dev);
+
+    // Bus-triggered disk swap (e.g. a front panel button), distinct from the
+    // generic FUJI_IMAGE_ROTATE command above. Only DriveWire has one.
+    virtual void rotate_disks() {}
 };
 
 extern fujiDevice *theFuji;

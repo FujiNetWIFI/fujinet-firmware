@@ -28,7 +28,12 @@
 #include "fujiDeviceID.h"
 #include "fujiCommandID.h"
 #include "status_error_codes.h"
-#ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
+
+// FN_DBC_COMPANION is a pinmap capability: boards where the ESP32 talks to a
+// pico-class (RP2040/RP2350) companion over this same UART, using the
+// SLIP-framed FujiBusPacket/DBC side channel alongside ordinary DriveWire
+// traffic - see FujiBusPacket.h.
+#ifdef FN_DBC_COMPANION
 #include "FujiBusPacket.h"
 #include <deque>
 #endif
@@ -136,7 +141,7 @@ private:
 #endif /* FUJINET_OVER_USB */
     BoIPChannel _becker;
 
-#ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
+#ifdef FN_DBC_COMPANION
     std::deque<uint8_t> _dbc_pushback;
 #endif
 
@@ -219,7 +224,7 @@ private:
     void op_namedobj_mnt();
 
     size_t read(void *buffer, size_t length) {
-#ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
+#ifdef FN_DBC_COMPANION
         size_t n = 0;
         while (!_dbc_pushback.empty() && n < length) {
             ((uint8_t *)buffer)[n++] = _dbc_pushback.front();
@@ -239,7 +244,7 @@ private:
     size_t write(const void *buffer, size_t length) { return _port->write(buffer, length); }
     size_t write(int n) { return _port->write(n); }
     size_t available() {
-#ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
+#ifdef FN_DBC_COMPANION
         return _dbc_pushback.size() + _port->available();
 #else
         return _port->available();
@@ -278,10 +283,10 @@ public:
     // I wish this codebase would make up its mind to use camel or snake casing.
     drivewireModem *get_modem() { return _modemDev; }
 
-#ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
+#ifdef FN_DBC_COMPANION
     std::unique_ptr<FujiBusPacket> readFujiBusPacket(int first = -1) override;
     success_is_true writeFujiBusPacket(FujiBusPacket &packet) override;
-#endif /* PINMAP_FUJIVERSAL_DRIVEWIRE */
+#endif /* FN_DBC_COMPANION */
 
 #ifdef ESP32_PLATFORM
     QueueHandle_t qDrivewireMessages = nullptr;

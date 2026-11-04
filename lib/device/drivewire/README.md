@@ -5,8 +5,9 @@ The CoCo and Dragon device set for `BUILD_COCO`.
 ## Layout
 | File | Defines |
 |---|---|
-| `drivewireFuji.h`, `drivewireFuji.cpp` | `drivewireFuji : fujiDevice` (`.dsk` images, `MAX_DWDISK_DEVICES` slots, CoCo lobby); defines `platformFuji` and sets `theFuji` |
-| `disk.h`, `disk.cpp` | `drivewireDisk : drivewireDevice`, the `DISK_DEVICE` |
+| `drivewireFuji.h`, `drivewireFuji.cpp` | `drivewireFuji : fujiDevice` (`.dsk` images, `MAX_DWDISK_DEVICES` slots, CoCo lobby) |
+| `centipedeFuji.h`, `centipedeFuji.cpp` | `centipedeFuji : drivewireFuji`; pushes a mounted ROM to the One ROM companion from the CoCo-synchronous mount commands, since its companion shares the wire with disk traffic (`FN_DBC_SHARED_WIRE`) |
+| `disk.h`, `disk.cpp` | `drivewireDisk : drivewireDevice`, the `DISK_DEVICE`; pushes a mounted ROM to a `FN_DBC_COMPANION` immediately unless `FN_DBC_SHARED_WIRE` is set |
 | `drivewireNetwork.h`, `drivewireNetwork.cpp` | `drivewireNetwork : NDevice`; the bus creates one per unit on first use |
 | `drivewireClock.h`, `drivewireClock.cpp` | `drivewireClock : fujiClock`; defines `platformClock` |
 | `printer.h`, `printer.cpp`, `printerlist.h`, `printerlist.cpp` | `drivewirePrinter : drivewireDevice` and `printerlist`; defines `fnPrinters` |
@@ -23,6 +24,11 @@ The CoCo and Dragon device set for `BUILD_COCO`.
   `processCommand()`, `insert_boot_device()`, `fujicore_mount_disk_image_success()`,
   `fujidev_copy_file()`, `appkey_read()` and `appkey_write()`. `drivewireNetwork` overrides
   `fujidev_set_parser()`. `drivewireClock` overrides `fujidev_read_tz()`.
+- [lib/device/device.h](../device.h) defines `platformFuji` and sets `theFuji`, choosing
+  `centipedeFuji` over `drivewireFuji` under `COCO_HS_UART` the same way it picks `h89Fuji` for
+  RS232's `PINMAP_H89`. `centipedeFuji` overrides `fujicmd_mount_disk_image_success()` and
+  `fujicmd_mount_all_success()` to push a mounted ROM once the CoCo is blocked waiting on that
+  command's reply.
 - `src/main.cpp` hands the printer to the bus with `setPrinter()`; the bus keeps no daisy chain.
 
 ## Build

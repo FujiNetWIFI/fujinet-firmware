@@ -17,7 +17,7 @@
 // as cartridge ROM. Nothing reads it back through the media object afterwards.
 static bool push_rom_image(MediaTypeROM *rom)
 {
-#ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
+#ifdef FN_DBC_COMPANION
     if (SYSTEM_BUS.isBoIP())
     {
         Debug_printv("ROM media requires a real pico; not supported over BoIP");
@@ -114,8 +114,16 @@ mediatype_t drivewireDisk::mount(fnFile *f, const char *filename, uint32_t disks
         strcpy(_media->_disk_filename, filename);
         _media->_media_read_only = !(access_mode & DISK_ACCESS_MODE_WRITE);
         mt = _media->mount(f, disksize);
+#ifndef FN_DBC_SHARED_WIRE
+        // A companion with its own dedicated side channel (no FN_DBC_SHARED_WIRE)
+        // can take the push the instant a ROM is mounted, regardless of what
+        // triggered the mount. A companion sharing the wire with DriveWire disk
+        // traffic declares FN_DBC_SHARED_WIRE and pushes only from the
+        // CoCo-synchronous mount path instead - see
+        // centipedeFuji::fujicmd_mount_disk_image_success()/fujicmd_mount_all_success().
         if (mt == MEDIATYPE_ROM && !push_rom_image(rom))
             mt = MEDIATYPE_UNKNOWN;
+#endif
         if (mt == MEDIATYPE_UNKNOWN)
         {
             delete _media;
@@ -222,6 +230,19 @@ uint8_t drivewireDisk::get_media_status()
         return 3; // ? NO MEDIA
     return _media->status();
 }
+
+#ifdef FN_DBC_COMPANION
+success_is_true drivewireDisk::push_rom()
+{
+    if (!_media || _media->_mediatype != MEDIATYPE_ROM)
+        RETURN_ERROR_AS_FALSE();
+
+    if (!push_rom_image(static_cast<MediaTypeROM *>(_media)))
+        RETURN_ERROR_AS_FALSE();
+
+    RETURN_SUCCESS_AS_TRUE();
+}
+#endif
 
 success_is_true drivewireDisk::write_blank(fnFile *f, const NewDiskRequest &req)
 {

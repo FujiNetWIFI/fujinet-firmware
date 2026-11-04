@@ -1,5 +1,9 @@
 #ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
 
+// This board's companion speaks the DBC/FujiBus SLIP side channel over its
+// own dedicated UART, not the one DriveWire disk traffic uses.
+#define FN_DBC_COMPANION
+
 #define PIN_BUTTON_A            GPIO_NUM_NC
 #define PIN_BUTTON_B            GPIO_NUM_NC
 #define PIN_BUTTON_C            GPIO_NUM_NC

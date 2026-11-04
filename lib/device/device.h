@@ -31,6 +31,13 @@
 # include "drivewire/printer.h"
 # include "drivewire/printerlist.h"
 # include "drivewire/drivewireFuji.h"
+# ifdef COCO_HS_UART
+#  include "drivewire/centipedeFuji.h"
+    centipedeFuji platformFuji;
+# else
+    drivewireFuji platformFuji;
+# endif
+    fujiDevice *theFuji = &platformFuji;
 
     drivewireModem *sioR;
 #endif

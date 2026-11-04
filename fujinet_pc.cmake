@@ -465,6 +465,7 @@ if(FUJINET_TARGET STREQUAL "COCO")
     lib/media/drivewire/decbLayout.h lib/media/drivewire/decbLayout.cpp
 
     lib/device/drivewire/drivewireFuji.h lib/device/drivewire/drivewireFuji.cpp
+    lib/device/drivewire/centipedeFuji.h lib/device/drivewire/centipedeFuji.cpp
     lib/device/drivewire/disk.h lib/device/drivewire/disk.cpp
     lib/device/drivewire/printer.h lib/device/drivewire/printer.cpp
     lib/device/drivewire/printerlist.h lib/device/drivewire/printerlist.cpp

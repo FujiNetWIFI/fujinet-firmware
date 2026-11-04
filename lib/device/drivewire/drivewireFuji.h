@@ -51,9 +51,7 @@ public:
                                                       disk_access_flags_t access_mode) override;
 
     // Called by the bus between transfers.
-    void rotate_disks();
+    void rotate_disks() override;
 };
-
-extern drivewireFuji platformFuji;
 
 #endif // DRIVEWIREFUJI_H

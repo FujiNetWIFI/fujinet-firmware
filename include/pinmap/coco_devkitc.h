@@ -16,6 +16,14 @@
 // each of which reboots the FujiNet.
 #define PIN_BUTTON_C            GPIO_NUM_NC
 
+#ifdef COCO_HS_UART
+// Centipede's One ROM companion speaks the DBC/FujiBus SLIP side channel over
+// the same UART as ordinary DriveWire disk traffic, unlike fujiversal's
+// dedicated side channel - see disk.cpp's mount() and centipedeFuji.
+#define FN_DBC_COMPANION
+#define FN_DBC_SHARED_WIRE
+#endif
+
 #include "coco-common.h"
 #include "common.h"
 

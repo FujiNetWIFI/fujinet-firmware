@@ -102,8 +102,8 @@ void systemBus::op_reset()
     Debug_printv("op_reset()");
 
     // When a reset transaction occurs, set the mounted disk image to the CONFIG disk image.
-    platformFuji.boot_config = true;
-    platformFuji.insert_boot_device(Config.get_general_boot_mode(), MEDIATYPE_UNKNOWN, platformFuji.FUJI_BOOTDISK);
+    theFuji->boot_config = true;
+    theFuji->insert_boot_device(Config.get_general_boot_mode(), MEDIATYPE_UNKNOWN, theFuji->FUJI_BOOTDISK);
     if (pNamedObjFp != NULL)
     {
         fclose(pNamedObjFp);
@@ -371,10 +371,10 @@ void systemBus::op_fuji(dwOpcode_t opcode)
 {
     FujiDWPacket packet(opcode);
 
-    if (_transaction_handle_command(packet, platformFuji))
+    if (_transaction_handle_command(packet, *theFuji))
         return;
 
-    platformFuji.processCommand(packet);
+    theFuji->processCommand(packet);
 }
 
 void systemBus::op_cpm(dwOpcode_t opcode)
@@ -408,7 +408,7 @@ void systemBus::op_net(dwOpcode_t opcode)
         _netDev[packet.unit()] = new drivewireNetwork();
     }
 
-    if (_transaction_handle_command(packet, platformFuji))
+    if (_transaction_handle_command(packet, *theFuji))
         return;
 
     // And pass control to it
@@ -729,7 +729,7 @@ void systemBus::service()
 #endif
 
     if (_diskSwapRequested.exchange(false))
-        platformFuji.rotate_disks();
+        theFuji->rotate_disks();
 
 #ifdef ESP_PLATFORM
     // Handle cassette play if MOTOR pin active.
@@ -968,7 +968,7 @@ void systemBus::shutdown()
     Debug_printf("All devices shut down.\n");
 }
 
-#ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
+#ifdef FN_DBC_COMPANION
 std::unique_ptr<FujiBusPacket> systemBus::readFujiBusPacket(int first)
 {
     if (isBoIP())
@@ -1019,7 +1019,7 @@ success_is_true systemBus::writeFujiBusPacket(FujiBusPacket &packet)
     _port->write(encoded.data(), encoded.size());
     RETURN_SUCCESS_AS_TRUE();
 }
-#endif /* PINMAP_FUJIVERSAL_DRIVEWIRE */
+#endif /* FN_DBC_COMPANION */
 
 void systemBus::transaction_accept(transState_t expectMoreData)
 {
