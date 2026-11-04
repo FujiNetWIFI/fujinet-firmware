@@ -10,6 +10,16 @@
 #include "peoples_url_parser.h"
 #include "string_utils.h"
 
+#if defined(_WIN32)
+#include <direct.h>
+// Windows directories have no permission bits, so the mode is dropped.
+#define ALLPERMS 0
+static inline int mkdir(const char *path, mode_t /* mode */)
+{
+    return _mkdir(path);
+}
+#endif
+
 /********************************************************
  * MFileSystem implementations
  ********************************************************/

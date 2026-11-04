@@ -13,7 +13,7 @@
 
 #include "peoples_url_parser.h"
 
-#include <dirent.h>
+#include "compat_dirent.h"
 #include <string.h>
 
 #define _filesystem fnSDFAT

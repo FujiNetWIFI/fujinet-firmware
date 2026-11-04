@@ -1,6 +1,6 @@
 #include "meatloaf.h"
 
-#include <dirent.h>
+#include "compat_dirent.h"
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>

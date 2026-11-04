@@ -6,7 +6,7 @@
 
 #include "make_unique.h"
 
-#include <dirent.h>
+#include "compat_dirent.h"
 #include <string.h>
 
 #include "../../include/debug.h"
