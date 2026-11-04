@@ -42,7 +42,7 @@ def extract_function(text, signature_re):
 def flash_only_meatloaf(text):
     """meatloaf.cpp with every filesystem but FlashMFileSystem left out."""
     keep = ('meatloaf.h', 'meat_buffer.h', 'string_utils.h', 'peoples_url_parser.h',
-            'MIOException.h', 'debug.h', 'device/flash.h')
+            'MIOException.h', 'debug.h', 'device/flash.h', 'compat_dirent.h')
     out = []
     for line in text.splitlines():
         m = re.match(r'\s*#include\s+"([^"]+)"', line)
@@ -94,7 +94,8 @@ def mirror(repo, work):
 
     sources += [stubs / 'fake_httpd.cpp', stubs / 'WebDavTransferTests.cpp']
     includes = [HERE / 'esp_stubs', stubs, tree / 'lib/http/webdav', tree / 'lib/http',
-                tree / 'lib/meatloaf', utils, tree / 'lib', repo / 'components_pc']
+                tree / 'lib/meatloaf', utils, tree / 'lib', repo / 'lib/compat',
+                repo / 'components_pc']
     return sources, includes
 
 
