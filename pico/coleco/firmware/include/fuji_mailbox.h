@@ -51,6 +51,8 @@
 #define FN_R_PROTO_VER   0x7C0B
 #define FN_PROTO_VER     1        /* flat client images                      */
 #define FN_R_SLICE_ECHO  0x7C0C
+#define FN_R_BOOT_GOT0   0x7C16   /* image bytes received so far, 24-bit LE  */
+#define FN_R_BOOT_TOT0   0x7C19   /* image size declared at OPEN, 24-bit LE  */
 
 #define FN_R_PAINT_END   0x7CFC   /* paint covers [FN_R_BASE, FN_R_PAINT_END) */
 
