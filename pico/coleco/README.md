@@ -16,7 +16,7 @@ ESP32-S3 `fujiversal-coleco`.
 | `firmware/include/fujiboot.h`, `firmware/src/fujiboot.c`, `firmware/src/main.c` | power-on: pins, clock, the baked client, core1, the USB loop and the console-power watch |
 | `firmware/baked/fujiconfigrom.h` | the CONFIG served at power-on when there is no fresh `build/gen` (CI, the ESP32 build) |
 | `firmware/boards/fujicoleco.{h,cmake}` | the board: a stock Pico, 250 MHz |
-| `firmware/host_test/` | `test_colmap` (against MAME's own cartridge handlers), `test_busedge` (the two-tier loop), and [common/](../common/)'s `test_fujimail` against this mailbox map |
+| `firmware/host_test/` | `test_colmap` (against MAME's own cartridge handlers), `test_busedge` (the two-tier loop), `test_swap` (a swapped-in client's mailbox), and [common/](../common/)'s `test_fujimail` against this mailbox map |
 | `testrom/` | z88dk clients: `hello`, `fujitest`, `fujiboot`, the `fujicfg` stand-in CONFIG, and their display, input, sound, keyboard and mailbox library |
 | `emu/` | the MAME cart device (`apply.sh` grafts it), `screen.lua` (screen as text), `drive.lua` (drives CONFIG) and `soak.lua` |
 | `tools/` | `checkrom.py` (size, header, claim, clear mailbox pages), `expect.py` (the window a booted image should show, written apart from colmap), `soak.sh` |

@@ -106,6 +106,8 @@ void __not_in_flash_func(coleco_core1_main)(void)
                         fuji_have_staged = false;
                         fuji_mailbox_active = fuji_staged_claims;
                         drive(coleco_serve(&fuji_live, addr, false));
+                        if (fuji_mailbox_active)
+                            fuji_cart_note_read(FUJI_RING_SWAP);
                     }
                 } else if (fuji_mailbox_active) {
                     fuji_cart_note_read((uint16_t)addr);
