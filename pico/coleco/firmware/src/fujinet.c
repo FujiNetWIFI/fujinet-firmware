@@ -64,6 +64,10 @@ void fuji_mailbox_service(void)
 {
     uint16_t offset;
 
-    while (fuji_cart_next_read(&offset))
-        fujimail_read_hotspot(offset);
+    while (fuji_cart_next_read(&offset)) {
+        if (offset == FUJI_RING_SWAP)
+            fujimail_paint();
+        else
+            fujimail_read_hotspot(offset);
+    }
 }
