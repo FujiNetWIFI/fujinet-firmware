@@ -535,6 +535,7 @@ if(FUJINET_TARGET STREQUAL "ATARI")
   # the NDevice tests.
   add_library(sio_network_stubs OBJECT
     sioNetworkStubs.cpp
+    channelStubs.cpp
     ${CMAKE_SOURCE_DIR}/lib/device/NDevice/NDevice.cpp
     ${CMAKE_SOURCE_DIR}/lib/device/sio/sioNetwork.cpp
     ${CMAKE_SOURCE_DIR}/lib/utils/peoples_url_parser.cpp
@@ -677,6 +678,7 @@ if(FUJINET_TARGET STREQUAL "ADAM")
   add_executable(adam_network_receive_tests
     AdamNetworkReceiveTests.cpp
     adamNetworkReceiveStubs.cpp
+    channelStubs.cpp
     ${CMAKE_SOURCE_DIR}/lib/device/NDevice/NDevice.cpp
     ${CMAKE_SOURCE_DIR}/lib/device/adamnet/adamNetwork.cpp
     ${CMAKE_SOURCE_DIR}/lib/bus/adamnet/FujiAdamPacket.cpp
@@ -726,6 +728,123 @@ if(FUJINET_TARGET STREQUAL "ADAM")
     target_link_libraries(adam_network_receive_tests PRIVATE ws2_32)
   endif()
   add_test(NAME adam_network_receive_tests COMMAND adam_network_receive_tests)
+endif()
+
+# ------------------------------------------------------------------------------
+# ROM mounts through the real drivewireDisk and rs232Disk: what reaches the
+# cartridge's RP2040 at FUJI_DEVICEID::DBC and what mount() returns.
+# romMountStubs.cpp, built against each target's systemBus, records the
+# FujiBus packets and scripts the replies, and serves fujiHost files from
+# memory. UNIT_TESTS as for mediatypeimd_tests above; fnFile stays the
+# FileHandler both builds use, so the tests can count closes on their handles.
+# PINMAP_FUJIVERSAL_DRIVEWIRE turns on the drivewire ROM push, which the
+# fujinet-pc build otherwise compiles out.
+# ------------------------------------------------------------------------------
+set(ROM_MOUNT_TEST_INCLUDES
+  ${CMAKE_SOURCE_DIR}/include/
+  ${CMAKE_SOURCE_DIR}/lib/
+  ${CMAKE_SOURCE_DIR}/lib/bus/
+  ${CMAKE_SOURCE_DIR}/lib/device/
+  ${CMAKE_SOURCE_DIR}/lib/device/NDevice/
+  ${CMAKE_SOURCE_DIR}/lib/device/fujiDevice/
+  ${CMAKE_SOURCE_DIR}/lib/hardware/
+  ${CMAKE_SOURCE_DIR}/lib/sam/
+  ${CMAKE_SOURCE_DIR}/lib/printer-emulator/
+  ${CMAKE_SOURCE_DIR}/lib/encoding/
+  ${CMAKE_SOURCE_DIR}/lib/media/
+  ${CMAKE_SOURCE_DIR}/lib/fuji/
+  ${CMAKE_SOURCE_DIR}/lib/modem-sniffer/
+  ${CMAKE_SOURCE_DIR}/lib/telnet/
+  ${CMAKE_SOURCE_DIR}/lib/tcpip/
+  ${CMAKE_SOURCE_DIR}/lib/compat/
+  ${CMAKE_SOURCE_DIR}/lib/ftp/
+  ${CMAKE_SOURCE_DIR}/lib/webdav/
+  ${CMAKE_SOURCE_DIR}/lib/http/
+  ${CMAKE_SOURCE_DIR}/lib/TNFSlib/
+  ${CMAKE_SOURCE_DIR}/components_pc/libssh/include/
+  ${CMAKE_SOURCE_DIR}/build/components_pc/libssh/include/
+  ${CMAKE_SOURCE_DIR}/components_pc/mongoose/
+  ${CMAKE_SOURCE_DIR}/components/gumbo-query/
+  ${CMAKE_SOURCE_DIR}/lib/network-protocol/
+  ${CMAKE_SOURCE_DIR}/lib/utils/
+  ${CMAKE_SOURCE_DIR}/components_pc/
+  ${CMAKE_SOURCE_DIR}/components_pc/cJSON/
+  ${CMAKE_SOURCE_DIR}/lib/fnjson/
+  ${CMAKE_SOURCE_DIR}/lib/fnhtml/
+  ${CMAKE_SOURCE_DIR}/lib/fnxml/
+  ${CMAKE_SOURCE_DIR}/lib/fntext/
+  ${CMAKE_SOURCE_DIR}/lib/tinyxml2/
+  ${CMAKE_SOURCE_DIR}/lib/config/
+  ${CMAKE_SOURCE_DIR}/lib/FileSystem/
+  ${MBEDTLS_INCLUDE_DIR}
+)
+
+if(FUJINET_TARGET STREQUAL "COCO")
+  add_executable(drivewire_rom_mount_tests
+    DrivewireROMMountTests.cpp
+    romMountStubs.cpp
+    channelStubs.cpp
+    ${CMAKE_SOURCE_DIR}/lib/device/drivewire/disk.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFile.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/mediaType.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/mediaTypeROM.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/mediaTypeDSK.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/mediaTypeMRM.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/mediaTypeVDK.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/mediaTypeCASDSK.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/casIndex.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/casReader.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/decbLayout.cpp
+    ${CMAKE_SOURCE_DIR}/lib/bus/FujiBusPacket.cpp
+    ${CMAKE_SOURCE_DIR}/lib/bus/DaisyChain.cpp
+  )
+  target_compile_definitions(drivewire_rom_mount_tests PRIVATE
+    UNIT_TESTS PINMAP_FUJIVERSAL_DRIVEWIRE)
+  target_include_directories(drivewire_rom_mount_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/lib/device/drivewire/
+    ${CMAKE_SOURCE_DIR}/lib/bus/drivewire/
+    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/
+    ${ROM_MOUNT_TEST_INCLUDES}
+  )
+  if(WIN32)
+    target_link_libraries(drivewire_rom_mount_tests PRIVATE ws2_32)
+  endif()
+  add_test(NAME drivewire_rom_mount_tests COMMAND drivewire_rom_mount_tests)
+endif()
+
+if(FUJINET_TARGET STREQUAL "RS232")
+  add_executable(rs232_rom_mount_tests
+    RS232ROMMountTests.cpp
+    romMountStubs.cpp
+    channelStubs.cpp
+    ${CMAKE_SOURCE_DIR}/lib/device/rs232/disk.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFile.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/IMDImage.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rs232/diskType.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rs232/diskTypeAltair.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rs232/diskTypeIMD.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rs232/diskTypeImg.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rs232/diskTypeROM.cpp
+    ${CMAKE_SOURCE_DIR}/lib/bus/FujiBusPacket.cpp
+    ${CMAKE_SOURCE_DIR}/lib/bus/DaisyChain.cpp
+  )
+  if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    target_sources(rs232_rom_mount_tests PRIVATE
+        ${CMAKE_SOURCE_DIR}/lib/compat/strlcpy.c
+        ${CMAKE_SOURCE_DIR}/lib/compat/strlcat.c
+    )
+  endif()
+  target_compile_definitions(rs232_rom_mount_tests PRIVATE UNIT_TESTS)
+  target_include_directories(rs232_rom_mount_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/lib/device/rs232/
+    ${CMAKE_SOURCE_DIR}/lib/bus/rs232/
+    ${CMAKE_SOURCE_DIR}/lib/media/rs232/
+    ${ROM_MOUNT_TEST_INCLUDES}
+  )
+  if(WIN32)
+    target_link_libraries(rs232_rom_mount_tests PRIVATE ws2_32)
+  endif()
+  add_test(NAME rs232_rom_mount_tests COMMAND rs232_rom_mount_tests)
 endif()
 
 # ------------------------------------------------------------------------------

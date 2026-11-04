@@ -21,34 +21,6 @@ void virtualDevice::adamnet_control_ready() {}
 void virtualDevice::adamnet_control_receive() {}
 void virtualDevice::adamnet_idle() {}
 
-#ifdef ITS_A_UNIX_SYSTEM_I_KNOW_THIS
-void TTYChannel::updateFIFO() {}
-size_t TTYChannel::dataOut(const void *buffer, size_t length) { (void)buffer; (void)length; return 0; }
-void TTYChannel::end() {}
-void TTYChannel::flushOutput() {}
-void TTYChannel::setBaudrate(uint32_t baud) { (void)baud; }
-bool TTYChannel::getDTR() { return false; }
-void TTYChannel::setDSR(bool state) { (void)state; }
-bool TTYChannel::getRTS() { return false; }
-void TTYChannel::setCTS(bool state) { (void)state; }
-bool TTYChannel::getDCD() { return false; }
-bool TTYChannel::getRI() { return false; }
-#endif /* ITS_A_UNIX_SYSTEM_I_KNOW_THIS */
-
-#ifdef HELLO_IM_A_PC
-void COMChannel::updateFIFO() {}
-size_t COMChannel::dataOut(const void *buffer, size_t length) { (void)buffer; (void)length; return 0; }
-void COMChannel::end() {}
-void COMChannel::flushOutput() {}
-void COMChannel::setBaudrate(uint32_t baud) { (void)baud; }
-bool COMChannel::getDTR() { return false; }
-void COMChannel::setDSR(bool state) { (void)state; }
-bool COMChannel::getRTS() { return false; }
-void COMChannel::setCTS(bool state) { (void)state; }
-bool COMChannel::getDCD() { return false; }
-bool COMChannel::getRI() { return false; }
-#endif /* HELLO_IM_A_PC */
-
 void systemBus::transaction_accept(transState_t expectMoreData) {}
 void systemBus::transaction_success() { bus.success++; }
 void systemBus::transaction_error() { bus.error++; }
