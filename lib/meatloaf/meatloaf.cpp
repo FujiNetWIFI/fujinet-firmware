@@ -255,11 +255,12 @@ MFile* MFSOwner::File(std::string path) {
 MFile* MFSOwner::NewFile(std::string path) {
 
     auto newFile = File(path);
-    if ( newFile != nullptr )
+    if ( newFile == nullptr )
         return nullptr;
-    
+
     if (newFile->exists()) {
         Debug_printv("File already exists [%s]", path.c_str());
+        delete newFile;
         return nullptr;
     }
 

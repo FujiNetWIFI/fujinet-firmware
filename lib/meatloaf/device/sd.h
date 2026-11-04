@@ -36,7 +36,7 @@ private:
         return new FlashMFile( url.path );
     }
 
-    bool handles(std::string name) {
+    bool handles(std::string name) override {
         std::string pattern = "sd:";
         return mstr::equals(name, pattern, false);
     }

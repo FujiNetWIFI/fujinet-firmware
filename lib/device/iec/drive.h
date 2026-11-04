@@ -54,9 +54,9 @@ class iecChannelHandlerFile : public iecChannelHandler
   iecChannelHandlerFile(iecDrive *drive, MStream *stream, int fixLoadAddress = -1);
   virtual ~iecChannelHandlerFile();
 
-  virtual uint8_t readBufferData();
-  virtual uint8_t writeBufferData();
-  virtual MStream *getStream() override { return m_stream; };
+  uint8_t readBufferData() override;
+  uint8_t writeBufferData() override;
+  MStream *getStream() override { return m_stream; };
 
  private:
   MStream  *m_stream;

@@ -335,7 +335,7 @@ uint8_t iecChannelHandlerDir::readBufferData()
       size_t n = std::min(16, (int) name.size());
       memcpy(m_data+8, name.data(), n);
       while( n<16 ) { m_data[8+n] = ' '; n++; }
-      sprintf((char *) m_data+24, "\" %02i 2A", m_drive->id());
+      snprintf((char *) m_data+24, BUFFER_SIZE-24, "\" %02i 2A", m_drive->id());
       m_len = 32;
       m_headerLine++;
     }
@@ -471,7 +471,7 @@ uint8_t iecChannelHandlerDir::readBufferData()
           if( m_dir->media_image.size() )
             strcpy((char *) m_data+4, "BLOCKS FREE.");
           else
-            sprintf((char *) m_data+4, CBM_DELETE CBM_DELETE "%sBYTES FREE.", mstr::formatBytes(m_dir->getAvailableSpace()).c_str());
+            snprintf((char *) m_data+4, BUFFER_SIZE-4, CBM_DELETE CBM_DELETE "%sBYTES FREE.", mstr::formatBytes(m_dir->getAvailableSpace()).c_str());
 #endif
           int n = 4+strlen((char *) m_data+4);
           while( n<29 ) m_data[n++]=' ';
@@ -993,10 +993,10 @@ void iecDrive::execute(const char *cmd, uint8_t cmdLen)
                     Debug_printv("Memory Read [%s]", code.c_str());
                     Debug_printv("address[%04X] size[%d]", address, size);
 
-                    uint8_t data[size] = { 0 };
-                    m_memory.read(address, data, size);
-                    setStatus((char *) data, size);
-                    Debug_printv("address[%04X] data[%s]", address, mstr::toHex(data, size).c_str());
+                    std::vector<uint8_t> data(size, 0);
+                    m_memory.read(address, data.data(), size);
+                    setStatus((char *) data.data(), size);
+                    Debug_printv("address[%04X] data[%s]", address, mstr::toHex(data.data(), size).c_str());
                 }
                 else if (command[2] == 'W') // M-W memory write
                 {
@@ -1145,7 +1145,7 @@ void iecDrive::execute(const char *cmd, uint8_t cmdLen)
               reset();
               return;
             }
-            else if (command[1] == 0xCA) // U{Shift-J}
+            else if (static_cast<uint8_t>(command[1]) == 0xCA) // U{Shift-J}
             {
               if ( command[2] == '+')
               {
