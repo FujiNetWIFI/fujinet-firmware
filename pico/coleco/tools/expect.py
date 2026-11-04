@@ -19,6 +19,10 @@ def expect(img: bytes) -> bytes:
         # everything past the end of the image is open bus.
         return img + b"\xff" * (WINDOW - size)
 
+    if size < 0xC000 and size & 0x1FFF:
+        # An overdump: no banked mapper claims it, so only the first 32K is served.
+        return img[:WINDOW]
+
     banks = size >> 14
     if size in (0x100000, 0x200000):
         # X-in-1: the LAST 32K window at reset.

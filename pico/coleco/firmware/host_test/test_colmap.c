@@ -191,8 +191,19 @@ static void test_plan_sizes(void)
     /* Not a whole number of 16K banks, and not a power-of-two bank count. */
     CHECK(colmap_plan(NULL, 0x30000, COLMAP_KIND_AUTO, &plan) == COLMAP_ENOMAP,
           "192K has 12 banks: the hotspot mask cannot express it");
-    CHECK(colmap_plan(NULL, 0x8001, COLMAP_KIND_AUTO, &plan) == COLMAP_ENOMAP,
-          "32K+1 fits nothing");
+    CHECK(colmap_plan(NULL, 0xA000, COLMAP_KIND_AUTO, &plan) == COLMAP_ENOMAP,
+          "40K is five SGC banks, so auto-detect refuses it");
+    CHECK(colmap_plan(NULL, 0xC000, COLMAP_KIND_AUTO, &plan) == COLMAP_ENOMAP,
+          "48K is not an overdump");
+
+    /* Overdumps in the ADAM-archive set: Spectar [o1] and a 32K cart with a 1K tail. */
+    const uint32_t over[] = { 32976, 33792, 0x8001 };
+    for (unsigned idx = 0; idx < sizeof over / sizeof over[0]; idx++) {
+        CHECK(colmap_plan(NULL, over[idx], COLMAP_KIND_AUTO, &plan) == COLMAP_OK
+              && plan.kind == COLMAP_FLAT && plan.size == over[idx],
+              "overdump %u should plan flat", over[idx]);
+        CHECK(colmap_gate(over[idx]) == 0, "overdump %u should gate open", over[idx]);
+    }
     /* The gate asks "could ANY mapper take this size", not "will auto-detect
      * pick one": 192K is 24 8K banks, so an SGC .cfg could still claim it and
      * the push is allowed to start. The refusal comes later, from plan(). */

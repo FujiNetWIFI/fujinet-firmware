@@ -50,6 +50,8 @@ ESP32-S3 `fujiversal-coleco`.
   256K and 512K MegaCarts and the X-in-1 images need an RP2350 board.
 - The `.cfg` sibling's `mapper=` (`flat`, `megacart`, `xin1`, `activision`, `sgc`) is the only way
   to tell the 64K Activision and 128K SGC carts from MegaCarts of the same size.
+- An image over 32K and under 48K that is not whole 8K banks is an overdump: the cart serves its
+  first 32K.
 - The vblank interrupt is the Z80's `/NMI`: a client's handler must never read `$F800` and up,
   and the swap stub turns the interrupt off before it swaps.
 - sccz80 drops a discarded volatile read and mis-indexes `FN_REPLY[...]`: every mailbox read
