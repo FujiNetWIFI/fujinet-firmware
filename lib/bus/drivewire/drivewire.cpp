@@ -823,7 +823,7 @@ void systemBus::configureGPIO()
 int systemBus::readBaudSwitch()
 {
 #ifdef COCO_HS_UART
-    int baud = 921600; // No A14/A15 switches on this board; fixed high-speed link to the RP2040/RP2350
+    int baud = 5000000; // No A14/A15 switches on this board; fixed high-speed link to the RP2040/RP2350
     Debug_printv("COCO_HS_UART build, defaulting to %d baud", baud);
     bDragon = false;
     return baud;
