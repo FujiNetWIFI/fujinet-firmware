@@ -43,8 +43,9 @@
  * extendedProperties.private.categories, where the read side looks first.
  *
  * Authentication reuses the existing Google Drive OAuth grant stored in
- * fnConfig [GoogleDrive]; the grant's scope must include calendar.readonly,
- * plus calendar.events to compose or edit. A grant issued before a scope was
+ * fnConfig [GoogleDrive]; the grant's scope must include
+ * calendar.calendarlist.readonly for the calendar list and calendar.events to
+ * read, compose or edit events. A grant issued before a scope was
  * added never gains it - re-authorize Google in the web UI.
  * Tokens are refreshed automatically via the relay, exactly like GDRIVE/GMAIL.
  *
