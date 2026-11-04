@@ -190,6 +190,14 @@ fujiError_t NetworkProtocolUDP::status(NetworkStatus *status)
     return FUJI_ERROR::NONE;
 }
 
+size_t NetworkProtocolUDP::available()
+{
+    size_t avail = receiveBuffer->size();
+    if (!avail)
+        avail = udp.available();
+    return avail;
+}
+
 fujiError_t NetworkProtocolUDP::set_destination(const uint8_t *sp_buf, unsigned short len)
 {
 #ifdef ESP_PLATFORM // TODO review & merge

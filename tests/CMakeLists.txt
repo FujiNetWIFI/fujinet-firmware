@@ -925,6 +925,50 @@ endif()
 add_test(NAME tcp_protocol_tests COMMAND tcp_protocol_tests)
 
 # ------------------------------------------------------------------------------
+# The N: UDP protocol (lib/network-protocol/UDP.cpp) over the fake socket in
+# tcp_harness/.
+# ------------------------------------------------------------------------------
+add_executable(udp_protocol_tests
+    UDPProtocolTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/network-protocol/UDP.cpp
+    ${CMAKE_SOURCE_DIR}/lib/network-protocol/TCP.cpp      # Protocol.cpp casts to it
+    ${CMAKE_SOURCE_DIR}/lib/network-protocol/Protocol.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/peoples_url_parser.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/string_utils.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/utils.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/U8Char.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/punycode.cpp
+    ${CMAKE_SOURCE_DIR}/lib/compat/compat_inet.c
+    ${CMAKE_SOURCE_DIR}/lib/compat/compat_gettimeofday.c
+)
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+  target_sources(udp_protocol_tests PRIVATE
+      ${CMAKE_SOURCE_DIR}/lib/compat/strlcpy.c
+      ${CMAKE_SOURCE_DIR}/lib/compat/strlcat.c
+  )
+endif()
+
+target_include_directories(udp_protocol_tests BEFORE PRIVATE
+    ${CMAKE_SOURCE_DIR}/tests/tcp_harness/    # first: replaces fnUDP.h, fnDNS.h, fnTcpClient.h, fnTcpServer.h, bus.h
+    ${CMAKE_SOURCE_DIR}/lib/network-protocol/
+    ${CMAKE_SOURCE_DIR}/lib/device/fujiDevice/
+    ${CMAKE_SOURCE_DIR}/lib/utils/
+    ${CMAKE_SOURCE_DIR}/lib/sam/
+    ${CMAKE_SOURCE_DIR}/lib/compat/
+    ${CMAKE_SOURCE_DIR}/include/
+    ${CMAKE_SOURCE_DIR}/components_pc/        # doctest
+    ${CMAKE_SOURCE_DIR}/components_pc/libsmb2/include/   # asprintf.h on Windows
+    ${MBEDTLS_INCLUDE_DIR}
+)
+target_compile_definitions(udp_protocol_tests PRIVATE UNIT_TESTS)
+target_link_libraries(udp_protocol_tests PRIVATE ${CRYPTO_LIBS})
+if(WIN32)
+  target_link_libraries(udp_protocol_tests PRIVATE ws2_32 bcrypt)
+endif()
+
+add_test(NAME udp_protocol_tests COMMAND udp_protocol_tests)
+
+# ------------------------------------------------------------------------------
 # NetworkProtocolFS::open() unmounts when the open fails (#1837), through a
 # test subclass; tcp_harness/ stands in for the bus.
 # ------------------------------------------------------------------------------
