@@ -25,7 +25,7 @@
 //
 // CLOSE always goes out or the RP2040's stream state wedges; on failure it
 // carries a 0x01 abort so partial data isn't booted.
-static bool push_stream(MediaTypeROM *rom, RomStream source, uint16_t stream_id)
+static error_is_true push_stream(MediaTypeROM *rom, RomStream source, uint16_t stream_id)
 {
     uint8_t buffer[DISK_SECTORBUF_SIZE];
     uint32_t expected_size = rom->stream_size(source);
@@ -33,7 +33,7 @@ static bool push_stream(MediaTypeROM *rom, RomStream source, uint16_t stream_id)
     if (expected_size == 0)
     {
         Debug_printv("ROM push: stream %u is empty or unreadable\n", stream_id);
-        return false;
+        RETURN_ERROR_AS_TRUE();
     }
 
     struct { uint8_t id; u32le_t size; } open_hdr;
@@ -47,10 +47,10 @@ static bool push_stream(MediaTypeROM *rom, RomStream source, uint16_t stream_id)
     {
         Debug_printv("ROM push: failed to open DBC stream %u (%lu bytes)\n",
                      stream_id, (unsigned long)expected_size);
-        return false;
+        RETURN_ERROR_AS_TRUE();
     }
 
-    bool ok = true;
+    error_is_true result(false);
     uint32_t sent = 0;
     while (sent < expected_size)
     {
@@ -63,20 +63,20 @@ static bool push_stream(MediaTypeROM *rom, RomStream source, uint16_t stream_id)
         if (!reply || reply->command() != CMD::FUJI_ACK)
         {
             Debug_printv("ROM push: failed to send stream %u block\n", stream_id);
-            ok = false;
+            result = error_is_true(true);
             break;
         }
         sent += got;
     }
 
-    if (ok && sent != expected_size)
+    if (result.is_success() && sent != expected_size)
     {
         Debug_printv("ROM push: stream %u short transfer: %lu of %lu bytes\n",
                      stream_id, (unsigned long)sent, (unsigned long)expected_size);
-        ok = false;
+        result = error_is_true(true);
     }
 
-    if (ok)
+    if (result.is_success())
         reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_CLOSE);
     else
         reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_CLOSE,
@@ -84,29 +84,29 @@ static bool push_stream(MediaTypeROM *rom, RomStream source, uint16_t stream_id)
     if (!reply || reply->command() != CMD::FUJI_ACK)
     {
         Debug_printv("ROM push: stream %u close failed/rejected\n", stream_id);
-        ok = false;
+        result = error_is_true(true);
     }
-    return ok;
+    return result;
 }
 
 // The whole ROM goes over at mount time. The image's CLOSE triggers the boot,
 // so the map has to land first.
-static bool push_rom_streams(MediaTypeROM *rom)
+static error_is_true push_rom_streams(MediaTypeROM *rom)
 {
     if (rom->has_memory_map() &&
-        !push_stream(rom, RomStream::MemoryMap, ROM_PUSH_STREAM_MAP))
+        push_stream(rom, RomStream::MemoryMap, ROM_PUSH_STREAM_MAP).is_error())
     {
         Debug_printv("ROM push: memory map push failed\n");
-        return false;
+        RETURN_ERROR_AS_TRUE();
     }
 
-    if (!push_stream(rom, RomStream::Image, ROM_PUSH_STREAM_IMAGE))
+    if (push_stream(rom, RomStream::Image, ROM_PUSH_STREAM_IMAGE).is_error())
     {
         Debug_printv("ROM push: ROM push failed\n");
-        return false;
+        RETURN_ERROR_AS_TRUE();
     }
 
-    return true;
+    RETURN_SUCCESS_AS_FALSE();
 }
 
 rs232Disk::rs232Disk()
@@ -308,7 +308,15 @@ mediatype_t rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksize,
         if (filename != nullptr)
             strlcpy(rom->_disk_filename, filename, sizeof(rom->_disk_filename));
         rom->mount(f, disksize);
-        return push_rom_streams(rom) ? MEDIATYPE_ROM : MEDIATYPE_UNKNOWN;
+        if (push_rom_streams(rom).is_error())
+        {
+            delete _disk;
+            _disk = nullptr;
+            device_active = false;
+            _mount_time = 0;
+            return MEDIATYPE_UNKNOWN;
+        }
+        return MEDIATYPE_ROM;
     }
     case MEDIATYPE_IMD:
     {

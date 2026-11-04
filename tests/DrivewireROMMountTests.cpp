@@ -34,6 +34,14 @@ void check_closed_once(drivewireDisk &disk, const MemFile &file)
     CHECK_FALSE(file.usedAfterClose);
 }
 
+// A failed mount releases the drive straight away, not at the next unmount().
+void check_nothing_mounted(drivewireDisk &disk, const MemFile &file)
+{
+    CHECK_FALSE(disk.device_active);
+    CHECK(disk.disktype() == MEDIATYPE_UNKNOWN);
+    CHECK(file.closes == 1);
+}
+
 } // namespace
 
 TEST_CASE("a ROM image goes to the DBC in 256-byte blocks between OPEN and CLOSE")
@@ -84,6 +92,7 @@ TEST_CASE("an empty ROM image fails without touching the bus")
 
     drivewireDisk disk;
     CHECK(disk.mount(&file, ROM_TEST_FILE, 0, DISK_ACCESS_MODE_READ) == MEDIATYPE_UNKNOWN);
+    check_nothing_mounted(disk, file);
     check_closed_once(disk, file);
     CHECK(bus.sent.empty());
 }
@@ -97,6 +106,7 @@ TEST_CASE("no reply to OPEN fails the mount and sends nothing more")
     drivewireDisk disk;
     CHECK(disk.mount(&file, ROM_TEST_FILE, CART_8K, DISK_ACCESS_MODE_READ)
           == MEDIATYPE_UNKNOWN);
+    check_nothing_mounted(disk, file);
     check_closed_once(disk, file);
     REQUIRE(bus.sent.size() == 1);
     CHECK(bus.sent[0].command == CMD::NET_OPEN);
@@ -111,6 +121,7 @@ TEST_CASE("no reply to a block fails the mount but still sends CLOSE")
     drivewireDisk disk;
     CHECK(disk.mount(&file, ROM_TEST_FILE, CART_8K, DISK_ACCESS_MODE_READ)
           == MEDIATYPE_UNKNOWN);
+    check_nothing_mounted(disk, file);
     check_closed_once(disk, file);
     REQUIRE(bus.sent.size() == 4);
     CHECK(bus.sent[3].command == CMD::NET_CLOSE);
