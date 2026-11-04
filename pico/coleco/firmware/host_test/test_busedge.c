@@ -236,6 +236,47 @@ static void test_floating_read_is_rejected(void)
     free(img);
 }
 
+/* APPBANK on core1's path: a flat-style serve with no detour at $FF80 and up, a select that
+ * is a commit and nothing else, and a page that shows on the very next fetch. */
+static void test_appbank_loop(void)
+{
+    const uint32_t size = 0x8000 + 4 * 0x2000;
+    uint8_t *img = make_image(size);
+    fuji_serve_t serve;
+    colmap_serve_t before;
+    uint32_t addr;
+    int bad = -1;
+
+    memcpy(img + FN_R_CLAIM, FN_R_CLAIM_SIG, FN_R_CLAIM_LEN);
+    plan_into(&serve, img, size, COLMAP_KIND_AUTO);
+    CHECK(serve.map.kind == COLMAP_APPBANK, "planned %s", colmap_kindname(serve.map.kind));
+    before = serve.map;
+
+    for (addr = 0; addr < 0x8000u; addr++) {
+        uint8_t spec = coleco_serve(&serve, addr, false);
+        uint8_t comm = coleco_serve(&serve, addr, true);
+
+        if (spec != comm || spec != img[addr]) { bad = (int)addr; break; }
+    }
+    CHECK(bad < 0, "APPBANK serve differs at %#x", bad);
+    CHECK(memcmp(&before, &serve.map, sizeof before) == 0, "a sweep moved the page");
+
+    /* Every read from the select page up is a commit; the loop needs it for the select. */
+    bad = -1;
+    for (addr = FN_H_REGSEL; addr < 0x8000u; addr++)
+        if (!coleco_needs_commit(&serve, addr)) { bad = (int)addr; break; }
+    CHECK(bad < 0, "needs_commit skips %#x", bad);
+
+    /* The select, then the very next fetch of $C000 is the new page's first byte. */
+    CHECK(colmap_bank_select(&serve.map, FN_H_REGSEL + FN_HOT_BANK + 3), "select 3");
+    CHECK(coleco_serve(&serve, 0x4000, false) == img[0x6000 + 3 * 0x2000], "page 3 at $C000");
+    CHECK(coleco_serve(&serve, 0x5FFF, false) == img[0x6000 + 3 * 0x2000 + 0x1FFF], "page 3 end");
+    CHECK(coleco_serve(&serve, 0x3FFF, false) == img[0x3FFF], "$BFFF is fixed");
+    CHECK(coleco_serve(&serve, 0x6000, false) == img[0x6000], "$E000 is fixed");
+    CHECK(coleco_serve(&serve, 0x7C09, false) == img[0x7C09], "mailbox is the image");
+    free(img);
+}
+
 int main(void)
 {
     test_speculation_is_free();
@@ -244,6 +285,7 @@ int main(void)
     test_flat_never_tristates();
     test_tristate_windows();
     test_floating_read_is_rejected();
+    test_appbank_loop();
 
     if (failures) {
         printf("test_busedge: %d failure(s)\n", failures);

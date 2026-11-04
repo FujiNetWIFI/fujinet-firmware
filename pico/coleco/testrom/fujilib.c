@@ -19,6 +19,11 @@ static void fn_regwr(unsigned char reg, unsigned char val)
     FN_TOUCH(FN_REGDAT + val);
 }
 
+void fn_bank(unsigned char page)
+{
+    FN_TOUCH(FN_BANKSEL + page);
+}
+
 bool fn_present(void)
 {
     return FN_MAGIC0 == 'F' && FN_MAGIC1 == 'N';
