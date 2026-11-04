@@ -12,7 +12,9 @@ class TestableNDevice : public NDevice
 public:
     using NDevice::fujicore_set_query;
     using NDevice::fujicore_set_prefix;
+    using NDevice::fujidev_write;
     using NDevice::_parser;
+    using NDevice::_protocol;
     using NDevice::prefix;
 
     // The test build's virtualDevice is SIO's; these hooks are never called here.
@@ -44,6 +46,50 @@ TEST_CASE("a QUERY whose flags byte the parser refuses fails (#1697)")
 
     CHECK(dev.fujicore_set_query("/a", FN_QUERY_OUTPUT_ASCII).is_error());
     CHECK(dev.fujicore_set_query("/a", 0).is_success()); // no flags byte: nothing to refuse
+}
+
+// --------------------------------------------------------------------------------
+// A WRITE of zero bytes, which DOS COPY sends to set a file's length.
+// --------------------------------------------------------------------------------
+
+// An open channel the zero-byte write never reaches.
+class OpenProtocol : public NetworkProtocol
+{
+public:
+    OpenProtocol() : NetworkProtocol(nullptr, nullptr, nullptr) {}
+    size_t available() override { return 0; }
+};
+
+static void write_nothing(TestableNDevice &dev)
+{
+    FujiSIOPacket packet;
+    packet.frame.comnd = CMD::NET_WRITE;
+    packet.frame.aux1 = 0;
+    packet.frame.aux2 = 0;
+
+    bus = {};
+    dev.fujidev_write(packet);
+}
+
+TEST_CASE("a WRITE of zero bytes on an open channel succeeds")
+{
+    TestableNDevice dev;
+    dev._protocol = std::make_unique<OpenProtocol>();
+
+    write_nothing(dev);
+
+    CHECK(bus.success == 1);
+    CHECK(bus.error == 0);
+}
+
+TEST_CASE("a WRITE of zero bytes with nothing open fails")
+{
+    TestableNDevice dev;
+
+    write_nothing(dev);
+
+    CHECK(bus.success == 0);
+    CHECK(bus.error == 1);
 }
 
 // --------------------------------------------------------------------------------
