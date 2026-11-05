@@ -106,12 +106,16 @@ void __not_in_flash_func(coleco_core1_main)(void)
                         fuji_have_staged = false;
                         fuji_mailbox_active = fuji_staged_claims;
                         drive(coleco_serve(&fuji_live, addr, false));
+                        if (fuji_mailbox_active)
+                            fuji_cart_note_read(FUJI_RING_SWAP);
                     }
+                } else if (colmap_bank_select(&fuji_live.map, (uint16_t)addr)) {
+                    /* APPBANK page select: done inline, the next fetch sees the page. */
                 } else if (fuji_mailbox_active) {
                     fuji_cart_note_read((uint16_t)addr);
                 }
             }
-            if (fuji_live.map.kind != COLMAP_FLAT && addr >= 0x7F80u) {
+            if (colmap_reads_bank(fuji_live.map.kind) && addr >= 0x7F80u) {
                 /* MegaCart switches before the fetch, X-in-1 after; re-drive with
                  * colmap_serve's answer while the select has ~250 ns to run. */
                 drive(coleco_serve(&fuji_live, addr, true));

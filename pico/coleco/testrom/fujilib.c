@@ -19,6 +19,11 @@ static void fn_regwr(unsigned char reg, unsigned char val)
     FN_TOUCH(FN_REGDAT + val);
 }
 
+void fn_bank(unsigned char page)
+{
+    FN_TOUCH(FN_BANKSEL + page);
+}
+
 bool fn_present(void)
 {
     return FN_MAGIC0 == 'F' && FN_MAGIC1 == 'N';
@@ -176,7 +181,7 @@ static const unsigned char stub_src[] = {
     0x7C,                   /* ld  a,h              */
     0xD3, 0xBF,             /* out ($bf),a          ; $80|reg */
     0x24,                   /* inc h                */
-    0x10, 0xF8,             /* djnz vloop           */
+    0x10, 0xF7,             /* djnz vloop           */
     /* Cold start: the BIOS re-reads the new image's $8000 header, so $55AA and
      * $AA55 behave exactly as they would on a real cartridge. */
     0xC3, 0x00, 0x00        /* jp  $0000            */

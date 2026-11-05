@@ -191,8 +191,19 @@ static void test_plan_sizes(void)
     /* Not a whole number of 16K banks, and not a power-of-two bank count. */
     CHECK(colmap_plan(NULL, 0x30000, COLMAP_KIND_AUTO, &plan) == COLMAP_ENOMAP,
           "192K has 12 banks: the hotspot mask cannot express it");
-    CHECK(colmap_plan(NULL, 0x8001, COLMAP_KIND_AUTO, &plan) == COLMAP_ENOMAP,
-          "32K+1 fits nothing");
+    CHECK(colmap_plan(NULL, 0xA000, COLMAP_KIND_AUTO, &plan) == COLMAP_ENOMAP,
+          "40K is five SGC banks, so auto-detect refuses it");
+    CHECK(colmap_plan(NULL, 0xC000, COLMAP_KIND_AUTO, &plan) == COLMAP_ENOMAP,
+          "48K is not an overdump");
+
+    /* Overdumps in the ADAM-archive set: Spectar [o1] and a 32K cart with a 1K tail. */
+    const uint32_t over[] = { 32976, 33792, 0x8001 };
+    for (unsigned idx = 0; idx < sizeof over / sizeof over[0]; idx++) {
+        CHECK(colmap_plan(NULL, over[idx], COLMAP_KIND_AUTO, &plan) == COLMAP_OK
+              && plan.kind == COLMAP_FLAT && plan.size == over[idx],
+              "overdump %u should plan flat", over[idx]);
+        CHECK(colmap_gate(over[idx]) == 0, "overdump %u should gate open", over[idx]);
+    }
     /* The gate asks "could ANY mapper take this size", not "will auto-detect
      * pick one": 192K is 24 8K banks, so an SGC .cfg could still claim it and
      * the push is allowed to start. The refusal comes later, from plan(). */
@@ -265,6 +276,152 @@ static void test_claim(void)
           "a banked image cannot claim the mailbox");
     free(big);
     free(img);
+}
+
+/* An APPBANK image of `pages` pages: hashed, with the claim stamped. */
+static uint8_t *appbank_image(unsigned pages, uint32_t *size)
+{
+    uint8_t *img;
+
+    *size = COLMAP_WINDOW + (pages - 1) * COLMAP_SLOT;
+    img = make_image(*size);
+    memcpy(img + FN_R_CLAIM, FN_R_CLAIM_SIG, FN_R_CLAIM_LEN);
+    return img;
+}
+
+static void test_appbank_plan(void)
+{
+    colmap_plan_t plan;
+    unsigned pages;
+
+    for (pages = 2; pages <= COLMAP_APPBANK_MAX; pages++) {
+        uint32_t size;
+        uint8_t *img = appbank_image(pages, &size);
+
+        CHECK(colmap_gate(size) == 0, "%u pages: the gate must open", pages);
+        CHECK(colmap_plan(img, size, COLMAP_KIND_AUTO, &plan) == COLMAP_OK
+              && plan.kind == COLMAP_APPBANK && plan.nbanks == pages
+              && plan.mailbox_ok && plan.size == size,
+              "%u pages (%#x) must plan as a claiming APPBANK", pages, size);
+
+        /* Not claimed: the old rules. 64K and 128K are MegaCarts, the rest fit nothing. */
+        memset(img + FN_R_CLAIM, 0, FN_R_CLAIM_LEN);
+        if (size == 0x10000 || size == 0x20000)
+            CHECK(colmap_plan(img, size, COLMAP_KIND_AUTO, &plan) == COLMAP_OK
+                  && plan.kind == COLMAP_MEGACART && !plan.mailbox_ok,
+                  "%#x without a claim is a MegaCart", size);
+        else
+            CHECK(colmap_plan(img, size, COLMAP_KIND_AUTO, &plan) == COLMAP_ENOMAP,
+                  "%#x without a claim fits nothing", size);
+
+        /* A NULL image (gate time) never plans APPBANK. */
+        CHECK(colmap_plan(NULL, size, COLMAP_KIND_AUTO, &plan) != COLMAP_OK
+              || plan.kind != COLMAP_APPBANK, "NULL image planned APPBANK");
+
+        /* The hint forces it, with no claim and so no mailbox. */
+        CHECK(colmap_plan(img, size, COLMAP_APPBANK, &plan) == COLMAP_OK
+              && plan.kind == COLMAP_APPBANK && !plan.mailbox_ok,
+              "%#x with mapper=appbank and no claim", size);
+        free(img);
+    }
+
+    /* Too many pages, a ragged size, or just the window. */
+    uint8_t *big = appbank_image(14, &(uint32_t){ 0 });
+    CHECK(colmap_plan(big, 0x22000, COLMAP_KIND_AUTO, &plan) == COLMAP_ENOMAP,
+          "14 pages is past the 128K store");
+    CHECK(colmap_plan(big, 0x22000, COLMAP_APPBANK, &plan) == COLMAP_ENOMAP,
+          "mapper=appbank cannot take 14 pages");
+    CHECK(colmap_plan(big, 0x9000, COLMAP_APPBANK, &plan) == COLMAP_ENOMAP,
+          "a ragged size is no APPBANK");
+    CHECK(colmap_plan(big, 0x8000, COLMAP_APPBANK, &plan) == COLMAP_ENOMAP,
+          "32K is flat, not APPBANK");
+    free(big);
+
+    /* Other claimed sizes keep their kind. */
+    uint8_t *mega = make_image(0x40000);
+    memcpy(mega + FN_R_CLAIM, FN_R_CLAIM_SIG, FN_R_CLAIM_LEN);
+    CHECK(colmap_plan(mega, 0x40000, COLMAP_KIND_AUTO, &plan) == COLMAP_OK
+          && plan.kind == COLMAP_MEGACART && !plan.mailbox_ok, "claimed 256K stays MegaCart");
+    free(mega);
+    uint8_t *xin1 = make_image(0x100000);
+    memcpy(xin1 + FN_R_CLAIM, FN_R_CLAIM_SIG, FN_R_CLAIM_LEN);
+    CHECK(colmap_plan(xin1, 0x100000, COLMAP_KIND_AUTO, &plan) == COLMAP_OK
+          && plan.kind == COLMAP_XIN1 && !plan.mailbox_ok, "claimed 1M stays X-in-1");
+    free(xin1);
+
+    CHECK(cfg_kind("mapper=appbank\n") == COLMAP_APPBANK, "cfg names appbank");
+    CHECK(strcmp(colmap_kindname(COLMAP_APPBANK), "appbank") == 0, "kind name");
+}
+
+/* The console map, written out here and not from colmap: $8000-$BFFF and $E000-$FFFF are
+ * the image's first 32K, $C000-$DFFF page `page`. */
+static uint32_t appbank_want(unsigned page, unsigned off)
+{
+    if (off < 0x4000 || off >= 0x6000)
+        return off;
+    return (page == 0 ? 0x4000 : 0x6000 + page * 0x2000) + (off - 0x4000);
+}
+
+static void test_appbank_serve(void)
+{
+    unsigned pages;
+
+    for (pages = 2; pages <= COLMAP_APPBANK_MAX; pages++) {
+        uint32_t size;
+        uint8_t *img = appbank_image(pages, &size);
+        colmap_plan_t plan;
+        colmap_serve_t serve;
+        unsigned page, sel;
+        uint32_t off;
+        int bad;
+
+        assert(colmap_plan(img, size, COLMAP_KIND_AUTO, &plan) == COLMAP_OK);
+        colmap_serve_reset(&plan, &serve);
+
+        /* Boot shows page 0, and a select reaches every page. */
+        for (page = 0; page < pages; page++) {
+            if (page > 0 || serve.bank != 0)
+                CHECK(colmap_bank_select(&serve, (uint16_t)(FN_H_REGSEL + FN_HOT_BANK + page)),
+                      "select %u not taken", page);
+            for (bad = -1, off = 0; off < COLMAP_WINDOW; off++)
+                if (colmap_serve(&serve, (uint16_t)off, true) != (int32_t)appbank_want(page, off)) {
+                    bad = (int)off;
+                    break;
+                }
+            CHECK(bad < 0, "%u pages, page %u: wrong map at %#x", pages, page, bad);
+        }
+
+        /* Out of range is consumed and ignored; so is the swap's neighbour range end. */
+        page = pages - 1;
+        for (sel = pages; sel < 0x7E; sel++) {
+            CHECK(colmap_bank_select(&serve, (uint16_t)(FN_H_REGSEL + FN_HOT_BANK + sel)),
+                  "select %u should be consumed", sel);
+            CHECK(serve.bank == page, "select %u moved the page", sel);
+        }
+        /* Not selects: below the range, the swap, above it. */
+        CHECK(!colmap_bank_select(&serve, FN_H_REGSEL + FN_HOT_BANK - 1), "below");
+        CHECK(!colmap_bank_select(&serve, FN_H_REGSEL + FN_HOT_SWAP), "swap");
+        CHECK(!colmap_bank_select(&serve, FN_H_REGSEL + 0xFF), "above");
+        CHECK(!colmap_bank_select(&serve, FN_H_DATA), "tx page");
+        CHECK(serve.bank == page, "a non-select moved the page");
+
+        /* The hotspot range of the other mappers does nothing here, and FF80+ is plain. */
+        for (off = 0x7F80; off < COLMAP_WINDOW; off++)
+            CHECK(colmap_serve(&serve, (uint16_t)off, true) == (int32_t)off,
+                  "%#x is not the home window", off);
+        CHECK(!colmap_tristate(&serve, 0x7FFF), "APPBANK never stops driving");
+        free(img);
+    }
+
+    /* No other kind takes a select. */
+    uint8_t *mega = make_image(0x40000);
+    colmap_plan_t plan;
+    colmap_serve_t serve;
+
+    assert(colmap_plan(mega, 0x40000, COLMAP_KIND_AUTO, &plan) == COLMAP_OK);
+    colmap_serve_reset(&plan, &serve);
+    CHECK(!colmap_bank_select(&serve, FN_H_REGSEL + FN_HOT_BANK + 1), "megacart took a select");
+    free(mega);
 }
 
 static void test_flat_apply(void)
@@ -475,6 +632,8 @@ int main(void)
     test_plan_hints();
     test_cfg_parse();
     test_claim();
+    test_appbank_plan();
+    test_appbank_serve();
     test_flat_apply();
     test_megacart();
     test_xin1();

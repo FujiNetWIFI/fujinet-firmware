@@ -9,17 +9,17 @@ ESP32-S3 `fujiversal-coleco`.
 |---|---|
 | `firmware/include/fuji_mailbox.h` | the mailbox: the 1K reply at `$F800`, status fields, hotspot pages, the claim; register numbers and values come from [common/](../common/)'s `fuji_mailbox_proto.h` |
 | `firmware/include/coleco_cart.h`, `firmware/src/coleco_cart.c` | the pin map, `coleco_serve()`, and core1's two-tier bus loop: serve off the address, act once the chip select confirms |
-| `firmware/include/colmap.h`, `firmware/src/colmap.c` | flat, MegaCart, X-in-1, Activision and Opcode SGC: plan an image, the size gate, and the serve model core1 inlines and the MAME device runs |
+| `firmware/include/colmap.h`, `firmware/src/colmap.c` | flat, MegaCart, X-in-1, Activision, Opcode SGC and APPBANK: plan an image, the size gate, and the serve model core1 inlines and the MAME device runs |
 | `firmware/include/fuji_cart.h`, `firmware/src/fuji_cart.c` | what the two cores share: the hotspot ring, the two 32K windows, staging and the swap flags |
 | `firmware/include/fuji_store.h`, `firmware/src/fuji_store.c` | the push store: images up to 32K straight into the staging window, larger ones in 128K of SRAM; it replaces [common/](../common/)'s, which needs a flash tier |
 | `firmware/include/fujinet.h`, `firmware/src/fujinet.c` | the cart's `fuji_port_ops_t`: publishing a byte, and receiving, planning and staging a pushed image |
 | `firmware/include/fujiboot.h`, `firmware/src/fujiboot.c`, `firmware/src/main.c` | power-on: pins, clock, the baked client, core1, the USB loop and the console-power watch |
 | `firmware/baked/fujiconfigrom.h` | the CONFIG served at power-on when there is no fresh `build/gen` (CI, the ESP32 build) |
 | `firmware/boards/fujicoleco.{h,cmake}` | the board: a stock Pico, 250 MHz |
-| `firmware/host_test/` | `test_colmap` (against MAME's own cartridge handlers), `test_busedge` (the two-tier loop), and [common/](../common/)'s `test_fujimail` against this mailbox map |
-| `testrom/` | z88dk clients: `hello`, `fujitest`, `fujiboot`, the `fujicfg` stand-in CONFIG, and their display, input, sound, keyboard and mailbox library |
+| `firmware/host_test/` | `test_colmap` (against MAME's own cartridge handlers), `test_busedge` (the two-tier loop), `test_swap` (a swapped-in client's mailbox), and [common/](../common/)'s `test_fujimail` against this mailbox map |
+| `testrom/` | z88dk clients: `hello`, `fujitest`, `fujiboot`, the `fujicfg` stand-in CONFIG, `fujibank` (the APPBANK test), and their display, input, sound, keyboard and mailbox library |
 | `emu/` | the MAME cart device (`apply.sh` grafts it), `screen.lua` (screen as text), `drive.lua` (drives CONFIG) and `soak.lua` |
-| `tools/` | `checkrom.py` (size, header, claim, clear mailbox pages), `expect.py` (the window a booted image should show, written apart from colmap), `soak.sh` |
+| `tools/` | `checkrom.py` (size, header, claim, clear mailbox pages), `expect.py` (the window a booted image should show, written apart from colmap), `mkbanked.py` (stamps `fujibank`'s APPBANK pages), `soak.sh` |
 
 ## How it fits
 - The FujiBus codec, the USB device, `fujimail.c`, the `.cfg` parser, `fuji_port.c`,
@@ -50,6 +50,14 @@ ESP32-S3 `fujiversal-coleco`.
   256K and 512K MegaCarts and the X-in-1 images need an RP2350 board.
 - The `.cfg` sibling's `mapper=` (`flat`, `megacart`, `xin1`, `activision`, `sgc`) is the only way
   to tell the 64K Activision and 128K SGC carts from MegaCarts of the same size.
+- An image over 32K and under 48K that is not whole 8K banks is an overdump: the cart serves its
+  first 32K.
+- A client over 30K uses APPBANK: the 32K boot window of a flat client plus 8K pages, one of
+  which shows at `$C000` (read `$FD80+n` to select page n; 13 pages at most, so 128K). Page 0
+  is image bytes `0x4000-0x5FFF`, page n >= 1 is `0x6000 + n * 0x2000`; the claim decides, so
+  such an image never plans as a MegaCart (`mapper=appbank` forces it). Keep the size off 64K
+  and 128K: older firmware takes those for a MegaCart and runs it with the mailbox dead.
+  `testrom/fujibank.c` and `tools/mkbanked.py` are a worked example; `fn_bank()` selects.
 - The vblank interrupt is the Z80's `/NMI`: a client's handler must never read `$F800` and up,
   and the swap stub turns the interrupt off before it swaps.
 - sccz80 drops a discarded volatile read and mis-indexes `FN_REPLY[...]`: every mailbox read

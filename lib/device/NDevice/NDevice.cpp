@@ -265,11 +265,14 @@ void NDevice::fujidev_write(const FUJI_COMMAND_PACKET &packet)
 {
     uint16_t num_bytes = packet.param(0);
 
-    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
+    SYSTEM_BUS.transaction_accept(num_bytes ? TRANS_STATE::WILL_GET : TRANS_STATE::NO_GET);
 
     if (!num_bytes)
     {
-        SYSTEM_BUS.transaction_error();
+        if (_protocol == nullptr)
+            SYSTEM_BUS.transaction_error();
+        else
+            SYSTEM_BUS.transaction_success();
         return;
     }
 
@@ -481,10 +484,6 @@ error_is_true NDevice::parse_and_instantiate_protocol(std::string &deviceSpec, b
         _parser = nullptr;
         RETURN_ERROR_AS_TRUE();
     }
-
-#ifdef VERBOSE_PROTOCOL
-    Debug_printf("::parse_and_instantiate_protocol -> spec: >%s<, url: >%s<\r\n", deviceSpec.c_str(), url_out->getFullURL().c_str());
-#endif
 
     _protocol = NetworkProtocolFactory::createProtocol(url_out->scheme, receiveBuffer, transmitBuffer, specialBuffer, &login, &password);
 

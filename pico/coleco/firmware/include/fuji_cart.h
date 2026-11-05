@@ -1,7 +1,9 @@
 /* fuji_cart.h -- the cartridge's half of the mailbox. core1 records hotspot reads in a ring
  * and goes back to the bus; core0 drains it. Replies are painted into the served window, so
  * serving them is serving ROM. core1 records once per select and swaps inline, so a swap
- * is done before the next read. A client image is always a flat 32K; there is no APPBANK.
+ * is done before the next read, and a claiming client's swap is marked on the ring for core0
+ * to repaint its mailbox. A client is a flat 32K or an APPBANK image, whose home window (its
+ * first 32K) lives in the RAM store and is painted there.
  */
 
 #ifndef FUJI_CART_H
@@ -15,6 +17,9 @@
 
 /* One transaction (a dozen register pairs and up to 320 TX bytes) at a time. */
 #define FUJI_RING_LEN 512
+
+/* Ring entry for a swap into a claiming client; no cart offset is this large. */
+#define FUJI_RING_SWAP 0xFFFFu
 
 typedef struct {
     volatile uint16_t buf[FUJI_RING_LEN];   /* cart offset, 0x7D00-0x7FFF */
@@ -53,6 +58,8 @@ COLECO_HOT void fuji_cart_note_read(uint16_t offset)
 }
 
 /* core0 */
+/* Stop painting an APPBANK image's home window: the RAM store is being reused. */
+void fuji_cart_home_release(void);
 bool fuji_cart_next_read(uint16_t *offset);
 void fuji_cart_poke(unsigned offset, uint8_t value);
 /* Stage a committed image for the armed swap. A banked image is served in place, so it must

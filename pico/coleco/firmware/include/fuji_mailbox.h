@@ -49,8 +49,10 @@
 #define FN_R_MAGIC0      0x7C09   /* 'F' -- cart presence check              */
 #define FN_R_MAGIC1      0x7C0A   /* 'N'                                     */
 #define FN_R_PROTO_VER   0x7C0B
-#define FN_PROTO_VER     1        /* flat client images                      */
+#define FN_PROTO_VER     1        /* flat and APPBANK client images          */
 #define FN_R_SLICE_ECHO  0x7C0C
+#define FN_R_BOOT_GOT0   0x7C16   /* image bytes received so far, 24-bit LE  */
+#define FN_R_BOOT_TOT0   0x7C19   /* image size declared at OPEN, 24-bit LE  */
 
 #define FN_R_PAINT_END   0x7CFC   /* paint covers [FN_R_BASE, FN_R_PAINT_END) */
 
@@ -71,10 +73,21 @@
 
 /* REGSEL offsets 0x80-0xFF are one-shot operations, not registers. */
 #define FN_HOT_SWAP      0xFE     /* serve the staged image; armed only      */
+#define FN_HOT_BANK      0x80     /* APPBANK: read +0x80+n puts page n at $C000 */
 
 /* Every game mapper's bank hotspots sit in $FF00-$FFFF too, the FN_H_DATA page. They never
  * meet: a game carries no claim, so the mailbox is dead before its mapper goes live, and
- * a claiming image is flat. So a client image is always exactly FN_WINDOW_SIZE bytes. */
+ * a claiming image is flat or APPBANK, whose select is in the REGSEL page. */
+
+/* APPBANK: a client bigger than 30K with the mailbox live. The console sees $8000-$BFFF and
+ * $E000-$FFFF fixed, $C000-$DFFF one of up to 13 8K pages (n < the page count; others are
+ * ignored). Select page n by reading $FD80+n; the byte that read returns is undefined. The
+ * image is the 32K boot window laid out as a flat client's (header, claim, clear mailbox
+ * pages) with page 0 at image 0x4000-0x5FFF, then pages 1.. at 0x8000, 0xA000, ...: size
+ * 0x8000 + (pages - 1) * 0x2000, 128K at most. The claim decides, so a 64K or 128K one is
+ * APPBANK too; but older firmware takes those for a MegaCart and runs them with the mailbox
+ * dead, so a client keeps off them. A console RESET doesn't reach the cart, so the page
+ * stays where it was: the start code, in the fixed region, selects page 0. */
 
 /* Booting a staged image:
  *   1. poll FN_R_BOOT_STATE until FN_BOOT_READY;

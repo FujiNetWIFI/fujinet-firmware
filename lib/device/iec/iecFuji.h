@@ -76,7 +76,7 @@ protected:
     } iecStatus;
 
 public:
-    void setup();
+    void setup() override;
     iecFuji();
 };
 

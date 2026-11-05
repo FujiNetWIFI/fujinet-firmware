@@ -52,7 +52,7 @@ typedef struct {
  * only switches a bank once the select confirms the access. */
 COLECO_HOT uint8_t coleco_serve(fuji_serve_t *serve, uint32_t addr, bool commit)
 {
-    if (serve->map.kind != COLMAP_FLAT && addr >= 0x7F80u) {
+    if (colmap_reads_bank(serve->map.kind) && addr >= 0x7F80u) {
         int32_t off = colmap_serve(&serve->map, (uint16_t)addr, commit);
 
         return off < 0 ? 0xFFu : serve->base[off];
@@ -64,7 +64,7 @@ COLECO_HOT uint8_t coleco_serve(fuji_serve_t *serve, uint32_t addr, bool commit)
 COLECO_HOT bool coleco_needs_commit(const fuji_serve_t *serve, uint32_t addr)
 {
     return addr >= FN_H_REGSEL
-        || (serve->map.kind != COLMAP_FLAT && addr >= 0x7F80u);
+        || (colmap_reads_bank(serve->map.kind) && addr >= 0x7F80u);
 }
 
 /* The console's own 5V; the cart stays up on USB VBUS without it. */

@@ -30,3 +30,13 @@ pico-de-coco:
 
 clean:
 	$(call builder, -c)
+
+# make tests/<name> builds that ctest in build/, if it has a target, and runs it.
+tests/%: FORCE
+	cmake --build build --target cmake_check_build_system
+	@if cmake --build build --target help | grep -w '$*' > /dev/null; then \
+	  cmake --build build --target $*; \
+	fi
+	cd build && ctest -R '^$*$$' --output-on-failure --no-tests=error
+
+FORCE:

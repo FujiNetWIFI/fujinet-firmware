@@ -1,7 +1,7 @@
 /* colmap.h -- how a ColecoVision cartridge image maps into the console's 32K window at
- * $8000-$FFFF, for every mapper the platform has: flat, MegaCart, X-in-1, Activision and the
- * Opcode SGC. No hardware here: the cart firmware, the MAME device and the host tests all
- * run this code. The port cannot tell a read from a write; every mapper but the SGC works
+ * $8000-$FFFF, for every mapper the platform has: flat, MegaCart, X-in-1, Activision, the
+ * Opcode SGC and FujiNet's own APPBANK. No hardware here: the cart firmware, the MAME device
+ * and the host tests all run this code. The port cannot tell a read from a write; every mapper but the SGC works
  * from the address alone, and the SGC's data latch has its own entry, colmap_serve_write.
  */
 
@@ -11,6 +11,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "fuji_mailbox.h"
+
 /* The firmware build forces core1's serve path inline into its SRAM loop; elsewhere it is
  * plain static inline. */
 #ifndef COLECO_HOT
@@ -18,6 +20,7 @@
 #endif
 
 #define COLMAP_WINDOW  0x8000u    /* the whole cartridge window ($8000-$FFFF) */
+#define COLMAP_OVERDUMP_MAX 0xC000u  /* an overdump is over 32K and under 48K    */
 #define COLMAP_SLOT    0x2000u    /* one chip-select block                    */
 #define COLMAP_NSLOTS  4
 
@@ -36,11 +39,12 @@ typedef enum {
 } colmap_err_t;
 
 typedef enum {
-    COLMAP_FLAT = 0,    /* <= 32K, padded with 0xFF; MAME std.cpp         */
+    COLMAP_FLAT = 0,    /* <= 32K, padded with 0xFF; an overdump keeps its first 32K */
     COLMAP_MEGACART,    /* 64K-512K, read hotspots; MAME megacart.cpp     */
     COLMAP_XIN1,        /* 1M/2M, 32K windows; MAME xin1.cpp              */
     COLMAP_ACTIVISION,  /* 16K fixed + 16K banked + I2C; activision.cpp   */
     COLMAP_SGC,         /* Opcode Super Game Cartridge; sgc.cpp           */
+    COLMAP_APPBANK,     /* a claiming 32K client plus 8K pages at $C000   */
     COLMAP_KIND_AUTO,   /* "decide from the size" -- never stored in a plan */
 } colmap_kind_t;
 
@@ -49,12 +53,21 @@ typedef struct {
     colmap_kind_t kind;
     bool mailbox_ok;    /* image claims $F800-$FFFF, mailbox survives boot */
     uint16_t nbanks;    /* MegaCart 16K banks / X-in-1 32K windows /
-                         * Activision 16K banks / SGC 8K banks; 0 for FLAT */
+                         * Activision 16K banks / SGC 8K banks /
+                         * APPBANK 8K pages; 0 for FLAT */
 } colmap_plan_t;
+
+/* APPBANK image: the first 32K is a flat client's boot window; page 0 is image bytes
+ * 0x4000-0x5FFF (what $C000 shows at boot), page n >= 1 is 0x6000 + n * 0x2000, so the
+ * pages past the window follow it directly. 2 to 13 pages, 128K at most. */
+#define COLMAP_APPBANK_MAX   13
+#define COLMAP_APPBANK_PAGE0 0x4000u
+#define COLMAP_APPBANK_REST  0x6000u
 
 /* The layout for an image of `size` bytes; a NULL image plans with mailbox_ok false. `hint`
  * is the .cfg's mapper, the only way to ACTIVISION or SGC, else COLMAP_KIND_AUTO; a hint
- * that does not fit the size is an error, not a downgrade. */
+ * that does not fit the size is an error, not a downgrade. A claiming image of APPBANK size
+ * plans as APPBANK, ahead of MegaCart and X-in-1. */
 colmap_err_t colmap_plan(const uint8_t *image, uint32_t size,
                          colmap_kind_t hint, colmap_plan_t *out);
 
@@ -65,8 +78,9 @@ colmap_kind_t colmap_kind_named(const char *name);
 /* At OPEN: 0 if some mapper takes this size, else the FN_BOOT_ERR_*. Room is the store's call. */
 uint8_t colmap_gate(uint32_t size);
 
-/* FN_R_CLAIM_SIG at FN_R_CLAIM, in an image of exactly 32K: a smaller one doesn't reach it,
- * and in a banked one those bytes belong to whichever bank is live. */
+/* FN_R_CLAIM_SIG at FN_R_CLAIM, in an image of exactly 32K or an APPBANK one (the claim is in
+ * its first 32K, which is always home): a smaller one doesn't reach it, and in any other
+ * banked one those bytes belong to whichever bank is live. */
 bool colmap_claims_mailbox(const uint8_t *image, const colmap_plan_t *plan);
 
 /* Lay a FLAT image into `window` as the console sees it: from $8000, then 0xFF (open bus) to
@@ -90,6 +104,13 @@ typedef struct {
 static inline bool colmap_serves_window(const colmap_plan_t *plan)
 {
     return plan->kind == COLMAP_FLAT;
+}
+
+/* Does a read at $FF80 and up switch anything? FLAT has no hotspots there and APPBANK's
+ * select sits in the REGSEL page, so both serve straight from slot_off. */
+COLECO_HOT bool colmap_reads_bank(colmap_kind_t kind)
+{
+    return kind != COLMAP_FLAT && kind != COLMAP_APPBANK;
 }
 
 /* Boot state. MegaCart: low 16K on the LAST bank, high 16K on bank 0. X-in-1: the last 32K
@@ -125,6 +146,14 @@ COLECO_HOT void colmap_slots_refresh(colmap_serve_t *serve)
     case COLMAP_SGC:
         for (slot = 0; slot < COLMAP_NSLOTS; slot++)
             serve->slot_off[slot] = (uint32_t)serve->sgc_bank[slot] << 13;
+        break;
+    case COLMAP_APPBANK:
+        /* Home window but for the page at $C000. */
+        serve->slot_off[0] = 0;
+        serve->slot_off[1] = COLMAP_SLOT;
+        serve->slot_off[2] = serve->bank == 0 ? COLMAP_APPBANK_PAGE0
+            : COLMAP_APPBANK_REST + ((uint32_t)serve->bank << 13);
+        serve->slot_off[3] = COLMAP_APPBANK_REST;
         break;
     default:
         for (slot = 0; slot < COLMAP_NSLOTS; slot++)
@@ -188,6 +217,22 @@ COLECO_HOT int32_t colmap_serve(colmap_serve_t *serve, uint16_t off, bool commit
     }
 
     return (int32_t)(serve->slot_off[off >> 13] + (off & 0x1FFF));
+}
+
+/* An APPBANK select: a read of FN_H_REGSEL + FN_HOT_BANK + page. True for any read in the
+ * select range, so the caller keeps it off the ring; the page moves only if it exists. The
+ * select read's own byte is whatever is served there. */
+COLECO_HOT bool colmap_bank_select(colmap_serve_t *serve, uint16_t off)
+{
+    const uint16_t first = FN_H_REGSEL + FN_HOT_BANK;
+
+    if (serve->kind != COLMAP_APPBANK || off < first || off >= FN_H_REGSEL + FN_HOT_SWAP)
+        return false;
+    if ((uint16_t)(off - first) < serve->nbanks) {
+        serve->bank = (uint8_t)(off - first);
+        colmap_slots_refresh(serve);
+    }
+    return true;
 }
 
 /* Where the cart must stop driving: above $FF80 on Activision and $FFFC-$FFFF on the SGC,

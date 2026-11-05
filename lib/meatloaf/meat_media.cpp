@@ -1,5 +1,7 @@
 #include "meat_media.h"
 
+#include <cinttypes>
+
 std::unordered_map<std::string, MMediaStream*> ImageBroker::image_repo;
 
 // Utility Functions
@@ -265,7 +267,7 @@ uint32_t MMediaStream::seekFileSize( uint8_t start_track, uint8_t start_sector )
     size_t blocks = 0; 
     do
     {
-        printf("t[%d] s[%d] b[%d]\r", start_track, start_sector, blocks);
+        printf("t[%d] s[%d] b[%u]\r", start_track, start_sector, (unsigned) blocks);
         readContainer(&start_track, 1);
         readContainer(&start_sector, 1);
         blocks++;
@@ -275,6 +277,6 @@ uint32_t MMediaStream::seekFileSize( uint8_t start_track, uint8_t start_sector )
     } while ( start_track > 0 );
     blocks--;
     uint32_t size = (blocks * (block_size - 2)) + start_sector - 1;
-    printf("File size is [%lu] bytes...\r\n", size);
+    printf("File size is [%" PRIu32 "] bytes...\r\n", size);
     return size;
 };

@@ -15,26 +15,26 @@
 // A ROM image isn't served block by block the way a disk is: the whole file
 // goes to the cartridge's RP2040 at mount time, which presents it to the CoCo
 // as cartridge ROM. Nothing reads it back through the media object afterwards.
-static bool push_rom_image(MediaTypeROM *rom)
+static error_is_true push_rom_image(MediaTypeROM *rom)
 {
 #ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
     if (SYSTEM_BUS.isBoIP())
     {
         Debug_printv("ROM media requires a real pico; not supported over BoIP");
-        return false;
+        RETURN_ERROR_AS_TRUE();
     }
 
     uint32_t imagesize = rom->stream_size();
     if (imagesize == 0)
     {
         Debug_printv("ROM image is empty or unreadable");
-        return false;
+        RETURN_ERROR_AS_TRUE();
     }
 
     if (!SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_OPEN, (uint16_t)0))
     {
         Debug_printv("Failed to open pico bank");
-        return false;
+        RETURN_ERROR_AS_TRUE();
     }
 
     uint8_t blockbuff[MEDIA_BLOCK_SIZE];
@@ -60,11 +60,11 @@ static bool push_rom_image(MediaTypeROM *rom)
     SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_CLOSE);
     Debug_printv("ROM transfer complete: %lu / %lu bytes", (unsigned long)sent, (unsigned long)imagesize);
 
-    return sent == imagesize;
+    RETURN_ERROR_IF(sent != imagesize);
 #else
     (void)rom;
     Debug_printv("ROM mount not supported on this FujiNet hardware.");
-    return false;
+    RETURN_ERROR_AS_TRUE();
 #endif
 }
 
@@ -114,7 +114,7 @@ mediatype_t drivewireDisk::mount(fnFile *f, const char *filename, uint32_t disks
         strcpy(_media->_disk_filename, filename);
         _media->_media_read_only = !(access_mode & DISK_ACCESS_MODE_WRITE);
         mt = _media->mount(f, disksize);
-        if (mt == MEDIATYPE_ROM && !push_rom_image(rom))
+        if (mt == MEDIATYPE_ROM && push_rom_image(rom).is_error())
             mt = MEDIATYPE_UNKNOWN;
         if (mt == MEDIATYPE_UNKNOWN)
         {

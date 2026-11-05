@@ -28,6 +28,7 @@ uint8_t fuji_store_open(uint32_t size)
     /* A flat image is served from a window, so only the RAM store can be live. */
     if (fuji_live.base == ram_store)
         return FN_BOOT_ERR_STOREBUSY;
+    fuji_cart_home_release();
     open_tier = TIER_RAM;
     return 0;
 }
