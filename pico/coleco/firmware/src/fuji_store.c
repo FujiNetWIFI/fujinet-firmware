@@ -2,10 +2,16 @@
 
 #include <string.h>
 
+#include "pico.h"
+
 #include "fuji_store.h"
 #include "fuji_cart.h"
 #include "fuji_mailbox.h"
 #include "colmap.h"
+
+#ifndef FUJI_STORE_RAM_SIZE
+#error "the board header must set FUJI_STORE_RAM_SIZE"
+#endif
 
 enum tier { TIER_NONE, TIER_STAGE, TIER_RAM };
 

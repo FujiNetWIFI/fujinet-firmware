@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# build-cart.sh -- build the RP2040 cartridge firmware: [--baked | --bake] [board], as
+# build-cart.sh -- build the cartridge firmware: [--baked | --bake] [board], as
 # pico/common/scripts/build-cart.lib.sh describes.
 #
 # Client: $FUJI_CLIENT, else build/config.bin (real CONFIG, from fujinet-config's coleco/

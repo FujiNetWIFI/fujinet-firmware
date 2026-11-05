@@ -1,6 +1,6 @@
 /* coleco_cart.h -- pin map, bus decode and core1 entry for the ColecoVision cartridge bus.
  *
- * The four chip selects are ANDed into one /CE outside the RP2040; A13/A14 already say which
+ * The four chip selects are ANDed into one /CE outside the RP; A13/A14 already say which
  * block. They are qualified by /MREQ and /RFSH, so they assert on writes too and never on
  * refresh. Data is served off the ADDRESS, ahead of the select (~400 ns after T1 against
  * ~285 ns after /CE falls); the data buffer's /OE is the select itself, so a byte driven
@@ -25,7 +25,7 @@
  * PWR tells a power-cycle from a RESET (which never reaches the cart) and keeps the buffer
  * facing us while the console is off, when its unpowered '138 reads as every select low.
  * The buffer must be 5V-tolerant at 3.3V (74LVC8T245, or a 74LVC245A at 3.3V), not a
- * 74HCT245: the SGC path turns it around, and a 5V part would then drive the RP2040.
+ * 74HCT245: the SGC path turns it around, and a 5V part would then drive the RP.
  */
 #define ADDR_MASK   0x00007FFFu
 #define CE_PIN      26

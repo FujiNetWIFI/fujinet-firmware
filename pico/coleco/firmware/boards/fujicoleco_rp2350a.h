@@ -37,12 +37,18 @@ pico_board_cmake_set_default(PICO_RP2350_A2_SUPPORTED, 1)
 #define PICO_RP2350_A2_SUPPORTED 1
 #endif
 
-// Pad pulls stay OFF on every bus pin (main.c): RP2350 pads reset with pull-downs on, and
-// erratum RP2350-E9 makes a pulled-down input latch near 2 V.
+// --- PADS ---
+// Pulls off on every bus pin: RP2350 pads reset with pull-downs on, and erratum RP2350-E9
+// makes a pulled-down input latch near 2 V.
+#define FUJI_BUS_PULLS_OFF 1
 
 // --- CLOCK ---
 // As the stock-Pico board: an M1 fetch leaves ~373 ns, ~93 cycles at 250 MHz.
 #define FUJI_SYS_CLOCK_KHZ 250000
 #define FUJI_VREG_VOLTAGE  VREG_VOLTAGE_1_15
+
+// --- IMAGE STORE ---
+// 256K of the 520K SRAM.
+#define FUJI_STORE_RAM_SIZE (256u * 1024)
 
 #endif
