@@ -19,15 +19,6 @@
 typedef enum { GPIO_NUM_NC = -1 } gpio_num_t;
 
 #include <stdint.h>
-#include <time.h>
-
-// Microseconds from a monotonic clock, like ESP-IDF's esp_timer_get_time()
-static inline int64_t esp_timer_get_time(void)
-{
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (int64_t)ts.tv_sec * 1000000 + ts.tv_nsec / 1000;
-}
 
 // Reflected CRC-16/CCITT with inverted seed and result, like the ESP ROM's esp_rom_crc16_le()
 static inline uint16_t esp_rom_crc16_le(uint16_t crc, const uint8_t *buf, uint32_t len)
