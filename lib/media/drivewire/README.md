@@ -9,13 +9,13 @@ CoCo and Dragon disk, cartridge and cassette image formats for `BUILD_COCO`.
 | `mediaTypeDSK.h`, `mediaTypeDSK.cpp` | `MediaTypeDSK`, disk images |
 | `mediaTypeVDK.h`, `mediaTypeVDK.cpp` | `MediaTypeVDK`, Dragon VDK images |
 | `mediaTypeMRM.h`, `mediaTypeMRM.cpp` | `MediaTypeMRM` (MRM and RMM) |
-| `mediaTypeROM.h`, `mediaTypeROM.cpp` | `MediaTypeROM`, cartridge images (ROM and CCC) |
 | `mediaTypeCASDSK.h`, `mediaTypeCASDSK.cpp` | `MediaTypeCASDSK`, a `.cas` tape presented as a read-only Disk BASIC floppy synthesized from an index of the tape |
 | `casSource.h`, `casSourceFile.h`, `casReader.h`, `casReader.cpp`, `casIndex.h`, `casIndex.cpp`, `decbLayout.h`, `decbLayout.cpp` | the tape decoder behind `MediaTypeCASDSK`: `CasSource`, `CasSourceFile`, `CasReader`, `CasIndex` and the Disk BASIC layout `DecbLayout` |
 
 ## How it fits
 - `discover_mediatype()` maps DSK, MRM and RMM, VDK, ROM and CCC, and CAS by extension;
-  `drivewireDisk` in [lib/device/drivewire/](../../device/drivewire/) picks the subclass.
+  `drivewireDisk` in [lib/device/drivewire/](../../device/drivewire/) picks the subclass, or for
+  ROM and CCC opens a `CoCoCartROM` from [lib/media/rom/](../rom/) through `ROMFactory`.
 - Included by [lib/media/media.h](../media.h) under `BUILD_COCO`.
 
 ## Build
