@@ -3,6 +3,7 @@
 
 #include "utils.h"
 #include "samlib.h"
+#include "string_utils.h"
 
 int sam(int argc, char **argv) { return 0; }
 
@@ -20,4 +21,17 @@ TEST_CASE("util_stoi returns nullopt where std::stoi throws")
     CHECK_FALSE(util_stoi("//10.4.0.19:1701").has_value());
     CHECK_FALSE(util_stoi("abc").has_value());
     CHECK_FALSE(util_stoi("99999999999999999999").has_value());
+}
+
+TEST_CASE("mstr::format prints every argument")
+{
+    // It measures the text before printing it; both need the arguments
+    CHECK(mstr::format("%.2f %s", 63.99, "K") == "63.99 K");
+    CHECK(mstr::format("%.16s|%.5s|%d", "FUJINET DISK", "FN 2A", 42) == "FUJINET DISK|FN 2A|42");
+}
+
+TEST_CASE("mstr::formatBytes")
+{
+    CHECK(mstr::formatBytes(65535) == "64.00 K");
+    CHECK(mstr::formatBytes(3 * 1024 * 1024) == "3.00 M");
 }

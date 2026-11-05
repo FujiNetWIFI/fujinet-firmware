@@ -619,11 +619,13 @@ namespace mstr {
 
     std::string format(const char *format, ...)
     {
-        // Format our string
-        va_list args;
+        // Format our string. Measuring it uses up a va_list, so print from a copy.
+        va_list args, args2;
         va_start(args, format);
+        va_copy(args2, args);
         char text[vsnprintf(NULL, 0, format, args) + 1];
-        vsnprintf(text, sizeof text, format, args);
+        vsnprintf(text, sizeof text, format, args2);
+        va_end(args2);
         va_end(args);
 
         return text;
