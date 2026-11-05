@@ -78,7 +78,7 @@ public:
     bool readEntry( std::string filename );
 
 protected:
-    DIR* dir;
+    DIR* dir = nullptr;
     bool dirOpened = false;
 
 private:
