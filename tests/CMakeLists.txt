@@ -589,7 +589,7 @@ if(FUJINET_TARGET STREQUAL "ATARI")
     ${CMAKE_SOURCE_DIR}/lib/fnxml/
     ${CMAKE_SOURCE_DIR}/components_pc/
     ${CMAKE_SOURCE_DIR}/components_pc/libssh/include/
-    ${CMAKE_SOURCE_DIR}/build/components_pc/libssh/include/
+    ${CMAKE_BINARY_DIR}/components_pc/libssh/include/
     ${CMAKE_SOURCE_DIR}/components_pc/cJSON/
     ${CMAKE_SOURCE_DIR}/components_pc/mongoose/
     ${CMAKE_SOURCE_DIR}/components/gumbo-query/
@@ -663,7 +663,7 @@ if(FUJINET_TARGET STREQUAL "ATARI")
     ${CMAKE_SOURCE_DIR}/lib/fnxml/
     ${CMAKE_SOURCE_DIR}/components_pc/
     ${CMAKE_SOURCE_DIR}/components_pc/libssh/include/
-    ${CMAKE_SOURCE_DIR}/build/components_pc/libssh/include/
+    ${CMAKE_BINARY_DIR}/components_pc/libssh/include/
     ${CMAKE_SOURCE_DIR}/components_pc/cJSON/
     ${CMAKE_SOURCE_DIR}/components_pc/mongoose/
     ${CMAKE_SOURCE_DIR}/components/gumbo-query/
@@ -707,7 +707,7 @@ if(FUJINET_TARGET STREQUAL "ADAM")
     ${CMAKE_SOURCE_DIR}/lib/http/
     ${CMAKE_SOURCE_DIR}/lib/TNFSlib/
     ${CMAKE_SOURCE_DIR}/components_pc/libssh/include/
-    ${CMAKE_SOURCE_DIR}/build/components_pc/libssh/include/
+    ${CMAKE_BINARY_DIR}/components_pc/libssh/include/
     ${CMAKE_SOURCE_DIR}/components_pc/mongoose/
     ${CMAKE_SOURCE_DIR}/components/gumbo-query/
     ${CMAKE_SOURCE_DIR}/lib/network-protocol/
@@ -762,7 +762,7 @@ set(ROM_MOUNT_TEST_INCLUDES
   ${CMAKE_SOURCE_DIR}/lib/http/
   ${CMAKE_SOURCE_DIR}/lib/TNFSlib/
   ${CMAKE_SOURCE_DIR}/components_pc/libssh/include/
-  ${CMAKE_SOURCE_DIR}/build/components_pc/libssh/include/
+  ${CMAKE_BINARY_DIR}/components_pc/libssh/include/
   ${CMAKE_SOURCE_DIR}/components_pc/mongoose/
   ${CMAKE_SOURCE_DIR}/components/gumbo-query/
   ${CMAKE_SOURCE_DIR}/lib/network-protocol/
