@@ -29,6 +29,8 @@
 #include <Arduino.h>
 #elif defined(ESP_PLATFORM)
 #include "IECespidf.h"
+#else
+#include "IEChost.h"
 #endif
 
 #ifndef ESP_IDF_VERSION_VAL
@@ -196,7 +198,7 @@ static unsigned long timer_start_us;
 #define timer_start()        timer_start_us = micros()
 #define timer_stop()         while(0)
 #define timer_less_than(us)  ((micros()-timer_start_us) < ((int) (us+0.5)))
-#define timer_wait_until(us) while( timer_less_than(us) )
+#define timer_wait_until(us) do {} while( timer_less_than(us) )
 
 #if defined(JDEBUG) && defined(ESP_PLATFORM)
 #define JDEBUGI() pinMode(26, OUTPUT)
@@ -233,7 +235,9 @@ static unsigned long timer_start_us;
 #define digitalReadFastExt(pin, reg, bit)     (*(reg) & (bit))
 #define digitalWriteFastExt(pin, reg, bit, v) { if( v ) *(reg)|=(bit); else (*reg)&=~(bit); }
 #else
+#ifndef IECHOST_H // a host has no IEC lines to make fast
 #warning "No fast digital I/O macros defined for this platform - code will likely run too slow"
+#endif
 #define pinModeFastExt(pin, reg, bit, dir)    pinMode(pin, dir)
 #define digitalReadFastExt(pin, reg, bit)     digitalRead(pin)
 #define digitalWriteFastExt(pin, reg, bit, v) digitalWrite(pin, v)
@@ -506,7 +510,7 @@ bool IECBusHandler::waitPinCLK(bool state, uint16_t timeout)
 
 void IECBusHandler::sendSRQ()
 {
-  if( m_pinSRQ!=0xFF )
+  if( m_pinSRQ!=0xFF && !m_netIEC )
     {
       digitalWrite(m_pinSRQ, LOW);
       pinMode(m_pinSRQ, OUTPUT);
@@ -581,6 +585,7 @@ IECBusHandler::IECBusHandler(uint8_t pinATN, uint8_t pinCLK, uint8_t pinDATA, ui
   m_numDevices = 0;
   m_inTask     = false;
   m_flags      = 0xFF; // 0xFF means: begin() has not yet been called
+  m_netIEC     = false;
 
   m_pinATN       = pinATN;
   m_pinCLK       = pinCLK;
@@ -619,6 +624,16 @@ IECBusHandler::IECBusHandler(uint8_t pinATN, uint8_t pinCLK, uint8_t pinDATA, ui
 
 void IECBusHandler::begin()
 {
+  if( m_netIEC )
+    {
+      // the bus master sends decoded transactions, there are no pins to set up
+      // and no ATN interrupt to attach
+      m_flags = 0;
+      for(uint8_t i=0; i<m_numDevices; i++)
+        m_devices[i]->begin();
+      return;
+    }
+
   JDEBUGI();
 
   // set pins to output 0 (when in output mode)
@@ -652,7 +667,8 @@ void IECBusHandler::begin()
 
 bool IECBusHandler::canServeATN()
 {
-  return (m_pinCTRL!=0xFF) || (m_atnInterrupt != NOT_AN_INTERRUPT);
+  // the NetIEC bus master waits for every reply, so devices may do slow work in task()
+  return m_netIEC || (m_pinCTRL!=0xFF) || (m_atnInterrupt != NOT_AN_INTERRUPT);
 }
 
 
@@ -2592,6 +2608,14 @@ void IECBusHandler::task()
   // don't do anything if begin() hasn't been called yet
   if( m_flags==0xFF ) return;
 
+  if( m_netIEC )
+    {
+      // no bus lines to watch, only the devices have work to do
+      for(uint8_t i=0; i<m_numDevices; i++)
+        m_devices[i]->task();
+      return;
+    }
+
   // prevent interrupt handler from calling atnRequest()
   m_inTask = true;
 
@@ -3047,6 +3071,142 @@ void IECBusHandler::task()
   // call "task" function for attached devices
   for(uint8_t i=0; i<m_numDevices; i++)
     m_devices[i]->task();
+}
+
+
+// ------------------------------------  NetIEC support routines  ------------------------------------
+
+// After useNetIEC() the bus master (an emulator, see NetIEC.h) sends each transaction already
+// decoded into bytes. These functions do what task() does with the bus lines: they keep the
+// P_LISTENING, P_TALKING and P_DONE flags and call the same device functions.
+
+namespace
+{
+enum class ATNCommand : uint8_t { LISTEN = 0x20, TALK = 0x40, UNLISTEN = 0x3F, UNTALK = 0x5F };
+
+constexpr uint8_t ATN_COMMAND_MASK = 0xE0; // command bits of a LISTEN or TALK byte
+constexpr uint8_t ATN_DEVICE_MASK  = 0x1F; // its device number
+}
+
+
+void IECBusHandler::useNetIEC()
+{
+  m_netIEC = true;
+}
+
+
+success_is_true IECBusHandler::atnCommand(uint8_t primary, uint8_t secondary)
+{
+  if( m_flags==0xFF )
+    RETURN_ERROR_AS_FALSE();
+
+  m_flags &= ~P_DONE;
+  m_currentDevice = NULL;
+
+  // UNLISTEN and UNTALK are whole bytes, LISTEN and TALK carry a device number
+  if( static_cast<ATNCommand>(primary)==ATNCommand::UNLISTEN )
+    {
+      if( m_flags & P_LISTENING )
+        {
+          m_flags &= ~P_LISTENING;
+          for(uint8_t i=0; i<m_numDevices; i++)
+            m_devices[i]->unlisten();
+        }
+      RETURN_SUCCESS_AS_TRUE();
+    }
+
+  if( static_cast<ATNCommand>(primary)==ATNCommand::UNTALK )
+    {
+      if( m_flags & P_TALKING )
+        {
+          m_flags &= ~P_TALKING;
+          for(uint8_t i=0; i<m_numDevices; i++)
+            m_devices[i]->untalk();
+        }
+      RETURN_SUCCESS_AS_TRUE();
+    }
+
+  ATNCommand command = static_cast<ATNCommand>(primary & ATN_COMMAND_MASK);
+  IECDevice *dev = findDevice(primary & ATN_DEVICE_MASK);
+  if( dev==NULL || (command!=ATNCommand::LISTEN && command!=ATNCommand::TALK) )
+    {
+      // Another device was told to talk, so ours must stop
+      if( command==ATNCommand::TALK )
+        m_flags &= ~P_TALKING;
+      RETURN_ERROR_AS_FALSE();
+    }
+
+  m_currentDevice = dev;
+  if( command==ATNCommand::LISTEN )
+    {
+      dev->listen(secondary);
+      m_flags = (m_flags & ~P_TALKING) | P_LISTENING;
+    }
+  else
+    {
+      dev->talk(secondary);
+      m_flags = (m_flags & ~P_LISTENING) | P_TALKING;
+    }
+  RETURN_SUCCESS_AS_TRUE();
+}
+
+
+int8_t IECBusHandler::listenerCanWrite()
+{
+  if( (m_flags & (P_LISTENING|P_DONE))!=P_LISTENING || m_currentDevice==NULL )
+    return 0;
+
+  int8_t numData = m_currentDevice->canWrite();
+  if( numData==0 )
+    m_flags |= P_DONE;
+  return numData;
+}
+
+
+void IECBusHandler::listenerWrite(uint8_t data, bool eoi)
+{
+  if( m_currentDevice!=NULL )
+    m_currentDevice->write(data, eoi);
+}
+
+
+int8_t IECBusHandler::talkerCanRead()
+{
+  if( (m_flags & (P_TALKING|P_DONE))!=P_TALKING || m_currentDevice==NULL )
+    return 0;
+
+  int8_t numData = m_currentDevice->canRead();
+  if( numData==0 )
+    m_flags |= P_DONE;
+  return numData;
+}
+
+
+uint8_t IECBusHandler::talkerRead()
+{
+  return m_currentDevice!=NULL ? m_currentDevice->read() : 0;
+}
+
+
+void IECBusHandler::busReset()
+{
+  if( m_flags==0xFF )
+    return;
+
+  m_flags = 0;
+  m_currentDevice = NULL;
+  for(uint8_t i=0; i<m_numDevices; i++)
+    m_devices[i]->reset();
+}
+
+
+uint32_t IECBusHandler::deviceMask()
+{
+  uint32_t mask = 0;
+  for(uint8_t i=0; i<m_numDevices; i++)
+    if( m_devices[i]->isActive() && m_devices[i]->m_devnr<32 )
+      mask |= 1u << m_devices[i]->m_devnr;
+  return mask;
 }
 
 #endif /* BUILD_IEC */

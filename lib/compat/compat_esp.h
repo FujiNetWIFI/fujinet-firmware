@@ -15,6 +15,9 @@
 #define portTICK_PERIOD_MS      (1000 / configTICK_RATE_HZ)
 #endif
 
+// The one gpio_num_t value a host needs: ESP-IDF's "no pin"
+typedef enum { GPIO_NUM_NC = -1 } gpio_num_t;
+
 #include <stdint.h>
 #include <time.h>
 

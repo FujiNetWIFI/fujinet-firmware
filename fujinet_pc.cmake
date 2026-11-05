@@ -575,7 +575,7 @@ if(FUJINET_TARGET STREQUAL "IEC")
 
     lib/bus/iec/iec.h lib/bus/iec/iec.cpp
     lib/bus/iec/IECConfig.h lib/bus/iec/IEChost.h
-    lib/bus/iec/IECBusHandler.h lib/bus/iec/IECBusHandlerHost.cpp
+    lib/bus/iec/IECBusHandler.h lib/bus/iec/IECBusHandler.cpp
     lib/bus/iec/IECDevice.h lib/bus/iec/IECDevice.cpp
     lib/bus/iec/IECFileDevice.h lib/bus/iec/IECFileDevice.cpp
     lib/bus/iec/FujiIECPacket.h lib/bus/iec/FujiIECPacket.cpp

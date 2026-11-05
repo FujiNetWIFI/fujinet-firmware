@@ -6,6 +6,9 @@
 #include "fnConfig.h"
 #include "led.h"
 #include "debug.h"
+#ifndef ESP_PLATFORM
+#include "compat_esp.h"
+#endif
 
 #define MAIN_STACKSIZE   32768
 #define MAIN_PRIORITY    17
@@ -13,7 +16,7 @@
 
 #ifndef ESP_PLATFORM
 // No IEC lines on a host build
-systemBus::systemBus() : IECBusHandler(0xFF, 0xFF, 0xFF)
+systemBus::systemBus() : IECBusHandler(GPIO_NUM_NC, GPIO_NUM_NC, GPIO_NUM_NC)
 {
 }
 #else
@@ -40,7 +43,6 @@ systemBus::systemBus() : IECBusHandler(PIN_IEC_ATN, PIN_IEC_CLK_OUT, PIN_IEC_DAT
 void systemBus::setup()
 {
   Debug_printf("IEC systemBus::setup()\r\n");
-  begin();
 #ifndef ESP_PLATFORM
   if (Config.get_boip_enabled())
     {
@@ -51,8 +53,11 @@ void systemBus::setup()
                   .portNum(Config.get_boip_port())
                   );
       _netiec.begin(&_boip);
+      // The emulator's bus master sends each transaction, so leave the IEC lines alone
+      useNetIEC();
     }
 #endif
+  begin();
 #ifdef SUPPORT_JIFFY
   Debug_printf("JiffyDOS protocol supported\r\n");
 #endif

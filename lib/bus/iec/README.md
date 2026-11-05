@@ -10,10 +10,9 @@ takes bus transactions from an emulator over NetIEC.
 | `iec.h`, `iec.cpp` | `systemBus`, deriving both `IECBusHandler` and `SystemBusBase`; PETSCII conversion in `nativeTextToUnicode()` and `unicodeTextToNative()`; the bus device numbers `BUS_DEVICEID_PRINTER`, `BUS_DEVICEID_DISK` and `BUS_DEVICEID_NETWORK` |
 | `virtualDevice.h`, `virtualDevice.cpp` | `virtualDevice : IECDevice`; Fuji-style devices implement `processCommand()` |
 | `FujiIECPacket.h`, `FujiIECPacket.cpp` | `FujiIECPacket`, this bus's `FUJI_COMMAND_PACKET` |
-| `IECBusHandler.h`, `IECBusHandler.cpp`, `IECDevice.h`, `IECDevice.cpp`, `IECFileDevice.h`, `IECFileDevice.cpp`, `IECConfig.h` | the vendored IECDevice library: bus timing plus the `IECDevice` and `IECFileDevice` base classes |
+| `IECBusHandler.h`, `IECBusHandler.cpp`, `IECDevice.h`, `IECDevice.cpp`, `IECFileDevice.h`, `IECFileDevice.cpp`, `IECConfig.h` | the vendored IECDevice library: bus timing plus the `IECDevice` and `IECFileDevice` base classes. After `useNetIEC()`, `IECBusHandler` leaves the bus lines alone and takes transactions that arrive already decoded through `atnCommand()`, `listenerWrite()` and `talkerRead()` |
 | `IECespidf.h` | Arduino-compatibility shims the library needs on ESP-IDF |
-| `IEChost.h` | the same shims for host builds |
-| `IECBusHandlerHost.cpp` | `IECBusHandler` for host builds: no bus lines, transactions arrive already decoded through `atnCommand()`, `listenerWrite()` and `talkerRead()` |
+| `IEChost.h` | the same shims for hosts, which have no IEC lines: pins accept any setting and read back released |
 | `NetIEC.h`, `NetIEC.cpp` | `NetIEC`, the IEC-over-TCP protocol: framed ATN, WRITE, READ and RESET requests from an emulator's bus master, replied to once each |
 
 ## How it fits
@@ -24,10 +23,10 @@ takes bus transactions from an emulator over NetIEC.
   [lib/media/cbm/](../../media/cbm/).
 
 ## Build
-ESP: globbed by `src/CMakeLists.txt`, compiled only under `BUILD_IEC`; `IECBusHandlerHost.cpp` and
-`NetIEC.cpp` compile to nothing there. PC: `FUJINET_TARGET=IEC` lists every file except
-`IECBusHandler.cpp` and `IECespidf.h`. `systemBus` listens for NetIEC on the `[BOIP]` port (default 1541)
-through `BoIPChannel`; VICE reaches it through an OpenCBM-ABI bridge library.
+ESP: globbed by `src/CMakeLists.txt`, compiled only under `BUILD_IEC`; `NetIEC.cpp` compiles to
+nothing there. PC: `FUJINET_TARGET=IEC` lists every file except `IECespidf.h`. `systemBus` listens for
+NetIEC on the `[BOIP]` port (default 1541) through `BoIPChannel`; VICE reaches it through an
+OpenCBM-ABI bridge library.
 
 ## Notes
 `rotateDevices()` is an empty stub kept for `fujiDevice`. Code reachable from the bus ISR must be
