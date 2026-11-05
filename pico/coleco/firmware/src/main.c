@@ -26,6 +26,13 @@ int main(void)
 
     gpio_init_mask(BUS_GPIO_MASK | DIR_MASK | PWR_MASK);
     gpio_set_dir_in_masked(ADDR_MASK | CE_MASK | PWR_MASK);
+#if PICO_RP2350
+    /* RP2350 pads reset with pull-downs on, and RP2350-E9 latches a pulled-down input near
+     * 2 V: every line here is driven, or pulled up on the board. */
+    for (pin = 0; pin <= PWR_PIN; pin++)
+        if ((BUS_GPIO_MASK | DIR_MASK | PWR_MASK) & (1u << pin))
+            gpio_disable_pulls(pin);
+#endif
 
     /* With the console off its '138 is unpowered, every select reads asserted and the
      * buffer's /OE goes active: keep the buffer facing us until core1 sees power. */

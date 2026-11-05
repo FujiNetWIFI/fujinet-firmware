@@ -3,8 +3,8 @@
  * window, a bigger one into a 128K RAM store.
  *
  * No flash tier: at 3.58 MHz an M1 fetch leaves ~373 ns, and an XIP cache miss is most of
- * that, so a banked image must be served from SRAM. That caps images at 128K; the 256K and
- * 512K MegaCarts and the X-in-1 images need an RP2350.
+ * that, so a banked image must be served from SRAM. That caps images at 128K on an RP2040
+ * and 256K on an RP2350 (520K of SRAM); the 512K MegaCarts and the X-in-1 images fit neither.
  */
 
 #ifndef FUJI_STORE_H
@@ -13,7 +13,11 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#if defined(PICO_RP2350) && PICO_RP2350
+#define FUJI_STORE_RAM_SIZE   (256u * 1024)
+#else
 #define FUJI_STORE_RAM_SIZE   (128u * 1024)
+#endif
 
 /* 0 to accept, else FN_BOOT_ERR_TOOBIG / FN_BOOT_ERR_STOREBUSY (the RAM store is being
  * served from). Size 0 (an older peer) lands in the staging window. */

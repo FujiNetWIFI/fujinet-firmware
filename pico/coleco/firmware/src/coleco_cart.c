@@ -17,21 +17,21 @@
 /* GPIO_OUT less the data pins, so a byte goes out in one store. */
 static uint32_t out_base;
 
-static inline void drive(uint8_t data)
+COLECO_HOT void drive(uint8_t data)
 {
     sio_hw->gpio_out = out_base | ((uint32_t)data << D0_PIN);
 }
 
 /* Turn the data buffer around. Our pins go input before the buffer drives towards us, and
  * the buffer turns away before our pins drive, or the two fight. */
-static inline void bus_listen(void)
+COLECO_HOT void bus_listen(void)
 {
     gpio_set_dir_in_masked(DATA_MASK);
     out_base |= DIR_MASK;
     sio_hw->gpio_out = out_base;
 }
 
-static inline void bus_drive(void)
+COLECO_HOT void bus_drive(void)
 {
     out_base &= ~DIR_MASK;
     sio_hw->gpio_out = out_base;
