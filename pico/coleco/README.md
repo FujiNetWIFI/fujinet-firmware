@@ -1,7 +1,7 @@
 # pico/coleco
 
-FujiNet for the ColecoVision: an RP2040 cartridge that serves the console's 32K cart window,
-every ColecoVision mapper and a mailbox made entirely of reads, linked over USB CDC to an
+FujiNet for the ColecoVision: an RP2040 or RP2350 cartridge that serves the console's 32K cart
+window, every ColecoVision mapper and a mailbox made entirely of reads, linked over USB CDC to an
 ESP32-S3 `fujiversal-coleco`.
 
 ## Layout
@@ -11,11 +11,12 @@ ESP32-S3 `fujiversal-coleco`.
 | `firmware/include/coleco_cart.h`, `firmware/src/coleco_cart.c` | the pin map, `coleco_serve()`, and core1's two-tier bus loop: serve off the address, act once the chip select confirms |
 | `firmware/include/colmap.h`, `firmware/src/colmap.c` | flat, MegaCart, X-in-1, Activision, Opcode SGC and APPBANK: plan an image, the size gate, and the serve model core1 inlines and the MAME device runs |
 | `firmware/include/fuji_cart.h`, `firmware/src/fuji_cart.c` | what the two cores share: the hotspot ring, the two 32K windows, staging and the swap flags |
-| `firmware/include/fuji_store.h`, `firmware/src/fuji_store.c` | the push store: images up to 32K straight into the staging window, larger ones in 128K of SRAM; it replaces [common/](../common/)'s, which needs a flash tier |
+| `firmware/include/fuji_store.h`, `firmware/src/fuji_store.c` | the push store: images up to 32K straight into the staging window, larger ones in the board header's `FUJI_STORE_RAM_SIZE` of SRAM; it replaces [common/](../common/)'s, which needs a flash tier |
 | `firmware/include/fujinet.h`, `firmware/src/fujinet.c` | the cart's `fuji_port_ops_t`: publishing a byte, and receiving, planning and staging a pushed image |
 | `firmware/include/fujiboot.h`, `firmware/src/fujiboot.c`, `firmware/src/main.c` | power-on: pins, clock, the baked client, core1, the USB loop and the console-power watch |
 | `firmware/baked/fujiconfigrom.h` | the CONFIG served at power-on when there is no fresh `build/gen` (CI, the ESP32 build) |
-| `firmware/boards/fujicoleco.{h,cmake}` | the board: a stock Pico, 250 MHz |
+| `firmware/boards/fujicoleco.{h,cmake}` | the default board: a stock Pico, 250 MHz |
+| `firmware/boards/fujicoleco_rp2350a.{h,cmake}` | the FujiNet-ColecoVision Rev0 cart (fujinet-hardware `ColecoVision/FujiNet-ColecoVision-Rev0`): an RP2350A and a 2 MB W25Q16, 250 MHz; `./build-cart.sh fujicoleco_rp2350a` |
 | `firmware/host_test/` | `test_colmap` (against MAME's own cartridge handlers), `test_busedge` (the two-tier loop), `test_swap` (a swapped-in client's mailbox), and [common/](../common/)'s `test_fujimail` against this mailbox map |
 | `testrom/` | z88dk clients: `hello`, `fujitest`, `fujiboot`, the `fujicfg` stand-in CONFIG, `fujibank` (the APPBANK test), and their display, input, sound, keyboard and mailbox library |
 | `emu/` | the MAME cart device (`apply.sh` grafts it), `screen.lua` (screen as text), `drive.lua` (drives CONFIG) and `soak.lua` |
@@ -31,8 +32,9 @@ ESP32-S3 `fujiversal-coleco`.
 ## Build
 - `./build.sh` builds the clients into `build/` (z88dk at `~/Workspace/z88dk` and os7lib at
   `~/Workspace/os7lib`; `Z88DK`, `OS7LIB` override). `./build-cart.sh` bakes `build/config.bin`
-  (else `fujicfg`) into `build/gen` and builds `build/fw-fujicoleco/fujicoleco.uf2`;
-  `--baked` builds from `firmware/baked/` alone, `--bake` refreshes it.
+  (else `fujicfg`) into `build/gen` and builds `build/fw-<board>/fujicoleco.uf2` for the board
+  named, `fujicoleco` by default; `--baked` builds from `firmware/baked/` alone, `--bake`
+  refreshes it.
 - `make -C firmware/host_test` runs the host tests. The pico cartridges workflow runs them and
   `--baked`.
 - `emu/apply.sh ~/Workspace/mame`, then `make REGENIE=1 NOWERROR=1` in the MAME tree, grafts the
@@ -46,8 +48,8 @@ ESP32-S3 `fujiversal-coleco`.
   refresh never selects. Every mapper but the SGC works from the address alone.
 - A15 is missing, so console RAM at `$7C00-$7FFF` looks like the mailbox; core1 acts on hotspots
   and bank switches only once the select confirms the access.
-- An image of more than 32K must be in SRAM to be served in time, so images cap at 128K: the
-  256K and 512K MegaCarts and the X-in-1 images need an RP2350 board.
+- An image of more than 32K must be in SRAM to be served in time, so images cap at 128K on the
+  stock Pico and 256K on the RP2350A board; the 512K MegaCarts and the X-in-1 images fit neither.
 - The `.cfg` sibling's `mapper=` (`flat`, `megacart`, `xin1`, `activision`, `sgc`) is the only way
   to tell the 64K Activision and 128K SGC carts from MegaCarts of the same size.
 - An image over 32K and under 48K that is not whole 8K banks is an overdump: the cart serves its
@@ -64,4 +66,5 @@ ESP32-S3 `fujiversal-coleco`.
   stores to a volatile sink, and the reply is read through a pointer variable.
 - The power watch reboots the cart, back to CONFIG, when the console's 5V goes away: the
   console's RESET doesn't reach the cart, and a booted game has ended the mailbox.
-- No cartridge board exists; everything here ran in host tests and MAME only.
+- The FujiNet-ColecoVision Rev0 board hasn't been built yet; everything here ran in host tests
+  and MAME only.
