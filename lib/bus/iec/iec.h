@@ -6,10 +6,8 @@
 #include "FujiIECPacket.h"
 #include "virtualDevice.h"
 #include "string_utils.h"
-#ifndef ESP_PLATFORM
 #include "NetIEC.h"
 #include "BoIPChannel.h"
-#endif
 
 #define FUJI_COMMAND_PACKET FujiIECPacket
 
@@ -109,11 +107,9 @@ public:
 
     ByteBuffer _transaction_response;
 
-#ifndef ESP_PLATFORM
-    // Host builds take bus transactions from an emulator over NetIEC
+    // With [BOIP] enabled, an emulator's bus master sends the transactions over NetIEC
     BoIPChannel _boip;
     NetIEC _netiec{*this};
-#endif
 
 };
 /**

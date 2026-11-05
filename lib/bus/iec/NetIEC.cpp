@@ -1,4 +1,4 @@
-#if defined(BUILD_IEC) && !defined(ESP_PLATFORM)
+#ifdef BUILD_IEC
 
 #include "NetIEC.h"
 #include "fnSystem.h"
@@ -90,7 +90,7 @@ void NetIEC::hello()
     hello.version = NETIEC_VERSION;
     hello.deviceMask = _bus.deviceMask();
 
-    std::string name = std::string("FujiNet-PC ") + fnSystem.get_fujinet_version(true);
+    std::string name = std::string("FujiNet ") + fnSystem.get_fujinet_version(true);
     const uint8_t *fixed = reinterpret_cast<const uint8_t *>(&hello);
     _reply.assign(fixed, fixed + sizeof(hello));
     _reply.insert(_reply.end(), name.begin(), name.end());
@@ -219,4 +219,4 @@ void NetIEC::sendReply(uint8_t command)
     _port->write(frame.data(), frame.size());
 }
 
-#endif /* BUILD_IEC && !ESP_PLATFORM */
+#endif /* BUILD_IEC */

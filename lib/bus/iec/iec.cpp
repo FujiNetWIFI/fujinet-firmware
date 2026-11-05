@@ -43,7 +43,6 @@ systemBus::systemBus() : IECBusHandler(PIN_IEC_ATN, PIN_IEC_CLK_OUT, PIN_IEC_DAT
 void systemBus::setup()
 {
   Debug_printf("IEC systemBus::setup()\r\n");
-#ifndef ESP_PLATFORM
   if (Config.get_boip_enabled())
     {
       Debug_printf("IEC NetIEC listening on %s:%d\r\n", Config.get_boip_host().c_str(),
@@ -56,7 +55,6 @@ void systemBus::setup()
       // The emulator's bus master sends each transaction, so leave the IEC lines alone
       useNetIEC();
     }
-#endif
   begin();
 #ifdef SUPPORT_JIFFY
   Debug_printf("JiffyDOS protocol supported\r\n");
@@ -82,9 +80,7 @@ void systemBus::setup()
 
 void systemBus::service()
 {
-#ifndef ESP_PLATFORM
   _netiec.service();
-#endif
   task();
 
   bool error = false, active = false;
