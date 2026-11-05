@@ -8,7 +8,8 @@ write sectors or blocks of one file format; it knows nothing about the bus (a ct
 
 | File | Defines |
 |---|---|
-| `media.h` | the `BUILD_*` switchboard that includes the active platform's media headers |
+| `media.h`, `media.cpp` | `Media`, the root of the new media hierarchy: `open()` constructs a format and `attach()`es it, `matchExtension()` checks a path's extension; then the `BUILD_*` switchboard that includes the active platform's `MediaType` headers |
+| [rom/](rom/) | `ROMMedia`, the cartridge image family, with `ROMFactory` and one class per console |
 | `IMDImage.h`, `IMDImage.cpp` | `IMDImage`, an ImageDisk reader, writer and builder that uses only the standard library, so a host tool can copy it. It takes a `std::fstream`, a `std::FILE` or any handle with `fnFile`'s methods, and an optional `std::pmr::memory_resource` for its tables. `probe()` recognizes an image by its contents. It is deliberately not a `MediaType`; a platform wraps it in an adapter (`rs232/diskTypeIMD.h`) |
 
 ## Platforms
@@ -23,7 +24,7 @@ file extension to the enum.
 | [atari/](atari/) | `BUILD_ATARI` | `atari/diskType.h` | ATR, ATX, XEX (COM, BIN); CAS and WAV tape | yes | yes |
 | [apple/](apple/) | `BUILD_APPLE` | `apple/mediaType.h` | PO (HDV, 2MG), DO, WOZ, DSK | yes | yes |
 | [adam/](adam/) | `BUILD_ADAM`, also `BUILD_S100` | `adam/mediaType.h` | DDP, DSK, ROM | yes | yes |
-| [drivewire/](drivewire/) | `BUILD_COCO` | `drivewire/mediaType.h` | DSK, MRM, VDK, ROM (CCC), CAS presented as a disk | yes | yes |
+| [drivewire/](drivewire/) | `BUILD_COCO` | `drivewire/mediaType.h` | DSK, MRM, VDK, CAS presented as a disk; cartridges are `CoCoCartROM` in [rom/](rom/) | yes | yes |
 | [rs232/](rs232/) | `BUILD_RS232` | `rs232/diskType.h` | IMG, IMD, ROM (BIN, INT, ITV, CHF) | yes | yes |
 | [lynx/](lynx/) | `BUILD_LYNX` | `lynx/mediaType.h` | ROM | yes | yes |
 | [mac/](mac/) | `BUILD_MAC` | `mac/mediaType.h` | MOOF, DCD (HD20), DiskCopy and raw floppy images, StuffIt archives | yes | no |

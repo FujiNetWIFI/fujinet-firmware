@@ -787,7 +787,9 @@ if(FUJINET_TARGET STREQUAL "COCO")
     ${CMAKE_SOURCE_DIR}/lib/device/drivewire/disk.cpp
     ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFile.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/drivewire/mediaType.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/mediaTypeROM.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/media.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rom/ROMMedia.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rom/CoCoCartROM.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/drivewire/mediaTypeDSK.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/drivewire/mediaTypeMRM.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/drivewire/mediaTypeVDK.cpp
