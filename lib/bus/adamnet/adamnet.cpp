@@ -492,7 +492,7 @@ void systemBus::setup()
 
     // Set up UART
     _serial.begin(ChannelConfig()
-                  .deviceID(FN_UART_BUS)
+                  .deviceID(PIN_BUS_UART)
                   .baud(ADAMNET_BAUDRATE)
                   .inverted(true)
                   .readTimeout(2.0)

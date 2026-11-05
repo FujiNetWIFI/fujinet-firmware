@@ -5,7 +5,7 @@
 #define PINMAP_DEFAULTS_H
 
 // Defaults
-#define PIN_DEBUG		PIN_IEC_SRQ
+#define PIN_DEBUG               PIN_IEC_SRQ
 
 #ifndef LEDS_INVERTED
 #define LEDS_INVERTED           1
@@ -21,5 +21,9 @@
 #define RGB_LED_ORDER           GRB
 #define PIN_LED_RGB_PWR         GPIO_NUM_NC
 
+// UART the bus is wired to
+#ifndef PIN_BUS_UART
+#define PIN_BUS_UART            UART_NUM_2
+#endif
 
 #endif // PINMAP_DEFAULTS_H

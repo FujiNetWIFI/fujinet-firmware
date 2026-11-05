@@ -16,7 +16,7 @@ static QueueHandle_t drivewire_evt_queue = NULL;
 #endif
 
 #ifdef ESP_PLATFORM
-#define DW_UART_DEVICE FN_UART_BUS
+#define DW_UART_DEVICE PIN_BUS_UART
 #else /* !ESP_PLATFORM */
 #define DW_UART_DEVICE Config.get_serial_port()
 #endif /* ESP_PLATFORM */

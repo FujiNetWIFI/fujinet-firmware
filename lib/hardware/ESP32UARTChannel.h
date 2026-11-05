@@ -11,11 +11,6 @@
 #include <hal/uart_types.h>
 
 #define FN_UART_DEBUG   UART_NUM_0
-#if defined(BUILD_RS232) || defined(PINMAP_COCO_RS232) || defined(PINMAP_COCO_CENTIPEDE)
-#  define FN_UART_BUS   UART_NUM_1
-#else
-#  define FN_UART_BUS   UART_NUM_2
-#endif
 
 struct RS232ControlPins
 {

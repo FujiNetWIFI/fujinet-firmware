@@ -24,8 +24,7 @@
 #define FUJINET_OVER_PPI 1
 #undef FUJINET_OVER_USB
 #elif !defined(ESP_PLATFORM) || \
-    (FN_UART_BUS == UART_NUM_1 && defined(PIN_UART1_RX)) ||     \
-    (FN_UART_BUS == UART_NUM_2 && defined(PIN_UART2_RX))
+    defined(PIN_UART1_RX) || defined(PIN_UART2_RX)
 #undef FUJINET_OVER_USB
 #else
 #define FUJINET_OVER_USB 1

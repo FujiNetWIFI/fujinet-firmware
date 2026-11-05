@@ -3,6 +3,7 @@
 #ifdef PINMAP_COCO_CENTIPEDE
 // Centipede board shares bitbanger pinout
 #define PINMAP_COCO_DEVKITC
+#define PIN_BUS_UART            UART_NUM_1
 #endif
 
 #ifdef PINMAP_COCO_DEVKITC
