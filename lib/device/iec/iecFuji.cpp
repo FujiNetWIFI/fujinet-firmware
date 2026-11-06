@@ -146,12 +146,6 @@ void logResponse(const void* data, size_t length)
 }
 
 
-// IEC can't create disks.
-void iecFuji::fujicmd_new_disk()
-{
-    SYSTEM_BUS.transaction_error();
-}
-
 // Params come from the payload; a command sent without one has no flag to read
 bool iecFuji::fujidev_alt_requested()
 {

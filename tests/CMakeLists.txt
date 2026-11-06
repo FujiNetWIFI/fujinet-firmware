@@ -334,6 +334,28 @@ endif()
 add_test(NAME mediatypeimg_tests COMMAND mediatypeimg_tests)
 
 # ------------------------------------------------------------------------------
+# The Commodore blank images NEW DISK writes. BUILD_IEC is the whole-file guard on
+# the media sources, and mediaType.cpp supplies the extension check. See imdimage_tests
+# above for UNIT_TESTS/FNIO_IS_STDIO.
+# ------------------------------------------------------------------------------
+add_executable(blankimage_tests
+    BlankImageTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/cbm/BlankImage.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/cbm/mediaType.cpp
+)
+
+target_compile_definitions(blankimage_tests PRIVATE BUILD_IEC UNIT_TESTS FNIO_IS_STDIO)
+
+target_include_directories(blankimage_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/include/      # debug.h, global_types.h
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/
+    ${CMAKE_SOURCE_DIR}/lib/media/cbm/
+    ${CMAKE_SOURCE_DIR}/components_pc/
+)
+
+add_test(NAME blankimage_tests COMMAND blankimage_tests)
+
+# ------------------------------------------------------------------------------
 # file_size_t in include/global_types.h: what it converts to, and to().
 # ------------------------------------------------------------------------------
 add_executable(file_size_tests FileSizeTests.cpp)
@@ -832,6 +854,27 @@ if(FUJINET_TARGET STREQUAL "COCO")
     target_link_libraries(drivewire_rom_mount_tests PRIVATE ws2_32)
   endif()
   add_test(NAME drivewire_rom_mount_tests COMMAND drivewire_rom_mount_tests)
+
+  # The Media root class's helpers, through the same in-memory fujiHost.
+  add_executable(media_tests
+    MediaTests.cpp
+    romMountStubs.cpp
+    channelStubs.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFile.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/media.cpp
+    ${CMAKE_SOURCE_DIR}/lib/bus/FujiBusPacket.cpp
+    ${CMAKE_SOURCE_DIR}/lib/bus/DaisyChain.cpp
+  )
+  target_compile_definitions(media_tests PRIVATE UNIT_TESTS PINMAP_FUJIVERSAL_DRIVEWIRE)
+  target_include_directories(media_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/lib/bus/drivewire/
+    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/
+    ${ROM_MOUNT_TEST_INCLUDES}
+  )
+  if(WIN32)
+    target_link_libraries(media_tests PRIVATE ws2_32)
+  endif()
+  add_test(NAME media_tests COMMAND media_tests)
 endif()
 
 if(FUJINET_TARGET STREQUAL "RS232")

@@ -18,7 +18,6 @@ protected:
     bool is_raw_command;
 
     bool processCommand(const FUJI_COMMAND_PACKET &packet) override;
-    void fujicmd_new_disk() override;
     bool fujidev_alt_requested() override;
     std::optional<std::string> fujidev_read_tz() override;
 

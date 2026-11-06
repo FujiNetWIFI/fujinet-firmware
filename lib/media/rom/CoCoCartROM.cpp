@@ -8,7 +8,7 @@ constexpr size_t COCO_CART_128K = 128 * 1024;
 
 error_is_true CoCoCartROM::attach()
 {
-    if (matchExtension(_path, {".ccc", ".rom"}) == nullptr)
+    if (!matchExtension(_path, {".ccc", ".rom"}).has_value())
         RETURN_ERROR_AS_TRUE();
 
     if (readSize().is_error())
