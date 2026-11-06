@@ -5,7 +5,7 @@
 #include <cstdio>
 #include <vector>
 
-#include "blankImage.h"
+#include "BlankImage.h"
 
 namespace
 {

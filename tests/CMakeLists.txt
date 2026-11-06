@@ -320,7 +320,7 @@ add_test(NAME mediatypeimg_tests COMMAND mediatypeimg_tests)
 # ------------------------------------------------------------------------------
 add_executable(blankimage_tests
     BlankImageTests.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/cbm/blankImage.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/cbm/BlankImage.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/cbm/mediaType.cpp
 )
 

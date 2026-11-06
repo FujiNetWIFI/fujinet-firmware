@@ -6,7 +6,7 @@ Commodore media type identifiers and blank disk images for `BUILD_IEC`, on ESP32
 | File | Defines |
 |---|---|
 | `mediaType.h`, `mediaType.cpp` | this platform's `MediaType` base and `discover_mediatype()` (PRG, D64, D71, D81) |
-| `blankImage.h`, `blankImage.cpp` | `BlankImage::create()`, the image NEW DISK writes: a formatted D64, D71 or D81, or zeros |
+| `BlankImage.h`, `BlankImage.cpp` | `BlankImage::create()`, the image NEW DISK writes: a formatted D64, D71 or D81, or zeros |
 | `d64.h`, `d71.h`, `d80.h`, `d81.h`, `d82.h`, `d8b.h`, `t64.h`, `tcrt.h` | empty placeholder headers |
 
 ## How it fits
@@ -25,5 +25,5 @@ Commodore media type identifiers and blank disk images for `BUILD_IEC`, on ESP32
 
 ## Build
 ESP: globbed by `src/CMakeLists.txt`, compiled only under `BUILD_IEC`. PC: `FUJINET_TARGET=IEC` lists
-the files in `fujinet_pc.cmake`; `tests/BlankImageTests.cpp` builds `blankImage.cpp` and `mediaType.cpp`
+the files in `fujinet_pc.cmake`; `tests/BlankImageTests.cpp` builds `BlankImage.cpp` and `mediaType.cpp`
 on every target.

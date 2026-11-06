@@ -1,6 +1,6 @@
 #ifdef BUILD_IEC
 
-#include "blankImage.h"
+#include "BlankImage.h"
 #include "mediaType.h"
 
 #include <ctype.h>
