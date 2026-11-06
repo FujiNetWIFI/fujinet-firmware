@@ -8,6 +8,7 @@ Host-side unit tests and policy checks for the FujiNet-PC build. ctest runs them
 |---|---|
 | `CMakeLists.txt` | One `add_executable` and `add_test` pair per test; each links only the unit under test, never the `fujinet` executable |
 | `FujiBusPacketTests.cpp` | `lib/bus/FujiBusPacket.cpp` SLIP framing (`fujibuspacket_tests`) |
+| `FujiIECPacketTests.cpp` | `lib/bus/iec/FujiIECPacket.cpp` params and data, and a command sent with no payload (`fujiiecpacket_tests`; built with `BUILD_IEC`) |
 | `DaisyChainTests.cpp` | `lib/bus/DaisyChain.cpp` device-ID rotation behind the disk swap (`daisychain_tests`) |
 | `FnSanitizeTests.cpp` | `lib/fntext/fn_sanitize.cpp` entity decoding and UTF-8 folding (`fn_sanitize_tests`) |
 | `PeoplesUrlParserTests.cpp` | `lib/utils/peoples_url_parser.cpp` query and fragment splitting, and `getFilePath()` (`url_parser_tests`) |
