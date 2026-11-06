@@ -271,8 +271,8 @@ MFile* FlashMFile::getNextFileInDir()
         }
         else {
             struct stat info;
-            stat( std::string(basepath + entry_name).c_str(), &info);
-            file->size = info.st_size;
+            if (stat( std::string(basepath + entry_name).c_str(), &info) == 0)
+                file->size = info.st_size;
         }
 
         return file;
