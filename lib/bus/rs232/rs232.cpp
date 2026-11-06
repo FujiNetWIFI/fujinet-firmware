@@ -124,6 +124,18 @@ void systemBus::_rs232_process_cmd()
                  (uint8_t) tempFrame->device(), (uint8_t) tempFrame->command(),
                  tempFrame->data() ? tempFrame->data()->size() : -1);
 
+    if (tempFrame->command() == CMD::FUJI_RESEND)
+    {
+        // The last reply again, as it went: the command it answered is not
+        // run a second time (a network read has already consumed its bytes).
+        if (_lastReply.empty())
+            sendReplyPacket(tempFrame->device(), false, nullptr, 0);
+        else
+            _port->write(_lastReply.data(), _lastReply.size());
+        fnLedManager.set(eLed::LED_BUS, false);
+        return;
+    }
+
     _activePacket = tempFrame.get();
     _activeDev = _daisyChain.deviceWithFujiID(tempFrame->device());
     if (_activeDev != nullptr)
@@ -371,6 +383,10 @@ success_is_true systemBus::writeFujiBusPacket(FujiBusPacket &packet)
 {
     ByteBuffer encoded = packet.serialize();
     _port->write(encoded.data(), encoded.size());
+    // A host that receives by polling a UART with no FIFO (the PCjr, whose
+    // keyboard NMI blocks it for ~9 ms) can lose part of a reply: it then asks
+    // for it again with CMD::FUJI_RESEND, so keep what went out.
+    _lastReply = encoded;
 #ifdef DEBUG_RAW_PACKET
     Debug_printv("Sent %d:\n%s", encoded.size(),
                  util_hexdump(encoded.data(), encoded.size()).c_str());
