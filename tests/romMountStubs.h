@@ -102,16 +102,19 @@ private:
     long _pos = 0;
 };
 
-// Files the fujiHost stub serves by path, and every handle it opened on them.
+// Files the fujiHost stub serves by path, every handle it opened on them, and
+// the prefix it reports.
 struct HostFiles
 {
     std::map<std::string, std::vector<uint8_t>> files;
     std::vector<std::unique_ptr<MemFile>> opened;
+    std::string prefix;
 
     void reset()
     {
         files.clear();
         opened.clear();
+        prefix.clear();
     }
 };
 

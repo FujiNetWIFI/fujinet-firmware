@@ -9,7 +9,8 @@ protected:
     error_is_true attach() override;
 
 public:
-    CoCoCartROM(const std::string &path, fnFile *handle) : ROMMedia(path, handle) {}
+    CoCoCartROM(const std::string &path, fnFile *handle, fujiHost *host)
+        : ROMMedia(path, handle, host) {}
 };
 
 #endif /* COCOCARTROM_H */

@@ -113,7 +113,7 @@ mediatype_t drivewireDisk::mount(fnFile *f, const char *filename, uint32_t disks
         device_active = false;
         auto rom = ROMFactory::open<
             CoCoCartROM
-            >(filename, f);
+            >(filename, f, nullptr);
         if (!rom)
         {
             fnio::fclose(f);

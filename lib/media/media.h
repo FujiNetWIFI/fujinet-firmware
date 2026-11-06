@@ -6,8 +6,14 @@
 
 #include <initializer_list>
 #include <memory>
+#include <memory_resource>
+#include <optional>
 #include <string>
 #include <type_traits>
+#include <utility>
+#include <vector>
+
+class fujiHost;
 
 // Root of the media hierarchy. No read()/write() here -- each family, such
 // as ROMMedia, defines its own shape.
@@ -22,15 +28,14 @@ public:
     Media(Media &&) = delete;
     Media &operator=(Media &&) = delete;
 
-    // Constructs T and attach()es it; returns nullptr on failure so a bad
-    // file never produces a half-open instance.
-    template <typename T>
-    static std::unique_ptr<T> open(const std::string &path, fnFile *handle)
+    // Builds T and attach()es it from the start of the file; nullptr if that fails.
+    template <typename T, typename... Args>
+    static std::unique_ptr<T> open(const std::string &path, fnFile *handle, Args &&...args)
     {
         static_assert(std::is_base_of<Media, T>::value, "T must derive from Media");
-        auto media = std::make_unique<T>(path, handle);
+        auto media = std::make_unique<T>(path, handle, std::forward<Args>(args)...);
         Media &base = *media; // attach() is protected in T
-        if (base.attach().is_error())
+        if (fnio::fseek(handle, 0, SEEK_SET) != 0 || base.attach().is_error())
             return nullptr;
         return media;
     }
@@ -43,10 +48,19 @@ public:
     // channel (e.g. ROM save data) reports that capability itself.
     virtual bool isReadOnly() const = 0;
 
-    // The first of extensions (each given with its dot) that path ends in,
-    // ignoring case and any URL query or fragment; nullptr if none does.
-    static const char *matchExtension(const std::string &path,
-                                      std::initializer_list<const char *> extensions);
+    // The entry of extensions that path ends in, ignoring case; nullopt if none.
+    static std::optional<std::string> matchExtension(
+        const std::string &path, std::initializer_list<const char *> extensions);
+
+    // The same-named file beside path with extension, or in its other case; nullopt if none.
+    static std::optional<std::string> findSibling(fujiHost *host, const std::string &path,
+                                                  const char *extension);
+
+    // The whole file at path, read through host; nullopt if it can't be read or
+    // is over maxSize, which keeps a stray large file from exhausting the heap.
+    static std::optional<std::pmr::vector<uint8_t>> contentsOfHostFile(fujiHost *host,
+                                                                       const std::string &path,
+                                                                       size_t maxSize);
 
 protected:
     // Fallible per-format setup, called only from open(). Verifies and

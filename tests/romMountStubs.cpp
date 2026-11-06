@@ -35,7 +35,7 @@ std::unique_ptr<FujiBusPacket> systemBus::readFujiBusPacket(int)
 
 // A host serving host_files, for the rs232 .cfg sibling lookup.
 void fujiHost::set_type(fujiHostType type) { _type = type; }
-const char *fujiHost::get_prefix() { return ""; }
+const char *fujiHost::get_prefix() { return host_files.prefix.c_str(); }
 
 bool fujiHost::file_exists(const char *path)
 {
