@@ -264,7 +264,8 @@ void fujiClock::send_bytes(const std::vector<uint8_t> &b)
 void fujiClock::send_string(const std::string &s)
 {
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-    SYSTEM_BUS.transaction_send(string_needs_null() ? s + '\0' : s);
+    std::string native = SYSTEM_BUS.unicodeTextToNative(s);
+    SYSTEM_BUS.transaction_send(string_needs_null() ? native + '\0' : native);
 }
 
 void fujiClock::fujicmd_get_apetime(bool use_alt)

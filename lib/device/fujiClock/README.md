@@ -19,8 +19,9 @@ turn the current time into the layouts the host programs expect.
   and `string_needs_null()` are optional hooks.
 
 Subclasses: `sioClock`, `iwmClock`, `drivewireClock`, `rs232Clock` and `adamClock`, each defining
-the global `platformClock` in its bus directory under [lib/device/](../). The IEC clock is a bare
-`IECDevice` and does not use this class.
+the global `platformClock` in its bus directory under [lib/device/](../). On IEC, `iecFuji`
+derives it to answer the clock commands that fujinet-lib sends to the FujiNet device; the raw
+`iecClock` is a bare `IECDevice` and does not use this class.
 
 ## How it fits
 

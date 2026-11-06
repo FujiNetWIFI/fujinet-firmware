@@ -41,6 +41,10 @@ public:
 
     void setPayload(ByteBuffer &payload);
 
+    // Payload bytes not yet read as params: 0 for a command sent with
+    // OPCODE_NO_PAYLOAD. Unlike data(), this leaves the params readable.
+    size_t payloadSize() const { return _payload ? _payload->size() : 0; }
+
     const std::optional<ByteBuffer>& data() const;
     const std::optional<const std::string> dataAsString() const {
         auto d = data();

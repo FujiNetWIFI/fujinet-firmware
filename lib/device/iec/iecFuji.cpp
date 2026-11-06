@@ -152,12 +152,50 @@ void iecFuji::fujicmd_new_disk()
     SYSTEM_BUS.transaction_error();
 }
 
+// Params come from the payload; a command sent without one has no flag to read
+bool iecFuji::fujidev_alt_requested()
+{
+    return _packet->payloadSize() > 0 && fujiClock::fujidev_alt_requested();
+}
+
+std::optional<std::string> iecFuji::fujidev_read_tz()
+{
+    // Params and payload share one buffer; reading the length prefix off
+    // leaves data() holding just the timezone.
+    if (_packet->payloadSize() < 2)
+    {
+        SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+        reject_command(*_packet);
+        return std::nullopt;
+    }
+    _packet->param16(0);
+
+    std::optional<std::string> tz = read_tz_from_payload();
+
+    if (tz)
+        tz = SYSTEM_BUS.nativeTextToUnicode(*tz);
+    return tz;
+}
+
 bool iecFuji::processCommand(const FUJI_COMMAND_PACKET &packet)
 {
   bool handled = false;
 
+  // The clock's GET_SOS has STATUS's command byte. fujinet-lib sends STATUS
+  // with no payload and GET_SOS with the alternate timezone flag.
+  if (packet.command() == CMD::APETIME_GET_SOS && packet.payloadSize() > 0) {
+    handled = fujiClock::processCommand(packet);
+    goto done;
+  }
+
   // Let the base class handle standard commands
   if (fujiDevice::processCommand(packet)) {
+    handled = true;
+    goto done;
+  }
+
+  // fujinet-lib sends the clock commands to the FujiNet device on IEC
+  if (fujiClock::processCommand(packet)) {
     handled = true;
     goto done;
   }

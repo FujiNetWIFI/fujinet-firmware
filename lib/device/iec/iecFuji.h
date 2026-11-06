@@ -3,10 +3,11 @@
 #define IECFUJI_H
 
 #include "fujiDevice.h"
+#include "fujiClock.h"
 #include "FujiIECPacket.h"
 #include "fnWiFi.h"
 
-class iecFuji : public fujiDevice
+class iecFuji : public fujiDevice, public fujiClock
 {
 protected:
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
@@ -18,6 +19,8 @@ protected:
 
     bool processCommand(const FUJI_COMMAND_PACKET &packet) override;
     void fujicmd_new_disk() override;
+    bool fujidev_alt_requested() override;
+    std::optional<std::string> fujidev_read_tz() override;
 
     std::vector<std::string> tokenize_basic_command(std::string command);
 
