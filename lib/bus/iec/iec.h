@@ -6,6 +6,8 @@
 #include "FujiIECPacket.h"
 #include "virtualDevice.h"
 #include "string_utils.h"
+#include "NetIEC.h"
+#include "BoIPChannel.h"
 
 #define FUJI_COMMAND_PACKET FujiIECPacket
 
@@ -104,6 +106,10 @@ public:
     bool shuttingDown = false;
 
     ByteBuffer _transaction_response;
+
+    // With [BOIP] enabled, an emulator's bus master sends the transactions over NetIEC
+    BoIPChannel _boip;
+    NetIEC _netiec{*this};
 
 };
 /**

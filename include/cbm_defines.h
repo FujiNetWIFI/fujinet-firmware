@@ -169,7 +169,6 @@ enum IECChannels
 // BIT Flags
 #define CLEAR            0x0000    // clear all flags
 #define CLEAR_LOW        0xFF00    // clear low byte
-#define ERROR            (1 << 0)  // if this flag is set, something went wrong
 #define ATN_ASSERTED     (1 << 1)  // might be set by iec_receive
 #define EOI_RECVD        (1 << 2)
 #define EMPTY_STREAM     (1 << 3)

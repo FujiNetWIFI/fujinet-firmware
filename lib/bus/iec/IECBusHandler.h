@@ -21,6 +21,7 @@
 
 #include "IECConfig.h"
 #include <stdint.h>
+#include "global_types.h"
 
 #if defined(__AVR__)
 #define IOREG_TYPE uint8_t
@@ -95,6 +96,18 @@ class IECBusHandler
   bool inTransaction();
   void sendSRQ();
 
+  // NetIEC: an emulator's bus master sends each transaction already decoded into
+  // bytes. Call useNetIEC() before begin() and the handler leaves the IEC lines
+  // alone; NetIEC then drives the bus through the functions below.
+  void useNetIEC();
+  success_is_true atnCommand(uint8_t primary, uint8_t secondary);
+  int8_t  listenerCanWrite();
+  void    listenerWrite(uint8_t data, bool eoi);
+  int8_t  talkerCanRead();
+  uint8_t talkerRead();
+  void    busReset();
+  uint32_t deviceMask();
+
   IECDevice *m_currentDevice;
   IECDevice *m_devices[MAX_DEVICES];
 
@@ -124,6 +137,7 @@ class IECBusHandler
   volatile bool m_inTask;
   volatile uint8_t m_flags;
   uint8_t m_primary, m_secondary;
+  bool m_netIEC;
 
 #ifdef IOREG_TYPE
   volatile IOREG_TYPE *m_regCLKwrite, *m_regCLKmode, *m_regDATAwrite, *m_regDATAmode;

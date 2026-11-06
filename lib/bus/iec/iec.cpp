@@ -3,13 +3,23 @@
 #include "iec.h"
 #include "fujiDevice.h"
 #include "fnSystem.h"
+#include "fnConfig.h"
 #include "led.h"
 #include "debug.h"
+#ifndef ESP_PLATFORM
+#include "compat_esp.h"
+#endif
 
 #define MAIN_STACKSIZE   32768
 #define MAIN_PRIORITY    17
 #define MAIN_CPUAFFINITY 1
 
+#ifndef ESP_PLATFORM
+// No IEC lines on a host build
+systemBus::systemBus() : IECBusHandler(GPIO_NUM_NC, GPIO_NUM_NC, GPIO_NUM_NC)
+{
+}
+#else
 systemBus::systemBus() : IECBusHandler(PIN_IEC_ATN, PIN_IEC_CLK_OUT, PIN_IEC_DATA_OUT,
                                        PIN_IEC_RESET==GPIO_NUM_NC ? 0xFF : PIN_IEC_RESET,
                                        0xFF,
@@ -28,10 +38,23 @@ systemBus::systemBus() : IECBusHandler(PIN_IEC_ATN, PIN_IEC_CLK_OUT, PIN_IEC_DAT
 #endif
 #endif
 }
+#endif /* ESP_PLATFORM */
 
 void systemBus::setup()
 {
   Debug_printf("IEC systemBus::setup()\r\n");
+  if (Config.get_boip_enabled())
+    {
+      Debug_printf("IEC NetIEC listening on %s:%d\r\n", Config.get_boip_host().c_str(),
+                   Config.get_boip_port());
+      _boip.begin(BoIPConfig()
+                  .hostName(Config.get_boip_host())
+                  .portNum(Config.get_boip_port())
+                  );
+      _netiec.begin(&_boip);
+      // The emulator's bus master sends each transaction, so leave the IEC lines alone
+      useNetIEC();
+    }
   begin();
 #ifdef SUPPORT_JIFFY
   Debug_printf("JiffyDOS protocol supported\r\n");
@@ -57,6 +80,7 @@ void systemBus::setup()
 
 void systemBus::service()
 {
+  _netiec.service();
   task();
 
   bool error = false, active = false;

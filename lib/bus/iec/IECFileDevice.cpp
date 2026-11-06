@@ -25,6 +25,8 @@
 #include <Arduino.h>
 #elif defined(ESP_PLATFORM)
 #include "IECespidf.h"
+#else
+#include "IEChost.h"
 #endif
 
 #ifdef DEBUG

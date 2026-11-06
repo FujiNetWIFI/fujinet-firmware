@@ -6,7 +6,7 @@
 
 #include "make_unique.h"
 
-#include <dirent.h>
+#include "compat_dirent.h"
 #include <string.h>
 
 #include "../../include/debug.h"
@@ -36,7 +36,8 @@ class FlashMFile: public MFile
 friend class FlashMStream;
 
 public:
-    std::string basepath = "";
+    // Where the flash file system's "/" lives: the VFS root on ESP, a directory on a host
+    static std::string basepath;
     
     FlashMFile(std::string path): MFile(path) {
         // parseUrl( path );

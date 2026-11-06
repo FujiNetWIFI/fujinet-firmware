@@ -7,7 +7,11 @@
 #include <string>
 #include <cstring>
 #include <unordered_map>
+#ifdef ESP_PLATFORM
 #include <esp_rom_crc.h>
+#else
+#include "compat_esp.h"
+#endif
 
 #include "../../bus/iec/IECFileDevice.h"
 #include "../../media/media.h"

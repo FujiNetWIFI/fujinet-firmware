@@ -3,6 +3,7 @@
 #include "drive.h"
 #include "fnSystem.h"
 #include "fnFsSD.h"
+#include "IOChannel.h"
 #include "cbm_defines.h"
 #include "meat_media.h"
 
@@ -148,7 +149,7 @@ iecChannelHandlerFile::iecChannelHandlerFile(iecDrive *drive, MStream *stream, i
 {
   m_stream = stream;
   m_fixLoadAddress = fixLoadAddress;
-  m_timeStart = esp_timer_get_time();
+  m_timeStart = GET_TIMESTAMP();
   m_byteCount = 0;
   m_transportTimeUS = 0;
 }
@@ -156,7 +157,7 @@ iecChannelHandlerFile::iecChannelHandlerFile(iecDrive *drive, MStream *stream, i
 
 iecChannelHandlerFile::~iecChannelHandlerFile()
 {
-  double seconds = (esp_timer_get_time()-m_timeStart) / 1000000.0;
+  double seconds = (GET_TIMESTAMP()-m_timeStart) / 1000000.0;
 
   if( m_stream->mode == std::ios_base::out && m_len>0 )
     writeBufferData();
@@ -190,9 +191,9 @@ uint8_t iecChannelHandlerFile::writeBufferData()
   */
     {
       Debug_printv("bufferSize[%d]", m_len);
-      uint64_t t = esp_timer_get_time();
+      uint64_t t = GET_TIMESTAMP();
       size_t n = m_stream->write(m_data, m_len);
-      m_transportTimeUS += (esp_timer_get_time()-t);
+      m_transportTimeUS += (GET_TIMESTAMP()-t);
       m_byteCount += n;
       if( n<m_len )
         {
@@ -226,9 +227,9 @@ uint8_t iecChannelHandlerFile::readBufferData()
 
       if( m_fixLoadAddress>=0 && m_stream->position()==0 )
         {
-          uint64_t t = esp_timer_get_time();
+          uint64_t t = GET_TIMESTAMP();
           m_len = m_stream->read(m_data, BUFFER_SIZE);
-          m_transportTimeUS += (esp_timer_get_time()-t);
+          m_transportTimeUS += (GET_TIMESTAMP()-t);
           if( m_len>=2 )
             {
               m_data[0] = (m_fixLoadAddress & 0x00FF);
@@ -242,9 +243,9 @@ uint8_t iecChannelHandlerFile::readBufferData()
       // try to fill buffer
       while( m_len<BUFFER_SIZE && !m_stream->eos() )
         {
-          uint64_t t = esp_timer_get_time();
+          uint64_t t = GET_TIMESTAMP();
           m_len += m_stream->read(m_data+m_len, BUFFER_SIZE-m_len);
-          m_transportTimeUS += (esp_timer_get_time()-t);
+          m_transportTimeUS += (GET_TIMESTAMP()-t);
         }
 
       m_byteCount += m_len;
@@ -530,7 +531,7 @@ bool iecDrive::open(uint8_t channel, const char *cname)
       bool ok = m_vdrive->openFile(channel, cname);
       Debug_printv("File opened on VDrive");
       setStatusCode(ok ? ST_OK : ST_VDRIVE);
-      m_timeStart = esp_timer_get_time();
+      m_timeStart = GET_TIMESTAMP();
       m_byteCount = 0;
       return ok;
     }
@@ -742,7 +743,7 @@ void iecDrive::close(uint8_t channel)
 #ifdef USE_VDRIVE
   if( m_vdrive!=nullptr )
     {
-      double seconds = (esp_timer_get_time()-m_timeStart) / 1000000.0;
+      double seconds = (GET_TIMESTAMP()-m_timeStart) / 1000000.0;
       m_vdrive->closeFile(channel);
       Debug_printv("File closed on VDrive");
       double cps = m_byteCount / seconds;

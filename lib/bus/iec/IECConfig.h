@@ -22,8 +22,11 @@
 
 // comment or un-comment these #defines to completely enable/disable support
 // for the corresponding fast-load protocols
+// Host builds receive whole bytes from NetIEC, so no bit-level fast loader applies.
+#ifdef ESP_PLATFORM
 #define SUPPORT_JIFFY
 #define SUPPORT_EPYX
+#endif
 #if defined(PIN_XRA1405_CS) && defined(PIN_PARALLEL_PC2) && defined(PIN_PARALLEL_FLAG2)
 //#define SUPPORT_DOLPHIN
 //#define SUPPORT_DOLPHIN_XRA1405

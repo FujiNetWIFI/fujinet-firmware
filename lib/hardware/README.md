@@ -33,7 +33,7 @@ Fujiversal boards.
 ESP: globbed by `src/CMakeLists.txt` into every target; the USB, PPI, Bluetooth and LED-strip
 files compile to nothing unless their macro is set. PC: `fujinet_pc.cmake` lists only `fnDummyWiFi`,
 `led`, `IOChannel`, `TTYChannel`, `COMChannel`, `fnSystem` and `fnSystemNet`, plus `BoIPChannel`
-for the COCO, ADAM, RS232 and LYNX targets.
+for the COCO, ADAM, RS232, LYNX and IEC targets.
 
 ## Notes
 `IOChannel` lives here, not in [lib/FileSystem/](../FileSystem/).

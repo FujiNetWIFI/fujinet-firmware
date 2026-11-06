@@ -1,0 +1,3 @@
+extends: BUILD_IEC
+tweaks:
+  fujinet_pc: true

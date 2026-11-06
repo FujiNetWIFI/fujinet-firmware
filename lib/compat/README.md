@@ -10,7 +10,7 @@ Portability shims so the same sources compile on ESP-IDF, Linux, macOS and Windo
 | `compat_uname.h`, `win32_uname.c` | `uname()` and `struct utsname` for Windows |
 | `compat_gettimeofday.h`, `compat_gettimeofday.c` | `compat_gettimeofday()` with a Windows implementation |
 | `compat_inet.h`, `compat_inet.c` | one set of socket headers and `IPADDR_*` constants over lwIP, BSD sockets and Winsock, plus `compat_inet_ntoa`, `compat_sockstrerror` and blocking-mode helpers |
-| `compat_esp.h` | `IRAM_ATTR`, `portTICK_PERIOD_MS` and friends as no-ops off the ESP |
+| `compat_esp.h` | `IRAM_ATTR`, `portTICK_PERIOD_MS` and friends as no-ops off the ESP, `gpio_num_t` with just `GPIO_NUM_NC`, and `esp_rom_crc16_le()` |
 | `linux_termios2.h` | `struct termios2` for non-standard baud rates (Matthias Reichl, GPL-2.0-or-later) |
 
 ## How it fits
