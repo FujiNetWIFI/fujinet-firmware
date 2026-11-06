@@ -493,6 +493,14 @@ void FlashHandle::obtain(std::string m_path, std::string mode) {
     file_h = fopen( m_path.c_str(), mode.c_str());
     // rc = 1;
 
+    // POSIX lets fopen() open a directory, but nothing can be read from it. Return no handle, as
+    // the ESP32's file systems do: a null handle tells the caller this is a directory.
+    struct stat info;
+    if (file_h != nullptr && fstat( fileno(file_h), &info ) == 0 && S_ISDIR(info.st_mode)) {
+        fclose( file_h );
+        file_h = nullptr;
+    }
+
     //printf("FSTEST: lfs_file_open file rc:%d\r\n",rc);
 
 //     if (rc == LFS_ERR_ISDIR) {
