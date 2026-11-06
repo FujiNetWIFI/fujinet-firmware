@@ -80,7 +80,7 @@ public:
     mediatype_t _disktype = MEDIATYPE_UNKNOWN;
 
     // Set by the device layer before mount(), for media that must reach
-    // sibling files (MediaTypeROM and its .cfg).
+    // sibling files.
     fujiHost *_media_host = nullptr;
     char _disk_filename[256] = {0};
 

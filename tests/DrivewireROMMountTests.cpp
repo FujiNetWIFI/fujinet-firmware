@@ -14,7 +14,7 @@ namespace
 {
 
 #define ROM_TEST_FILE "drivewire_rom_mount_test.ccc"
-#define CART_8K (8 * 1024)
+#define CART_8K 8_kB
 
 std::string written_bytes()
 {

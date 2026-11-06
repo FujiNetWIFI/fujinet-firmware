@@ -14,7 +14,7 @@
 #include "utils.h"
 
 // A ROM image isn't served block by block the way a disk is: the whole file
-// goes to the cartridge's RP2040 at mount time, which presents it to the CoCo
+// goes to the cartridge's DBC at mount time, which presents it to the CoCo
 // as cartridge ROM. Nothing reads it back through the media object afterwards.
 static error_is_true push_rom_image(ROMMedia &rom)
 {

@@ -343,7 +343,17 @@ set(SOURCES src/main.cpp
     # Matches the ESP builds, which glob lib/media/*.cpp into every target
     lib/media/IMDImage.h lib/media/IMDImage.cpp
     lib/media/rom/ROMMedia.h lib/media/rom/ROMMedia.cpp lib/media/rom/ROMFactory.h
+    lib/media/rom/Atari2600ROM.h lib/media/rom/Atari2600ROM.cpp
+    lib/media/rom/Atari5200ROM.h lib/media/rom/Atari5200ROM.cpp
+    lib/media/rom/Atari7800ROM.h lib/media/rom/Atari7800ROM.cpp
+    lib/media/rom/ChannelFROM.h lib/media/rom/ChannelFROM.cpp
     lib/media/rom/CoCoCartROM.h lib/media/rom/CoCoCartROM.cpp
+    lib/media/rom/ColecoROM.h lib/media/rom/ColecoROM.cpp
+    lib/media/rom/IntellicartROM.h lib/media/rom/IntellicartROM.cpp
+    lib/media/rom/IntellivisionROM.h lib/media/rom/IntellivisionROM.cpp
+    lib/media/rom/NESROM.h lib/media/rom/NESROM.cpp
+    lib/media/rom/SegaMasterROM.h lib/media/rom/SegaMasterROM.cpp
+    lib/media/rom/StudioIIROM.h lib/media/rom/StudioIIROM.cpp
     lib/encoding/base64.h lib/encoding/base64.cpp
     lib/encoding/hash.h lib/encoding/hash.cpp
     lib/qrcode/qrcode.h lib/qrcode/qrcode.c
@@ -525,7 +535,6 @@ if(FUJINET_TARGET STREQUAL "RS232")
     lib/media/rs232/diskTypeAltair.h lib/media/rs232/diskTypeAltair.cpp
     lib/media/rs232/diskTypeImg.h lib/media/rs232/diskTypeImg.cpp
     lib/media/rs232/diskTypeIMD.h lib/media/rs232/diskTypeIMD.cpp
-    lib/media/rs232/diskTypeROM.h lib/media/rs232/diskTypeROM.cpp
 
     lib/device/rs232/rs232Clock.cpp lib/device/rs232/rs232Clock.h
     lib/device/rs232/disk.cpp lib/device/rs232/disk.h
