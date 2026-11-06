@@ -591,6 +591,7 @@ if(FUJINET_TARGET STREQUAL "IEC")
     lib/meatloaf/meat_media.h lib/meatloaf/meat_media.cpp
     lib/meatloaf/meat_buffer.h
     lib/meatloaf/device/flash.h lib/meatloaf/device/flash.cpp
+    lib/meatloaf/device/fnfile.h lib/meatloaf/device/fnfile.cpp
     lib/meatloaf/disk/d64.h lib/meatloaf/disk/d64.cpp
     lib/meatloaf/file/p00.h lib/meatloaf/file/p00.cpp
     lib/meatloaf/tape/t64.h lib/meatloaf/tape/t64.cpp

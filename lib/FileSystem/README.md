@@ -14,7 +14,7 @@ filesystems work without a kernel VFS driver.
 | `fnFsSMB.*`, `fnFsNFS.*`, `fnFsFTP.*`, `fnFsHTTP.*` | `FileSystemSMB` (libsmb2), `FileSystemNFS` (libnfs), `FileSystemFTP` over [lib/ftp/](../ftp/), `FileSystemHTTP` over index pages parsed by `IndexParser` |
 | `fnFile.h`, `fnFile.cpp` | `FileHandler` (abstract): `read`, `write`, `seek`, `tell`, `flush`, `close` |
 | `fnFileLocal.*`, `fnFileTNFS.*`, `fnFileSMB.*`, `fnFileNFS.*`, `fnFileMem.*`, `fnFileHTTP.*` | `FileHandler` backends: a stdio `FILE`, TNFS (PC only), SMB, NFS, an in-memory buffer, and ranged HTTP GET with read-ahead |
-| `fnio.h`, `fnio.cpp` | `fnFile` and the `fnio` wrappers: `FileHandler` on ATARI, APPLE, COCO, RS232 and PC ADAM, a stdio `FILE` everywhere else (`FNIO_IS_STDIO`) |
+| `fnio.h`, `fnio.cpp` | `fnFile` and the `fnio` wrappers: `FileHandler` on ATARI, APPLE, COCO, RS232, PC ADAM and PC IEC, a stdio `FILE` everywhere else (`FNIO_IS_STDIO`) |
 | `fnFileCache.*` | `FileCache`: keeps a downloaded file in memory and spills it to SD past a threshold |
 | `fnDirCache.*` | `DirCache`: a sorted, filtered directory listing, held in PSRAM on ESP |
 | `directoryPageGroup.h` | `DirectoryPageGroup`: the paged directory wire format used by `fujiDevice` |

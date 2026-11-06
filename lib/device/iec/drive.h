@@ -227,7 +227,7 @@ class iecDrive : public IECFileDevice
   iecDrive(uint8_t devnum = 0xFF);
   ~iecDrive();
 
-  mediatype_t mount(FILE *f, const char *filename, uint32_t disksize,
+  mediatype_t mount(fnFile *f, const char *filename, uint32_t disksize,
                     disk_access_flags_t access_mode,
                     mediatype_t disk_type = MEDIATYPE_UNKNOWN);
   void unmount();
@@ -238,15 +238,13 @@ class iecDrive : public IECFileDevice
     uint8_t deviceSlot;
     char filename[MAX_FILENAME_LEN];
   };
-  success_is_true write_blank(FILE *f, const NewDiskRequest &req) { RETURN_ERROR_AS_FALSE(); }
+  success_is_true write_blank(fnFile *f, const NewDiskRequest &req) { RETURN_ERROR_AS_FALSE(); }
 
   int     id() { return m_devnr; };
   uint8_t getNumOpenChannels();
   uint8_t getStatusCode() { return m_statusCode; }
   void    setStatusCode(uint8_t code, uint8_t trk = 0);
   bool    hasError();
-
-  fujiHost *m_host;
 
   // overriding the IECDevice isActive() function because device_active
   // must be a global variable
@@ -293,6 +291,10 @@ class iecDrive : public IECFileDevice
   virtual void reset();
 
   void set_cwd(std::string path);
+
+  // name a mounted image's handle has in Meatloaf's fnfile:// file system
+  std::string mountName() const { return "drive" + std::to_string(m_devnr); }
+  fnFile *m_image;   // the mounted image's handle, closed on unmount
 
   std::unique_ptr<MFile> m_cwd;   // current working directory
   iecChannelHandler *m_channels[16];
