@@ -585,6 +585,7 @@ if(FUJINET_TARGET STREQUAL "IEC")
     lib/hardware/BoIPChannel.h lib/hardware/BoIPChannel.cpp
 
     lib/media/cbm/mediaType.h lib/media/cbm/mediaType.cpp
+    lib/media/cbm/BlankImage.h lib/media/cbm/BlankImage.cpp
 
     # Meatloaf without its HTTP, TNFS, CommodoreServer and ML: file systems, which need ESP-IDF
     lib/meatloaf/meatloaf.h lib/meatloaf/meatloaf.cpp

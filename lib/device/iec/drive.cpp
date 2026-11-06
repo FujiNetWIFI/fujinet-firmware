@@ -1519,4 +1519,11 @@ void iecDrive::unmount()
 }
 
 
+// Create blank disk
+success_is_true iecDrive::write_blank(fnFile *f, const NewDiskRequest &req)
+{
+  return BlankImage::create(f, req.filename, req.sectorSize, req.numSectors);
+}
+
+
 #endif /* BUILD_IEC */

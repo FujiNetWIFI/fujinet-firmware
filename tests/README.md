@@ -21,6 +21,7 @@ Host-side unit tests and policy checks for the FujiNet-PC build. ctest runs them
 | `MediaTypeIMDTests.cpp` | `lib/media/rs232/diskTypeIMD.cpp` adapter, and `diskType.cpp` finding an IMD by its contents (`mediatypeimd_tests`; built with `BUILD_RS232`) |
 | `MediaTypeAltairTests.cpp` | `lib/media/rs232/diskTypeAltair.cpp` adapter (`mediatypealtair_tests`; built with `BUILD_RS232`) |
 | `MediaTypeImgTests.cpp` | `lib/media/rs232/diskTypeImg.cpp` blank image from `create()` (`mediatypeimg_tests`; built with `BUILD_RS232`) |
+| `BlankImageTests.cpp` | `lib/media/cbm/BlankImage.cpp`: the formatted D64, D71 and D81 and the raw image NEW DISK writes on IEC, and the sizes it refuses (`blankimage_tests`; built with `BUILD_IEC`) |
 | `FileSizeTests.cpp` | `file_size_t` in `include/global_types.h`: the types it converts to without a cast, and `to()` refusing -1 and a size that doesn't fit (`file_size_tests`) |
 | `MediaTypeAdamTests.cpp` | `lib/media/adam/` DDP, DSK and ROM 0-block mounts and block bounds (`mediatypeadam_tests`; built with `BUILD_ADAM`; not on Windows) |
 | `MediaType2MGTests.cpp` | `lib/media/apple/mediaType2MG.cpp` and `mediaTypePO.cpp` mounts, 2MG detection, the high-score marker and the 2MG header NEW DISK writes (`mediatype2mg_tests`; built with `BUILD_APPLE`) |

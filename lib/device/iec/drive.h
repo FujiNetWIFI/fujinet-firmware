@@ -232,13 +232,14 @@ class iecDrive : public IECFileDevice
                     mediatype_t disk_type = MEDIATYPE_UNKNOWN);
   void unmount();
 
-  // NEW DISK isn't supported; iecFuji refuses it.
   struct NewDiskRequest {
+    u16le_t numSectors;
+    u16le_t sectorSize;
     uint8_t hostSlot;
     uint8_t deviceSlot;
     char filename[MAX_FILENAME_LEN];
-  };
-  success_is_true write_blank(fnFile *f, const NewDiskRequest &req) { RETURN_ERROR_AS_FALSE(); }
+  } __attribute__((packed));
+  success_is_true write_blank(fnFile *f, const NewDiskRequest &req);
 
   int     id() { return m_devnr; };
   uint8_t getNumOpenChannels();
