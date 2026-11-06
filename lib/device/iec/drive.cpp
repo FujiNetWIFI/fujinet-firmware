@@ -6,6 +6,7 @@
 #include "IOChannel.h"
 #include "cbm_defines.h"
 #include "meat_media.h"
+#include "../meatloaf/device/fnfile.h"
 
 using namespace std;
 
@@ -493,7 +494,7 @@ uint8_t iecChannelHandlerDir::readBufferData()
 
 iecDrive::iecDrive(uint8_t devnum) : IECFileDevice(devnum)
 {
-  m_host = nullptr;
+  m_image = nullptr;
   m_cwd.reset( MFSOwner::File("/") );
   m_statusCode = ST_SPLASH;
   m_statusTrk  = 0;
@@ -1478,16 +1479,16 @@ void iecDrive::set_cwd(std::string path)
    If the disk_type value passed is not MEDIATYPE_UNKNOWN then that's used instead.
    Return value is MEDIATYPE_UNKNOWN in case of failure.
 */
-mediatype_t iecDrive::mount(FILE *f, const char *filename, uint32_t disksize,
+mediatype_t iecDrive::mount(fnFile *f, const char *filename, uint32_t disksize,
                             disk_access_flags_t access_mode, mediatype_t disk_type)
 {
   Debug_printv("filename[%s], disksize[%lu] disktype[%d]", filename, disksize, disk_type);
-  std::string url = this->m_host->get_basepath();
 
-  mstr::toLower(url);
-  if ( url == "sd" )
-    url = "//sd";
-  url += filename;
+  // Read the image through the handle the Fuji device opened. The drive owns it from here on.
+  if ( f != m_image )
+    unmount();
+  m_image = f;
+  std::string url = FnFileMFileSystem::attach(mountName(), f, filename, disksize);
 
   Debug_printv("DRIVE[#%d] URL[%s] MOUNT[%s]", m_devnr, url.c_str(), filename);
 
@@ -1501,6 +1502,14 @@ mediatype_t iecDrive::mount(FILE *f, const char *filename, uint32_t disksize,
 void iecDrive::unmount()
 {
     Debug_printv("DRIVE[#%d] UNMOUNT\r\n", m_devnr);
+    if ( m_image == nullptr )
+        return;
+
+    // Detach first, so that nothing reads the image once it is closed
+    FnFileMFileSystem::detach(mountName());
+    m_cwd.reset( MFSOwner::File("/") );
+    fnio::fclose(m_image);
+    m_image = nullptr;
 
     // if (m_cwd != nullptr)
     // {
