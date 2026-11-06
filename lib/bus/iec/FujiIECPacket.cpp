@@ -11,19 +11,28 @@ namespace {
     }
 } // namespace
 
+bool FujiIECPacket::hasParam(size_t index, size_t psize) const
+{
+    assert(psize == 1 || psize == 2 || psize == 4);
+    assert(_params.size() == 0 || _paramSize == psize);
+    if (index < _params.size())
+        return true;
+    // Params come off the front of the payload until data() takes the rest
+    if (!_payload.has_value() || _data.has_value())
+        return false;
+    return (index - _params.size() + 1) * psize <= _payload->size();
+}
+
 uint32_t FujiIECPacket::getParam(size_t index, size_t psize) const
 {
-    size_t count;
-
     assert(psize == 1 || psize == 2 || psize == 4);
     assert(_params.size() == 0 || _paramSize == psize);
     if (index >= _params.size()) {
-        assert(_payload.has_value());
         assert(!_data.has_value());
+        if (!hasParam(index, psize))
+            return 0;
         _paramSize = psize;
-        count = index - _params.size() + 1;
-        assert(count * psize <= _payload->size());
-        fillParams(count, psize);
+        fillParams(index - _params.size() + 1, psize);
     }
     return _params[index].value;
 }

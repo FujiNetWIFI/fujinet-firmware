@@ -146,25 +146,10 @@ void logResponse(const void* data, size_t length)
 }
 
 
-// Params come from the payload; a command sent without one has no flag to read
-bool iecFuji::fujidev_alt_requested()
-{
-    return _packet->payloadSize() > 0 && fujiClock::fujidev_alt_requested();
-}
-
+// fujinet-lib sends the time zone's length as a 16-bit param, then the name
 std::optional<std::string> iecFuji::fujidev_read_tz()
 {
-    // Params and payload share one buffer; reading the length prefix off
-    // leaves data() holding just the timezone.
-    if (_packet->payloadSize() < 2)
-    {
-        SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-        reject_command(*_packet);
-        return std::nullopt;
-    }
-    _packet->param16(0);
-
-    std::optional<std::string> tz = read_tz_from_payload();
+    std::optional<std::string> tz = read_tz_by_length(_packet->param16(0));
 
     if (tz)
         tz = SYSTEM_BUS.nativeTextToUnicode(*tz);
@@ -175,9 +160,9 @@ bool iecFuji::processCommand(const FUJI_COMMAND_PACKET &packet)
 {
   bool handled = false;
 
-  // The clock's GET_SOS has STATUS's command byte. fujinet-lib sends STATUS
-  // with no payload and GET_SOS with the alternate timezone flag.
-  if (packet.command() == CMD::APETIME_GET_SOS && packet.payloadSize() > 0) {
+  // The clock's GET_SOS has STATUS's command byte. fujinet-lib sends GET_SOS
+  // with its alternate timezone flag as a param, and STATUS with none.
+  if (packet.command() == CMD::APETIME_GET_SOS && packet.hasParam(0)) {
     handled = fujiClock::processCommand(packet);
     goto done;
   }
