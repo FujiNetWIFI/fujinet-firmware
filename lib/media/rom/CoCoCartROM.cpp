@@ -3,8 +3,8 @@
 #include <bit>
 
 // CoCo cartridge images are 8K, 16K, 32K, 64K or 128K.
-constexpr size_t COCO_CART_8K = 8 * 1024;
-constexpr size_t COCO_CART_128K = 128 * 1024;
+constexpr size_t COCO_CART_8K = 8_kB;
+constexpr size_t COCO_CART_128K = 128_kB;
 
 error_is_true CoCoCartROM::attach()
 {
