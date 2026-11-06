@@ -183,4 +183,50 @@ using u24ne_t = u24le_t;
 using u32ne_t = u32le_t;
 #endif /* BUILD_COCO */
 
+// Sizes and frequencies that read as what they are: 16_kB, 8_kB + 3, 60_MHz
+inline constexpr unsigned long long operator""_kHz(unsigned long long x)
+{
+    return x * 1000;
+}
+
+inline constexpr unsigned long long operator""_MHz(unsigned long long x)
+{
+    return x * 1000 * 1000;
+}
+
+inline constexpr unsigned long long operator""_GHz(unsigned long long x)
+{
+    return x * 1000 * 1000 * 1000;
+}
+
+inline constexpr unsigned long long operator""_kBit(unsigned long long x)
+{
+    return x * 1024;
+}
+
+inline constexpr unsigned long long operator""_MBit(unsigned long long x)
+{
+    return x * 1024 * 1024;
+}
+
+inline constexpr unsigned long long operator""_GBit(unsigned long long x)
+{
+    return x * 1024 * 1024 * 1024;
+}
+
+inline constexpr unsigned long long operator""_kB(unsigned long long x)
+{
+    return x * 1024;
+}
+
+inline constexpr unsigned long long operator""_MB(unsigned long long x)
+{
+    return x * 1024 * 1024;
+}
+
+inline constexpr unsigned long long operator""_GB(unsigned long long x)
+{
+    return x * 1024 * 1024 * 1024;
+}
+
 #endif
