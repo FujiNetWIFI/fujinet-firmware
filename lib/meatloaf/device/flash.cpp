@@ -58,8 +58,12 @@ bool FlashMFile::isDirectory()
     if(path=="/" || path=="")
         return true;
 
+    // info is only filled in when stat() succeeds; a path that isn't there isn't a directory
     struct stat info;
-    stat( std::string(basepath + path).c_str(), &info);
+    int rc = stat( std::string(basepath + path).c_str(), &info);
+    if (rc != 0)
+        return false;
+
     return S_ISDIR(info.st_mode);
 }
 
@@ -89,7 +93,9 @@ MStream* FlashMFile::createStream(std::ios_base::openmode mode)
 time_t FlashMFile::getLastWrite()
 {
     struct stat info;
-    stat( std::string(basepath + path).c_str(), &info);
+    int rc = stat( std::string(basepath + path).c_str(), &info);
+    if (rc != 0)
+        return 0;
 
     time_t ftime = info.st_mtime; // Time of last modification
     return ftime;
@@ -98,7 +104,9 @@ time_t FlashMFile::getLastWrite()
 time_t FlashMFile::getCreationTime()
 {
     struct stat info;
-    stat( std::string(basepath + path).c_str(), &info);
+    int rc = stat( std::string(basepath + path).c_str(), &info);
+    if (rc != 0)
+        return 0;
 
     time_t ftime = info.st_ctime; // Time of last status change
     return ftime;
@@ -201,6 +209,7 @@ void FlashMFile::closeDir()
 {
     if(dirOpened) {
         closedir( dir );
+        dir = nullptr;
         dirOpened = false;
     }
 }
@@ -209,7 +218,8 @@ void FlashMFile::closeDir()
 bool FlashMFile::rewindDirectory()
 {
     _valid = false;
-    rewinddir( dir );
+    if ( dir != NULL )
+        rewinddir( dir );
 
     // // Skip the . and .. entries
     // struct dirent* dirent = NULL;
