@@ -28,11 +28,12 @@ The Commodore device set for `BUILD_IEC`, on ESP32 and FujiNet-PC.
   `fujiClock` second, except that a `GET_SOS` sent with a payload goes to the clock first: it has
   STATUS's command byte, and STATUS is sent with none. `fujidev_read_tz()` skips the 2-byte length
   that fujinet-lib sends before the time zone.
+- A drive reads a mounted image through the handle the Fuji device opened: `mount()` attaches it
+  to Meatloaf's `fnfile://` file system, and `unmount()` detaches and closes it. With no image
+  mounted, a drive sees the flash directory as `/`.
 
 ## Build
-ESP: globbed by `src/CMakeLists.txt`, compiled only under `BUILD_IEC`. PC: `FUJINET_TARGET=IEC`. On PC
-the drives see the flash directory as `/`; images mounted from a TNFS host are not readable there yet
-because Meatloaf reaches TNFS through the ESP VFS.
+ESP: globbed by `src/CMakeLists.txt`, compiled only under `BUILD_IEC`. PC: `FUJINET_TARGET=IEC`.
 
 ## Notes
 `drive.h` can target a `USE_VDRIVE` backend whose headers are not in this tree.

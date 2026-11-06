@@ -43,6 +43,7 @@ std::unordered_map<std::string, MStream*> StreamBroker::stream_repo;
 
 // Device
 #include "device/flash.h"
+#include "device/fnfile.h"
 #include "device/sd.h"
 
 // Disk
@@ -108,6 +109,7 @@ DFIMFileSystem dfiFS;
 
 // File
 P00MFileSystem p00FS;
+FnFileMFileSystem fnfileFS;
 
 // Disk
 D64MFileSystem d64FS;
@@ -149,6 +151,7 @@ std::vector<MFileSystem*> MFSOwner::availableFS {
     &d64FS, &d71FS, &d80FS, &d81FS, &d82FS, &d90FS, &dnpFS,
     &d8bFS, &dfiFS,
     &p00FS,
+    &fnfileFS,
 #ifdef ESP_PLATFORM
     &httpFS, &tnfsFS,
     &csipFS, &mlFS,

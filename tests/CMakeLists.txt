@@ -18,6 +18,26 @@ target_link_libraries(fujibuspacket_tests PRIVATE
 add_test(NAME fujibuspacket_tests COMMAND fujibuspacket_tests)
 
 # ------------------------------------------------------------------------------
+# lib/bus/iec/FujiIECPacket: a command's params and data, with and without a
+# payload. BUILD_IEC is the whole-file guard on the unit under test.
+# ------------------------------------------------------------------------------
+add_executable(fujiiecpacket_tests
+    FujiIECPacketTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/bus/iec/FujiIECPacket.cpp
+)
+
+target_compile_definitions(fujiiecpacket_tests PRIVATE BUILD_IEC)
+
+target_include_directories(fujiiecpacket_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/include/
+    ${CMAKE_SOURCE_DIR}/lib/
+    ${CMAKE_SOURCE_DIR}/lib/bus/
+    ${CMAKE_SOURCE_DIR}/components_pc/
+)
+
+add_test(NAME fujiiecpacket_tests COMMAND fujiiecpacket_tests)
+
+# ------------------------------------------------------------------------------
 # lib/bus/DaisyChain: device-ID rotation behind the disk swap. Pure code; the
 # test supplies its own empty virtualDevice.
 # ------------------------------------------------------------------------------
