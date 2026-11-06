@@ -9,7 +9,7 @@ filesystems. Locally modified.
 |---|---|
 | `meatloaf.h`, `meatloaf.cpp` | `MStream`, `MFile` (derived from `PeoplesUrlParser`), `MFileSystem`, and `MFSOwner`, the registry whose `availableFS` list is searched first match wins |
 | `meat_media.h`, `meat_media.cpp`; `meat_buffer.h` | `MMediaStream`, the base for sector images; stream buffers |
-| `device/` | flash (the default filesystem) and SD |
+| `device/` | flash (the default filesystem), SD, and `fnfile://`, which reads files FujiNet already has open by a name they are attached under |
 | `disk/` | D64, with D71, D80, D81, D82, D90 and DNP as header-only variants |
 | `container/` | D8B and DFI containers |
 | `file/` | P00; `file/prg.h` is a one-line placeholder |
