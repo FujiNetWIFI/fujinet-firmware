@@ -75,6 +75,7 @@ protected:
 
 #ifdef BUILD_IEC
 # include "cbm/mediaType.h"
+# include "cbm/blankImage.h"
 #endif
 
 #ifdef BUILD_ADAM

@@ -17,7 +17,6 @@ protected:
     bool is_raw_command;
 
     bool processCommand(const FUJI_COMMAND_PACKET &packet) override;
-    void fujicmd_new_disk() override;
 
     std::vector<std::string> tokenize_basic_command(std::string command);
 
