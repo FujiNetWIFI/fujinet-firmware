@@ -2,7 +2,9 @@
 
 #include "disk.h"
 #include "fujiCommandID.h"
+#include "rom/ROMFactory.h"
 
+#include <algorithm>
 #include <cstring>
 #include <string>
 
@@ -12,95 +14,149 @@
 #include "fujiDevice.h"
 #include "utils.h"
 
-#define ROM_PUSH_STREAM_MAP   1
-#define ROM_PUSH_STREAM_IMAGE 0
+#define ROM_IMAGE_SEGMENT 0
 
-// Relays `source` as NET_WRITE frames on DBC stream `stream_id`, which the
-// RP2040's dbc_inbound_handler() demuxes on.
-//
-// The OPEN header (stream id, then size as 4 LE bytes) travels as payload, not
-// params: the RP2040's fujibus.c skips the descriptor chain and exposes only
-// payload to callers. It uses the size to reject an oversized ROM before we
-// pull it over TNFS; older builds read data[0] and ignore the rest.
-//
-// CLOSE always goes out or the RP2040's stream state wedges; on failure it
-// carries a 0x01 abort so partial data isn't booted.
-static error_is_true push_stream(MediaTypeROM *rom, RomStream source, uint16_t stream_id)
+// Legacy OPEN data, read only by the game console carts that don't use
+// fujiversal; they look here instead of at OPEN's parameters. isMapperInfo is
+// a flag, set when the data that follows is the .cfg mapper rather than the
+// image. size lets the cart refuse an image bigger than its buffer, without
+// FujiNet needing to know how big that is.
+struct ConsoleCartOpenData
 {
-    uint8_t buffer[DISK_SECTORBUF_SIZE];
-    uint32_t expected_size = rom->stream_size(source);
+    bool isMapperInfo;
+    u32le_t size;
+};
+static_assert(sizeof(ConsoleCartOpenData) == 5, "ConsoleCartOpenData must not be padded");
 
+static ByteBuffer console_cart_open_data(bool isMapperInfo, uint32_t size)
+{
+    ConsoleCartOpenData openData;
+    openData.isMapperInfo = isMapperInfo;
+    openData.size = size;
+    const uint8_t *bytes = (const uint8_t *)&openData;
+    return ByteBuffer(bytes, bytes + sizeof(openData));
+}
+
+// Opens segment 0 and sends the image. CLOSE always goes out, so a later WRITE
+// can't land in a segment left open. Game consoles don't watch a status
+// register for the transfer to finish, so the DBC activates the ROM itself on
+// CLOSE; after a failure CLOSE carries a 0x01 data byte telling the DBC to abort
+// activation instead.
+static error_is_true push_image(ROMMedia &rom)
+{
+    uint32_t expected_size = rom.size();
     if (expected_size == 0)
     {
-        Debug_printv("ROM push: stream %u is empty or unreadable\n", stream_id);
+        Debug_printv("ROM push: image is empty or unreadable\n");
         RETURN_ERROR_AS_TRUE();
     }
 
-    struct { uint8_t id; u32le_t size; } open_hdr;
-    static_assert(sizeof(open_hdr) == 5, "OPEN header must not be padded");
-    open_hdr.id = (uint8_t)stream_id;
-    open_hdr.size = expected_size;
-
     auto reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_OPEN,
-                                        std::string((const char *)&open_hdr, sizeof(open_hdr)));
+                                        (uint16_t)ROM_IMAGE_SEGMENT,
+                                        console_cart_open_data(false, expected_size));
     if (!reply || reply->command() != CMD::FUJI_ACK)
     {
-        Debug_printv("ROM push: failed to open DBC stream %u (%lu bytes)\n",
-                     stream_id, (unsigned long)expected_size);
+        Debug_printv("ROM push: failed to open image segment (%lu bytes)\n",
+                     (unsigned long)expected_size);
         RETURN_ERROR_AS_TRUE();
     }
 
     error_is_true result(false);
+    ByteBuffer buffer;
     uint32_t sent = 0;
     while (sent < expected_size)
     {
-        size_t got = rom->stream_read(source, sent, buffer, sizeof(buffer));
-        if (got == 0)
+        auto got = rom.read(buffer, DISK_SECTORBUF_SIZE);
+        if (got.is_error() || buffer.empty())
             break; // the size check below reports it
 
-        reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_WRITE,
-                                       std::string((char *)buffer, got));
+        reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_WRITE, buffer);
         if (!reply || reply->command() != CMD::FUJI_ACK)
         {
-            Debug_printv("ROM push: failed to send stream %u block\n", stream_id);
+            Debug_printv("ROM push: failed to send image block\n");
             result = error_is_true(true);
             break;
         }
-        sent += got;
+        sent += buffer.size();
     }
 
     if (result.is_success() && sent != expected_size)
     {
-        Debug_printv("ROM push: stream %u short transfer: %lu of %lu bytes\n",
-                     stream_id, (unsigned long)sent, (unsigned long)expected_size);
+        Debug_printv("ROM push: image short transfer: %lu of %lu bytes\n",
+                     (unsigned long)sent, (unsigned long)expected_size);
         result = error_is_true(true);
     }
 
     if (result.is_success())
         reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_CLOSE);
     else
-        reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_CLOSE,
-                                       std::string(1, '\x01'));
+        reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_CLOSE, ByteBuffer{0x01});
     if (!reply || reply->command() != CMD::FUJI_ACK)
     {
-        Debug_printv("ROM push: stream %u close failed/rejected\n", stream_id);
+        Debug_printv("ROM push: image close failed/rejected\n");
         result = error_is_true(true);
     }
     return result;
 }
 
-// The whole ROM goes over at mount time. The image's CLOSE triggers the boot,
-// so the map has to land first.
-static error_is_true push_rom_streams(MediaTypeROM *rom)
+// Sends mapper info between its own OPEN and CLOSE, with isMapperInfo set and
+// no segment, since it isn't ROM data. It has to reach the DBC before the
+// image, whose CLOSE activates the ROM on game consoles.
+static error_is_true push_mapper(const std::pmr::vector<uint8_t> &mapper)
 {
-    if (rom->has_memory_map() &&
-        push_stream(rom, RomStream::MemoryMap, ROM_PUSH_STREAM_MAP).is_error())
+    if (mapper.empty())
     {
-        Debug_printv("ROM push: memory map push failed\n");
+        Debug_printv("ROM push: mapper info is empty\n");
         RETURN_ERROR_AS_TRUE();
     }
 
-    if (push_stream(rom, RomStream::Image, ROM_PUSH_STREAM_IMAGE).is_error())
+    auto reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_OPEN,
+                                        console_cart_open_data(true, mapper.size()));
+    if (!reply || reply->command() != CMD::FUJI_ACK)
+    {
+        Debug_printv("ROM push: failed to open mapper info (%lu bytes)\n",
+                     (unsigned long)mapper.size());
+        RETURN_ERROR_AS_TRUE();
+    }
+
+    error_is_true result(false);
+    for (size_t offset = 0; offset < mapper.size(); offset += DISK_SECTORBUF_SIZE)
+    {
+        size_t count = std::min((size_t)DISK_SECTORBUF_SIZE, mapper.size() - offset);
+        reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_WRITE,
+                                       ByteBuffer(mapper.begin() + offset,
+                                                  mapper.begin() + offset + count));
+        if (!reply || reply->command() != CMD::FUJI_ACK)
+        {
+            Debug_printv("ROM push: failed to send mapper info block\n");
+            result = error_is_true(true);
+            break;
+        }
+    }
+
+    if (result.is_success())
+        reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_CLOSE);
+    else
+        reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_CLOSE, ByteBuffer{0x01});
+    if (!reply || reply->command() != CMD::FUJI_ACK)
+    {
+        Debug_printv("ROM push: mapper info close failed/rejected\n");
+        result = error_is_true(true);
+    }
+    return result;
+}
+
+// The whole ROM goes over at mount time, with any mapper info first.
+static error_is_true push_rom_streams(ROMMedia &rom)
+{
+    auto mapper = rom.mapperInfo();
+    if (mapper.has_value() && push_mapper(*mapper).is_error())
+    {
+        Debug_printv("ROM push: mapper info push failed\n");
+        RETURN_ERROR_AS_TRUE();
+    }
+
+    if (push_image(rom).is_error())
     {
         Debug_printv("ROM push: ROM push failed\n");
         RETURN_ERROR_AS_TRUE();
@@ -300,23 +356,33 @@ mediatype_t rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksize,
     {
     case MEDIATYPE_ROM:
     {
-        device_active = true;
-        _mount_time = time(NULL);
-        MediaTypeROM *rom = new MediaTypeROM();
-        _disk = rom;
-        rom->_media_host = host;
-        if (filename != nullptr)
-            strlcpy(rom->_disk_filename, filename, sizeof(rom->_disk_filename));
-        rom->mount(f, disksize);
-        if (push_rom_streams(rom).is_error())
+        // A ROM isn't a disk: once it's on the DBC the drive has no media
+        // and the file isn't read again.
+        device_active = false;
+        _mount_time = 0;
+        // Strongest evidence first: a signature, a mapper file, then the
+        // extension alone.
+        auto rom = ROMFactory::open<
+            IntellicartROM,
+            NESROM,
+            IntellivisionROM,
+            Atari7800ROM,
+            StudioIIROM,
+            Atari5200ROM,
+            Atari2600ROM,
+            SegaMasterROM,
+            ChannelFROM,
+            ColecoROM
+            >(filename != nullptr ? filename : "", f, host);
+        if (!rom)
         {
-            delete _disk;
-            _disk = nullptr;
-            device_active = false;
-            _mount_time = 0;
+            fnio::fclose(f);
             return MEDIATYPE_UNKNOWN;
         }
-        return MEDIATYPE_ROM;
+
+        error_is_true pushed = push_rom_streams(*rom);
+        rom->close();
+        return pushed.is_success() ? MEDIATYPE_ROM : MEDIATYPE_UNKNOWN;
     }
     case MEDIATYPE_IMD:
     {

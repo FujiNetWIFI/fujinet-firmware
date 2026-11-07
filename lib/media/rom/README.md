@@ -7,17 +7,18 @@ at a time like a disk.
 
 | File | Defines |
 |---|---|
-| `ROMMedia.h`, `ROMMedia.cpp` | `ROMMedia`, the base for every cartridge format: `size()`, `read()` of the whole file in chunks, and `readSize()` for a format's `attach()` |
-| `ROMFactory.h` | `ROMFactory::open<Formats...>()`, which returns the first of the listed formats that accepts the file, or `nullptr`; includes every format's header, so a device includes only this one |
-| `CoCoCartROM.h`, `CoCoCartROM.cpp` | `CoCoCartROM`, a CoCo cartridge: `.ccc` or `.rom`, 8K to 128K in a power-of-two number of 8K banks |
+| `ROMMedia.h`, `ROMMedia.cpp` | `ROMMedia`, the base for every cartridge format |
+| `ROMFactory.h` | `ROMFactory`, which returns the first of a device's listed formats that accepts the file |
+| The other `*ROM.h` and `*ROM.cpp` files | One class per ROM image format, such as `CoCoCartROM` or `IntellicartROM`, that handles the details of that format; a platform can have more than one |
 
 ## How it fits
 
 - `ROMMedia` derives `Media` from [lib/media/media.h](../media.h); a format is opened through
   `Media::open()`, which runs its `attach()`.
 - A device lists the formats it accepts, in order, in a `ROMFactory::open<>()` call and sends what
-  it gets back to the cartridge: `drivewireDisk` in
-  [lib/device/drivewire/](../../device/drivewire/) opens `CoCoCartROM`.
+  it gets back to the cartridge, as `drivewireDisk` in
+  [lib/device/drivewire/](../../device/drivewire/) and `rs232Disk` in
+  [lib/device/rs232/](../../device/rs232/) do.
 
 ## Build
 

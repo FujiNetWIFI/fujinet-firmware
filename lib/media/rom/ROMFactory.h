@@ -2,7 +2,17 @@
 #define ROMFACTORY_H
 
 #include "ROMMedia.h"
+#include "Atari2600ROM.h"
+#include "Atari5200ROM.h"
+#include "Atari7800ROM.h"
+#include "ChannelFROM.h"
 #include "CoCoCartROM.h"
+#include "ColecoROM.h"
+#include "IntellicartROM.h"
+#include "IntellivisionROM.h"
+#include "NESROM.h"
+#include "SegaMasterROM.h"
+#include "StudioIIROM.h"
 
 #include <memory>
 #include <string>

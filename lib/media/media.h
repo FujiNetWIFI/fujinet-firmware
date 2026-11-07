@@ -84,7 +84,6 @@ protected:
 # include "rs232/diskTypeAltair.h"
 # include "rs232/diskTypeImg.h"
 # include "rs232/diskTypeIMD.h"
-# include "rs232/diskTypeROM.h"
 #endif
 
 #ifdef BUILD_IEC

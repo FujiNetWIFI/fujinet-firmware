@@ -889,7 +889,18 @@ if(FUJINET_TARGET STREQUAL "RS232")
     ${CMAKE_SOURCE_DIR}/lib/media/rs232/diskTypeAltair.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/rs232/diskTypeIMD.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/rs232/diskTypeImg.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/rs232/diskTypeROM.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/media.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rom/ROMMedia.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rom/Atari2600ROM.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rom/Atari5200ROM.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rom/Atari7800ROM.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rom/ChannelFROM.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rom/ColecoROM.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rom/IntellicartROM.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rom/IntellivisionROM.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rom/NESROM.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rom/SegaMasterROM.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rom/StudioIIROM.cpp
     ${CMAKE_SOURCE_DIR}/lib/bus/FujiBusPacket.cpp
     ${CMAKE_SOURCE_DIR}/lib/bus/DaisyChain.cpp
   )
