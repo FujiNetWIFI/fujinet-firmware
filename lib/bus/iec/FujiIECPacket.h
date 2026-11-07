@@ -37,10 +37,7 @@ public:
     uint8_t device() const { return _device; }
     fujiCommandID_t command() const { return _command; }
 
-    // A param the command was sent without reads as 0
     ParamProxy param(size_t index) const { return ParamProxy{ index, this }; }
-    // Whether the command was sent with param(index), read as psize-byte params
-    bool hasParam(size_t index, size_t psize = 1) const;
 
     void setPayload(ByteBuffer &payload);
 

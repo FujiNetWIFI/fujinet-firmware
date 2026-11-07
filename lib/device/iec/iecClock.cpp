@@ -4,7 +4,13 @@
 #include "string_utils.h"
 #include "debug.h"
 
-iecClock::iecClock(uint8_t devnr) : IECDevice(devnr)
+// FujiNet commands come on channel 15, as on the bus's other virtualDevices
+static bool is_raw_channel(uint8_t secondary)
+{
+    return (secondary & 0x0F) != 15;
+}
+
+iecClock::iecClock(uint8_t devnr) : virtualDevice(devnr)
 {
     ts = 0;
     payload.clear();
@@ -29,8 +35,25 @@ void iecClock::set_timestamp_format(std::string s)
     tf = s;
 }
 
+// fujinet-lib sends the time zone's length as a 16-bit param, then the name
+std::optional<std::string> iecClock::fujidev_read_tz()
+{
+    std::optional<std::string> tz = read_tz_by_length(_packet->param16(0));
+
+    if (tz)
+        tz = SYSTEM_BUS.nativeTextToUnicode(*tz);
+    return tz;
+}
+
 void iecClock::talk(uint8_t secondary)
 {
+  rawChannel = is_raw_channel(secondary);
+  if (!rawChannel)
+    {
+      virtualDevice::talk(secondary);
+      return;
+    }
+
   // get current time in task() function, can't do it here 
   // since we are in timing-sensitive code
   responsePtr = 0xFFFFFFFF;
@@ -39,6 +62,12 @@ void iecClock::talk(uint8_t secondary)
 
 void iecClock::untalk()
 {
+  if (!rawChannel)
+    {
+      virtualDevice::untalk();
+      return;
+    }
+
   responsePtr = 0;
   response.clear();
 }
@@ -46,12 +75,25 @@ void iecClock::untalk()
 
 void iecClock::listen(uint8_t secondary)
 {
+  rawChannel = is_raw_channel(secondary);
+  if (!rawChannel)
+    {
+      virtualDevice::listen(secondary);
+      return;
+    }
+
   payload.clear();
 }
 
 
 void iecClock::unlisten()
 {
+  if (!rawChannel)
+    {
+      virtualDevice::unlisten();
+      return;
+    }
+
   if( !payload.empty() )
     {
       if (mstr::isNumeric(payload))
@@ -66,12 +108,18 @@ void iecClock::unlisten()
 
 int8_t iecClock::canWrite()
 {
+  if (!rawChannel)
+    return virtualDevice::canWrite();
+
   return 1;
 }
 
 
 int8_t iecClock::canRead()
 {
+  if (!rawChannel)
+    return virtualDevice::canRead();
+
   if( responsePtr==0xFFFFFFFF )
     return -1; // response not yet set
   else
@@ -81,12 +129,21 @@ int8_t iecClock::canRead()
 
 void iecClock::write(uint8_t data, bool eoi)
 {
+  if (!rawChannel)
+    {
+      virtualDevice::write(data, eoi);
+      return;
+    }
+
   payload += char(data);
 }
 
 
 uint8_t iecClock::read()
 {
+  if (!rawChannel)
+    return virtualDevice::read();
+
   // we should never get here if responsePtr>=response.size() because
   // then canRead would have returned 0, but better safe than sorry
   return responsePtr < response.size() ? response[responsePtr++] : 0;
@@ -95,6 +152,9 @@ uint8_t iecClock::read()
 
 void iecClock::task()
 {
+  // runs a FujiNet command once its LISTEN has ended
+  virtualDevice::task();
+
   if( responsePtr==0xFFFFFFFF )
     {
       struct tm *info;

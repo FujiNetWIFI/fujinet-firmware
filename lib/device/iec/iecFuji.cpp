@@ -146,35 +146,12 @@ void logResponse(const void* data, size_t length)
 }
 
 
-// fujinet-lib sends the time zone's length as a 16-bit param, then the name
-std::optional<std::string> iecFuji::fujidev_read_tz()
-{
-    std::optional<std::string> tz = read_tz_by_length(_packet->param16(0));
-
-    if (tz)
-        tz = SYSTEM_BUS.nativeTextToUnicode(*tz);
-    return tz;
-}
-
 bool iecFuji::processCommand(const FUJI_COMMAND_PACKET &packet)
 {
   bool handled = false;
 
-  // The clock's GET_SOS has STATUS's command byte. fujinet-lib sends GET_SOS
-  // with its alternate timezone flag as a param, and STATUS with none.
-  if (packet.command() == CMD::APETIME_GET_SOS && packet.hasParam(0)) {
-    handled = fujiClock::processCommand(packet);
-    goto done;
-  }
-
   // Let the base class handle standard commands
   if (fujiDevice::processCommand(packet)) {
-    handled = true;
-    goto done;
-  }
-
-  // fujinet-lib sends the clock commands to the FujiNet device on IEC
-  if (fujiClock::processCommand(packet)) {
     handled = true;
     goto done;
   }

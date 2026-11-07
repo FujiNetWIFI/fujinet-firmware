@@ -5,33 +5,31 @@ The Commodore device set for `BUILD_IEC`, on ESP32 and FujiNet-PC.
 ## Layout
 | File | Defines |
 |---|---|
-| `iecFuji.h`, `iecFuji.cpp` | `iecFuji : fujiDevice, fujiClock` (`.d64` images); defines `platformFuji` and sets `theFuji`; `setup()` attaches the printer, the drives, the network, the clock and itself to the bus under their Commodore device numbers |
+| `iecFuji.h`, `iecFuji.cpp` | `iecFuji : fujiDevice` (`.d64` images); defines `platformFuji` and sets `theFuji`; `setup()` attaches the printer, the drives, the network, the clock and itself to the bus under their Commodore device numbers |
 | `drive.h`, `drive.cpp` | `iecDrive : IECFileDevice`, the `DISK_DEVICE`: a Commodore drive whose channels (`iecChannelHandler`), directory and disk images come from [lib/meatloaf/](../../meatloaf/); `write_blank()` writes the image for NEW DISK |
 | `iecNetwork.h`, `iecNetwork.cpp` | `iecNetwork : NDevice` |
-| `iecClock.h`, `iecClock.cpp` | `iecClock : IECDevice`, a raw IEC clock device |
+| `iecClock.h`, `iecClock.cpp` | `iecClock : fujiClock`, device 29: the FujiNet clock commands on channel 15, and a raw clock on the other channels |
 | `modem.h`, `modem.cpp` | `iecModem : IECDevice` |
 | `printer.h`, `printer.cpp`, `printerlist.h`, `printerlist.cpp` | `iecPrinter : IECDevice` and `printerlist`; defines `fnPrinters` |
 | `cpm.h`, `cpm.cpp` | `iecCpm`, an empty placeholder |
 | `dos/_dos.h` | commented-out DOS tables, included by nothing |
 
 ## How it fits
-- Three device bases coexist: `iecFuji` and `iecNetwork` derive the bus's `virtualDevice` (an
-  `IECDevice` underneath) and implement `processCommand()`; `iecDrive` derives the library's
-  `IECFileDevice`; the raw clock, modem and printer derive `IECDevice` directly.
-- `iecFuji` overrides `setup()`, `set_additional_direntry_details()`, `processCommand()` and
-  `fujidev_read_tz()`. `iecNetwork` overrides `fujidev_write()`. Devices are registered with
-  `attachDevice()` from [lib/bus/iec/](../../bus/iec/), not `addDevice()`.
-  [lib/media/cbm/](../../media/cbm/) supplies the `mediatype_t` values and the blank images NEW DISK
-  writes; image handling is in Meatloaf.
+- Three device bases coexist: `iecFuji`, `iecNetwork` and `iecClock` derive the bus's
+  `virtualDevice` (an `IECDevice` underneath) and implement `processCommand()`; `iecDrive`
+  derives the library's `IECFileDevice`; the modem and printer derive `IECDevice` directly.
+- `iecFuji` overrides `setup()`, `set_additional_direntry_details()` and `processCommand()`.
+  `iecNetwork` overrides `fujidev_write()`. Devices are registered with `attachDevice()` from
+  [lib/bus/iec/](../../bus/iec/), not `addDevice()`. [lib/media/cbm/](../../media/cbm/) supplies
+  the `mediatype_t` values and the blank images NEW DISK writes; image handling is in Meatloaf.
+- `iecClock` takes `processCommand()` from `fujiClock` and overrides `fujidev_read_tz()`, which
+  reads the time zone by the 16-bit length fujinet-lib sends before it. A TALK or LISTEN on
+  channel 15 goes to `virtualDevice`. On any other channel it is the raw clock: a LISTEN sets a
+  strftime format, or a Unix time for the next read, and a TALK reads the time as text.
 - NEW DISK is the shared `fujiDevice::fujicmd_new_disk()`; `iecFuji` has no override.
   `iecDrive::NewDiskRequest` is the layout fujinet-lib sends from a C64 (`numSectors`, `sectorSize`,
   host slot, device slot, a 256-byte name), and `write_blank()` passes the file to
   `BlankImage::create()`: a formatted image for a `.d64`, `.d71` or `.d81` name, zeros for any other.
-- `iecFuji` also derives `fujiClock`, because fujinet-lib sends its clock commands to the FujiNet
-  device, not to `iecClock`. `processCommand()` offers a command to `fujiDevice` first and to
-  `fujiClock` second, except that a `GET_SOS` sent with a param goes to the clock first: it has
-  STATUS's command byte, and STATUS is sent with none. `fujidev_read_tz()` reads the time zone by
-  the 16-bit length that fujinet-lib sends as a param before it.
 - A drive reads a mounted image through the handle the Fuji device opened: `mount()` attaches it
   to Meatloaf's `fnfile://` file system, and `unmount()` detaches and closes it. With no image
   mounted, a drive sees the flash directory as `/`.
