@@ -8,7 +8,7 @@ The Commodore device set for `BUILD_IEC`, on ESP32 and FujiNet-PC.
 | `iecFuji.h`, `iecFuji.cpp` | `iecFuji : fujiDevice` (`.d64` images); defines `platformFuji` and sets `theFuji`; `setup()` attaches the printer, the drives, the network, the clock and itself to the bus under their Commodore device numbers |
 | `drive.h`, `drive.cpp` | `iecDrive : IECFileDevice`, the `DISK_DEVICE`: a Commodore drive whose channels (`iecChannelHandler`), directory and disk images come from [lib/meatloaf/](../../meatloaf/); `write_blank()` writes the image for NEW DISK |
 | `iecNetwork.h`, `iecNetwork.cpp` | `iecNetwork : NDevice` |
-| `iecClock.h`, `iecClock.cpp` | `iecClock : fujiClock`, device 29: the FujiNet clock commands on channel 15, and a raw clock on the other channels |
+| `iecClock.h`, `iecClock.cpp` | `iecClock : fujiClock`, device 29: the FujiNet clock commands on channel 15 |
 | `modem.h`, `modem.cpp` | `iecModem : IECDevice` |
 | `printer.h`, `printer.cpp`, `printerlist.h`, `printerlist.cpp` | `iecPrinter : IECDevice` and `printerlist`; defines `fnPrinters` |
 | `cpm.h`, `cpm.cpp` | `iecCpm`, an empty placeholder |
@@ -23,9 +23,7 @@ The Commodore device set for `BUILD_IEC`, on ESP32 and FujiNet-PC.
   [lib/bus/iec/](../../bus/iec/), not `addDevice()`. [lib/media/cbm/](../../media/cbm/) supplies
   the `mediatype_t` values and the blank images NEW DISK writes; image handling is in Meatloaf.
 - `iecClock` takes `processCommand()` from `fujiClock` and overrides `fujidev_read_tz()`, which
-  reads the time zone by the 16-bit length fujinet-lib sends before it. A TALK or LISTEN on
-  channel 15 goes to `virtualDevice`. On any other channel it is the raw clock: a LISTEN sets a
-  strftime format, or a Unix time for the next read, and a TALK reads the time as text.
+  reads the time zone by the 16-bit length fujinet-lib sends before it.
 - NEW DISK is the shared `fujiDevice::fujicmd_new_disk()`; `iecFuji` has no override.
   `iecDrive::NewDiskRequest` is the layout fujinet-lib sends from a C64 (`numSectors`, `sectorSize`,
   host slot, device slot, a 256-byte name), and `write_blank()` passes the file to
