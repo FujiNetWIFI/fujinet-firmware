@@ -107,6 +107,23 @@ TEST_CASE("a read after a BODY-mode PUT body sends it, and the close does not re
     CHECK(fake_http.requests.size() == 1);
 }
 
+TEST_CASE("OPEN_MODE_HTTP_PUT_H sends a PUT with the headers that were set, once")
+{
+    Channel ch(HTTP_METHOD::PUT_H);
+    REQUIRE(ch.http.set_channel_mode(HTTP_CHANMODE::SET_HEADERS) == FUJI_ERROR::NONE);
+    ch.write("Content-Type: application/json");
+    ch.post_data("{}");
+    ch.status();
+
+    REQUIRE(fake_http.requests.size() == 1);
+    CHECK(fake_http.requests[0].method == "PUT");
+    CHECK(fake_http.requests[0].body == "{}");
+    CHECK(fake_http.requests[0].headers["Content-Type"] == "application/json");
+
+    ch.http.close();
+    CHECK(fake_http.requests.size() == 1);
+}
+
 TEST_CASE("a POST goes out on the first STATUS and not again at the close")
 {
     Channel ch(HTTP_METHOD::POST);
