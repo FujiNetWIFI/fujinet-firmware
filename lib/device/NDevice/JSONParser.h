@@ -22,6 +22,7 @@ public:
     error_is_true parse() override;
     error_is_true setQueryParam(uint8_t param) override;
     error_is_true setLineEnding(const std::string &eol) override;
+    error_is_true setTextWidth(uint8_t width) override { _json.setTextWidth(width); RETURN_SUCCESS_AS_FALSE(); }
 };
 
 #endif /* JSONPARSER_H */

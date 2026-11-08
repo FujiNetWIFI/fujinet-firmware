@@ -8,6 +8,7 @@
 #include "fnjson.h"
 
 #include "../fntext/fn_sanitize.h"
+#include "../fnpretty/fn_render_text.h"
 
 #include <string.h>
 #include <cctype>
@@ -131,6 +132,11 @@ cJSON *FNJSON::resolveQuery()
  */
 std::string FNJSON::processString(std::string in)
 {
+    // TEXT interprets the markup, so it must see the tags (and runs before the
+    // DELETE_SGML_TAGS strip below, which would otherwise leave only bare text).
+    if ((_queryParam & FN_QUERY_OUTPUT_MASK) == FN_QUERY_OUTPUT_TEXT)
+        return fn_render_html_text(in, _textWidth, lineEnding);
+
     if (_queryParam & JSON_DELETE_SGML_TAGS)
     {
         size_t startpos = 0;
@@ -221,7 +227,12 @@ std::string FNJSON::getValue(cJSON *item)
 #ifdef VERBOSE_PROTOCOL
         Debug_printf("S: [cJSON_IsString] ... (not printing)\r\n");
 #endif
-        ss << processString(strValue + lineEnding);
+        // TEXT output is a rendered block: the line ending goes after it,
+        // not through the renderer as if it were page text.
+        if ((_queryParam & FN_QUERY_OUTPUT_MASK) == FN_QUERY_OUTPUT_TEXT)
+            ss << processString(strValue) + lineEnding;
+        else
+            ss << processString(strValue + lineEnding);
     }
     else if (cJSON_IsBool(item))
     {

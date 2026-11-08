@@ -152,7 +152,9 @@ TEST_CASE("only the defined query flags are accepted")
     CHECK(fn_query_param_is_valid(FN_QUERY_DELETE_SGML_TAGS | FN_QUERY_OUTPUT_ASCII));
 
     CHECK_FALSE(fn_query_param_is_valid(0x08)); // unassigned low-nibble bit
-    CHECK_FALSE(fn_query_param_is_valid(0x20)); // reserved output mode
+    CHECK(fn_query_param_is_valid(FN_QUERY_OUTPUT_TEXT));
+    CHECK(fn_query_param_is_valid(0x20));
+    CHECK(fn_query_param_is_valid(FN_QUERY_OUTPUT_TEXT | FN_QUERY_DELETE_SGML_TAGS));
     CHECK_FALSE(fn_query_param_is_valid(0x30)); // reserved output mode
     CHECK_FALSE(fn_query_param_is_valid(0x40)); // above the field
 }
@@ -164,6 +166,233 @@ TEST_CASE("the remap flag converts every occurrence of a character, not just the
 
     std::string remapped = session.query("/r/t", FN_QUERY_REMAP_CHARS);
     CHECK(remapped.find("Mueller ueber") != std::string::npos);
+}
+
+// ----------------------------------------------------------------------------
+// TEXT output mode (0x20): the queried value is HTML, rendered to wrapped ASCII.
+// ----------------------------------------------------------------------------
+
+namespace {
+
+// Excerpts of real feeds. The RSS item is shaped like the Hacker News feed (a
+// CDATA <description> of HTML); the Atom entry is a Daring Fireball <content>.
+const char *kHtmlRss =
+    "<rss version=\"2.0\"><channel><title>T</title>"
+    "<item><title>Thieves</title><description><![CDATA["
+    "<p>Paresh Dave and Aarian Marshall, reporting for Wired "
+    "(<a href=\"https://apple.news/AXazcsSUuTOq8F32MB2X88w\">News+ link</a> in case "
+    "Wired hits you with their paywall):</p>\n"
+    "<blockquote>\n  <p>The incidents involved two different shipments of high-value\n"
+    "technology traveling from Silicon Valley to Southern California, according to "
+    "Pachuca, who says he learned about the thefts from law enforcement "
+    "authorities.</p>\n</blockquote>\n"
+    "<p>I called it back in March: <a href=\"https://daringfireball.net/linked/2026/03/31/"
+    "ram-is-the-new-bearer-bond\">RAM is the new bearer bond</a>. R&amp;D &#8212; "
+    "&ldquo;done&rdquo;&nbsp;&#9733;</p>\n"
+    "]]></description></item>"
+    "<item><title>Plain</title><description>just words</description></item>"
+    "</channel></rss>";
+
+const char *kHtmlAtom =
+    "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+    "<feed xmlns=\"http://www.w3.org/2005/Atom\"><title>DF</title>"
+    "<entry><title>Dickover</title>"
+    "<content type=\"html\" xml:base=\"https://daringfireball.net/linked/\"><![CDATA[\n"
+    "<p>Stuart Heritage, writing for The Guardian, under the splendid headline "
+    "\xe2\x80\x9c" "Dickovers, Baggravation and Botiquette\xe2\x80\x9d:</p>\n\n"
+    "<ul><li>baggravation</li><li>Schr\xc3\xb6" "dinger\xe2\x80\x99s Wi-Fi</li></ul>\n"
+    "<div>\n<a title=\"Permanent link\" href=\"https://daringfireball.net/\">&nbsp;&#9733;&nbsp;</a>\n</div>\n"
+    "\t]]></content></entry></feed>";
+
+std::vector<std::string> splitLines(const std::string &text)
+{
+    std::vector<std::string> lines;
+    size_t start = 0;
+    const std::string eol = SYSTEM_BUS.nativeEOL();
+    while (true)
+    {
+        size_t nl = text.find(eol, start);
+        if (nl == std::string::npos)
+        {
+            lines.push_back(text.substr(start));
+            break;
+        }
+        lines.push_back(text.substr(start, nl - start));
+        start = nl + eol.size();
+    }
+    return lines;
+}
+
+size_t longestLine(const std::string &text)
+{
+    size_t longest = 0;
+    for (const std::string &l : splitLines(text))
+        longest = std::max(longest, l.size());
+    return longest;
+}
+
+// Line breaks as single spaces, for finding a phrase the wrapper may have split.
+std::string unwrapped(const std::string &v)
+{
+    std::string out;
+    for (const std::string &l : splitLines(v))
+        out += (out.empty() ? "" : " ") + l;
+    return out;
+}
+
+// The value without the parser's trailing line ending (the bus's EOL, #2336).
+std::string stripEol(std::string v)
+{
+    const std::string eol = SYSTEM_BUS.nativeEOL();
+    REQUIRE(v.size() >= eol.size());
+    REQUIRE(v.compare(v.size() - eol.size(), eol.size(), eol) == 0);
+    v.resize(v.size() - eol.size());
+    return v;
+}
+
+} // namespace
+
+TEST_CASE("TEXT mode renders a CDATA HTML description as wrapped text without tags")
+{
+    Session s(kHtmlRss);
+    REQUIRE(s.parser.parse().is_success());
+
+    std::string out = stripEol(s.query("//item/description", FN_QUERY_OUTPUT_TEXT));
+
+    CHECK(out.find('<') == std::string::npos);
+    CHECK(out.find('>') == std::string::npos);
+    CHECK(out.find("&amp;") == std::string::npos);
+    CHECK(out.find("&#") == std::string::npos);
+    CHECK(out.find("&nbsp;") == std::string::npos);
+    CHECK(out.find("R&D") != std::string::npos);           // entity decoded
+    CHECK(out.find("--") != std::string::npos);            // em dash folded to ASCII
+    CHECK(out.find("\"done\"") != std::string::npos);      // curly quotes folded
+    CHECK(unwrapped(out).find("News+ link") != std::string::npos);    // link text kept
+    CHECK(out.find("paywall") != std::string::npos);
+    CHECK(unwrapped(out).find("RAM is the new bearer bond") != std::string::npos);
+    CHECK(out.find("https://") == std::string::npos);      // links are not rendered
+    CHECK(splitLines(out).size() > 1);                     // wrapped into several lines
+    CHECK(longestLine(out) <= 40);                         // default width
+
+    for (const std::string &l : splitLines(out))
+        for (unsigned char c : l)
+            CHECK((c >= 0x20 && c <= 0x7E));
+}
+
+TEST_CASE("TEXT mode breaks and ends its lines with the parser's line ending")
+{
+    Session s(kHtmlRss);
+    REQUIRE(s.parser.parse().is_success());
+    s.parser.setLineEnding("\x9b");
+
+    std::string out = s.query("//item/description", FN_QUERY_OUTPUT_TEXT);
+    REQUIRE(out.size() > 2);
+    CHECK((unsigned char) out.back() == 0x9b);
+    // The wrapped lines are broken with it too, there is no 0x0A left, and
+    // there is no empty line before the final line ending.
+    CHECK(out.find('\x9b') < out.size() - 1);
+    CHECK(out.find('\n') == std::string::npos);
+    CHECK((unsigned char) out[out.size() - 2] != 0x9b);
+}
+
+TEST_CASE("TEXT mode breaks lines with a multi-byte line ending")
+{
+    Session s(kHtmlRss);
+    REQUIRE(s.parser.parse().is_success());
+    s.parser.setLineEnding("\r\n");
+
+    std::string out = s.query("//item/description", FN_QUERY_OUTPUT_TEXT);
+    REQUIRE(out.size() > 2);
+    CHECK(out.compare(out.size() - 2, 2, "\r\n") == 0);
+    CHECK(out.find("\r\n") < out.size() - 2);
+    // Every 0x0A is the tail of a CR LF.
+    for (size_t i = 0; i < out.size(); i++)
+        if (out[i] == '\n')
+            CHECK((i > 0 && out[i - 1] == '\r'));
+}
+
+TEST_CASE("the text width parameter sets where TEXT mode wraps")
+{
+    std::string w32, w40, w20;
+    {
+        Session s(kHtmlRss);
+        REQUIRE(s.parser.parse().is_success());
+        REQUIRE(s.parser.setTextWidth(32).is_success());
+        w32 = stripEol(s.query("//item/description", FN_QUERY_OUTPUT_TEXT));
+    }
+    {
+        Session s(kHtmlRss);
+        REQUIRE(s.parser.parse().is_success());
+        w40 = stripEol(s.query("//item/description", FN_QUERY_OUTPUT_TEXT));
+    }
+    {
+        Session s(kHtmlRss);
+        REQUIRE(s.parser.parse().is_success());
+        REQUIRE(s.parser.setTextWidth(20).is_success());
+        w20 = stripEol(s.query("//item/description", FN_QUERY_OUTPUT_TEXT));
+    }
+
+    CHECK(longestLine(w32) <= 32);
+    CHECK(longestLine(w40) <= 40);
+    CHECK(longestLine(w20) <= 20);
+    CHECK(longestLine(w32) > 20); // it really used the room it was given
+    CHECK(longestLine(w40) > 32);
+    // Narrower means more lines.
+    CHECK(splitLines(w32).size() > splitLines(w40).size());
+    CHECK(splitLines(w20).size() > splitLines(w32).size());
+    // Width 0 is the 40 column default.
+    {
+        Session s(kHtmlRss);
+        REQUIRE(s.parser.parse().is_success());
+        s.parser.setTextWidth(32);
+        s.parser.setTextWidth(0);
+        CHECK(stripEol(s.query("//item/description", FN_QUERY_OUTPUT_TEXT)) == w40);
+    }
+}
+
+TEST_CASE("TEXT mode on an Atom <content> entry renders lists and folds Unicode")
+{
+    Session s(kHtmlAtom);
+    REQUIRE(s.parser.parse().is_success());
+    s.parser.setTextWidth(32);
+
+    std::string out = stripEol(s.query("//entry/content", FN_QUERY_OUTPUT_TEXT));
+    CHECK(out.find('<') == std::string::npos);
+    CHECK(out.find("&nbsp;") == std::string::npos);
+    CHECK(unwrapped(out).find("Dickovers, Baggravation") != std::string::npos);
+    CHECK(out.find("baggravation") != std::string::npos);
+    CHECK(unwrapped(out).find("Schrodinger's Wi-Fi") != std::string::npos);
+    CHECK(longestLine(out) <= 32);
+    for (const std::string &l : splitLines(out))
+        for (unsigned char c : l)
+            CHECK((c >= 0x20 && c <= 0x7E));
+}
+
+TEST_CASE("TEXT mode passes a value that is not markup through as wrapped text")
+{
+    Session s(kHtmlRss);
+    REQUIRE(s.parser.parse().is_success());
+
+    s.query("//item/description", FN_QUERY_OUTPUT_TEXT); // first item
+    CHECK(stripEol(s.query("//item/description", FN_QUERY_OUTPUT_TEXT)) == "just words");
+}
+
+TEST_CASE("fn_render_html_text has no trailing break and honours the width")
+{
+    const std::string html = "<p>one two three four five six seven eight nine ten</p><p>last</p>";
+
+    const std::string eol = SYSTEM_BUS.nativeEOL();
+    std::string out = fn_render_html_text(html, 16, eol);
+    CHECK(out.compare(out.size() - eol.size(), eol.size(), eol) != 0);
+    CHECK(splitLines(out).size() > 1);
+    CHECK(longestLine(out) <= 16);
+    CHECK(out.find("last") != std::string::npos);
+    CHECK(out.find('\n') == std::string::npos);
+    CHECK(out.find('\r') == std::string::npos);
+
+    CHECK(fn_render_html_text("", 40, eol).empty());
+    // With "\n" the lines are exactly the renderer's.
+    CHECK(fn_render_html_text(html, 16, "\n").find('\n') != std::string::npos);
 }
 
 // ----------------------------------------------------------------------------

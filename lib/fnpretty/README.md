@@ -7,7 +7,7 @@ formatted plain text, word-wrapped to the client's screen width.
 | File | Defines |
 |---|---|
 | `fnpretty.h`, `fnpretty.cpp` | `FNPretty`: `parse` (fetch through a `NetworkProtocol` and render), `renderDocument`, `rerender`, `setQuery` (CSS selector), `setOption` (`!links=`, `!width=`, `!eol=`, `!gfx=`), `setScreenWidth`, `setLineEnding`, link collection (`linkUrl`), `available`, `readValue`; ASCII and ATASCII furniture |
-| `fn_render_text.h`, `fn_render_text.cpp` | `fn_render_html_text(html, width)`: one-shot render of an HTML fragment to ASCII text, used by the query parsers' TEXT output mode |
+| `fn_render_text.h`, `fn_render_text.cpp` | `fn_render_html_text(html, width, eol)`: one-shot render of an HTML fragment to ASCII text with its lines broken by `eol`, used by the query parsers' TEXT output mode |
 
 ## How it fits
 - `PrettyParser` in [lib/device/NDevice/](../device/NDevice/) wraps `FNPretty` for `NET_SET_PARSER` mode 4.

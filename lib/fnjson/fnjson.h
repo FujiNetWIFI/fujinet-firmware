@@ -39,6 +39,9 @@ public:
     std::string processString(std::string in);
     void setQueryParam(uint8_t qp);
     uint8_t queryParam() const { return _queryParam; }
+    // Wrap width in columns for FN_QUERY_OUTPUT_TEXT; 0 = default (40).
+    void setTextWidth(uint8_t width) { _textWidth = width; }
+    uint8_t textWidth() const { return _textWidth; }
     size_t available() { return _json_bytes_remaining; }
 
 private:
@@ -47,6 +50,7 @@ private:
     NetworkProtocol *_protocol = nullptr;
     std::string _queryString;
     uint8_t _queryParam = 0;
+    uint8_t _textWidth = 0;
     std::string lineEnding;
     std::string getValue(cJSON *item);
     std::string _parseBuffer;

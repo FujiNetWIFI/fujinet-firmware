@@ -5,6 +5,7 @@
 #include "fnxml.h"
 
 #include "../fntext/fn_sanitize.h"
+#include "../fnpretty/fn_render_text.h"
 
 #include <string.h>
 #include <vector>
@@ -118,6 +119,11 @@ std::string FNXML::processString(std::string in)
     // to do, so the two are alternatives rather than a pipeline.
     if ((_queryParam & FN_QUERY_OUTPUT_MASK) == FN_QUERY_OUTPUT_ASCII)
         return fn_sanitize_ascii(in);
+
+    // TEXT renders the value as HTML into wrapped ASCII; the caller appends
+    // the line ending after it.
+    if ((_queryParam & FN_QUERY_OUTPUT_MASK) == FN_QUERY_OUTPUT_TEXT)
+        return fn_render_html_text(in, _textWidth, lineEnding);
 
 #ifdef BUILD_ATARI
     if (_queryParam & XML_REMAP_CHARS)

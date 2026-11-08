@@ -3,7 +3,7 @@
 #include "fnpretty.h"
 #include "../fntext/fn_sanitize.h"
 
-std::string fn_render_html_text(const std::string &html, uint8_t width)
+std::string fn_render_html_text(const std::string &html, uint8_t width, const std::string &eol)
 {
     FNPretty pretty;
 
@@ -15,9 +15,23 @@ std::string fn_render_html_text(const std::string &html, uint8_t width)
     if (pretty.renderDocument(html))
         text = pretty.rendered();
     else
-        return fn_sanitize_ascii(html);
+        text = fn_sanitize_ascii(html);
 
     while (!text.empty() && (text.back() == '\n' || text.back() == ' '))
         text.pop_back();
-    return text;
+
+    // Wrap and trim on "\n" above, then break lines with the caller's EOL so a
+    // value reads as lines on the host (0x9B on the Atari, not a stray 0x0A).
+    if (eol == "\n")
+        return text;
+    std::string out;
+    out.reserve(text.size());
+    for (char c : text)
+    {
+        if (c == '\n')
+            out += eol;
+        else
+            out += c;
+    }
+    return out;
 }

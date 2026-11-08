@@ -20,13 +20,15 @@
  *
  * Tags are interpreted (paragraphs, lists, headings, tables, ...) rather than
  * stripped, entities are decoded and non-ASCII is folded to ASCII. Layout uses
- * ASCII furniture and links are not rendered. Lines are separated by "\n"
- * (0x0A) and there is no trailing line break; the caller appends its own line
- * ending as for any other value. No line is longer than width columns.
+ * ASCII furniture and links are not rendered. Lines are separated by eol
+ * (the parser's line ending, e.g. 0x9B on the Atari) and there is no trailing
+ * line break; the caller appends its own line ending as for any other value.
+ * No line is longer than width columns.
  *
  * @param html  the markup, e.g. an RSS <description> or Atom <content> value
  * @param width columns to wrap at; 0 means FN_RENDER_TEXT_DEFAULT_WIDTH
+ * @param eol   what separates the wrapped lines
  */
-std::string fn_render_html_text(const std::string &html, uint8_t width);
+std::string fn_render_html_text(const std::string &html, uint8_t width, const std::string &eol);
 
 #endif /* FN_RENDER_TEXT_H */
