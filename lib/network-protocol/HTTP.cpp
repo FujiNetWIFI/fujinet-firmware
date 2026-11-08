@@ -427,7 +427,7 @@ fujiError_t NetworkProtocolHTTP::status_file(NetworkStatus *status)
     {
     case DATA:
     {
-        if (!fromInterrupt && resultCode == 0)
+        if (!fromInterrupt && resultCode == 0 && !_putBodyInDataMode)
         {
 #ifdef VERBOSE_PROTOCOL
             Debug_printf("calling http_transaction\r\n");
@@ -550,7 +550,7 @@ fujiError_t NetworkProtocolHTTP::close_file_handle()
 
     if (client != nullptr)
     {
-        if (httpMethod == HTTP_METHOD::PUT)
+        if (httpMethod == HTTP_METHOD::PUT && resultCode == 0)
             http_transaction();
         client->close();
 
@@ -679,6 +679,7 @@ fujiError_t NetworkProtocolHTTP::write_file_handle_data(uint8_t *buf, unsigned s
     if (httpMethod == HTTP_METHOD::PUT)
     {
         postData += std::string((char *)buf, len);
+        _putBodyInDataMode = true;
         return FUJI_ERROR::NONE; // come back here later.
     }
 
