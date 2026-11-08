@@ -10,6 +10,11 @@
 #include <string>
 #include <vector>
 
+// on Windows/MinGW DELETE is defined already, as in the real header
+#if defined(_WIN32) && defined(DELETE)
+#undef DELETE
+#endif
+
 struct FakeHttpRequest
 {
     std::string method;
