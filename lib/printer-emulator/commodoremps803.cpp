@@ -81,14 +81,13 @@ void commodoremps803::reset_cmd()
 
 void commodoremps803::mps_print_bitmap(uint8_t c)
 {
-    // e.g., [(0)100(1)100(4)100(50)]TJ
-    // lead with '0' to enter a space
-    // then shift back with 100 and print each pin
+    // e.g., [( )100(7)100(4)]TJ: a space advances one column, then each pin glyph
+    // is shifted back over it. Bit 7 only marks bit image data; bit 0 is the top dot.
     fprintf(_file, " ");
-    for (unsigned i = 0; i < 8; i++)
+    for (unsigned i = 0; i < 7; i++)
     {
         if ((c >> i) & 0x01)
-            fprintf(_file, ")100(%u", i + 1);
+            fprintf(_file, ")100(%u", 7 - i);
     }
 }
 
@@ -170,9 +169,12 @@ Specify Dot Address     CHRS(27);CHR$(16);CHR$(nH)CHR$(nL)
             mps_cmd.cmd = 26;
             break;
         default:
-            // update font if needed
-            mps_update_font();
-            mps_print_bitmap(c);
+            // CR, LF and a repeated CHR$(8) arrive here too; only bytes with bit 7 set are dots
+            if (c & 0x80)
+            {
+                mps_update_font();
+                mps_print_bitmap(c);
+            }
             break;
         }
     }
@@ -216,9 +218,9 @@ Specify Dot Address     CHRS(27);CHR$(16);CHR$(nH)CHR$(nL)
             times the operator needs to use this code twice.
             */
             case 26:
-            // FIX TODO - 26 must be called after 08, but 08 puts us into bitmap mode above.
                 // Repeat Graphic
                 // CHRS(26);CHR$(n);CHR$(Bit Image Data) from page 37
+                // bit image mode continues after the repeat
                 mps_modes.bitmap = true;
                 mps_update_font();
                 {
@@ -228,8 +230,6 @@ Specify Dot Address     CHRS(27);CHR$(16);CHR$(nH)CHR$(nL)
                     for (int i = 0; i < n; i++)
                         mps_print_bitmap(c);
                 }
-                mps_modes.bitmap = false;
-                mps_update_font();
                 reset_cmd();
                 break;
             case 27:
