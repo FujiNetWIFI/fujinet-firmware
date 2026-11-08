@@ -27,7 +27,7 @@ an 8-bit program query one value out of a JSON, XML or HTML document.
 - `NET_SET_PARAMETER` sets a parser parameter: 0 = query flags, 1 = line ending byte, 2 = text
   width in columns (0 = default 40; the PRETTY screen width, or the TEXT output mode's wrap width).
 - `NET_SET_PARSER` swaps the `NParser` (0 none, 1 JSON, 2 HTML, 3 XML, 4 PRETTY); with no parser set, reads and writes pass straight through
-  to the protocol.
+  to the protocol. PRETTY queries: digits = link URL, `sel@attr` = attribute of the first match of `sel` (both staged ahead of the page text, which then resumes), `!key=val` = option, anything else = CSS selector for the section to show.
 - Platform differences are the `fujidev_*` virtuals (`fujidev_read`, `fujidev_write`,
   `fujidev_status`, `fujidev_set_prefix`, `fujidev_get_prefix`, `fujidev_set_query`,
   `fujidev_set_parser`, `fujidev_seek`, `fujidev_tell`) and `dir_long_width()`.

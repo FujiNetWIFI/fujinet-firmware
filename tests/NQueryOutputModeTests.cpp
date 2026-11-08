@@ -561,6 +561,51 @@ TEST_CASE("PRETTY numeric query stages a link URL ahead of the page, then the pa
     CHECK(s.parser.available() == pageLeft);
 }
 
+TEST_CASE("PRETTY selector@attr stages the first match's attribute, then the page resumes")
+{
+    const char *page =
+        "<html><body><a class=\"skip-link screen-reader-text\" href=\"#main\">Skip</a>"
+        "<a class=\"skip-link\" href=\"#other\">Skip2</a>"
+        "<a href=\"mailto:x@y\" title=\"caf\xc3\xa9\">Mail</a>"
+        "<div id=\"main\"><p>Main text.</p></div></body></html>";
+    PrettySession s(page);
+    REQUIRE(s.parser.parse().is_success());
+    size_t pageLeft = s.parser.available();
+
+    REQUIRE(s.parser.setQuery("a.skip-link@href").is_success());
+    std::string got;
+    REQUIRE(s.parser.read(got, 1000) == FUJI_ERROR::NONE);
+    CHECK(got == "#main" + SYSTEM_BUS.nativeEOL());
+    CHECK(s.parser.available() == pageLeft);
+
+    // Raw but ASCII-folded; '@' inside a quoted attribute value is not the split.
+    REQUIRE(s.parser.setQuery("a[href=\"mailto:x@y\"]@title").is_success());
+    REQUIRE(s.parser.read(got, 1000) == FUJI_ERROR::NONE);
+    CHECK(got.find('\xc3') == std::string::npos);
+    CHECK(got.find("caf") == 0);
+
+    // No match, missing attribute, or an empty attribute name are errors.
+    CHECK(s.parser.setQuery("a.nope@href").is_error());
+    CHECK(s.parser.setQuery("a.skip-link@data-nope").is_error());
+    CHECK(s.parser.available() == pageLeft);
+}
+
+TEST_CASE("PRETTY a selector with '@' in a quoted value is still a selector")
+{
+    const char *page =
+        "<html><body><p>Intro.</p><a href=\"mailto:x@y\">Mail me</a></body></html>";
+    PrettySession s(page);
+    REQUIRE(s.parser.parse().is_success());
+
+    REQUIRE(s.parser.setQuery("a[href=\"mailto:x@y\"]").is_success());
+    std::string out = s.drain();
+    CHECK(out.find("Mail me") != std::string::npos);
+    CHECK(out.find("Intro.") == std::string::npos);
+
+    // Trailing '@' with no attribute name is not the attr form either.
+    REQUIRE(s.parser.setQuery("a@").is_success());
+}
+
 TEST_CASE("PRETTY parse fails cleanly with no data")
 {
     PrettySession s("");

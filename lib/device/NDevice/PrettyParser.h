@@ -14,6 +14,11 @@
  *   all digits  1-based link index; the link's URL + EOL is staged and served
  *               by the next read(s) in place of page text, after which the page
  *               resumes where it left off
+ *   "sel@attr"  value of attribute attr on the first element matching the CSS
+ *               selector sel (last '@' outside quotes and [...]; attr is
+ *               [A-Za-z0-9_:-]+), raw but ASCII-folded; staged + EOL and served
+ *               exactly like a link URL, page and section untouched. No match
+ *               or no such attribute is an error (END_OF_FILE)
  *   "!key=val"  FNPretty::setOption (links, width, eol, gfx), then re-render
  *   anything    CSS selector naming the section to show (empty = whole page),
  *               then re-render

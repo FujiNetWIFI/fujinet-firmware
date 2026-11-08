@@ -936,6 +936,20 @@ std::string FNPretty::linkUrl(size_t index) const
     return _links[index - 1];
 }
 
+std::string FNPretty::attrOfFirst(const std::string &selector, const std::string &attr) const
+{
+    if (_doc == nullptr || _doc->root() == nullptr || selector.empty() || attr.empty())
+        return "";
+
+    // Exception-free gumbo-query: a malformed selector yields an empty selection.
+    CSelection sel = _doc->find(selector);
+    if (sel.nodeNum() == 0)
+        return "";
+
+    const GumboNode *n = sel.nodeAt(0).node();
+    return fn_utf8_to_ascii(getAttribute(n, attr.c_str()));
+}
+
 // ---------------------------------------------------------------------------
 // Layout walk
 // ---------------------------------------------------------------------------

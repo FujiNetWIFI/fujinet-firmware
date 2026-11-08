@@ -227,6 +227,15 @@ public:
      */
     std::string linkUrl(size_t index) const;
 
+    /**
+     * @brief Value of attribute attr on the first element matching the CSS
+     * selector, from the retained document (no re-fetch). Returned as in the
+     * document - no URL resolution - but folded to ASCII like page text.
+     * Returns "" if there is no document, no match, or the attribute is
+     * missing or empty.
+     */
+    std::string attrOfFirst(const std::string &selector, const std::string &attr) const;
+
 private:
     struct ListState
     {

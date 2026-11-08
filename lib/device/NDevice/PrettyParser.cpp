@@ -89,6 +89,54 @@ error_is_true PrettyParser::parse()
     RETURN_ERROR_IF(_parseError != NDEV_STATUS::SUCCESS);
 }
 
+/**
+ * Split "<selector>@<attr>". The split is at the last '@' that is outside
+ * quotes and outside [...] brackets, so a[href="mailto:x@y"] stays a plain
+ * selector. The attribute must be a non-empty run of [A-Za-z0-9_:-] and the
+ * selector non-empty.
+ */
+static bool splitAttrQuery(const std::string &query, std::string &selector, std::string &attr)
+{
+    size_t at = std::string::npos;
+    int depth = 0;
+    char quote = 0;
+
+    for (size_t i = 0; i < query.size(); i++)
+    {
+        char c = query[i];
+        if (quote != 0)
+        {
+            if (c == '\\')
+                i++;
+            else if (c == quote)
+                quote = 0;
+        }
+        else if (c == '"' || c == '\'')
+            quote = c;
+        else if (c == '[')
+            depth++;
+        else if (c == ']' && depth > 0)
+            depth--;
+        else if (c == '@' && depth == 0)
+            at = i;
+    }
+
+    if (at == std::string::npos || at == 0 || at + 1 >= query.size())
+        return false;
+
+    for (size_t i = at + 1; i < query.size(); i++)
+    {
+        char c = query[i];
+        if (!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') ||
+              c == '_' || c == ':' || c == '-'))
+            return false;
+    }
+
+    selector = query.substr(0, at);
+    attr = query.substr(at + 1);
+    return true;
+}
+
 error_is_true PrettyParser::setQuery(const std::string &query)
 {
     // An all-digits query is a link index, never a CSS selector (a CSS
@@ -119,6 +167,26 @@ error_is_true PrettyParser::setQuery(const std::string &query)
         }
 
         _staged = url + _eol;
+        _linkPending = true;
+        _parseError = NDEV_STATUS::SUCCESS;
+        RETURN_SUCCESS_AS_FALSE();
+    }
+
+    // "<selector>@<attr>": the attribute of the first match, staged exactly
+    // like a link URL. The page and its section are left untouched.
+    std::string attrSelector, attrName;
+    if (query[0] != '!' && splitAttrQuery(query, attrSelector, attrName))
+    {
+        std::string value = _pretty.attrOfFirst(attrSelector, attrName);
+        if (value.empty()) // no match, or the attribute is missing/empty
+        {
+            _staged.clear();
+            _linkPending = false;
+            _parseError = NDEV_STATUS::END_OF_FILE;
+            RETURN_ERROR_AS_TRUE();
+        }
+
+        _staged = value + _eol;
         _linkPending = true;
         _parseError = NDEV_STATUS::SUCCESS;
         RETURN_SUCCESS_AS_FALSE();
