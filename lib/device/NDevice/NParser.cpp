@@ -70,3 +70,9 @@ error_is_true NParser::setLineEnding(const std::string &eol)
     _protocol->setLineEnding(eol);
     RETURN_SUCCESS_AS_FALSE();
 }
+
+error_is_true NParser::setTextWidth(uint8_t width)
+{
+    // A plain pass-through channel has no text to wrap.
+    RETURN_ERROR_AS_TRUE();
+}

@@ -1,5 +1,23 @@
 cmake_minimum_required(VERSION 3.16)
 
+# FNPretty and what it needs (fn_sanitize, Gumbo, gumbo-query), shared by every
+# test that links the HTML renderer or the TEXT output mode built on it.
+file(GLOB GUMBO_TEST_SOURCES ${CMAKE_SOURCE_DIR}/components/gumbo/*.c)
+set_source_files_properties(${GUMBO_TEST_SOURCES} PROPERTIES COMPILE_OPTIONS -w) # vendored third-party
+set(FN_PRETTY_SOURCES
+    ${CMAKE_SOURCE_DIR}/lib/fnpretty/fnpretty.cpp
+    ${CMAKE_SOURCE_DIR}/lib/fnpretty/fn_render_text.cpp
+    ${CMAKE_SOURCE_DIR}/lib/fntext/fn_sanitize.cpp
+    ${GUMBO_TEST_SOURCES}
+    ${CMAKE_SOURCE_DIR}/components/gumbo-query/Document.cpp
+    ${CMAKE_SOURCE_DIR}/components/gumbo-query/Node.cpp
+    ${CMAKE_SOURCE_DIR}/components/gumbo-query/Object.cpp
+    ${CMAKE_SOURCE_DIR}/components/gumbo-query/Parser.cpp
+    ${CMAKE_SOURCE_DIR}/components/gumbo-query/QueryUtil.cpp
+    ${CMAKE_SOURCE_DIR}/components/gumbo-query/Selection.cpp
+    ${CMAKE_SOURCE_DIR}/components/gumbo-query/Selector.cpp
+)
+
 add_executable(fujibuspacket_tests
     FujiBusPacketTests.cpp
     ${CMAKE_SOURCE_DIR}/lib/bus/FujiBusPacket.cpp
@@ -629,6 +647,8 @@ if(FUJINET_TARGET STREQUAL "ATARI")
     ${CMAKE_SOURCE_DIR}/lib/fnhtml/
     ${CMAKE_SOURCE_DIR}/lib/fntext/
     ${CMAKE_SOURCE_DIR}/lib/fnxml/
+    ${CMAKE_SOURCE_DIR}/lib/fnpretty/
+    ${CMAKE_SOURCE_DIR}/components/gumbo/
     ${CMAKE_SOURCE_DIR}/components_pc/
     ${CMAKE_SOURCE_DIR}/components_pc/libssh/include/
     ${CMAKE_BINARY_DIR}/components_pc/libssh/include/
@@ -669,7 +689,14 @@ if(FUJINET_TARGET STREQUAL "ATARI")
     NParserReadTests.cpp
     ${CMAKE_SOURCE_DIR}/lib/device/NDevice/NParser.cpp
     ${CMAKE_SOURCE_DIR}/lib/device/NDevice/XMLParser.cpp
-    ${CMAKE_SOURCE_DIR}/lib/fntext/fn_sanitize.cpp
+    ${CMAKE_SOURCE_DIR}/lib/device/NDevice/PrettyParser.cpp
+    ${FN_PRETTY_SOURCES}
+    ${CMAKE_SOURCE_DIR}/lib/utils/peoples_url_parser.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/string_utils.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/utils.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/U8Char.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/punycode.cpp
+    ${CMAKE_SOURCE_DIR}/lib/compat/compat_gettimeofday.c
     ${CMAKE_SOURCE_DIR}/lib/fnxml/fnxml.cpp
     ${CMAKE_SOURCE_DIR}/lib/fnxml/fnxml_query.cpp
     ${CMAKE_SOURCE_DIR}/lib/tinyxml2/tinyxml2.cpp
@@ -703,6 +730,8 @@ if(FUJINET_TARGET STREQUAL "ATARI")
     ${CMAKE_SOURCE_DIR}/lib/fnhtml/
     ${CMAKE_SOURCE_DIR}/lib/fntext/
     ${CMAKE_SOURCE_DIR}/lib/fnxml/
+    ${CMAKE_SOURCE_DIR}/lib/fnpretty/
+    ${CMAKE_SOURCE_DIR}/components/gumbo/
     ${CMAKE_SOURCE_DIR}/components_pc/
     ${CMAKE_SOURCE_DIR}/components_pc/libssh/include/
     ${CMAKE_BINARY_DIR}/components_pc/libssh/include/
@@ -712,7 +741,17 @@ if(FUJINET_TARGET STREQUAL "ATARI")
     ${MBEDTLS_INCLUDE_DIR}
     ${CMAKE_SOURCE_DIR}/lib/tinyxml2/
     )
-  target_link_libraries(nquery_output_mode_tests PRIVATE)
+  if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    target_sources(nquery_output_mode_tests PRIVATE
+      ${CMAKE_SOURCE_DIR}/lib/compat/strlcat.c
+      ${CMAKE_SOURCE_DIR}/lib/compat/strlcpy.c
+    )
+  endif()
+  # PeoplesUrlParser (for PrettyParser's base URL) reaches utils.cpp.
+  target_link_libraries(nquery_output_mode_tests PRIVATE ${MBEDCRYPTO_STATIC_LIB})
+  if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    target_link_libraries(nquery_output_mode_tests PRIVATE bcrypt)
+  endif()
   add_test(NAME nquery_output_mode_tests COMMAND nquery_output_mode_tests)
 endif()
 
@@ -760,6 +799,7 @@ if(FUJINET_TARGET STREQUAL "ADAM")
     ${CMAKE_SOURCE_DIR}/lib/fnjson/
     ${CMAKE_SOURCE_DIR}/lib/fnhtml/
     ${CMAKE_SOURCE_DIR}/lib/fnxml/
+    ${CMAKE_SOURCE_DIR}/lib/fnpretty/
     ${CMAKE_SOURCE_DIR}/lib/fntext/
     ${CMAKE_SOURCE_DIR}/lib/tinyxml2/
     ${CMAKE_SOURCE_DIR}/lib/config/
@@ -1465,21 +1505,9 @@ if(UNIX)
       $<TARGET_FILE:mg_http_completion_probe>)
   set_tests_properties(mg_http_completion_tests PROPERTIES TIMEOUT 25)
 endif()
-file(GLOB GUMBO_TEST_SOURCES ${CMAKE_SOURCE_DIR}/components/gumbo/*.c)
-set_source_files_properties(${GUMBO_TEST_SOURCES} PROPERTIES COMPILE_OPTIONS -w) # vendored third-party
-
 add_executable(fnpretty_tests
     FnPrettyRenderTests.cpp
-    ${CMAKE_SOURCE_DIR}/lib/fnpretty/fnpretty.cpp
-    ${CMAKE_SOURCE_DIR}/lib/fntext/fn_sanitize.cpp
-    ${GUMBO_TEST_SOURCES}
-    ${CMAKE_SOURCE_DIR}/components/gumbo-query/Document.cpp
-    ${CMAKE_SOURCE_DIR}/components/gumbo-query/Node.cpp
-    ${CMAKE_SOURCE_DIR}/components/gumbo-query/Object.cpp
-    ${CMAKE_SOURCE_DIR}/components/gumbo-query/Parser.cpp
-    ${CMAKE_SOURCE_DIR}/components/gumbo-query/QueryUtil.cpp
-    ${CMAKE_SOURCE_DIR}/components/gumbo-query/Selection.cpp
-    ${CMAKE_SOURCE_DIR}/components/gumbo-query/Selector.cpp
+    ${FN_PRETTY_SOURCES}
 )
 
 # fnpretty.cpp reaches NetworkProtocol, which pulls in the bus headers for the

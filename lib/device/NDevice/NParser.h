@@ -24,6 +24,8 @@ public:
     virtual error_is_true parse();
     virtual error_is_true setQueryParam(uint8_t param);
     virtual error_is_true setLineEnding(const std::string &eol);
+    // Text width in columns (NET_SET_PARAMETER param 2); 0 = parser default.
+    virtual error_is_true setTextWidth(uint8_t width);
 
     virtual NetworkStatus status();
 };

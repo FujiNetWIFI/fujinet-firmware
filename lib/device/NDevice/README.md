@@ -13,6 +13,7 @@ an 8-bit program query one value out of a JSON, XML or HTML document.
 | `JSONParser.h`, `.cpp` | `JSONParser` over `FNJSON` from [lib/fnjson/](../../fnjson/) |
 | `XMLParser.h`, `.cpp` | `XMLParser` over `FNXML` from [lib/fnxml/](../../fnxml/) |
 | `HTMLParser.h`, `.cpp` | `HTMLParser` over `FNHTML` from [lib/fnhtml/](../../fnhtml/) |
+| `PrettyParser.h`, `.cpp` | `PrettyParser` over `FNPretty` from [lib/fnpretty/](../../fnpretty/): the whole page rendered to word-wrapped text and read back sequentially (`PARSER::PRETTY`, mode 4) |
 
 ## How it works
 
@@ -23,7 +24,9 @@ an 8-bit program query one value out of a JSON, XML or HTML document.
 - `NET_OPEN` parses the URL with `PeoplesUrlParser` and asks
   `NetworkProtocolFactory::createProtocol()` in [lib/network-protocol/](../../network-protocol/)
   for the adapter matching the scheme. The adapter owns the receive, transmit and special buffers.
-- `NET_SET_PARSER` swaps the `NParser`; with no parser set, reads and writes pass straight through
+- `NET_SET_PARAMETER` sets a parser parameter: 0 = query flags, 1 = line ending byte, 2 = text
+  width in columns (0 = default 40; the PRETTY screen width, or the TEXT output mode's wrap width).
+- `NET_SET_PARSER` swaps the `NParser` (0 none, 1 JSON, 2 HTML, 3 XML, 4 PRETTY); with no parser set, reads and writes pass straight through
   to the protocol.
 - Platform differences are the `fujidev_*` virtuals (`fujidev_read`, `fujidev_write`,
   `fujidev_status`, `fujidev_set_prefix`, `fujidev_get_prefix`, `fujidev_set_query`,

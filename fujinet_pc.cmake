@@ -245,6 +245,7 @@ set(SOURCES src/main.cpp
     lib/fnxml/fnxml_query.h lib/fnxml/fnxml_query.cpp
     lib/tinyxml2/tinyxml2.h lib/tinyxml2/tinyxml2.cpp
     lib/fnpretty/fnpretty.h lib/fnpretty/fnpretty.cpp
+    lib/fnpretty/fn_render_text.h lib/fnpretty/fn_render_text.cpp
     components/gumbo-query/Document.cpp components/gumbo-query/Node.cpp components/gumbo-query/Object.cpp
     components/gumbo-query/Parser.cpp components/gumbo-query/QueryUtil.cpp components/gumbo-query/Selection.cpp
     components/gumbo-query/Selector.cpp
@@ -337,6 +338,7 @@ set(SOURCES src/main.cpp
     lib/device/NDevice/JSONParser.h lib/device/NDevice/JSONParser.cpp
     lib/device/NDevice/HTMLParser.h lib/device/NDevice/HTMLParser.cpp
     lib/device/NDevice/XMLParser.h lib/device/NDevice/XMLParser.cpp
+    lib/device/NDevice/PrettyParser.h lib/device/NDevice/PrettyParser.cpp
     lib/device/netstream.h
     lib/device/siocpm.h
     lib/modem-sniffer/modem-sniffer.h lib/modem-sniffer/modem-sniffer.cpp

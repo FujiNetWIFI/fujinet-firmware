@@ -1,13 +1,20 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
+#include <vector>
+#include <algorithm>
 #include "sio/sioNetwork.h"
 
 #include "NParser.h"
 #include "XMLParser.h"
+#include "PrettyParser.h"
+#include "fn_render_text.h"
 #include "fntext/fn_query_flags.h"
 
 systemBus SYSTEM_BUS;
+
+// utils.cpp (reached through PeoplesUrlParser) references the SAM speech engine.
+int sam(int argc, char **argv) { (void)argc; (void)argv; return 0; }
 
 namespace {
 
@@ -157,6 +164,180 @@ TEST_CASE("the remap flag converts every occurrence of a character, not just the
 
     std::string remapped = session.query("/r/t", FN_QUERY_REMAP_CHARS);
     CHECK(remapped.find("Mueller ueber") != std::string::npos);
+}
+
+// ----------------------------------------------------------------------------
+// PrettyParser: PARSER::PRETTY, the whole page read back sequentially.
+// ----------------------------------------------------------------------------
+
+namespace {
+
+const char *kPage =
+    "<html><head><title>Page</title></head><body>"
+    "<h1>Heading</h1>"
+    "<p>First paragraph with a <a href=\"/next\">relative link</a> and "
+    "<a href=\"https://example.com/abs\">an absolute one</a>.</p>"
+    "<div id=\"sec\"><p>Only this section.</p></div>"
+    "</body></html>";
+
+struct PrettySession
+{
+    std::string rx, tx, sp;
+    CannedProtocol proto;
+    PeoplesUrlParser url;
+    PrettyParser parser;
+
+    explicit PrettySession(const char *body = kPage)
+        : proto(&rx, &tx, &sp, body), url("https://example.com/dir/page.html"), parser(&proto)
+    {
+        proto.opened_url = &url;
+        proto.native_eol = SYSTEM_BUS.nativeEOL(); // what NDevice sets on every protocol
+    }
+
+    std::string drain(size_t chunk = 16)
+    {
+        std::string all, piece;
+        while (parser.read(piece, chunk) == FUJI_ERROR::NONE)
+            all += piece;
+        return all;
+    }
+};
+
+} // namespace
+
+TEST_CASE("PRETTY parse renders the page and read serves it sequentially until EOF")
+{
+    PrettySession s;
+    CHECK(s.parser.status().error == NDEV_STATUS::END_OF_FILE); // nothing parsed yet
+    REQUIRE(s.parser.parse().is_success());
+
+    size_t total = s.parser.available();
+    REQUIRE(total > 0);
+    NetworkStatus ns = s.parser.status();
+    CHECK(ns.connected);
+    CHECK(ns.error == NDEV_STATUS::SUCCESS);
+
+    std::string first;
+    REQUIRE(s.parser.read(first, 10) == FUJI_ERROR::NONE);
+    CHECK(first.size() == 10);
+    CHECK(s.parser.available() == total - 10);
+
+    std::string rest = s.drain();
+    std::string all = first + rest;
+    CHECK(all.size() == total);
+    CHECK(all.find("Heading") != std::string::npos);
+    CHECK(all.find("Only this section.") != std::string::npos);
+    CHECK(all.find('<') == std::string::npos);
+
+    // Drained: available is 0, STATUS says EOF, READ fails.
+    CHECK(s.parser.available() == 0);
+    CHECK(s.parser.status().error == NDEV_STATUS::END_OF_FILE);
+    CHECK_FALSE(s.parser.status().connected);
+    std::string none;
+    CHECK(s.parser.read(none, 8) != FUJI_ERROR::NONE);
+}
+
+TEST_CASE("PRETTY uses the bus's native line ending unless told otherwise")
+{
+    PrettySession s;
+    REQUIRE(s.parser.parse().is_success());
+    std::string a = s.drain();
+    CHECK(a.find(SYSTEM_BUS.nativeEOL()) != std::string::npos);
+
+    PrettySession t;
+    REQUIRE(t.parser.setLineEnding("|").is_success());
+    REQUIRE(t.parser.parse().is_success());
+    std::string b = t.drain();
+    CHECK(b.find('|') != std::string::npos);
+    CHECK(b.find(SYSTEM_BUS.nativeEOL()) == std::string::npos);
+}
+
+TEST_CASE("PRETTY width comes from the text width parameter or a !width option")
+{
+    PrettySession a;
+    REQUIRE(a.parser.setTextWidth(24).is_success());
+    REQUIRE(a.parser.parse().is_success());
+    std::string text24 = a.drain();
+
+    PrettySession b;
+    REQUIRE(b.parser.parse().is_success());
+    REQUIRE(b.parser.setQuery("!width=24").is_success());
+    std::string text24b = b.drain();
+
+    CHECK(text24 == text24b);
+    CHECK(text24.size() > 0);
+
+    std::string line;
+    size_t longest = 0;
+    for (char c : text24)
+    {
+        if (c == SYSTEM_BUS.nativeEOL()[0])
+        {
+            longest = std::max(longest, line.size());
+            line.clear();
+        }
+        else
+            line += c;
+    }
+    CHECK(longest <= 24);
+
+    PrettySession c;
+    CHECK(c.parser.setQuery("!bogus=1").is_error());
+}
+
+TEST_CASE("PRETTY CSS selector narrows the page and an empty one restores it")
+{
+    PrettySession s;
+    REQUIRE(s.parser.parse().is_success());
+    std::string whole = s.drain();
+
+    REQUIRE(s.parser.setQuery("#sec").is_success());
+    std::string section = s.drain();
+    CHECK(section.find("Only this section.") != std::string::npos);
+    CHECK(section.find("Heading") == std::string::npos);
+
+    REQUIRE(s.parser.setQuery("").is_success());
+    CHECK(s.drain() == whole);
+}
+
+TEST_CASE("PRETTY numeric query stages a link URL ahead of the page, then the page resumes")
+{
+    PrettySession s;
+    REQUIRE(s.parser.parse().is_success());
+    REQUIRE(s.parser.setQuery("!links=1").is_success());
+
+    std::string head;
+    REQUIRE(s.parser.read(head, 5) == FUJI_ERROR::NONE);
+    size_t pageLeft = s.parser.available();
+
+    // Link 1 is the relative one, resolved against the opened URL.
+    REQUIRE(s.parser.setQuery("1").is_success());
+    std::string url = "https://example.com/next" + SYSTEM_BUS.nativeEOL();
+    CHECK(s.parser.available() == url.size());
+
+    std::string got;
+    REQUIRE(s.parser.read(got, 1000) == FUJI_ERROR::NONE);
+    CHECK(got == url);
+
+    // The page picks up where it left off.
+    CHECK(s.parser.available() == pageLeft);
+
+    REQUIRE(s.parser.setQuery("2").is_success());
+    REQUIRE(s.parser.read(got, 1000) == FUJI_ERROR::NONE);
+    CHECK(got == "https://example.com/abs" + SYSTEM_BUS.nativeEOL());
+
+    // No such link, and index 0, are errors that stage nothing.
+    CHECK(s.parser.setQuery("99").is_error());
+    CHECK(s.parser.setQuery("0").is_error());
+    CHECK(s.parser.available() == pageLeft);
+}
+
+TEST_CASE("PRETTY parse fails cleanly with no data")
+{
+    PrettySession s("");
+    CHECK(s.parser.parse().is_error());
+    CHECK(s.parser.available() == 0);
+    CHECK(s.parser.status().error != NDEV_STATUS::SUCCESS);
 }
 
 // ----------------------------------------------------------------------------

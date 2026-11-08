@@ -3,6 +3,7 @@
 
 #include "NDevice/NDevice.h"
 #include "NDevice/NParser.h"
+#include "NDevice/PrettyParser.h"
 #include "sioNetworkStubs.h"
 #include "fn_query_flags.h"
 
@@ -168,4 +169,35 @@ TEST_CASE("the JSON, HTML and XML parsers end values in the Atari's $9B (#2334)"
     CHECK(eol_given_to(PARSER::JSON) == "\x9b");
     CHECK(eol_given_to(PARSER::HTML) == "\x9b");
     CHECK(eol_given_to(PARSER::XML) == "\x9b");
+}
+
+// --------------------------------------------------------------------------------
+// NET_SET_PARSER modes
+// --------------------------------------------------------------------------------
+
+TEST_CASE("the parser modes match fujinet-lib's, with PRETTY as 4")
+{
+    CHECK(static_cast<uint8_t>(PARSER::NONE) == 0);
+    CHECK(static_cast<uint8_t>(PARSER::JSON) == 1);
+    CHECK(static_cast<uint8_t>(PARSER::HTML) == 2);
+    CHECK(static_cast<uint8_t>(PARSER::XML) == 3);
+    CHECK(static_cast<uint8_t>(PARSER::PRETTY) == 4);
+}
+
+TEST_CASE("PRETTY is a settable parser mode and 5 is not")
+{
+    TestableNDevice dev;
+
+    CHECK(dev.fujicore_set_parser(PARSER::PRETTY).is_success());
+    CHECK(dynamic_cast<PrettyParser *>(dev._parser.get()) != nullptr);
+
+    CHECK(dev.fujicore_set_parser(static_cast<parserMode_t>(5)).is_error());
+}
+
+TEST_CASE("a plain channel has no text width to set")
+{
+    TestableNDevice dev;
+
+    REQUIRE(dev.fujicore_set_parser(PARSER::NONE).is_success());
+    CHECK(dev._parser->setTextWidth(32).is_error());
 }

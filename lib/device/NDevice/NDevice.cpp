@@ -9,6 +9,7 @@
 #include "JSONParser.h"
 #include "HTMLParser.h"
 #include "XMLParser.h"
+#include "PrettyParser.h"
 #include "fn_query_flags.h"
 #include "IOChannel.h" // For GET_TIMESTAMP()
 #include "utils.h"
@@ -550,6 +551,10 @@ error_is_true NDevice::fujicore_set_parser(parserMode_t mode)
         _parser = std::make_unique<XMLParser>(_protocol.get());
         break;
 
+    case PARSER::PRETTY:
+        _parser = std::make_unique<PrettyParser>(_protocol.get());
+        break;
+
     default:
         Debug_printf("INVALID MODE = %02x\r\n", (unsigned) mode);
         RETURN_ERROR_AS_TRUE();
@@ -617,6 +622,9 @@ void NDevice::fujidev_set_parameter(const FUJI_COMMAND_PACKET &packet)
     //                        See fntext/fn_query_flags.h.
     // 1        | c         | Set the parser lineEnding = c, convert from char to
     //                        single byte string
+    // 2        | cols     | Text width in columns (0 = parser default, 40). PRETTY:
+    //                        screen width of the rendered page. XML/HTML/JSON: wrap
+    //                        width of values queried with the TEXT output mode.
 
     parserParam_t ptype = param_cast<parserParam_t>(packet, 0);
     switch (ptype)
@@ -648,6 +656,14 @@ void NDevice::fujidev_set_parameter(const FUJI_COMMAND_PACKET &packet)
             SYSTEM_BUS.transaction_success();
             break;
         }
+    case PARSER_PARAM::TEXT_WIDTH:
+        if (_parser->setTextWidth(param_as<uint8_t>(packet, 1)).is_error())
+        {
+            SYSTEM_BUS.transaction_error();
+            return;
+        }
+        SYSTEM_BUS.transaction_success();
+        break;
     default:
         SYSTEM_BUS.transaction_error();
         break;

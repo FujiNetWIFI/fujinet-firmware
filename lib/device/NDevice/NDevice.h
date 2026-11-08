@@ -21,11 +21,13 @@ typedef enum class PARSER : uint8_t {
     JSON = 1,
     HTML = 2, // HTML via CSS selector (FNHTML, Gumbo)
     XML  = 3, // XML via an XPath subset (FNXML, tinyxml2)
+    PRETTY = 4, // HTML rendered to word-wrapped plain text (FNPretty, Gumbo)
 } parserMode_t;
 
 typedef enum class PARSER_PARAM : uint8_t {
     QUERY = 0,
     EOL = 1,
+    TEXT_WIDTH = 2, // columns: PRETTY screen width, and the TEXT output mode's wrap width
 } parserParam_t;
 
 // Reads the param using Enum's underlying integer type (so packet.param()

@@ -283,6 +283,7 @@ public:
     using SystemBusBase::transaction_send;
     void transaction_send(const void *data, size_t len, bool is_error=false) override;
     std::string busEOL() override { return STR_ATASCII_EOL; }
+    NativeEncoding nativeEncoding() override { return NativeEncoding::ATASCII; }
 
     // Everybody thinks "oh I know how a serial port works, I'll just
     // access it directly and bypass the bus!" ಠ_ಠ

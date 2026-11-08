@@ -194,6 +194,7 @@ void DaisyChain::assignFujiIDToDevice(virtualDevice *device, fujiDeviceID_t fuji
 #include "JSONParser.h"
 #include "HTMLParser.h"
 #include "XMLParser.h"
+#include "PrettyParser.h"
 
 fujiError_t NParser::read(std::string &buffer, size_t length) { return FUJI_ERROR::UNSPECIFIED; }
 fujiError_t NParser::write(std::string &buffer) { return FUJI_ERROR::UNSPECIFIED; }
@@ -204,6 +205,7 @@ error_is_true NParser::parse() { RETURN_ERROR_AS_TRUE(); }
 NetworkStatus NParser::status() { return {}; }
 error_is_true NParser::setQueryParam(uint8_t param) { RETURN_ERROR_AS_TRUE(); }
 error_is_true NParser::setLineEnding(const std::string &eol) { RETURN_ERROR_AS_TRUE(); }
+error_is_true NParser::setTextWidth(uint8_t width) { RETURN_ERROR_AS_TRUE(); }
 fujiError_t JSONParser::write(std::string &buffer) { return FUJI_ERROR::UNSPECIFIED; }
 off_t JSONParser::seek(off_t offset, int whence) { return -1; }
 error_is_true JSONParser::setQuery(const std::string &query) { RETURN_ERROR_AS_TRUE(); }
@@ -222,3 +224,21 @@ error_is_true XMLParser::setQuery(const std::string &query) { RETURN_ERROR_AS_TR
 error_is_true XMLParser::parse() { RETURN_ERROR_AS_TRUE(); }
 error_is_true XMLParser::setQueryParam(uint8_t param) { RETURN_ERROR_AS_TRUE(); }
 error_is_true XMLParser::setLineEnding(const std::string &eol) { RETURN_ERROR_AS_TRUE(); }
+
+// PrettyParser holds an FNPretty by value, so its constructor and destructor
+// are stubbed alongside, with the rest of the renderer left out.
+#include "fnpretty.h"
+
+FNPretty::FNPretty() {}
+FNPretty::~FNPretty() {}
+PrettyParser::PrettyParser(NetworkProtocol *protocol) : NParser(protocol) {}
+fujiError_t PrettyParser::read(std::string &buffer, size_t length) { return FUJI_ERROR::UNSPECIFIED; }
+fujiError_t PrettyParser::write(std::string &buffer) { return FUJI_ERROR::UNSPECIFIED; }
+size_t PrettyParser::available() { return 0; }
+off_t PrettyParser::seek(off_t offset, int whence) { return -1; }
+error_is_true PrettyParser::setQuery(const std::string &query) { RETURN_ERROR_AS_TRUE(); }
+error_is_true PrettyParser::parse() { RETURN_ERROR_AS_TRUE(); }
+error_is_true PrettyParser::setQueryParam(uint8_t param) { RETURN_ERROR_AS_TRUE(); }
+error_is_true PrettyParser::setLineEnding(const std::string &eol) { RETURN_ERROR_AS_TRUE(); }
+error_is_true PrettyParser::setTextWidth(uint8_t width) { RETURN_ERROR_AS_TRUE(); }
+NetworkStatus PrettyParser::status() { return {}; }
