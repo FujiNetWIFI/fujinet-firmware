@@ -257,6 +257,11 @@ private:
     std::string postData;
 
     /**
+     * A PUT body written in DATA mode is complete only at close, so STATUS must not send it.
+     */
+    bool _putBodyInDataMode = false;
+
+    /**
      * WebDAV handler
      */
     WebDAV webDAV;
@@ -321,7 +326,7 @@ private:
     fujiError_t write_file_handle_send_post_data(uint8_t *buf, unsigned short len);
 
     /**
-     * @brief data mode - write requested headers to pass into PUT
+     * @brief data mode - add to the body of a PUT
      * @param buf The source buffer
      * @param len The source buffer length
      * @return FUJI_ERROR::NONE on success, FUJI_ERROR::UNSPECIFIED on error

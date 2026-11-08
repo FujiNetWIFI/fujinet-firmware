@@ -51,9 +51,11 @@ Host-side unit tests and policy checks for the FujiNet-PC build. ctest runs them
 | `TCPProtocolTests.cpp` | `lib/network-protocol/TCP.cpp` reads, writes, ACCEPT and CLOSE CLIENT over a fake socket (`tcp_protocol_tests`) |
 | `UDPProtocolTests.cpp` | `lib/network-protocol/UDP.cpp` `available()` over a fake socket, including after a status poll moves a datagram to the receive buffer (`udp_protocol_tests`) |
 | `ProtocolFSTests.cpp` | `lib/network-protocol/FS.cpp` unmounting when an open fails, keeping its error (`fs_protocol_tests`) |
+| `HTTPProtocolTests.cpp` | `lib/network-protocol/HTTP.cpp`: when a PUT or POST is sent, with what body, and that it is sent once (`http_protocol_tests`) |
 | `SMBProtocolTests.cpp` | `lib/network-protocol/SMB.cpp` MKDIR and RMDIR failing on a URL with no share and on an unreachable server (`smb_protocol_tests`) |
 | `TelnetProtocolTests.cpp` | `lib/network-protocol/Telnet.cpp` reads (also after the peer closes), writes and separate channels over the same fake socket (`telnet_protocol_tests`) |
-| `tcp_harness/` | Stand-ins for `fnTcpClient.h`, `fnTcpServer.h`, `fnUDP.h`, `fnDNS.h` and `bus.h`, backed by the fake peer in `fnTcpClient.h`; used by `tcp_protocol_tests`, `udp_protocol_tests`, `telnet_protocol_tests`, `fs_protocol_tests` and `smb_protocol_tests` |
+| `tcp_harness/` | Stand-ins for `fnTcpClient.h`, `fnTcpServer.h`, `fnUDP.h`, `fnDNS.h` and `bus.h`, backed by the fake peer in `fnTcpClient.h`; used by `tcp_protocol_tests`, `udp_protocol_tests`, `telnet_protocol_tests`, `fs_protocol_tests`, `smb_protocol_tests` and `http_protocol_tests` |
+| `http_harness/` | Stand-in for `mgHttpClient.h` that records each request in `fake_http`; used by `http_protocol_tests` |
 | `check_no_build_ifdefs.py`, `ifdef_check_config.json` | Policy: a preprocessor conditional under `lib/device/fujiDevice`, `lib/device/fujiClock` or `lib/device/NDevice` may name only an allowed macro; the JSON lists the allowed names globally, per directory or per file (`no_build_ifdefs_in_fujidevice`) |
 | `check_no_system_bus.py` | Policy: `SYSTEM_BUS` must not appear in any source under `lib/media` (`no_system_bus_in_media`) |
 | `unsit.c`, `stuffit_test.sh` | Host CLI over `lib/stuffit` and a comparison against `unar` (`stuffit_sample_tests`; registered only with `SIT_SAMPLES_DIR`) |
