@@ -116,6 +116,7 @@ fujiError_t NetworkProtocolHTTP::open_file_handle()
         httpMethod = HTTP_METHOD::GET;
         break;
     case HTTP_METHOD::PUT:      // WRITE, filename resolve, ignored if not found.
+    case HTTP_METHOD::PUT_H:    // PUT with ability to set headers, no filename resolve
         httpMethod = HTTP_METHOD::PUT;
         break;
     case HTTP_METHOD::DELETE:   // DELETE with no headers
@@ -123,7 +124,6 @@ fujiError_t NetworkProtocolHTTP::open_file_handle()
         httpMethod = HTTP_METHOD::DELETE;
         break;
     case HTTP_METHOD::POST:     // POST can set headers, also no filename resolve
-    case HTTP_METHOD::PUT_H:    // PUT with ability to set headers, no filename resolve
         httpMethod = HTTP_METHOD::POST;
         break;
     default:
