@@ -108,7 +108,7 @@ public:
     bool getShuttingDown() { return shuttingDown; };
 
     // No BASIC on the Lynx, so cc65's '\n'
-    std::string nativeEOL() override { return "\n"; }
+    std::string busEOL() override { return "\n"; }
 
     void transaction_accept(transState_t expectMoreData) override;
     void transaction_success() override;
