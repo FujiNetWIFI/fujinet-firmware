@@ -91,7 +91,7 @@ mediatype_t MediaType::discover_mediatype(const char *filename, uint32_t disksiz
             strcasecmp(ext, "CHF") == 0 || strcasecmp(ext, "NES") == 0 ||
             strcasecmp(ext, "SMS") == 0 || strcasecmp(ext, "A78") == 0 ||
             strcasecmp(ext, "A52") == 0 || strcasecmp(ext, "ST2") == 0 ||
-            strcasecmp(ext, "COL") == 0)
+            strcasecmp(ext, "COL") == 0 || strcasecmp(ext, "A26") == 0)
         {
             return MEDIATYPE_ROM;
         }
