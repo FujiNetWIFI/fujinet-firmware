@@ -264,11 +264,6 @@ std::string FNJSON::getValue(cJSON *item)
     }
     else if (cJSON_IsObject(item))
     {
-        #ifdef BUILD_IEC
-            // Set line ending when returning multiple values
-            setLineEnding("\x0a");
-        #endif
-
         if (item->child == NULL)
         {
 #ifdef VERBOSE_PROTOCOL

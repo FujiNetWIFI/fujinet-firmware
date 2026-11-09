@@ -76,7 +76,7 @@ struct Session
     XMLParser parser;
 
     explicit Session(const char *body = kFeed)
-        : proto(&rx, &tx, &sp, body), parser(&proto) {}
+        : proto(&rx, &tx, &sp, body), parser(&proto, "\n") {}
 
     std::string query(const std::string &path, uint8_t flags)
     {

@@ -10,9 +10,8 @@ protected:
     FNHTML _html;
 
 public:
-    using NParser::NParser;
-    HTMLParser(NetworkProtocol *protocol) : NParser(protocol) {
-        _html.setLineEnding("\x0a");
+    HTMLParser(NetworkProtocol *protocol, const std::string &eol) : NParser(protocol) {
+        _html.setLineEnding(eol);
         _html.setProtocol(_protocol);
     }
 

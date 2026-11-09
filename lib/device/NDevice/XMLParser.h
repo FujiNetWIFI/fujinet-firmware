@@ -10,9 +10,8 @@ protected:
     FNXML _xml;
 
 public:
-    using NParser::NParser;
-    XMLParser(NetworkProtocol *protocol) : NParser(protocol) {
-        _xml.setLineEnding("\x0a");
+    XMLParser(NetworkProtocol *protocol, const std::string &eol) : NParser(protocol) {
+        _xml.setLineEnding(eol);
         _xml.setProtocol(_protocol);
     }
 
