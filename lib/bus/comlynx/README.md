@@ -6,7 +6,7 @@ build, plus the UDP netstream and RedEye game-link relay.
 ## Layout
 | File | Defines |
 |---|---|
-| `comlynx.h`, `comlynx.cpp` | `virtualDevice` (devices override `comlynx_process()` and `reset()`) and `systemBus` (command queue, ACK/NAK packets, `change_baud()`, `setStreamHost()`, `setRedeyeMode()`, `setRedeyeGameRemap()`, raw port passthroughs) |
+| `comlynx.h`, `comlynx.cpp` | `virtualDevice` (devices override `comlynx_process()` and `reset()`) and `systemBus` (command queue, ACK/NAK packets, `change_baud()`, `setStreamHost()`, `setRedeyeMode()`, `setRedeyeGameRemap()`, raw port passthroughs; `nativeEOL()` is LF) |
 | `FujiLynxPacket.h`, `FujiLynxPacket.cpp` | `FujiLynxPacket`, this bus's `FUJI_COMMAND_PACKET` |
 
 ## How it fits

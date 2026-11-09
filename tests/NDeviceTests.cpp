@@ -11,6 +11,7 @@ class TestableNDevice : public NDevice
 {
 public:
     using NDevice::fujicore_set_query;
+    using NDevice::fujicore_set_parser;
     using NDevice::fujicore_set_prefix;
     using NDevice::fujidev_write;
     using NDevice::_parser;
@@ -148,4 +149,23 @@ TEST_CASE("a full URL replaces the prefix")
 TEST_CASE("an empty path clears the prefix")
 {
     CHECK(prefix_after("TNFS://host/a/", "") == "");
+}
+
+// --------------------------------------------------------------------------------
+// The document parsers end values in the bus's EOL (#2334).
+// --------------------------------------------------------------------------------
+
+static std::string eol_given_to(parserMode_t mode)
+{
+    TestableNDevice dev;
+    parser_eol.clear();
+    REQUIRE(dev.fujicore_set_parser(mode).is_success());
+    return parser_eol;
+}
+
+TEST_CASE("the JSON, HTML and XML parsers end values in the Atari's $9B (#2334)")
+{
+    CHECK(eol_given_to(PARSER::JSON) == "\x9b");
+    CHECK(eol_given_to(PARSER::HTML) == "\x9b");
+    CHECK(eol_given_to(PARSER::XML) == "\x9b");
 }

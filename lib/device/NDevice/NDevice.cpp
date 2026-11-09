@@ -539,15 +539,15 @@ error_is_true NDevice::fujicore_set_parser(parserMode_t mode)
         break;
 
     case PARSER::JSON:
-        _parser = std::make_unique<JSONParser>(_protocol.get());
+        _parser = std::make_unique<JSONParser>(_protocol.get(), SYSTEM_BUS.nativeEOL());
         break;
 
     case PARSER::HTML:
-        _parser = std::make_unique<HTMLParser>(_protocol.get());
+        _parser = std::make_unique<HTMLParser>(_protocol.get(), SYSTEM_BUS.nativeEOL());
         break;
 
     case PARSER::XML:
-        _parser = std::make_unique<XMLParser>(_protocol.get());
+        _parser = std::make_unique<XMLParser>(_protocol.get(), SYSTEM_BUS.nativeEOL());
         break;
 
     default:

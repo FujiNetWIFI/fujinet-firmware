@@ -1,12 +1,13 @@
 // Link-time stand-ins for what sioNetwork and NDevice pull in, other than the
 // URL and path helpers, shared by the tests that build them. The systemBus stubs
-// record into `bus`.
+// record into `bus`, the document parsers' setLineEnding() into `parser_eol`.
 
 #include "sio/sioNetwork.h"
 #include "sioNetworkStubs.h"
 
 systemBus SYSTEM_BUS;
 BusLog bus;
+std::string parser_eol;
 
 NetSIO::NetSIO()
     : _ip(0), _port(0), _baud(0), _baud_peer(0), _fd(-1),
@@ -41,7 +42,7 @@ void systemBus::addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id) {}
 
 FNJSON::FNJSON() {}
 FNJSON::~FNJSON() {}
-void FNJSON::setLineEnding(const std::string &_lineEnding) {}
+void FNJSON::setLineEnding(const std::string &_lineEnding) { parser_eol = _lineEnding; }
 void FNJSON::setProtocol(NetworkProtocol *newProtocol) {}
 void FNJSON::setReadQuery(const std::string &queryString, uint8_t queryParam) {}
 bool FNJSON::readValue(uint8_t *buf, unsigned short len) { return false; }
@@ -51,7 +52,7 @@ bool FNJSON::parse() { return false; }
 
 FNHTML::FNHTML() {}
 FNHTML::~FNHTML() {}
-void FNHTML::setLineEnding(const std::string &_lineEnding) {}
+void FNHTML::setLineEnding(const std::string &_lineEnding) { parser_eol = _lineEnding; }
 void FNHTML::setProtocol(NetworkProtocol *newProtocol) {}
 void FNHTML::setReadQuery(const std::string &queryString, uint8_t queryParam) {}
 bool FNHTML::readValue(uint8_t *buf, unsigned short len) { return false; }
@@ -61,7 +62,7 @@ bool FNHTML::parse() { return false; }
 
 FNXML::FNXML() {}
 FNXML::~FNXML() {}
-void FNXML::setLineEnding(const std::string &_lineEnding) {}
+void FNXML::setLineEnding(const std::string &_lineEnding) { parser_eol = _lineEnding; }
 void FNXML::setProtocol(NetworkProtocol *newProtocol) {}
 void FNXML::setReadQuery(const std::string &queryString, uint8_t queryParam) {}
 bool FNXML::readValue(uint8_t *buf, unsigned short len) { return false; }

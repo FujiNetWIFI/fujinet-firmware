@@ -107,6 +107,9 @@ public:
     bool shuttingDown = false;                                  // TRUE if we are in shutdown process
     bool getShuttingDown() { return shuttingDown; };
 
+    // No BASIC on the Lynx, so cc65's '\n'
+    std::string nativeEOL() override { return "\n"; }
+
     void transaction_accept(transState_t expectMoreData) override;
     void transaction_success() override;
     void transaction_error() override;

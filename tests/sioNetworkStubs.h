@@ -14,4 +14,7 @@ struct BusLog
 
 extern BusLog bus;
 
+// The line ending the last FNJSON, FNHTML or FNXML was given.
+extern std::string parser_eol;
+
 #endif // SIONETWORK_STUBS_H
