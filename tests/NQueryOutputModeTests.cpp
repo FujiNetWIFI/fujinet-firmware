@@ -76,7 +76,7 @@ struct Session
     XMLParser parser;
 
     explicit Session(const char *body = kFeed)
-        : proto(&rx, &tx, &sp, body), parser(&proto, "\n") {}
+        : proto(&rx, &tx, &sp, body), parser(&proto) {}
 
     std::string query(const std::string &path, uint8_t flags)
     {
@@ -108,8 +108,9 @@ TEST_CASE("the ASCII flag survives setQuery and reaches the output")
     CHECK(ascii.find("Cafe ") != std::string::npos);
     CHECK(ascii.find("--") != std::string::npos);
     CHECK(ascii.find("R&D's \"best\"") != std::string::npos);
+    const std::string eol = SYSTEM_BUS.nativeEOL();
     for (unsigned char c : ascii)
-        CHECK(((c >= 0x20 && c <= 0x7E) || c == '\n'));
+        CHECK(((c >= 0x20 && c <= 0x7E) || eol.find(c) != std::string::npos));
 }
 
 TEST_CASE("repeating a query walks to the next match and then runs out")
