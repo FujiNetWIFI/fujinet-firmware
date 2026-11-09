@@ -10,8 +10,8 @@ protected:
     FNHTML _html;
 
 public:
-    HTMLParser(NetworkProtocol *protocol, const std::string &eol) : NParser(protocol) {
-        _html.setLineEnding(eol);
+    HTMLParser(NetworkProtocol *protocol) : NParser(protocol) {
+        _html.setLineEnding(SYSTEM_BUS.nativeEOL());
         _html.setProtocol(_protocol);
     }
 

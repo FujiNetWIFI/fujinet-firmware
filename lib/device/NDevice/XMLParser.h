@@ -10,8 +10,8 @@ protected:
     FNXML _xml;
 
 public:
-    XMLParser(NetworkProtocol *protocol, const std::string &eol) : NParser(protocol) {
-        _xml.setLineEnding(eol);
+    XMLParser(NetworkProtocol *protocol) : NParser(protocol) {
+        _xml.setLineEnding(SYSTEM_BUS.nativeEOL());
         _xml.setProtocol(_protocol);
     }
 

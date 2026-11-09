@@ -10,8 +10,8 @@ protected:
     FNJSON _json;
 
 public:
-    JSONParser(NetworkProtocol *protocol, const std::string &eol) : NParser(protocol) {
-        _json.setLineEnding(eol);
+    JSONParser(NetworkProtocol *protocol) : NParser(protocol) {
+        _json.setLineEnding(SYSTEM_BUS.nativeEOL());
         _json.setProtocol(_protocol);
     }
 
