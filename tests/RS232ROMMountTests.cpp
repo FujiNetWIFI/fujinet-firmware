@@ -165,6 +165,7 @@ TEST_CASE("each console's image mounts and goes over unchanged")
         {"cart.a52", make_image(8_kB)},
         {"cart.a52", make_image(40_kB)},
         {"cart.bin", make_image(4_kB)},
+        {"cart.a26", make_image(4_kB)},
         {"pp.bin", make_image(8_kB + 3)},
         {"dpc.bin", make_image(10_kB + 255)},
         {"dpcplus.bin", make_image(29_kB)},

@@ -27,7 +27,7 @@ constexpr const char *A2600_ACE_MAGICS[] = {"ACE-UF00", "ACE-PC00", "ACE-UC00"};
 // one of the sizes the cart maps, or an ELF or ACE image, which say what they are.
 error_is_true Atari2600ROM::attach()
 {
-    if (!matchExtension(_path, {".bin"}).has_value())
+    if (!matchExtension(_path, {".bin", ".a26"}).has_value())
         RETURN_ERROR_AS_TRUE();
 
     char magic[8] = {};

@@ -76,7 +76,7 @@ mediatype_t MediaType::discover_mediatype(const char *filename, uint32_t disksiz
         // BIN/ROM/INT/ITV are all "load this straight into cart memory and
         // reset" formats on every current BUILD_RS232 platform (Intellivision
         // .bin+.cfg pairs and Intellicart .rom images, Atari 2600 .bin
-        // homebrew, CoCo cartridge images) -- there is no disk-image
+        // and .a26 images, CoCo cartridge images) -- there is no disk-image
         // convention on any of them that also uses these extensions, so
         // detecting MEDIATYPE_ROM by extension alone is unambiguous. This
         // replaces the previous disksize==8192||16384||32768 heuristic
@@ -91,7 +91,7 @@ mediatype_t MediaType::discover_mediatype(const char *filename, uint32_t disksiz
             strcasecmp(ext, "CHF") == 0 || strcasecmp(ext, "NES") == 0 ||
             strcasecmp(ext, "SMS") == 0 || strcasecmp(ext, "A78") == 0 ||
             strcasecmp(ext, "A52") == 0 || strcasecmp(ext, "ST2") == 0 ||
-            strcasecmp(ext, "COL") == 0)
+            strcasecmp(ext, "COL") == 0 || strcasecmp(ext, "A26") == 0)
         {
             return MEDIATYPE_ROM;
         }
