@@ -162,7 +162,16 @@ public:
     virtual std::string unicodeTextToNative(const std::string &unicode) {
         return unicode;
     }
-    virtual std::string nativeEOL() { return "\r"; }
+    // A board's non-empty FUJI_EOL build flag overrides the bus's EOL.
+    std::string nativeEOL() {
+#ifdef FUJI_EOL
+        std::string eol = "" FUJI_EOL;
+        if (!eol.empty())
+            return eol;
+#endif
+        return busEOL();
+    }
+    virtual std::string busEOL() { return "\r"; }
 
     // FujiBus framing, on buses that carry it (rs232, and DriveWire's link to
     // its companion MCU at FUJI_DEVICEID::DBC). Other buses keep these defaults.

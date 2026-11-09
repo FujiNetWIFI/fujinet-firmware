@@ -1,7 +1,7 @@
 # lib/bus
 
 One directory per host-computer bus. A bus owns the wire protocol and its timing and nothing else:
-it receives a command frame, finds the addressed device and hands it a packet. Device behaviour
+it receives a command frame, finds the addressed device and hands it a packet. Device behavior
 lives in [lib/device/](../device/) and image formats in [lib/media/](../media/).
 
 ## Contract
@@ -16,7 +16,8 @@ payload and ends the transaction exactly once.
 | `transaction_get(void *, size_t)`, `transaction_send(const void *, size_t, bool)` | move the payload |
 | `transaction_success()`, `transaction_error()` | terminate the transaction |
 | `transaction_varlen_data`, `transaction_varlen_string` | send a length-prefixed payload when the packet type supports `setDataLength()` |
-| `nativeTextToUnicode`, `unicodeTextToNative`, `nativeEOL` | character-set hooks a bus overrides (PETSCII, CRLF) |
+| `nativeTextToUnicode`, `unicodeTextToNative`, `busEOL` | character-set hooks a bus overrides (PETSCII, CRLF) |
+| `nativeEOL` | the board's `FUJI_EOL` build flag if non-empty, else `busEOL()` |
 | `addDevice`, `fujiIDForDevice`, `assignFujiIDToDevice`, `setDeviceEnabled`, `rotateDevices` | the device registry, backed by a `DaisyChain` |
 | `writeFujiBusPacket`, `readFujiBusPacket`, `sendCommand` | `FujiBusPacket` frames: rs232 and fujiversal drivewire (to its companion MCU at `FUJI_DEVICEID::DBC`) override the first two, every other bus fails them; `sendCommand()` writes one and returns the reply |
 

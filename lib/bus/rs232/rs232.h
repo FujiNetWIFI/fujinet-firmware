@@ -161,7 +161,7 @@ public:
     bool shuttingDown = false;                                  // TRUE if we are in shutdown process
     bool getShuttingDown() { return shuttingDown; };
 
-    std::string nativeEOL() override { return "\r\n"; }
+    std::string busEOL() override { return "\r\n"; }
 
     void transaction_accept(transState_t expectMoreData) override;
     void transaction_success() override;

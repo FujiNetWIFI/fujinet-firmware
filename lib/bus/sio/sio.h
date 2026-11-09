@@ -282,7 +282,7 @@ public:
     size_result_t transaction_get_length(void *data, size_t len) override;
     using SystemBusBase::transaction_send;
     void transaction_send(const void *data, size_t len, bool is_error=false) override;
-    std::string nativeEOL() override { return STR_ATASCII_EOL; }
+    std::string busEOL() override { return STR_ATASCII_EOL; }
 
     // Everybody thinks "oh I know how a serial port works, I'll just
     // access it directly and bypass the bus!" ಠ_ಠ
