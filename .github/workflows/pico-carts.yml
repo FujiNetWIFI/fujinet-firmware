@@ -62,6 +62,12 @@ jobs:
               -o test_fujibus test_fujibus.c ../src/fujibus.c
           ./test_fujibus
 
+      - name: Intellivision -- JLP flash checks
+        working-directory: pico/intellivision/firmware/host_test
+        run: |
+          gcc -Wall -Wextra -Werror -I../include -o test_jlpflash test_jlpflash.c
+          ./test_jlpflash
+
       # Compile-only: this one is driven by a corpus of real Intellivision ROM
       # files, which are not in the repo. Running it needs `test_bootmap
       # <rom>...` against a local collection.
