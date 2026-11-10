@@ -75,18 +75,12 @@ jobs:
             arch: arm64
             skip-tests: '1'
             default-shell: bash
+          # cross-built with MinGW-w64 on Linux; the tests run under Wine
           - name: Windows
-            container: 'null'
+            runner: '["self-hosted", "Linux", "X64", "fujinet-builder"]'
+            container: '{"image":"ubuntu:24.04","options":"--add-host=host.docker.internal:host-gateway"}'
             target: windows-x64
-            runner: '"windows-latest"'
-            sys: clang64
-            default-shell: msys2 {0}
-          # # mbedtls not available anymore for clang32 :-(
-          # - name: Windows x86
-          #   target: windows-x86
-          #   runner: windows-latest
-          #   sys: clang32
-          #   default-shell: msys2 {0}
+            default-shell: bash
         fujinet_target:
           - ADAM
           - APPLE
@@ -108,8 +102,8 @@ jobs:
       build_date: ${{ steps.version.outputs.build_date }}
 
     steps:
-    - name: '[Ubuntu] Install base tools'
-      if: ${{ startsWith(matrix.os.target, 'ubuntu') }}
+    - name: '[Linux] Install base tools'
+      if: ${{ startsWith(matrix.os.target, 'ubuntu') || startsWith(matrix.os.target, 'windows') }}
       shell: bash
       run: |
         MIRROR=http://mirrors.edge.kernel.org/ubuntu
@@ -117,23 +111,6 @@ jobs:
           && MIRROR=http://host.docker.internal:3142/mirrors.edge.kernel.org/ubuntu
         sed -i "s|http://[a-z.]*ubuntu.com/ubuntu|$MIRROR|" /etc/apt/sources.list.d/ubuntu.sources
         apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv cmake pkg-config zlib1g-dev libssl-dev libexpat1-dev gh jq zip unzip
-
-    # Setup MSYS2 on Windows
-    - name: '[Windows] Setup MSYS2'
-      if: ${{ startsWith(matrix.os.target, 'windows') }}
-      uses: msys2/setup-msys2@v2
-      with:
-        msystem: ${{matrix.os.sys}}
-        update: true
-        install: >-
-          git
-          base-devel
-        pacboy: >-
-          toolchain:p
-          cmake:p
-          ninja:p
-          python-pip:p
-          mbedtls:p
 
     # The tahoe VM has no Homebrew, only the base macOS tools. cmake comes from
     # PyPI, held below 4 because the vendored subprojects declare pre-3.5
@@ -252,6 +229,22 @@ jobs:
       run: |
         '${{ steps.cp310.outputs.python-path }}' -m pip install -U Jinja2 pyyaml
 
+    - name: '[Windows] Install MinGW-w64 and Wine'
+      if: ${{ startsWith(matrix.os.target, 'windows') }}
+      run: apt-get install -y --no-install-recommends ninja-build mingw-w64 wine wine64 xz-utils bzip2 perl
+
+    - name: '[Windows] Cache MinGW dependencies'
+      id: mingw-cache
+      if: ${{ startsWith(matrix.os.target, 'windows') }}
+      uses: actions/cache@v4
+      with:
+        path: ${{ runner.temp }}/mingw
+        key: mingw-deps-${{ hashFiles('.github/workflows/mingw-deps.sh') }}
+
+    - name: '[Windows] Build MinGW dependencies'
+      if: ${{ startsWith(matrix.os.target, 'windows') && steps.mingw-cache.outputs.cache-hit != 'true' }}
+      run: .github/workflows/mingw-deps.sh "$RUNNER_TEMP/mingw"
+
     - name: '[regular OS] 🚧 Build FujiNet-PC (matrix.fujinet_target)'
       if: ${{ !startsWith(matrix.os.target, 'windows') }}
       env:
@@ -260,14 +253,20 @@ jobs:
         export CMAKE_BUILD_PARALLEL_LEVEL=$(nproc 2>/dev/null || sysctl -n hw.ncpu)
         ./build.sh -y -p ${{ matrix.fujinet_target }} -- ${{ matrix.os.cmake-args }}
 
-    # For MSYS tune PATH variable for PYTHON:
-    # add 'C:\hostedtoolcache\windows\Python\3.10.11\x64' as '/c/hostedtoolcache/windows/Python/3.10.11/x64'
-    - name: '[Windows MSYS2] 🚧 Build FujiNet-PC (matrix.fujinet_target)'
+    # GCC rejects two things clang let through, and the repo builds with -Werror
+    - name: '[Windows] 🚧 Build FujiNet-PC (matrix.fujinet_target)'
       if: ${{ startsWith(matrix.os.target, 'windows') }}
+      env:
+        WINEPREFIX: /tmp/wine
+        WINEDEBUG: -all
       run: |
-        export PATH=$(printenv pythonLocation | sed 's@\\@/@g' | sed 's@^c:/@/c/@i'):$PATH
-        printenv PATH
-        ./build.sh -y -p ${{ matrix.fujinet_target }}
+        export CMAKE_BUILD_PARALLEL_LEVEL=$(nproc)
+        WARN="-Wno-error=stringop-truncation -Wno-error=conversion-null"
+        ./build.sh -y -p ${{ matrix.fujinet_target }} -- \
+          -DCMAKE_TOOLCHAIN_FILE="$RUNNER_TEMP/mingw/toolchain.cmake" \
+          -DCMAKE_PREFIX_PATH="$RUNNER_TEMP/mingw" -DMBEDTLS_ROOT_DIR="$RUNNER_TEMP/mingw" \
+          -DCMAKE_CROSSCOMPILING_EMULATOR=wine \
+          "-DCMAKE_C_FLAGS=$WARN" "-DCMAKE_CXX_FLAGS=$WARN"
 
     # - name: Configure CMake
     #   #run: cmake -B build -DFUJINET_TARGET=${{matrix.fujinet_target}} -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}

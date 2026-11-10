@@ -394,7 +394,7 @@ MFile::MFile(MFile* path, std::string name) : MFile(path->path + "/" + name) {
     }
 }
 
-bool MFile::operator!=(nullptr_t ptr) {
+bool MFile::operator!=(std::nullptr_t ptr) {
     return m_isNull;
 }
 
