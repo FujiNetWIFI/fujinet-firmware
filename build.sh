@@ -198,6 +198,7 @@ function show_help {
   echo "   -p TGT   # perform PC build instead of ESP, for given target (e.g. APPLE|ATARI|ADAM)"
   echo "   -g       # enable debug in generated fujinet-pc exe"
   echo "   -G GEN   # Use GEN as the Generator for cmake (e.g. -G \"Unix Makefiles\" )"
+  echo "            # env var FUJINET_SKIP_TESTS=1 skips ctest, for a cross build that cannot run here"
   echo ""
   echo "other options:"
   echo "   -y       # answers any questions with Y automatically, for unattended builds,"
@@ -497,10 +498,12 @@ if [ ! -z "$PC_TARGET" ] ; then
   fi
 
   # run unit tests
-  ctest -V --progress
+  if [ -z "${FUJINET_SKIP_TESTS}" ] ; then
+    ctest -V --progress
     if [ $? -ne 0 ] ; then
-    echo "Error running unit tests. Aborting"
-    exit 1
+      echo "Error running unit tests. Aborting"
+      exit 1
+    fi
   fi
 
   echo "Built PC version in build/dist folder"
