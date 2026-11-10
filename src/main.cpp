@@ -269,10 +269,6 @@ void main_setup(int argc, char *argv[])
     if (Config.get_apetime_enabled() == true)
         SYSTEM_BUS.addDevice(&platformClock, FUJI_DEVICEID::CLOCK); // APETime compatible, extended for additional return types
 
-#ifdef ESP_PLATFORM
-    SYSTEM_BUS.addDevice(&streamDev, FUJI_DEVICEID::MIDI); // UDP/MIDI device
-#endif
-
     // add PCLink device only if we have SD card
     if (fnSDFAT.running())
     {
@@ -304,8 +300,6 @@ void main_setup(int argc, char *argv[])
     SYSTEM_BUS.addDevice(sioR, FUJI_DEVICEID::SERIAL); // R:
 
     SYSTEM_BUS.addDevice(&sioV, FUJI_DEVICEID::VOICE); // P3:
-
-    SYSTEM_BUS.addDevice(&sioZ, FUJI_DEVICEID::CPM); // (ATR8000 CPM)
 
     // Go setup SIO
     SYSTEM_BUS.setup();

@@ -30,7 +30,7 @@ built on the shared bases in [lib/device/](../).
   `fujidev_set_device_fullpath()`, `appkey_read()`, `appkey_write()`, `fujicmd_net_scan_networks()`
   and `qr_encode()`. `sioNetwork` overrides the prefix, seek, tell, query and read hooks. `sioClock`
   overrides `fujidev_read_tz()`.
-- `src/main.cpp` adds the Fuji, clock, MIDI, PCLink, printer, modem, voice and CP/M devices;
+- `src/main.cpp` adds the Fuji, clock, PCLink, printer, modem and voice devices;
   `sioFuji::setup()` adds the rest.
 
 ## Build
