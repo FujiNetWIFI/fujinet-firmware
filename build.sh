@@ -179,7 +179,7 @@ function show_help {
   echo ""
   echo "companion MCU (RP2040/RP2350) options:"
   echo "   -P       # build ONLY the companion (pico) firmware for the target board, then exit"
-  echo "            # (see the [fujinet] pico_* keys documented in build-sh-readme.md)"
+  echo "            # (see the [fujinet] pico_* keys documented in build-sh.md)"
   echo "            # env var FUJINET_SKIP_PICO=1 skips the companion firmware build entirely"
   echo "            # during a normal -b build and emits a stub instead (used by -a/build-all.sh"
   echo "            # on boards/runners that don't have the companion toolchain installed)"

@@ -12,7 +12,6 @@ repository root in `CONTRIBUTING.md` and `AGENTS.md`.
 | `mac68k.md` | The Macintosh 68k board: ESP32 plus Pico on the floppy port, disk slots and image types |
 | `mac68k-floppy-write.md` | The writable-floppy (GCR capture) path on that board, with its test plan |
 | `mac68k-stuffit.md` | Mounting StuffIt, BinHex and MacBinary archives on the Mac target, and the sample corpus |
-| `build-sh-readme.md` | A second description of `build.sh`. The root `build-sh.md` is the one `README.md` and `build.sh` point to; prefer it |
 
 ## How it fits
 - [build-platforms/](../build-platforms/), [data/webui/](../data/webui/) and the per-directory

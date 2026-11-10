@@ -75,5 +75,4 @@ failing test aborts the whole invocation. The firmware workflows compile and nev
 
 ## Notes
 To add a test, add an executable and an `add_test` to `CMakeLists.txt`, and keep the unit under
-test free of hardware and FujiNet globals so it links alone. The PlatformIO directory
-[test/](../test/) is not this suite.
+test free of hardware and FujiNet globals so it links alone.
