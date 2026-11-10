@@ -1,96 +1,64 @@
 # build.sh documentation
 
-build.sh is a script that has grown to provide a mechanism for building a platform, allowing
-users to define the board they are building in a simple fashion, build that platform, and
-deploy it to the FujiNet directly, and monitor the devices console output.
+`build.sh` runs the PlatformIO build of the ESP32 firmware, the CMake build of FujiNet-PC, and the
+companion-MCU firmware some boards embed. `./build.sh -h` prints every option.
 
-It was written to replace the need to use Visual Code PlatformIO plugin, as that is also just
-a GUI around the pio application.
+It installs PlatformIO into a Python venv and offers to install missing firmware prerequisites,
+including the companion-MCU toolchain (see [pico/](pico/)). A FujiNet-PC build (`-p`) also needs
+CMake, a C++20 compiler and MbedTLS 3.x.
 
-In order to run build.sh, you must have the file `platformio.local.ini` in the root of your
-folder, which defines the board, and any additional values you require for it, to build.
-The next section talks about generating this file.
+## Options
 
-In the following notes, I talk about a "full platformio ini file" deliberately without naming
-it. That file is one that can be used by PIO without further changes to build the target
-platform.
+| Option | Does |
+|---|---|
+| `-b` | Build the firmware |
+| `-c` | Clean before building (firmware or FujiNet-PC) |
+| `-u` | Upload the firmware |
+| `-f` | Upload the filesystem (the web UI) |
+| `-m` | Run the serial monitor |
+| `-z` | Build a flashable release zip |
+| `-a` | Build every board |
+| `-d` | Add the dev flag to the build |
+| `-e ENV` | Use PlatformIO environment ENV |
+| `-t TGT` | Run PlatformIO target TGT (`-b` is still needed to build) |
+| `-n` | Do not autoclean |
+| `-s NAME` | Write a new `platformio.local.ini` for board NAME |
+| `-S` | List the board names |
+| `-l FILE` | Use FILE instead of `platformio.local.ini` |
+| `-i FILE` | Generate and use FILE instead of `platformio-generated.ini` |
+| `-P` | Build only the companion-MCU firmware, then exit |
+| `-p TGT` | Build FujiNet-PC for TGT (`ADAM`, `APPLE`, `ATARI`, `COCO`, `IEC`, `LYNX` or `RS232`) and run its tests |
+| `-g` | Debug FujiNet-PC build |
+| `-G GEN` | CMake generator, e.g. `-G "Unix Makefiles"` |
+| `-V DIR` | Python venv location (or set `VENV_ROOT`) |
+| `-y` | Answer yes to every question, including installing missing prerequisites |
 
-I also talk about "local" files, these contain only additional values that are merged into
-the "full" file, and are not complete files, nor should they be. The idea is to keep your own
-changes minimal and separate from the full file so you have nothing to change when any
-global changes are applied from upstream (e.g. additional build python scripts, version
-updates, etc.).
+Flags combine: `./build.sh -cbum` cleans, builds, uploads and monitors. Arguments after `--` go to
+the underlying tool, so `./build.sh -p APPLE -- -DFOO=BAR` passes `-DFOO=BAR` to CMake.
 
-It should be noted that git ignores all files of the form `platformio.local*.ini` and
-`platformio-release.ini` so they won't be checked into the repository. Thus when
-creating multiple different local files (as discussed below), you can ensure they are not
-checked into the repo by following the 'local' naming convention.
+`FUJINET_SKIP_TESTS=1` skips the tests after a `-p` build; `FUJINET_SKIP_PICO=1` skips the
+companion-MCU firmware and embeds a stub.
 
-## Generating a new local ini file
+## The local ini file
 
-You can either write your own, or use build.sh to generate a new local ini file for you.
-
-To do the latter, run the following:
+Every firmware build needs `platformio.local.ini`, which must set `build_board` in its
+`[fujinet]` section. Board names are the `build-platforms/platformio-<board>.ini` files, or
+`./build.sh -S`. To write a new one, overwriting any existing file:
 
 ```sh
-# use fujinet-atari-v1 for example
 ./build.sh -s fujinet-atari-v1
 ```
 
-Board names can be found in `build-platforms/platformio-*.ini`
-
-This will overwrite the default file `platformio.local.ini` so use wisely, as you will
-lose any previous local changes you made.
-
-If you add the `-y` parameter to build.sh, it will not ask if you want to create the file,
-and it installs any missing build prerequisites without asking.
-This is used in automated builds and when building all platforms using build-all.
-
-## Template platformio ini file generation
-
-By default (i.e. without any command line args), build.sh will use an ini file
-named `platformio-generated.ini` to build.
-
-This file is created every time build.sh is run, merging values from the following files in the following order:
+Every run regenerates `platformio-generated.ini` by merging these files in order:
 
 - `platformio-ini-files/platformio.common.ini`
-- `build-platforms/platformio-{build_board}.ini`
+- `build-platforms/platformio-<build_board>.ini`
 - `platformio.local.ini`
 
-This allows users to keep just their changes in the git-ignored file `platformio.local.ini`, but receive upstream changes (like platformio version updates etc) when they build.
+so local changes survive upstream updates. git ignores `platformio.local*.ini` and
+`platformio-release.ini`.
 
-## Specifying different local file names
-
-You can specify the local file that will be used (in both reading and generating as new) with the `-l FILE` parameter
-
-```sh
-./build.sh -s fujinet-atari-v1 -l platformio.local-atari.ini
-```
-The above will generate a new local file, but name it `platformio.local-atari.ini` instead
-of the default `platformio.local.ini`
-
-You can then use this file in building the application, instead of the default file. This is
-useful if you have several devices, e.g. if you generate `platformio.local-apple.ini` and `platformio.local-atari.ini`, then you can build with them:
-
-```sh
-# generate the apple/atari ini files:
-./build.sh -ys fujinet-atari-v1 -l platformio.local-atari.ini
-./build.sh -ys fujiapple-rev0 -l platformio.local-apple.ini
-
-# you can edit the above to add any additional flags, change monitor speed/port etc if required
-
-# clean/build/upload/monitor ATARI platform
-./build.sh -cbum -l platformio.local-atari.ini
-
-# clean/build/upload/monitor APPLE platform
-./build.sh -cbum -l platformio.local-apple.ini
-```
-
-which saves you from having to regenerate the file when you're switching machines.
-
-## Format of local file
-
-This is a standard ini file with one additional feature; you can specify `+=` to add to existing values, rather than fully overwriting them with local values.
+In the local file, `+=` appends to an inherited value and plain `=` replaces it:
 
 ```ini
 [fujinet]
@@ -100,52 +68,63 @@ build_board = fujinet-atari-v1
 upload_port = /dev/ttyOTHER
 build_flags +=
         -D CORE_DEBUG_LEVEL=5
-        -D FNCONFIG_DEBUG=1
         -D VERBOSE_HTTP
 
 [env:fujinet-atari-v1]
-
 build_flags +=
         -D FN_HISPEED_INDEX=0
 ```
 
-Using the `-s BUILD_BOARD` option detailed previously will generate a new `platformio.local.ini` file with just the `[fujinet]` section and the named BUILD_BOARD value set.
+## Several boards
 
-This is the only value that MUST exist in the local file, else the build will exit with an error, as it will not know which template to use for loading board specific values from.
+`-l` names a different local file, both when writing it with `-s` and when building:
 
-In the above example, `+=` was used to add values to the common `build_flags` values in other sections.
+```sh
+./build.sh -ys fujinet-atari-v1 -l platformio.local-atari.ini
+./build.sh -ys fujiapple-rev0 -l platformio.local-apple.ini
 
-Values assigned with just `=`, will override any common or board specific values, as in the example of `env.upload_port`.
+./build.sh -cbum -l platformio.local-atari.ini
+./build.sh -cbum -l platformio.local-apple.ini
+```
 
-## generating specific full ini files
+## Generating an ini without building
 
-The default is setup so users don't have to specify any arguments to build, or worry about
-ini names except for the single `platformio.local.ini` file.
-
-However, in addition to the information above about generating a different local ini file, you can also
-generate default full platformio ini files.
-
-If you want to generate a different full platformio ini file, you can do this directly with the `-i INI_FILE_NAME` and optionally use it in combination with `-l LOCAL_FILE` to pull different local values in.
+`-i` names the generated file. With no build flag (`-b`, `-p` or `-z`), the run writes it and exits:
 
 ```sh
 ./build.sh -i platformio-my-full-generated-file.ini -l platformio.local-atari-release.ini
 ```
 
-As the build always re-generates the INI file used for a build (specified with `-i`), the above command
-will create the file `platformio-my-full-generated-file.ini` but not run a build, as no build args were specified (e.g. `-b` for build, `-p` for fujinet-PC build, or `-z` for release build).
+Paths may be absolute or relative.
 
-This is a great way of just generating the ini files, and exiting without doing other work.
+## Release zip
 
-Note: Absolute and relative paths can be specified for names of files and do not have to be in the current working directory.
+`-z` builds a flashable zip, applying `platformio-ini-files/platformio.zip-options.ini` over the
+generated ini.
 
-### Creating a release/zip build
+## Companion MCU (RP2040/RP2350) firmware
 
-Simply specify `-z` arg with anything else you need.
+Some boards (the `fujiversal-*` ones) embed the cartridge firmware for an RP2040 or RP2350 in the
+ESP32 image. `[fujinet]` keys in the board's own ini drive it:
 
-```sh
-./build.sh -z
-```
+- `pico_src` enables it; `pico_repo`, `pico_repo_ref`, `pico_build`, `pico_board`,
+  `pico_artifacts` and the rest tell `build_pico.py` where the source lives, how to build it and
+  what to embed. The full key table is a comment block in
+  `platformio-ini-files/platformio.common.ini`; `build-platforms/platformio-fujiversal-intv.ini` is
+  a real one. A board without `pico_src` gets an empty stub registry.
+- A board that sets `pico_src` must also add `-D CONFIG_USB_PICOBOOT_HOST_ENABLED=1` to its
+  `[env:<board>]` `build_flags`, which compiles in the updater that pushes the image to the
+  companion at boot. `build_pico.py` fails the build if the two disagree.
+- `merge_bin` (and `merge_bin_name`) fold the bootloader, partition table and app into one
+  `<env>-merged.bin`, which `./build.sh -u` then flashes with `esptool.py`.
 
-The `-z` argument is the flag to generate a release archive zip file.
+`-P` builds only the companion firmware. `FUJINET_SKIP_PICO=1` does the opposite, for a machine
+without the companion toolchain; `-a` and `build-platforms/build-all.sh` set it per board when
+that board's prerequisites are missing.
 
-This pulls in changes from `platformio-ini-files/platformio.zip-options.ini` over the top of the generated ini file.
+`fujiversal-drivewire` and `fujiversal-msx` build from the `pico/fujiversal` submodule. `build.sh`
+initializes it when it is not checked out, and stops with the command to fix it when it is off its
+pinned commit.
+
+How the image reaches the companion at boot is in
+[docs/fujiversal-flashing.md](docs/fujiversal-flashing.md).

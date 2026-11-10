@@ -103,8 +103,6 @@ workflow runs a linter or a formatter. So:
   that configure, `make tests/<name>` builds and runs one.
 - To add one, add an `add_executable` + `add_test` pair to `tests/CMakeLists.txt`; keep the unit
   under test free of hardware and FujiNet globals so it links alone, as `fn_time.cpp` does.
-- `test/` (singular) is the stale PlatformIO/Unity on-hardware directory; nothing references it.
-  Do not extend it and do not add tests there.
 
 ## Enforced architecture rules
 
@@ -462,7 +460,7 @@ start. Keep them in the same terse register as the code comments.
 In-repo: `docs/cpp-style.md` (C++ and code structure, the companion to this file),
 `build-sh.md` (canonical build-configuration guide, linked from `README.md`),
 `build-platforms/README.md` (board INI format), `data/webui/README.md` (web UI generation).
-`docs/build-sh-readme.md` duplicates `build-sh.md` and may drift; prefer `build-sh.md`. Off-repo:
-the GitHub wiki carries the contribution process, development guidelines, the definition of done,
-and the versioning/release procedure; `README.md` links the wiki, `https://fujinet.online/` and the
-project Discord. Where this file is silent or disagrees with them, they win.
+Off-repo: the GitHub wiki carries the contribution process, development guidelines, the
+definition of done, and the versioning/release procedure; `README.md` links the wiki,
+`https://fujinet.online/` and the project Discord. Where this file is silent or disagrees with
+them, they win.
