@@ -25,6 +25,8 @@ jobs:
     container:
       image: ubuntu:24.04
       options: --add-host=host.docker.internal:host-gateway
+      volumes:
+        - ${{ github.event_name == 'pull_request' && 'fujinet-ci-cache:/ci-cache:ro' || 'fujinet-ci-cache:/ci-cache' }}
     strategy:
       matrix:
         target-platform:
@@ -80,11 +82,8 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-pip-
 
-    - name: Cache PlatformIO
-      uses: actions/cache@v4
-      with:
-        path: ~/.platformio
-        key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
+    - name: Restore PlatformIO from the host cache
+      run: .github/workflows/pio-cache.sh restore ${{ matrix.target-platform }}
 
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -136,6 +135,10 @@ jobs:
 
     - name: Build release
       run: cd "$GITHUB_WORKSPACE" && /usr/bin/bash ./build.sh -y -z -l "$GITHUB_WORKSPACE"/.github/workflows/platformio.release-${{ matrix.target-platform }}.ini -i "$GITHUB_WORKSPACE"/platformio-generated.ini
+
+    - name: Save PlatformIO to the host cache
+      if: success() && github.event_name != 'pull_request'
+      run: .github/workflows/pio-cache.sh save ${{ matrix.target-platform }}
 
     - name: Upload firmware zip for ${{ matrix.target-platform }}
       uses: actions/upload-artifact@v4

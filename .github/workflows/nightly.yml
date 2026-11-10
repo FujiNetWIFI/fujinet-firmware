@@ -49,6 +49,8 @@ jobs:
     container:
       image: ubuntu:24.04
       options: --add-host=host.docker.internal:host-gateway
+      volumes:
+        - ${{ github.event_name == 'pull_request' && 'fujinet-ci-cache:/ci-cache:ro' || 'fujinet-ci-cache:/ci-cache' }}
     strategy:
       matrix:
         target-platform: [ATARI, ATARI-8mb, ADAM, APPLE, IEC-LOLIN-D32, IEC-NUGGET, COCO, MASTERIES-REVAB, MASTERIES-REVA-SPIFIX, RS232, FUJIVERSAL-INTV, FUJIVERSAL-INTV-PIRTO-II-DUO, FUJIVERSAL-DRIVEWIRE, FUJIVERSAL-MSX]
@@ -89,11 +91,8 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-pip-
 
-    - name: Cache PlatformIO
-      uses: actions/cache@v4
-      with:
-        path: ~/.platformio
-        key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
+    - name: Restore PlatformIO from the host cache
+      run: .github/workflows/pio-cache.sh restore ${{ matrix.target-platform }}
 
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -165,6 +164,10 @@ jobs:
 
     - name: Build release
       run: cd ${{ github.workspace }} && /usr/bin/bash ./build.sh -y -z -l ${{ github.workspace }}/.github/workflows/platformio.release-${{ matrix.target-platform }}.ini -i ${{ github.workspace }}/platformio-generated.ini
+
+    - name: Save PlatformIO to the host cache
+      if: success() && github.event_name != 'pull_request'
+      run: .github/workflows/pio-cache.sh save ${{ matrix.target-platform }}
 
     - name: Standardize Firmware Name
       run: mv ./firmware/fujinet*.zip ./firmware/fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.VERSION }}-nightly.zip
