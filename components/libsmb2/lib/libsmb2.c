@@ -2270,7 +2270,7 @@ smb2_rename_async(struct smb2_context *smb2, const char *oldpath,
         }
 
         /* SET INFO command */
-        rn_info.replace_if_exist = 0;
+        rn_info.replace_if_exist = 1;
         rn_info.file_name = rename_data->newpath;
 
         memset(&si_req, 0, sizeof(struct smb2_set_info_request));
