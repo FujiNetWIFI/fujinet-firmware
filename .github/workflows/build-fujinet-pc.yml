@@ -56,16 +56,29 @@ jobs:
       matrix:
         os:
           - name: Ubuntu 24.04
-            runner: ubuntu-24.04
+            runner: '["self-hosted", "Linux", "X64", "fujinet-builder"]'
+            container: '{"image":"ubuntu:24.04","options":"--add-host=host.docker.internal:host-gateway"}'
             target: ubuntu-24.04-amd64
             default-shell: bash
-          - name: macOS 15 ARM
-            target: macos-15-arm64
-            runner: macos-15
+          # tahoe is an Intel VM: x64 is built and tested natively, arm64 is
+          # cross-built and cannot be run there.
+          - name: macOS Intel
+            container: 'null'
+            target: macos-x64
+            runner: '["self-hosted", "macOS", "X64", "tahoe"]'
+            arch: x86_64
+            default-shell: bash
+          - name: macOS ARM
+            container: 'null'
+            target: macos-arm64
+            runner: '["self-hosted", "macOS", "X64", "tahoe"]'
+            arch: arm64
+            skip-tests: '1'
             default-shell: bash
           - name: Windows
+            container: 'null'
             target: windows-x64
-            runner: windows-latest
+            runner: '"windows-latest"'
             sys: clang64
             default-shell: msys2 {0}
           # # mbedtls not available anymore for clang32 :-(
@@ -85,7 +98,8 @@ jobs:
 
     # continue-on-error: true
     name: "${{ matrix.os.name }}: Target ${{ matrix.fujinet_target }}"
-    runs-on: ${{ matrix.os.runner }}
+    runs-on: ${{ fromJSON(matrix.os.runner) }}
+    container: ${{ fromJSON(matrix.os.container) }}
     defaults:
       run:
         shell: ${{ matrix.os.default-shell }}
@@ -94,6 +108,16 @@ jobs:
       build_date: ${{ steps.version.outputs.build_date }}
 
     steps:
+    - name: '[Ubuntu] Install base tools'
+      if: ${{ startsWith(matrix.os.target, 'ubuntu') }}
+      shell: bash
+      run: |
+        MIRROR=http://mirrors.edge.kernel.org/ubuntu
+        (echo > /dev/tcp/host.docker.internal/3142) 2>/dev/null \
+          && MIRROR=http://host.docker.internal:3142/mirrors.edge.kernel.org/ubuntu
+        sed -i "s|http://[a-z.]*ubuntu.com/ubuntu|$MIRROR|" /etc/apt/sources.list.d/ubuntu.sources
+        apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv cmake pkg-config zlib1g-dev libssl-dev libexpat1-dev gh jq zip unzip
+
     # Setup MSYS2 on Windows
     - name: '[Windows] Setup MSYS2'
       if: ${{ startsWith(matrix.os.target, 'windows') }}
@@ -111,25 +135,76 @@ jobs:
           python-pip:p
           mbedtls:p
 
-    - name: '[macOS] Install MbedTLS'
+    # The tahoe VM has no Homebrew, only the base macOS tools. cmake comes from
+    # PyPI, held below 4 because the vendored subprojects declare pre-3.5
+    # minimums that cmake 4 rejects; MbedTLS 3 and OpenSSL are built for the
+    # one architecture this row targets.
+    - name: '[macOS] Install build tools'
       if: ${{ startsWith(matrix.os.target, 'macos') }}
       run: |
-        brew update
-        brew install mbedtls@3
-        brew link --force --overwrite mbedtls@3
+        python3 -m venv "$RUNNER_TEMP/tools"
+        "$RUNNER_TEMP/tools/bin/pip" install --quiet "cmake>=3.28,<4" ninja
+        echo "$RUNNER_TEMP/tools/bin" >> "$GITHUB_PATH"
+        echo "CMAKE_OSX_ARCHITECTURES=${{ matrix.os.arch }}" >> "$GITHUB_ENV"
+        echo "SDKROOT=$(xcrun --show-sdk-path)" >> "$GITHUB_ENV"
+        # Apple clang 26 rejects the -fstack-clash-protection that libssh adds, and
+        # the repo builds with -Werror.
+        echo "CFLAGS=-Wno-error=unused-command-line-argument" >> "$GITHUB_ENV"
+        echo "CXXFLAGS=-Wno-error=unused-command-line-argument" >> "$GITHUB_ENV"
+
+    - name: '[macOS] Cache MbedTLS and OpenSSL'
+      id: mac-deps-cache
+      if: ${{ startsWith(matrix.os.target, 'macos') }}
+      uses: actions/cache@v4
+      with:
+        path: ${{ runner.temp }}/deps
+        key: mac-deps-mbedtls-3.6.5-4a11f17-openssl-3.5.0-636dfad-${{ matrix.os.arch }}
+
+    - name: '[macOS] Build MbedTLS 3 and OpenSSL'
+      if: ${{ startsWith(matrix.os.target, 'macos') && steps.mac-deps-cache.outputs.cache-hit != 'true' }}
+      run: |
+        DEPS="$RUNNER_TEMP/deps"
+        mkdir -p "$DEPS" "$RUNNER_TEMP/src"
+        cd "$RUNNER_TEMP/src"
+        curl -fsSL -o mbedtls.tar.bz2 https://github.com/Mbed-TLS/mbedtls/releases/download/mbedtls-3.6.5/mbedtls-3.6.5.tar.bz2
+        echo "4a11f1777bb95bf4ad96721cac945a26e04bf19f57d905f241fe77ebeddf46d8  mbedtls.tar.bz2" | shasum -a 256 -c -
+        tar -xjf mbedtls.tar.bz2
+        cmake -S mbedtls-3.6.5 -B mbedtls-build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+          -DENABLE_TESTING=OFF -DENABLE_PROGRAMS=OFF -DCMAKE_INSTALL_PREFIX="$DEPS/mbedtls"
+        cmake --build mbedtls-build
+        cmake --install mbedtls-build
+        # openssl-3.5.0, by commit
+        git init -q openssl-src
+        cd openssl-src
+        git fetch -q --depth 1 https://github.com/openssl/openssl.git 636dfadc70ce26f2473870570bfd9ec352806b1d
+        git checkout -q FETCH_HEAD
+        test "$(git rev-parse HEAD)" = 636dfadc70ce26f2473870570bfd9ec352806b1d
+        case "${{ matrix.os.arch }}" in
+          arm64) TARGET=darwin64-arm64-cc ;;
+          *) TARGET=darwin64-x86_64-cc ;;
+        esac
+        ./Configure $TARGET no-shared no-tests --prefix="$DEPS/openssl" --libdir=lib
+        make -j"$(sysctl -n hw.ncpu)" build_libs
+        make install_dev
+
+    - name: '[macOS] Point the build at MbedTLS and OpenSSL'
+      if: ${{ startsWith(matrix.os.target, 'macos') }}
+      run: |
+        echo "MBEDTLS_ROOT_DIR=$RUNNER_TEMP/deps/mbedtls" >> "$GITHUB_ENV"
+        echo "OPENSSL_ROOT_DIR=$RUNNER_TEMP/deps/openssl" >> "$GITHUB_ENV"
 
     - name: '[Ubuntu] Install MbedTLS'
       if: ${{ startsWith(matrix.os.target, 'ubuntu') && !endsWith(matrix.os.target, 'armhf') }}
       run: |
-        sudo apt-get update
-        sudo apt-get install -y libmbedtls-dev
+        apt-get update
+        apt-get install -y libmbedtls-dev
 
     - name: '[Ubuntu armhf] Install cross toolchain and MbedTLS'
       if: ${{ endsWith(matrix.os.target, 'armhf') }}
       run: |
-        sudo dpkg --add-architecture armhf
-        sudo apt-get update
-        sudo apt-get install -y crossbuild-essential-armhf \
+        dpkg --add-architecture armhf
+        apt-get update
+        apt-get install -y crossbuild-essential-armhf \
           libmbedtls-dev:armhf libssl-dev:armhf libexpat1-dev:armhf zlib1g-dev:armhf \
           libstdc++6:armhf
 
@@ -144,17 +219,22 @@ jobs:
         fetch-depth: 0
         ref: ${{ github.event.inputs.ref != '' && github.event.inputs.ref || github.ref }}
 
+    # The checkout belongs to the runner's user, not root, and build_version_pc.py runs git
+    - name: Trust the workspace
+      run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
     # - name: Fetch tags
     #   run: git fetch --prune --unshallow --tags
 
     - name: 'Install Python'
-      # if: ${{ !startsWith(matrix.os.target, 'windows') }}
+      if: ${{ !startsWith(matrix.os.target, 'macos') }}
       uses: actions/setup-python@v5
       id: cp310
       with:
         python-version: '3.10'
 
     - name: Check Python version (default)
+      if: ${{ !startsWith(matrix.os.target, 'macos') }}
       run: |
         which python
         python --version
@@ -162,17 +242,22 @@ jobs:
         printenv pythonLocation
 
     - name: Check Python version (from setup-python)
+      if: ${{ !startsWith(matrix.os.target, 'macos') }}
       run: |
         echo '${{ steps.cp310.outputs.python-path }}'
         '${{ steps.cp310.outputs.python-path }}' --version
 
     - name: 'Install Python packages'
+      if: ${{ !startsWith(matrix.os.target, 'macos') }}
       run: |
         '${{ steps.cp310.outputs.python-path }}' -m pip install -U Jinja2 pyyaml
 
     - name: '[regular OS] 🚧 Build FujiNet-PC (matrix.fujinet_target)'
       if: ${{ !startsWith(matrix.os.target, 'windows') }}
+      env:
+        FUJINET_SKIP_TESTS: ${{ matrix.os.skip-tests }}
       run: |
+        export CMAKE_BUILD_PARALLEL_LEVEL=$(nproc 2>/dev/null || sysctl -n hw.ncpu)
         ./build.sh -y -p ${{ matrix.fujinet_target }} -- ${{ matrix.os.cmake-args }}
 
     # For MSYS tune PATH variable for PYTHON:
@@ -221,11 +306,23 @@ jobs:
   release:
     if: ${{ github.event_name == 'schedule' || github.event.inputs.prepRelease == 'true' }}
     # Create GitHub release
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, Linux, X64, fujinet-builder]
+    container:
+      image: ubuntu:24.04
+      options: --add-host=host.docker.internal:host-gateway
     name: Release
     needs: build
 
     steps:
+    - name: Install base tools
+      shell: bash
+      run: |
+        MIRROR=http://mirrors.edge.kernel.org/ubuntu
+        (echo > /dev/tcp/host.docker.internal/3142) 2>/dev/null \
+          && MIRROR=http://host.docker.internal:3142/mirrors.edge.kernel.org/ubuntu
+        sed -i "s|http://[a-z.]*ubuntu.com/ubuntu|$MIRROR|" /etc/apt/sources.list.d/ubuntu.sources
+        apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv cmake pkg-config zlib1g-dev libssl-dev libexpat1-dev gh jq zip unzip
+
     - name: Download build artifacts
       uses: actions/download-artifact@v4
       with:
@@ -269,14 +366,29 @@ jobs:
   postrelease:
     if: ${{ github.event_name == 'schedule' }}
     # Delete old nightly releases
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, Linux, X64, fujinet-builder]
+    container:
+      image: ubuntu:24.04
+      options: --add-host=host.docker.internal:host-gateway
     name: Post-Release
     needs: release
 
     steps:
+    - name: Install base tools
+      shell: bash
+      run: |
+        MIRROR=http://mirrors.edge.kernel.org/ubuntu
+        (echo > /dev/tcp/host.docker.internal/3142) 2>/dev/null \
+          && MIRROR=http://host.docker.internal:3142/mirrors.edge.kernel.org/ubuntu
+        sed -i "s|http://[a-z.]*ubuntu.com/ubuntu|$MIRROR|" /etc/apt/sources.list.d/ubuntu.sources
+        apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv cmake pkg-config zlib1g-dev libssl-dev libexpat1-dev gh jq zip unzip
+
     - name: 'Checkout'
       # Checkout, to make "gh" command working
       uses: actions/checkout@v4
+
+    - name: Trust the workspace
+      run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
     - name: Delete old nightly releases
       run: |

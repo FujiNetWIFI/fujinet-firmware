@@ -13,12 +13,22 @@ jobs:
     name: "Clean up old nightly assets"
     if: ${{ vars.RUN_NIGHTLY == 'true' }}
     runs-on: [self-hosted, Linux, X64, fujinet-builder]
-    container: ubuntu:24.04
+    container:
+      image: ubuntu:24.04
+      options: --add-host=host.docker.internal:host-gateway
     steps:
       - name: Install base tools
-        run: apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv gh jq zip unzip
+        shell: bash
+        run: |
+          MIRROR=http://mirrors.edge.kernel.org/ubuntu
+          (echo > /dev/tcp/host.docker.internal/3142) 2>/dev/null \
+            && MIRROR=http://host.docker.internal:3142/mirrors.edge.kernel.org/ubuntu
+          sed -i "s|http://[a-z.]*ubuntu.com/ubuntu|$MIRROR|" /etc/apt/sources.list.d/ubuntu.sources
+          apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv gh jq zip unzip
       - uses: actions/checkout@v4
 
+      - name: Trust the workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Delete old nightly assets (keep last ${{ env.KEEP_NIGHTLIES }})
         continue-on-error: true
         run: |
@@ -36,7 +46,9 @@ jobs:
     needs: cleanup-nightly
     if: ${{ vars.RUN_NIGHTLY == 'true' }}
     runs-on: [self-hosted, Linux, X64, fujinet-builder]
-    container: ubuntu:24.04
+    container:
+      image: ubuntu:24.04
+      options: --add-host=host.docker.internal:host-gateway
     strategy:
       matrix:
         target-platform: [ATARI, ATARI-8mb, ADAM, APPLE, IEC-LOLIN-D32, IEC-NUGGET, COCO, MASTERIES-REVAB, MASTERIES-REVA-SPIFIX, RS232, FUJIVERSAL-INTV, FUJIVERSAL-INTV-PIRTO-II-DUO, FUJIVERSAL-DRIVEWIRE, FUJIVERSAL-MSX]
@@ -54,13 +66,21 @@ jobs:
 
     steps:
     - name: Install base tools
-      run: apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv gh jq zip unzip
+      shell: bash
+      run: |
+        MIRROR=http://mirrors.edge.kernel.org/ubuntu
+        (echo > /dev/tcp/host.docker.internal/3142) 2>/dev/null \
+          && MIRROR=http://host.docker.internal:3142/mirrors.edge.kernel.org/ubuntu
+        sed -i "s|http://[a-z.]*ubuntu.com/ubuntu|$MIRROR|" /etc/apt/sources.list.d/ubuntu.sources
+        apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv gh jq zip unzip
     - name: Checkout Source
       uses: actions/checkout@v4
       with:
         submodules: true
         fetch-depth: 0
 
+    - name: Trust the workspace
+      run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
     - name: Cache pip
       uses: actions/cache@v4
       with:
