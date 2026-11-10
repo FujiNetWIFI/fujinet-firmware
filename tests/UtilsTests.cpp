@@ -39,9 +39,13 @@ TEST_CASE("mstr::formatBytes")
 
 TEST_CASE("mstr::toUTF8 converts PETSCII bytes from 0x80 up and drops NUL")
 {
-    const char shiftedA = static_cast<char>(0xC1);
-    std::string expected = U8Char(shiftedA).toUtf8();
-    REQUIRE_FALSE(expected.empty());
-    CHECK(mstr::toUTF8(std::string(1, shiftedA)) == expected);
+    for (int code = 0x80; code <= 0xFF; code++)
+    {
+        const char petscii = static_cast<char>(code);
+        std::string expected = U8Char(petscii).toUtf8();
+        CAPTURE(code);
+        REQUIRE_FALSE(expected.empty());
+        CHECK(mstr::toUTF8(std::string(1, petscii)) == expected);
+    }
     CHECK(mstr::toUTF8(std::string("\0", 1)).empty());
 }
