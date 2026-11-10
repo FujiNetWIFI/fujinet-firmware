@@ -5,14 +5,14 @@ Vendored ESP-IDF components. Each directory is a copy of an upstream library wit
 every ESP32 target.
 
 ## Layout
-| Component | Upstream and version | Licence | Consumer | Status |
+| Component | Upstream and version | License | Consumer | Status |
 |---|---|---|---|---|
 | `esp_littlefs` | joltwallet esp_littlefs 1.14.8 | MIT | `lib/FileSystem/fnFsLittleFS.cpp`, `lib/meatloaf` | used |
 | `expat` | Espressif expat component 2.5.0 | MIT | `lib/network-protocol/HTTP.h`, `lib/webdav/WebDAV.h` | used |
 | `gumbo` | Gumbo HTML5 parser, the Codeberg fork of google/gumbo-parser | Apache-2.0 | backend of `gumbo-query` | used |
 | `gumbo-query` | CSS selectors over Gumbo, patched to build without exceptions and to allocate in PSRAM | MIT | `lib/fnhtml` | used |
 | `libnfs` | libnfs with an `esp32` compatibility layer | LGPL-2.1 | `lib/FileSystem/fnFsNFS.cpp` | used |
-| `libsmb2` | libsmb2 3.0.1, with upstream's fixes for the `smb2_parse_url()` and `smb2_connect_share()` leaks | LGPL-2.1 | `lib/FileSystem/fnFsSMB.cpp`, `lib/network-protocol/SMB.cpp` | used |
+| `libsmb2` | libsmb2 3.0.1, modified locally: `smb2_rename()` replaces an existing target, and upstream's fixes for the `smb2_parse_url()` and `smb2_connect_share()` leaks | LGPL-2.1 | `lib/FileSystem/fnFsSMB.cpp`, `lib/network-protocol/SMB.cpp` | used |
 | `libssh` | libssh 0.11.3, pared down to the mbedTLS backend with local `libssh/stubs.h` and `libssh/config.h` | LGPL-2.1 | `lib/network-protocol/SSH.h`, `lib/network-protocol/SSHCopyId.cpp` | used |
 | `lz4` | LZ4 1.10.0 | BSD-2-Clause | `lib/device/comlynx/disk.cpp` | used |
 | `mdns` | Espressif mDNS 1.8.2 | Apache-2.0 | `lib/hardware/fnWiFi.cpp` | used |
@@ -40,5 +40,5 @@ every ESP32 target.
 
 ## Notes
 Every directory listed as "no consumer" or "dependency only" is still compiled into every ESP32
-build. A directory here keeps its upstream README and licence file where one was vendored; do not
+build. A directory here keeps its upstream README and license file where one was vendored; do not
 add FujiNet documentation inside them.
