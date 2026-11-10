@@ -112,22 +112,6 @@ jobs:
         sed -i "s|http://[a-z.]*ubuntu.com/ubuntu|$MIRROR|" /etc/apt/sources.list.d/ubuntu.sources
         apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv cmake pkg-config zlib1g-dev libssl-dev libexpat1-dev gh jq zip unzip
 
-    - name: '[Windows] Install MinGW-w64 and Wine'
-      if: ${{ startsWith(matrix.os.target, 'windows') }}
-      run: apt-get install -y --no-install-recommends ninja-build mingw-w64 wine wine64 xz-utils bzip2 perl
-
-    - name: '[Windows] Cache MinGW dependencies'
-      id: mingw-cache
-      if: ${{ startsWith(matrix.os.target, 'windows') }}
-      uses: actions/cache@v4
-      with:
-        path: ${{ runner.temp }}/mingw
-        key: mingw-deps-${{ hashFiles('.github/workflows/mingw-deps.sh') }}
-
-    - name: '[Windows] Build MinGW dependencies'
-      if: ${{ startsWith(matrix.os.target, 'windows') && steps.mingw-cache.outputs.cache-hit != 'true' }}
-      run: .github/workflows/mingw-deps.sh "$RUNNER_TEMP/mingw"
-
     # The tahoe VM has no Homebrew, only the base macOS tools. cmake comes from
     # PyPI, held below 4 because the vendored subprojects declare pre-3.5
     # minimums that cmake 4 rejects; MbedTLS 3 and OpenSSL are built for the
@@ -244,6 +228,22 @@ jobs:
       if: ${{ !startsWith(matrix.os.target, 'macos') }}
       run: |
         '${{ steps.cp310.outputs.python-path }}' -m pip install -U Jinja2 pyyaml
+
+    - name: '[Windows] Install MinGW-w64 and Wine'
+      if: ${{ startsWith(matrix.os.target, 'windows') }}
+      run: apt-get install -y --no-install-recommends ninja-build mingw-w64 wine wine64 xz-utils bzip2 perl
+
+    - name: '[Windows] Cache MinGW dependencies'
+      id: mingw-cache
+      if: ${{ startsWith(matrix.os.target, 'windows') }}
+      uses: actions/cache@v4
+      with:
+        path: ${{ runner.temp }}/mingw
+        key: mingw-deps-${{ hashFiles('.github/workflows/mingw-deps.sh') }}
+
+    - name: '[Windows] Build MinGW dependencies'
+      if: ${{ startsWith(matrix.os.target, 'windows') && steps.mingw-cache.outputs.cache-hit != 'true' }}
+      run: .github/workflows/mingw-deps.sh "$RUNNER_TEMP/mingw"
 
     - name: '[regular OS] 🚧 Build FujiNet-PC (matrix.fujinet_target)'
       if: ${{ !startsWith(matrix.os.target, 'windows') }}
