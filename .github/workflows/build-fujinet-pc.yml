@@ -257,7 +257,7 @@ jobs:
     - name: '[Windows] 🚧 Build FujiNet-PC (matrix.fujinet_target)'
       if: ${{ startsWith(matrix.os.target, 'windows') }}
       env:
-        WINEPREFIX: ${{ runner.temp }}/wine
+        WINEPREFIX: /tmp/wine
         WINEDEBUG: -all
       run: |
         export CMAKE_BUILD_PARALLEL_LEVEL=$(nproc)

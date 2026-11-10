@@ -172,7 +172,7 @@ private:
 class MFile : public PeoplesUrlParser {
 public:
     MFile() {}; // only for local FS!!!
-    MFile(nullptr_t null) : m_isNull(true) {};
+    MFile(std::nullptr_t null) : m_isNull(true) {};
     MFile(std::string path);
     MFile(std::string path, std::string name);
     MFile(MFile* path, std::string name);
@@ -197,7 +197,7 @@ public:
     uint16_t media_blocks_free = 0;
     uint16_t media_block_size = 256;
 
-    bool operator!=(nullptr_t ptr);
+    bool operator!=(std::nullptr_t ptr);
 
     // bool copyTo(MFile* dst);
 
