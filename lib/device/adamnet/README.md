@@ -11,7 +11,6 @@ The Coleco ADAM device set for `BUILD_ADAM`.
 | `adamClock.h`, `adamClock.cpp` | `adamClock : fujiClock`; defines `platformClock` |
 | `printer.h`, `printer.cpp`, `printerlist.h`, `printerlist.cpp` | `adamPrinter` (Coleco printer emulation) and `printerlist`; defines `fnPrinters` |
 | `keyboard.h`, `keyboard.cpp` | `adamKeyboard`, a virtual keyboard used only behind `VIRTUAL_ADAM_DEVICES` |
-| `serial.h`, `serial.cpp` | `adamSerial` |
 
 ## How it fits
 - Every class derives the `virtualDevice` of [lib/bus/adamnet/](../../bus/adamnet/) and implements

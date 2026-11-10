@@ -496,7 +496,7 @@ if(FUJINET_TARGET STREQUAL "ADAM")
     # The adam bus/device/media sources include each other by bare filename.
     # APPEND (after the base lib/device, lib/bus, lib/media) so shared names like
     # disk.h / network.h / printer.h still resolve to the base platform-dispatch
-    # headers, while adam-only names (adamFuji.h, serial.h, ...) resolve here.
+    # headers, while adam-only names (adamFuji.h, keyboard.h, ...) resolve here.
     list(APPEND INCLUDE_DIRS lib/bus/adamnet lib/device/adamnet lib/media/adam)
 
     list(APPEND SOURCES
@@ -520,7 +520,6 @@ if(FUJINET_TARGET STREQUAL "ADAM")
     lib/device/adamnet/adamNetwork.h lib/device/adamnet/adamNetwork.cpp
     lib/device/adamnet/printer.h lib/device/adamnet/printer.cpp
     lib/device/adamnet/printerlist.h lib/device/adamnet/printerlist.cpp
-    lib/device/adamnet/serial.h lib/device/adamnet/serial.cpp
 
     )
 endif()
