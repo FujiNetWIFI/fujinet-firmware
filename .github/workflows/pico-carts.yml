@@ -38,14 +38,23 @@ jobs:
   host-tests:
     name: "host tests (no hardware, no SDK)"
     runs-on: [self-hosted, Linux, X64, fujinet-builder]
-    container: ubuntu:24.04
+    container:
+      image: ubuntu:24.04
+      options: --add-host=host.docker.internal:host-gateway
     steps:
       - name: Install base tools
-        run: apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv gh jq zip unzip
+        run: |
+          MIRROR=http://mirrors.edge.kernel.org/ubuntu
+          (echo > /dev/tcp/host.docker.internal/3142) 2>/dev/null \
+            && MIRROR=http://host.docker.internal:3142/mirrors.edge.kernel.org/ubuntu
+          sed -i "s|http://[a-z.]*ubuntu.com/ubuntu|$MIRROR|" /etc/apt/sources.list.d/ubuntu.sources
+          apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv gh jq zip unzip
       - uses: actions/checkout@v4
         with:
           submodules: true
 
+      - name: Trust the workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       # The codecs, mappers and bus models are free of pico-sdk and TinyUSB so they
       # can be tested here. Every pico/*/firmware/host_test/Makefile is run, so a
       # new cart needs no step of its own.
@@ -83,11 +92,20 @@ jobs:
   a7800-console-client:
     name: "Atari 7800 6502 clients"
     runs-on: [self-hosted, Linux, X64, fujinet-builder]
-    container: ubuntu:24.04
+    container:
+      image: ubuntu:24.04
+      options: --add-host=host.docker.internal:host-gateway
     steps:
       - name: Install base tools
-        run: apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv gh jq zip unzip
+        run: |
+          MIRROR=http://mirrors.edge.kernel.org/ubuntu
+          (echo > /dev/tcp/host.docker.internal/3142) 2>/dev/null \
+            && MIRROR=http://host.docker.internal:3142/mirrors.edge.kernel.org/ubuntu
+          sed -i "s|http://[a-z.]*ubuntu.com/ubuntu|$MIRROR|" /etc/apt/sources.list.d/ubuntu.sources
+          apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv gh jq zip unzip
       - uses: actions/checkout@v4
+      - name: Trust the workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Install cc65
         run: apt-get update && apt-get install -y cc65
       # The boot block, signed and verified with the vendored 7800sign, and the
@@ -99,11 +117,20 @@ jobs:
   a5200-console-client:
     name: "Atari 5200 6502 clients"
     runs-on: [self-hosted, Linux, X64, fujinet-builder]
-    container: ubuntu:24.04
+    container:
+      image: ubuntu:24.04
+      options: --add-host=host.docker.internal:host-gateway
     steps:
       - name: Install base tools
-        run: apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv gh jq zip unzip
+        run: |
+          MIRROR=http://mirrors.edge.kernel.org/ubuntu
+          (echo > /dev/tcp/host.docker.internal/3142) 2>/dev/null \
+            && MIRROR=http://host.docker.internal:3142/mirrors.edge.kernel.org/ubuntu
+          sed -i "s|http://[a-z.]*ubuntu.com/ubuntu|$MIRROR|" /etc/apt/sources.list.d/ubuntu.sources
+          apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv gh jq zip unzip
       - uses: actions/checkout@v4
+      - name: Trust the workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Install cc65
         run: apt-get update && apt-get install -y cc65
       # The bring-up clients, each through tools/checkrom.py, and
@@ -115,14 +142,23 @@ jobs:
   o2-console-client:
     name: "Odyssey 2 8048 client"
     runs-on: [self-hosted, Linux, X64, fujinet-builder]
-    container: ubuntu:24.04
+    container:
+      image: ubuntu:24.04
+      options: --add-host=host.docker.internal:host-gateway
     steps:
       - name: Install base tools
-        run: apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv gh jq zip unzip
+        run: |
+          MIRROR=http://mirrors.edge.kernel.org/ubuntu
+          (echo > /dev/tcp/host.docker.internal/3142) 2>/dev/null \
+            && MIRROR=http://host.docker.internal:3142/mirrors.edge.kernel.org/ubuntu
+          sed -i "s|http://[a-z.]*ubuntu.com/ubuntu|$MIRROR|" /etc/apt/sources.list.d/ubuntu.sources
+          apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv gh jq zip unzip
       - uses: actions/checkout@v4
         with:
           submodules: true
 
+      - name: Trust the workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       # Macro Assembler AS. There is NO distro package for it -- Debian's and
       # Ubuntu's "asl"/"asl-*" are the Advanced Simulation Library, something
       # else entirely -- so it is built from the release-tracking mirror of
@@ -198,12 +234,21 @@ jobs:
   astrocade-console-client:
     name: "Astrocade Z80 clients"
     runs-on: [self-hosted, Linux, X64, fujinet-builder]
-    container: ubuntu:24.04
+    container:
+      image: ubuntu:24.04
+      options: --add-host=host.docker.internal:host-gateway
     steps:
       - name: Install base tools
-        run: apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv gh jq zip unzip
+        run: |
+          MIRROR=http://mirrors.edge.kernel.org/ubuntu
+          (echo > /dev/tcp/host.docker.internal/3142) 2>/dev/null \
+            && MIRROR=http://host.docker.internal:3142/mirrors.edge.kernel.org/ubuntu
+          sed -i "s|http://[a-z.]*ubuntu.com/ubuntu|$MIRROR|" /etc/apt/sources.list.d/ubuntu.sources
+          apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv gh jq zip unzip
       - uses: actions/checkout@v4
 
+      - name: Trust the workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       # zmac is vendored (tools/zmac, public domain -- see its PROVENANCE.md)
       # because no distro packages it and there is no release mirror to pin.
       # build.sh compiles it on demand; tools/checkrom.py then enforces the
@@ -220,12 +265,21 @@ jobs:
   channelf-console-client:
     name: "Channel F F8 clients"
     runs-on: [self-hosted, Linux, X64, fujinet-builder]
-    container: ubuntu:24.04
+    container:
+      image: ubuntu:24.04
+      options: --add-host=host.docker.internal:host-gateway
     steps:
       - name: Install base tools
-        run: apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv gh jq zip unzip
+        run: |
+          MIRROR=http://mirrors.edge.kernel.org/ubuntu
+          (echo > /dev/tcp/host.docker.internal/3142) 2>/dev/null \
+            && MIRROR=http://host.docker.internal:3142/mirrors.edge.kernel.org/ubuntu
+          sed -i "s|http://[a-z.]*ubuntu.com/ubuntu|$MIRROR|" /etc/apt/sources.list.d/ubuntu.sources
+          apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv gh jq zip unzip
       - uses: actions/checkout@v4
 
+      - name: Trust the workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       # Macro Assembler AS again, F3850 target this time. Same cache and build
       # recipe as the o2 job, so one AS build serves both.
       - name: Cache Macro Assembler AS
@@ -264,12 +318,21 @@ jobs:
   studio2-console-client:
     name: "Studio II 1802 clients"
     runs-on: [self-hosted, Linux, X64, fujinet-builder]
-    container: ubuntu:24.04
+    container:
+      image: ubuntu:24.04
+      options: --add-host=host.docker.internal:host-gateway
     steps:
       - name: Install base tools
-        run: apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv gh jq zip unzip
+        run: |
+          MIRROR=http://mirrors.edge.kernel.org/ubuntu
+          (echo > /dev/tcp/host.docker.internal/3142) 2>/dev/null \
+            && MIRROR=http://host.docker.internal:3142/mirrors.edge.kernel.org/ubuntu
+          sed -i "s|http://[a-z.]*ubuntu.com/ubuntu|$MIRROR|" /etc/apt/sources.list.d/ubuntu.sources
+          apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv gh jq zip unzip
       - uses: actions/checkout@v4
 
+      - name: Trust the workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       # Macro Assembler AS, CDP1802 target; same cache and recipe as the o2
       # and Channel F jobs.
       - name: Cache Macro Assembler AS
@@ -301,12 +364,21 @@ jobs:
   nes-console-client:
     name: "NES 6502 clients"
     runs-on: [self-hosted, Linux, X64, fujinet-builder]
-    container: ubuntu:24.04
+    container:
+      image: ubuntu:24.04
+      options: --add-host=host.docker.internal:host-gateway
     steps:
       - name: Install base tools
-        run: apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv gh jq zip unzip
+        run: |
+          MIRROR=http://mirrors.edge.kernel.org/ubuntu
+          (echo > /dev/tcp/host.docker.internal/3142) 2>/dev/null \
+            && MIRROR=http://host.docker.internal:3142/mirrors.edge.kernel.org/ubuntu
+          sed -i "s|http://[a-z.]*ubuntu.com/ubuntu|$MIRROR|" /etc/apt/sources.list.d/ubuntu.sources
+          apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv gh jq zip unzip
       - uses: actions/checkout@v4
 
+      - name: Trust the workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       # cc65 from the distro is enough for ca65/ld65; the clients are pure
       # assembly. tools/checkrom.py then enforces the fuji_mailbox.h layout on
       # every image (header, claim, vectors, no RMW on the hotspot pages) and
@@ -319,12 +391,21 @@ jobs:
   arcadia-console-client:
     name: "Arcadia 2001 2650 clients"
     runs-on: [self-hosted, Linux, X64, fujinet-builder]
-    container: ubuntu:24.04
+    container:
+      image: ubuntu:24.04
+      options: --add-host=host.docker.internal:host-gateway
     steps:
       - name: Install base tools
-        run: apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv gh jq zip unzip
+        run: |
+          MIRROR=http://mirrors.edge.kernel.org/ubuntu
+          (echo > /dev/tcp/host.docker.internal/3142) 2>/dev/null \
+            && MIRROR=http://host.docker.internal:3142/mirrors.edge.kernel.org/ubuntu
+          sed -i "s|http://[a-z.]*ubuntu.com/ubuntu|$MIRROR|" /etc/apt/sources.list.d/ubuntu.sources
+          apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv gh jq zip unzip
       - uses: actions/checkout@v4
 
+      - name: Trust the workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       # Macro Assembler AS again (2650 target this time). Same cache and
       # build recipe as the o2 job; build.sh prefers a native asl on PATH.
       - name: Cache Macro Assembler AS
@@ -374,14 +455,23 @@ jobs:
   cartridge-firmware:
     name: "RP2040 cartridge firmware"
     runs-on: [self-hosted, Linux, X64, fujinet-builder]
-    container: ubuntu:24.04
+    container:
+      image: ubuntu:24.04
+      options: --add-host=host.docker.internal:host-gateway
     steps:
       - name: Install base tools
-        run: apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv gh jq zip unzip
+        run: |
+          MIRROR=http://mirrors.edge.kernel.org/ubuntu
+          (echo > /dev/tcp/host.docker.internal/3142) 2>/dev/null \
+            && MIRROR=http://host.docker.internal:3142/mirrors.edge.kernel.org/ubuntu
+          sed -i "s|http://[a-z.]*ubuntu.com/ubuntu|$MIRROR|" /etc/apt/sources.list.d/ubuntu.sources
+          apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv gh jq zip unzip
       - uses: actions/checkout@v4
         with:
           submodules: true
 
+      - name: Trust the workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Read pico-sdk version
         id: pico
         run: >-
