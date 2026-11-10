@@ -16,7 +16,6 @@
 # include "sio/sioFuji.h"
 
     sioVoice sioV;
-    sioNetStream streamDev;
     // sioCassette sioC; // now part of sioFuji theFuji object
     modem *sioR;
     sioCPM sioZ;
