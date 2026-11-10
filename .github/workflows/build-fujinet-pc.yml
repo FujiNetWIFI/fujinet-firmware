@@ -157,7 +157,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ${{ runner.temp }}/deps
-        key: mac-deps-mbedtls-3.6.5-openssl-3.5.0-${{ matrix.os.arch }}
+        key: mac-deps-mbedtls-3.6.5-4a11f17-openssl-3.5.0-636dfad-${{ matrix.os.arch }}
 
     - name: '[macOS] Build MbedTLS 3 and OpenSSL'
       if: ${{ startsWith(matrix.os.target, 'macos') && steps.mac-deps-cache.outputs.cache-hit != 'true' }}
@@ -165,13 +165,19 @@ jobs:
         DEPS="$RUNNER_TEMP/deps"
         mkdir -p "$DEPS" "$RUNNER_TEMP/src"
         cd "$RUNNER_TEMP/src"
-        curl -fsSL https://github.com/Mbed-TLS/mbedtls/releases/download/mbedtls-3.6.5/mbedtls-3.6.5.tar.bz2 | tar -xj
+        curl -fsSL -o mbedtls.tar.bz2 https://github.com/Mbed-TLS/mbedtls/releases/download/mbedtls-3.6.5/mbedtls-3.6.5.tar.bz2
+        echo "4a11f1777bb95bf4ad96721cac945a26e04bf19f57d905f241fe77ebeddf46d8  mbedtls.tar.bz2" | shasum -a 256 -c -
+        tar -xjf mbedtls.tar.bz2
         cmake -S mbedtls-3.6.5 -B mbedtls-build -G Ninja -DCMAKE_BUILD_TYPE=Release \
           -DENABLE_TESTING=OFF -DENABLE_PROGRAMS=OFF -DCMAKE_INSTALL_PREFIX="$DEPS/mbedtls"
         cmake --build mbedtls-build
         cmake --install mbedtls-build
-        git clone --depth 1 --branch openssl-3.5.0 https://github.com/openssl/openssl.git openssl-src
+        # openssl-3.5.0, by commit
+        git init -q openssl-src
         cd openssl-src
+        git fetch -q --depth 1 https://github.com/openssl/openssl.git 636dfadc70ce26f2473870570bfd9ec352806b1d
+        git checkout -q FETCH_HEAD
+        test "$(git rev-parse HEAD)" = 636dfadc70ce26f2473870570bfd9ec352806b1d
         case "${{ matrix.os.arch }}" in
           arm64) TARGET=darwin64-arm64-cc ;;
           *) TARGET=darwin64-x86_64-cc ;;

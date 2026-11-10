@@ -498,7 +498,7 @@ if [ ! -z "$PC_TARGET" ] ; then
   fi
 
   # run unit tests
-  if [ -z "${FUJINET_SKIP_TESTS}" ] ; then
+  if [ "${FUJINET_SKIP_TESTS}" != "1" ] ; then
     ctest -V --progress
     if [ $? -ne 0 ] ; then
       echo "Error running unit tests. Aborting"
