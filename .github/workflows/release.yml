@@ -50,6 +50,7 @@ jobs:
 
     steps:
     - name: Install base tools
+      shell: bash
       run: |
         MIRROR=http://mirrors.edge.kernel.org/ubuntu
         (echo > /dev/tcp/host.docker.internal/3142) 2>/dev/null \
@@ -213,6 +214,7 @@ jobs:
       TAG_NAME: ${{ github.event.inputs.tag || github.ref_name }}
     steps:
       - name: Install base tools
+        shell: bash
         run: |
           MIRROR=http://mirrors.edge.kernel.org/ubuntu
           (echo > /dev/tcp/host.docker.internal/3142) 2>/dev/null \
