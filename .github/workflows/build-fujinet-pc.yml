@@ -218,6 +218,10 @@ jobs:
         fetch-depth: 0
         ref: ${{ github.event.inputs.ref != '' && github.event.inputs.ref || github.ref }}
 
+    # The checkout belongs to the runner's user, not root, and build_version_pc.py runs git
+    - name: Trust the workspace
+      run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
     # - name: Fetch tags
     #   run: git fetch --prune --unshallow --tags
 
@@ -379,6 +383,9 @@ jobs:
     - name: 'Checkout'
       # Checkout, to make "gh" command working
       uses: actions/checkout@v4
+
+    - name: Trust the workspace
+      run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
     - name: Delete old nightly releases
       run: |
