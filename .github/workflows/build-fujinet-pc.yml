@@ -57,23 +57,26 @@ jobs:
         os:
           - name: Ubuntu 24.04
             runner: '["self-hosted", "Linux", "X64", "fujinet-builder"]'
-            container: ubuntu:24.04
+            container: '{"image":"ubuntu:24.04","options":"--add-host=host.docker.internal:host-gateway"}'
             target: ubuntu-24.04-amd64
             default-shell: bash
           # tahoe is an Intel VM: x64 is built and tested natively, arm64 is
           # cross-built and cannot be run there.
           - name: macOS Intel
+            container: 'null'
             target: macos-x64
             runner: '["self-hosted", "macOS", "X64", "tahoe"]'
             arch: x86_64
             default-shell: bash
           - name: macOS ARM
+            container: 'null'
             target: macos-arm64
             runner: '["self-hosted", "macOS", "X64", "tahoe"]'
             arch: arm64
             skip-tests: '1'
             default-shell: bash
           - name: Windows
+            container: 'null'
             target: windows-x64
             runner: '"windows-latest"'
             sys: clang64
@@ -96,7 +99,7 @@ jobs:
     # continue-on-error: true
     name: "${{ matrix.os.name }}: Target ${{ matrix.fujinet_target }}"
     runs-on: ${{ fromJSON(matrix.os.runner) }}
-    container: ${{ matrix.os.container }}
+    container: ${{ fromJSON(matrix.os.container) }}
     defaults:
       run:
         shell: ${{ matrix.os.default-shell }}
@@ -107,7 +110,12 @@ jobs:
     steps:
     - name: '[Ubuntu] Install base tools'
       if: ${{ startsWith(matrix.os.target, 'ubuntu') }}
-      run: apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv cmake pkg-config zlib1g-dev libssl-dev libexpat1-dev gh jq zip unzip
+      run: |
+        MIRROR=http://mirrors.edge.kernel.org/ubuntu
+        (echo > /dev/tcp/host.docker.internal/3142) 2>/dev/null \
+          && MIRROR=http://host.docker.internal:3142/mirrors.edge.kernel.org/ubuntu
+        sed -i "s|http://[a-z.]*ubuntu.com/ubuntu|$MIRROR|" /etc/apt/sources.list.d/ubuntu.sources
+        apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv cmake pkg-config zlib1g-dev libssl-dev libexpat1-dev gh jq zip unzip
 
     # Setup MSYS2 on Windows
     - name: '[Windows] Setup MSYS2'
@@ -288,13 +296,20 @@ jobs:
     if: ${{ github.event_name == 'schedule' || github.event.inputs.prepRelease == 'true' }}
     # Create GitHub release
     runs-on: [self-hosted, Linux, X64, fujinet-builder]
-    container: ubuntu:24.04
+    container:
+      image: ubuntu:24.04
+      options: --add-host=host.docker.internal:host-gateway
     name: Release
     needs: build
 
     steps:
     - name: Install base tools
-      run: apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv cmake pkg-config zlib1g-dev libssl-dev libexpat1-dev gh jq zip unzip
+      run: |
+        MIRROR=http://mirrors.edge.kernel.org/ubuntu
+        (echo > /dev/tcp/host.docker.internal/3142) 2>/dev/null \
+          && MIRROR=http://host.docker.internal:3142/mirrors.edge.kernel.org/ubuntu
+        sed -i "s|http://[a-z.]*ubuntu.com/ubuntu|$MIRROR|" /etc/apt/sources.list.d/ubuntu.sources
+        apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv cmake pkg-config zlib1g-dev libssl-dev libexpat1-dev gh jq zip unzip
 
     - name: Download build artifacts
       uses: actions/download-artifact@v4
@@ -340,13 +355,20 @@ jobs:
     if: ${{ github.event_name == 'schedule' }}
     # Delete old nightly releases
     runs-on: [self-hosted, Linux, X64, fujinet-builder]
-    container: ubuntu:24.04
+    container:
+      image: ubuntu:24.04
+      options: --add-host=host.docker.internal:host-gateway
     name: Post-Release
     needs: release
 
     steps:
     - name: Install base tools
-      run: apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv cmake pkg-config zlib1g-dev libssl-dev libexpat1-dev gh jq zip unzip
+      run: |
+        MIRROR=http://mirrors.edge.kernel.org/ubuntu
+        (echo > /dev/tcp/host.docker.internal/3142) 2>/dev/null \
+          && MIRROR=http://host.docker.internal:3142/mirrors.edge.kernel.org/ubuntu
+        sed -i "s|http://[a-z.]*ubuntu.com/ubuntu|$MIRROR|" /etc/apt/sources.list.d/ubuntu.sources
+        apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv cmake pkg-config zlib1g-dev libssl-dev libexpat1-dev gh jq zip unzip
 
     - name: 'Checkout'
       # Checkout, to make "gh" command working

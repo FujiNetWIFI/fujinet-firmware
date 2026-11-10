@@ -19,6 +19,8 @@ Firmware CI is build-only; the PC workflow is the only one that runs tests.
 - The Linux jobs in `autobuild.yml`, `nightly.yml`, `release.yml` and `pico-carts.yml` run in an
   `ubuntu:24.04` container on the self-hosted `fujinet-builder` runner. Each starts with an
   "Install base tools" step because the bare image has no git, `gh` or compiler.
+- Containers reach a caching apt mirror on the runner host (`host.docker.internal:3142`, backed by mirrors.edge.kernel.org) and
+  fall back to that mirror directly when it is down; the default `archive.ubuntu.com` often times out from the runner.
 - `tahoe` is an Intel macOS VM with no Homebrew, thrown away after each job; `build-fujinet-pc.yml` builds its own
   dependencies there.
 - Every ESP32 job is `build.sh` with one of the overlays as its local ini, so the overlays are the
