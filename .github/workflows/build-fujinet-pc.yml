@@ -138,6 +138,10 @@ jobs:
         echo "$RUNNER_TEMP/tools/bin" >> "$GITHUB_PATH"
         echo "CMAKE_OSX_ARCHITECTURES=${{ matrix.os.arch }}" >> "$GITHUB_ENV"
         echo "SDKROOT=$(xcrun --show-sdk-path)" >> "$GITHUB_ENV"
+        # Apple clang 26 rejects the -fstack-clash-protection that libssh adds, and
+        # the repo builds with -Werror.
+        echo "CFLAGS=-Wno-error=unused-command-line-argument" >> "$GITHUB_ENV"
+        echo "CXXFLAGS=-Wno-error=unused-command-line-argument" >> "$GITHUB_ENV"
 
     - name: '[macOS] Cache MbedTLS and OpenSSL'
       id: mac-deps-cache
