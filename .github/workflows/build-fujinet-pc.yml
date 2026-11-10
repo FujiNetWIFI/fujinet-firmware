@@ -60,14 +60,7 @@ jobs:
             container: '{"image":"ubuntu:24.04","options":"--add-host=host.docker.internal:host-gateway"}'
             target: ubuntu-24.04-amd64
             default-shell: bash
-          # tahoe is an Intel VM: x64 is built and tested natively, arm64 is
-          # cross-built and cannot be run there.
-          - name: macOS Intel
-            container: 'null'
-            target: macos-x64
-            runner: '["self-hosted", "macOS", "X64", "tahoe"]'
-            arch: x86_64
-            default-shell: bash
+          # tahoe is an Intel VM, so this is a cross-build whose binary cannot be run there
           - name: macOS ARM
             container: 'null'
             target: macos-arm64
@@ -156,11 +149,7 @@ jobs:
         git fetch -q --depth 1 https://github.com/openssl/openssl.git 636dfadc70ce26f2473870570bfd9ec352806b1d
         git checkout -q FETCH_HEAD
         test "$(git rev-parse HEAD)" = 636dfadc70ce26f2473870570bfd9ec352806b1d
-        case "${{ matrix.os.arch }}" in
-          arm64) TARGET=darwin64-arm64-cc ;;
-          *) TARGET=darwin64-x86_64-cc ;;
-        esac
-        ./Configure $TARGET no-shared no-tests --prefix="$DEPS/openssl" --libdir=lib
+        ./Configure darwin64-arm64-cc no-shared no-tests --prefix="$DEPS/openssl" --libdir=lib
         make -j"$(sysctl -n hw.ncpu)" build_libs
         make install_dev
 
