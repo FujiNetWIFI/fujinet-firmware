@@ -7,7 +7,6 @@
 
 #include "adamNetwork.h"
 #include "disk.h"
-#include "serial.h"
 
 #include "fujiHost.h"
 #include "fujiDisk.h"
