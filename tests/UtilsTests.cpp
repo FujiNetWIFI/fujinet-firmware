@@ -4,6 +4,7 @@
 #include "utils.h"
 #include "samlib.h"
 #include "string_utils.h"
+#include "U8Char.h"
 
 int sam(int argc, char **argv) { return 0; }
 
@@ -34,4 +35,17 @@ TEST_CASE("mstr::formatBytes")
 {
     CHECK(mstr::formatBytes(65535) == "64.00 K");
     CHECK(mstr::formatBytes(3 * 1024 * 1024) == "3.00 M");
+}
+
+TEST_CASE("mstr::toUTF8 converts PETSCII bytes from 0x80 up and drops NUL")
+{
+    for (int code = 0x80; code <= 0xFF; code++)
+    {
+        const char petscii = static_cast<char>(code);
+        std::string expected = U8Char(petscii).toUtf8();
+        CAPTURE(code);
+        REQUIRE_FALSE(expected.empty());
+        CHECK(mstr::toUTF8(std::string(1, petscii)) == expected);
+    }
+    CHECK(mstr::toUTF8(std::string("\0", 1)).empty());
 }

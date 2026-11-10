@@ -299,7 +299,7 @@ namespace mstr {
     {
         std::string utf8string;
         for(char petscii : petsciiInput) {
-            if(petscii > 0)
+            if(petscii != 0) // char can be signed: shifted letters are >= 0x80
             {
                 U8Char u8char(petscii);
                 utf8string+=u8char.toUtf8();
