@@ -49,3 +49,26 @@ TEST_CASE("mstr::toUTF8 converts PETSCII bytes from 0x80 up and drops NUL")
     }
     CHECK(mstr::toUTF8(std::string("\0", 1)).empty());
 }
+
+// PETSCII repeats $C1-$DA at $61-$7A and $A0-$BE at $E0-$FE
+static uint8_t petscii_primary(uint8_t code)
+{
+    if (code >= 0x61 && code <= 0x7A)
+        return code + 0x60;
+    if (code >= 0xE0 && code <= 0xFE)
+        return code - 0x40;
+    return code;
+}
+
+TEST_CASE("every PETSCII byte survives mstr::toUTF8 and mstr::toPETSCII2")
+{
+    for (int code = 0x01; code <= 0xFF; code++)
+    {
+        std::string unicode = mstr::toUTF8(std::string(1, static_cast<char>(code)));
+        std::string native = mstr::toPETSCII2(unicode);
+        CAPTURE(code);
+        REQUIRE(native.size() == 1);
+        uint8_t back = static_cast<uint8_t>(native[0]);
+        CHECK((back == code || back == petscii_primary(code)));
+    }
+}

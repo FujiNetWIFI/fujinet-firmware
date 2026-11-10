@@ -25,17 +25,14 @@ const char16_t U8Char::utf8map[] = {
   0xE015, 0xE016, 0xE017, 0xE018, 0xE019, 0xE01A, 0xE01B, 0xE01C, 0xE01D, 0xE01E, 0xE01F, 0xE020, 0xE021, 0x2028, 0xE022, 0xE023,  // PETSCII control codes
   0xE024, 0xE025, 0xE026, 0xE027, 0xE028, 0xE029, 0xE02A, 0xE02B, 0xE02C, 0xE02D, 0xE02E, 0xE02F, 0xE030, 0xE031, 0xE032, 0xE033,  // PETSCII control codes
 
-    0xa0, 0x258c, 0x2584, 0x2594, 0x2581, 0x258e, 0x2592, 0xE034, 0xE035, 0xE036, 0xE037, 0x251c, 0x2597, 0x2514, 0x2510, 0x2582,  // PETSCII tables etc.
+    0xa0, 0x258c, 0x2584, 0x2594, 0x2581, 0x258f, 0x2592, 0xE034, 0xE035, 0xE036, 0xE037, 0x251c, 0x2597, 0x2514, 0x2510, 0x2582,  // PETSCII tables etc.
   0x250c, 0x2534, 0x252c, 0x2524, 0x258e, 0x258d, 0xE038, 0xE039, 0xE03A, 0x2583, 0x2713, 0x2596, 0x259d, 0x2518, 0x2598, 0x259a,  // PETSCII tables etc.
   0x2500,   0x41,   0x42,   0x43,   0x44,   0x45,   0x46,   0x47,   0x48,   0x49,   0x4a,   0x4b,   0x4c,   0x4d,   0x4e,   0x4f,  // A-Z again
     0x50,   0x51,   0x52,   0x53,   0x54,   0x55,   0x56,   0x57,   0x58,   0x59,   0x5a, 0x253c, 0xE03B, 0x2502, 0xE03C, 0xE03D,  
-    0xa0, 0x258c, 0x2584, 0x2594, 0x2581, 0x258e, 0x2592, 0xE03F, 0xE040, 0xE041, 0xE042, 0x251c, 0x2597, 0x2514, 0x2510, 0x2582,  // PETSCII tables etc.
+    0xa0, 0x258c, 0x2584, 0x2594, 0x2581, 0x258f, 0x2592, 0xE03F, 0xE040, 0xE041, 0xE042, 0x251c, 0x2597, 0x2514, 0x2510, 0x2582,  // PETSCII tables etc.
   0x250c, 0x2534, 0x252c, 0x2524, 0x258e, 0x258d, 0xE043, 0xE044, 0xE045, 0x2583, 0x2713, 0x2596, 0x259d, 0x2518, 0x2598, 0xE046   // PETSCII tables etc.
 
 };
-
-// std::unordered_map<char16_t, uint8_t> U8Char::ch_to_petascii_map;
-// std::once_flag U8Char::ch_to_petascii_init_flag;
 
 void U8Char::fromUtf8Stream(std::istream* reader) {
     uint8_t byte = reader->get();
@@ -43,12 +40,12 @@ void U8Char::fromUtf8Stream(std::istream* reader) {
         ch = byte;
     }   
     else if((byte & 0b11100000) == 0b11000000) {
-        uint16_t hi =  ((uint16_t)(byte & 0b1111)) << 6;
+        uint16_t hi =  ((uint16_t)(byte & 0b11111)) << 6;
         uint16_t lo = (reader->get() & 0b111111);
         ch = hi | lo;
     }
     else if((byte & 0b11110000) == 0b11100000) {
-        uint16_t hi = ((uint16_t)(byte & 0b111)) << 12;
+        uint16_t hi = ((uint16_t)(byte & 0b1111)) << 12;
         uint16_t mi = ((uint16_t)(reader->get() & 0b111111)) << 6;
         uint16_t lo = reader->get() & 0b111111;
         ch = hi | mi | lo;
@@ -65,13 +62,13 @@ size_t U8Char::fromCharArray(char* reader) {
         return 1;
     }   
     else if((byte & 0b11100000) == 0b11000000) {
-        uint16_t hi =  ((uint16_t)(byte & 0b1111)) << 6;
+        uint16_t hi =  ((uint16_t)(byte & 0b11111)) << 6;
         uint16_t lo = (reader[1] & 0b111111);
         ch = hi | lo;
         return 2;
     }
     else if((byte & 0b11110000) == 0b11100000) {
-        uint16_t hi = ((uint16_t)(byte & 0b111)) << 12;
+        uint16_t hi = ((uint16_t)(byte & 0b1111)) << 12;
         uint16_t mi = ((uint16_t)(reader[1] & 0b111111)) << 6;
         uint16_t lo = reader[2] & 0b111111;
         ch = hi | mi | lo;
@@ -114,8 +111,13 @@ std::string U8Char::toUtf8() {
 }
 
 uint8_t U8Char::toPetscii() {
-    // we only need to convert standard ascii values 0-255 to petscii, everything else is "missing". This only needs to be done in 2 ranges, no need for map
-    if (ch > 255) return missing;
+    if (ch > 255) {
+        // Ascending, so a graphic maps to $A0-$DF rather than its $E0-$FE copy
+        for (int code = 0x80; code <= 0xFF; code++)
+            if (utf8map[code] == ch)
+                return code;
+        return missing;
+    }
 
     uint8_t c = (uint8_t) ch;
     if ((c > 0x40) && (c < 0x5B))
