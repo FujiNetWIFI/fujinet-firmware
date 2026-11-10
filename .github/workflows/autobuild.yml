@@ -21,7 +21,8 @@ concurrency:
 jobs:
   tagged-release:
     name: "PlatformIO CI"
-    runs-on: "ubuntu-24.04"
+    runs-on: [self-hosted, Linux, X64, fujinet-builder]
+    container: ubuntu:24.04
     strategy:
       matrix:
         target-platform:
@@ -53,6 +54,8 @@ jobs:
             pico: true
 
     steps:
+    - name: Install base tools
+      run: apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv gh jq zip unzip
     - name: Checkout Source
       uses: actions/checkout@v4
       with:
@@ -104,7 +107,7 @@ jobs:
     - name: Install companion-MCU toolchain
       if: matrix.pico
       run: |
-        sudo apt-get update && sudo apt-get install -y \
+        apt-get update && apt-get install -y \
           build-essential cmake ninja-build \
           gcc-arm-none-eabi libnewlib-arm-none-eabi
 
@@ -116,7 +119,7 @@ jobs:
 
     - name: Get Old Version
       id: version
-      run: echo "VERSION=$(grep '#define FN_VERSION_FULL' /home/runner/work/fujinet-firmware/fujinet-firmware/include/version.h | sed 's/^.*"\(.*\)".*$/\1/')" >> $GITHUB_OUTPUT
+      run: echo "VERSION=$(grep '#define FN_VERSION_FULL' ${{ github.workspace }}/include/version.h | sed 's/^.*"\(.*\)".*$/\1/')" >> $GITHUB_OUTPUT
 
     - name: Create "version.txt" file
       run: echo "${{ steps.version.outputs.VERSION }}.${{ matrix.target-platform }}" > "$GITHUB_WORKSPACE"/version.txt
