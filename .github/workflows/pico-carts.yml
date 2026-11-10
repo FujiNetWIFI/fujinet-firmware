@@ -37,8 +37,11 @@ concurrency:
 jobs:
   host-tests:
     name: "host tests (no hardware, no SDK)"
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, Linux, X64, fujinet-builder]
+    container: ubuntu:24.04
     steps:
+      - name: Install base tools
+        run: apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv gh jq zip unzip
       - uses: actions/checkout@v4
         with:
           submodules: true
@@ -79,11 +82,14 @@ jobs:
 
   a7800-console-client:
     name: "Atari 7800 6502 clients"
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, Linux, X64, fujinet-builder]
+    container: ubuntu:24.04
     steps:
+      - name: Install base tools
+        run: apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv gh jq zip unzip
       - uses: actions/checkout@v4
       - name: Install cc65
-        run: sudo apt-get update && sudo apt-get install -y cc65
+        run: apt-get update && apt-get install -y cc65
       # The boot block, signed and verified with the vendored 7800sign, and the
       # loader and bring-up clients, each through tools/checkrom.py.
       - name: Build the boot block, the loader and the clients
@@ -92,11 +98,14 @@ jobs:
 
   a5200-console-client:
     name: "Atari 5200 6502 clients"
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, Linux, X64, fujinet-builder]
+    container: ubuntu:24.04
     steps:
+      - name: Install base tools
+        run: apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv gh jq zip unzip
       - uses: actions/checkout@v4
       - name: Install cc65
-        run: sudo apt-get update && sudo apt-get install -y cc65
+        run: apt-get update && apt-get install -y cc65
       # The bring-up clients, each through tools/checkrom.py, and
       # testrom/fujinet.inc against fuji_mailbox.h.
       - name: Build the clients
@@ -105,8 +114,11 @@ jobs:
 
   o2-console-client:
     name: "Odyssey 2 8048 client"
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, Linux, X64, fujinet-builder]
+    container: ubuntu:24.04
     steps:
+      - name: Install base tools
+        run: apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv gh jq zip unzip
       - uses: actions/checkout@v4
         with:
           submodules: true
@@ -185,8 +197,11 @@ jobs:
 
   astrocade-console-client:
     name: "Astrocade Z80 clients"
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, Linux, X64, fujinet-builder]
+    container: ubuntu:24.04
     steps:
+      - name: Install base tools
+        run: apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv gh jq zip unzip
       - uses: actions/checkout@v4
 
       # zmac is vendored (tools/zmac, public domain -- see its PROVENANCE.md)
@@ -204,8 +219,11 @@ jobs:
 
   channelf-console-client:
     name: "Channel F F8 clients"
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, Linux, X64, fujinet-builder]
+    container: ubuntu:24.04
     steps:
+      - name: Install base tools
+        run: apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv gh jq zip unzip
       - uses: actions/checkout@v4
 
       # Macro Assembler AS again, F3850 target this time. Same cache and build
@@ -245,8 +263,11 @@ jobs:
 
   studio2-console-client:
     name: "Studio II 1802 clients"
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, Linux, X64, fujinet-builder]
+    container: ubuntu:24.04
     steps:
+      - name: Install base tools
+        run: apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv gh jq zip unzip
       - uses: actions/checkout@v4
 
       # Macro Assembler AS, CDP1802 target; same cache and recipe as the o2
@@ -279,23 +300,29 @@ jobs:
 
   nes-console-client:
     name: "NES 6502 clients"
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, Linux, X64, fujinet-builder]
+    container: ubuntu:24.04
     steps:
+      - name: Install base tools
+        run: apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv gh jq zip unzip
       - uses: actions/checkout@v4
 
       # cc65 from the distro is enough for ca65/ld65; the clients are pure
       # assembly. tools/checkrom.py then enforces the fuji_mailbox.h layout on
       # every image (header, claim, vectors, no RMW on the hotspot pages) and
       # the loader ROM's fixed entry points.
-      - run: sudo apt-get update && sudo apt-get install -y cc65
+      - run: apt-get update && apt-get install -y cc65
       - name: Assemble and validate
         working-directory: pico/nes
         run: ./build.sh loader hello fujitest fujiboot
 
   arcadia-console-client:
     name: "Arcadia 2001 2650 clients"
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, Linux, X64, fujinet-builder]
+    container: ubuntu:24.04
     steps:
+      - name: Install base tools
+        run: apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv gh jq zip unzip
       - uses: actions/checkout@v4
 
       # Macro Assembler AS again (2650 target this time). Same cache and
@@ -346,8 +373,11 @@ jobs:
   # it branches to, must be in SRAM.
   cartridge-firmware:
     name: "RP2040 cartridge firmware"
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, Linux, X64, fujinet-builder]
+    container: ubuntu:24.04
     steps:
+      - name: Install base tools
+        run: apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv gh jq zip unzip
       - uses: actions/checkout@v4
         with:
           submodules: true
@@ -371,7 +401,7 @@ jobs:
 
       # build-essential builds the SDK's host tools (picotool, pioasm); the SDK
       # builds picotool without USB support, so it needs no libusb.
-      - run: sudo apt-get update && sudo apt-get install -y
+      - run: apt-get update && apt-get install -y
                build-essential cmake ninja-build
                gcc-arm-none-eabi libnewlib-arm-none-eabi
 
@@ -437,7 +467,7 @@ jobs:
         env:
           PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
         run: |
-          sudo apt-get install -y cc65
+          apt-get install -y cc65
           ./build.sh loader hello fujitest fujiboot
           ./build-cart.sh
 

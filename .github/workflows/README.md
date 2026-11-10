@@ -16,6 +16,9 @@ Firmware CI is build-only; the PC workflow is the only one that runs tests.
 | `coding-standard-requirements.txt` | | Dependencies for `coding-standard.py`; no workflow installs them |
 
 ## How it fits
+- The Linux jobs in `autobuild.yml`, `nightly.yml`, `release.yml` and `pico-carts.yml` run in an
+  `ubuntu:24.04` container on the self-hosted `fujinet-builder` runner. Each starts with an
+  "Install base tools" step because the bare image has no git, `gh` or compiler.
 - Every ESP32 job is `build.sh` with one of the overlays as its local ini, so the overlays are the
   authoritative list of release boards. [build-platforms/](../../build-platforms/) holds the board
   inis they select.

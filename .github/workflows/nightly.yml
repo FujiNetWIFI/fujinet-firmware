@@ -12,8 +12,11 @@ jobs:
   cleanup-nightly:
     name: "Clean up old nightly assets"
     if: ${{ vars.RUN_NIGHTLY == 'true' }}
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, Linux, X64, fujinet-builder]
+    container: ubuntu:24.04
     steps:
+      - name: Install base tools
+        run: apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv gh jq zip unzip
       - uses: actions/checkout@v4
 
       - name: Delete old nightly assets (keep last ${{ env.KEEP_NIGHTLIES }})
@@ -32,7 +35,8 @@ jobs:
     name: "PlatformIO CI"
     needs: cleanup-nightly
     if: ${{ vars.RUN_NIGHTLY == 'true' }}
-    runs-on: "ubuntu-24.04"
+    runs-on: [self-hosted, Linux, X64, fujinet-builder]
+    container: ubuntu:24.04
     strategy:
       matrix:
         target-platform: [ATARI, ATARI-8mb, ADAM, APPLE, IEC-LOLIN-D32, IEC-NUGGET, COCO, MASTERIES-REVAB, MASTERIES-REVA-SPIFIX, RS232, FUJIVERSAL-INTV, FUJIVERSAL-INTV-PIRTO-II-DUO, FUJIVERSAL-DRIVEWIRE, FUJIVERSAL-MSX]
@@ -49,6 +53,8 @@ jobs:
             pico: true
 
     steps:
+    - name: Install base tools
+      run: apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv gh jq zip unzip
     - name: Checkout Source
       uses: actions/checkout@v4
       with:
@@ -100,15 +106,15 @@ jobs:
     - name: Install companion-MCU toolchain
       if: matrix.pico
       run: |
-        sudo apt-get update && sudo apt-get install -y \
+        apt-get update && apt-get install -y \
           build-essential cmake ninja-build \
           gcc-arm-none-eabi libnewlib-arm-none-eabi
 
     - name: Create PlatformIO INI for Build
-      run: cd /home/runner/work/fujinet-firmware/fujinet-firmware && /usr/bin/bash ./build.sh -y -l /home/runner/work/fujinet-firmware/fujinet-firmware/.github/workflows/platformio.release-${{ matrix.target-platform }}.ini -i /home/runner/work/fujinet-firmware/fujinet-firmware/platformio-generated.ini
+      run: cd ${{ github.workspace }} && /usr/bin/bash ./build.sh -y -l ${{ github.workspace }}/.github/workflows/platformio.release-${{ matrix.target-platform }}.ini -i ${{ github.workspace }}/platformio-generated.ini
 
     - name: Show platformio.ini
-      run: cat /home/runner/work/fujinet-firmware/fujinet-firmware/platformio-generated.ini
+      run: cat ${{ github.workspace }}/platformio-generated.ini
 
     - uses: benjlevesque/short-sha@v3.0
       id: short-sha
@@ -128,17 +134,17 @@ jobs:
 
     - name: Set Nightly Version in Firmware
       id: nightly-version
-      run: sed -i 's/#define FN_VERSION_FULL "[^"]*"/#define FN_VERSION_FULL "${{ steps.version.outputs.VERSION }}"/' /home/runner/work/fujinet-firmware/fujinet-firmware/include/version.h
+      run: sed -i 's/#define FN_VERSION_FULL "[^"]*"/#define FN_VERSION_FULL "${{ steps.version.outputs.VERSION }}"/' ${{ github.workspace }}/include/version.h
 
     - name: Set Version Date in Firmware
       id: nightly-date
-      run: sed -i 's/#define FN_VERSION_DATE "[^"]*"/#define FN_VERSION_DATE "${{ steps.commit-date.outputs.COMMIT_DATE }}"/' /home/runner/work/fujinet-firmware/fujinet-firmware/include/version.h
+      run: sed -i 's/#define FN_VERSION_DATE "[^"]*"/#define FN_VERSION_DATE "${{ steps.commit-date.outputs.COMMIT_DATE }}"/' ${{ github.workspace }}/include/version.h
 
     - name: Create "version.txt" file
       run: echo "${{ steps.version.outputs.VERSION }}.${{ matrix.target-platform }}" > ./version.txt
 
     - name: Build release
-      run: cd /home/runner/work/fujinet-firmware/fujinet-firmware && /usr/bin/bash ./build.sh -y -z -l /home/runner/work/fujinet-firmware/fujinet-firmware/.github/workflows/platformio.release-${{ matrix.target-platform }}.ini -i /home/runner/work/fujinet-firmware/fujinet-firmware/platformio-generated.ini
+      run: cd ${{ github.workspace }} && /usr/bin/bash ./build.sh -y -z -l ${{ github.workspace }}/.github/workflows/platformio.release-${{ matrix.target-platform }}.ini -i ${{ github.workspace }}/platformio-generated.ini
 
     - name: Standardize Firmware Name
       run: mv ./firmware/fujinet*.zip ./firmware/fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.VERSION }}-nightly.zip
