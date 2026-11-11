@@ -215,6 +215,8 @@ private:
   int new_track = -1;
 
 public:
+  NativeEncoding nativeEncoding() override { return NativeEncoding::APPLE2; }
+
   cmdPacket_t command_packet;
   bool iwm_decode_data_packet(uint8_t *a, int &n);
 

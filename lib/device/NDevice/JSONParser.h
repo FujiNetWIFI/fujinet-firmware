@@ -2,6 +2,7 @@
 #define JSONPARSER_H
 
 #include "NParser.h"
+#include "BusCharset.h"
 #include "fnjson.h" // FIXME - move all that in here
 
 class JSONParser : public NParser

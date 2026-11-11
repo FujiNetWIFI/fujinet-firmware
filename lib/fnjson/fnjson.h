@@ -13,6 +13,7 @@
 #include <string.h>
 
 #include "../fntext/fn_query_flags.h"
+#include "../fnpretty/fnpretty.h"
 #include "../network-protocol/Protocol.h"
 
 enum JSONQueryFlags_t {

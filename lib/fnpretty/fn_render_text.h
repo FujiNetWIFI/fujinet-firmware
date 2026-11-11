@@ -12,6 +12,8 @@
 #include <stdint.h>
 #include <string>
 
+#include "fnpretty.h"
+
 /** Columns used when a caller passes a width of 0. */
 #define FN_RENDER_TEXT_DEFAULT_WIDTH 40
 
@@ -28,7 +30,10 @@
  * @param html  the markup, e.g. an RSS <description> or Atom <content> value
  * @param width columns to wrap at; 0 means FN_RENDER_TEXT_DEFAULT_WIDTH
  * @param eol   what separates the wrapped lines
+ * @param charset furniture glyph set; Ascii (default) or a native set such as
+ *                Atascii / MouseText, whose bytes are < 0x20 or >= 0x80
  */
-std::string fn_render_html_text(const std::string &html, uint8_t width, const std::string &eol);
+std::string fn_render_html_text(const std::string &html, uint8_t width, const std::string &eol,
+                                PrettyCharset charset = PrettyCharset::Ascii);
 
 #endif /* FN_RENDER_TEXT_H */

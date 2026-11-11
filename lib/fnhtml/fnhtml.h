@@ -15,6 +15,7 @@
 #include <string>
 
 #include "../fntext/fn_query_flags.h"
+#include "../fnpretty/fnpretty.h"
 #include "../network-protocol/Protocol.h"
 
 class CDocument; // gumbo-query

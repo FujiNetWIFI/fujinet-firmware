@@ -64,6 +64,7 @@ constexpr PrettyGlyphs kAsciiGlyphs = {
     '-',  // underlineThin
     false, // boxed
     false, // inverse
+    false, // footRule
 };
 
 /**
@@ -89,6 +90,36 @@ constexpr PrettyGlyphs kAtasciiGlyphs = {
     '\x0E', // underlineThin  U+2581
     true,   // boxed
     true,   // inverse
+    false,  // footRule
+};
+
+/**
+ * Apple II MouseText (enhanced //e and later), sent as wire byte n for glyph
+ * $40+n - the Apple client knows to map it. MouseText has only edge bars, not
+ * centred box lines, so frames follow cc65's DYN_BOX_DRAW scheme: horizontal
+ * runs are an underscore at the foot of the cell, every vertical is the left
+ * bar, and the left-and-lower corner joins the two. A frame's top edge sits
+ * at the bottom of its row and the verticals start on the row below.
+ * The Apple EOL is CR (0x0D, glyph $4D) and nothing below uses it.
+ */
+constexpr PrettyGlyphs kMouseTextGlyphs = {
+    '_',    // horiz          (ASCII underscore, foot of the cell)
+    '\x1F', // vert           $5F left one eighth block
+    '_',    // cornerTL       the run starts under the left bar
+    ' ',    // cornerTR       the run ends where the right bar begins
+    '\x1F', // cornerBR       $5F
+    '\x14', // cornerBL       $54 left and lower one eighth block
+    '_',    // teeTop
+    '\x14', // teeBottom      $54
+    '\x14', // teeLeft        $54
+    '\x1F', // teeRight       $5F
+    '\x14', // cross          $54
+    '\x1B', // bullet         $5B black diamond
+    '\x0C', // underline      $4C upper one eighth block, hugs the text above
+    '\x13', // underlineThin  $53 horizontal line
+    true,   // boxed
+    true,   // inverse
+    true,   // footRule
 };
 
 /**
@@ -1299,14 +1330,16 @@ const PrettyGlyphs &FNPretty::glyphs() const
     {
     case PrettyCharset::Atascii:
         return kAtasciiGlyphs;
+    case PrettyCharset::MouseText:
+        return kMouseTextGlyphs;
     default:
         return kAsciiGlyphs;
     }
 }
 
 /**
- * Copy of s in inverse video (bit 7 set on every byte). Folding } (0x7D) and ~
- * (0x7E) to ] and - respectively before setting bit 7 avoids producing 0xFD
+ * Copy of s in inverse video (bit 7 set on every byte). On the Atari, folding
+ * } (0x7D) and ~ (0x7E) to ] and - respectively before setting bit 7 avoids producing 0xFD
  * and 0xFE, which the Atari screen editor interprets as bell and delete-
  * character, eating a column and breaking surrounding box alignment. Every
  * other byte the sanitizer can produce (0x20-0x7C) inverts to 0xA0-0xFC, all
@@ -1319,9 +1352,9 @@ std::string FNPretty::inverseText(const std::string &s) const
     for (char c : s)
     {
         unsigned char u = (unsigned char)c;
-        if (u == 0x7D)
+        if (_charset == PrettyCharset::Atascii && u == 0x7D)
             u = ']';
-        else if (u == 0x7E)
+        else if (_charset == PrettyCharset::Atascii && u == 0x7E)
             u = '-';
         out += (char)(u | 0x80);
     }
@@ -1572,6 +1605,10 @@ void FNPretty::renderBoxedHeading(const std::string &text, bool solid)
     else
     {
         emitRaw(pad + g.cornerTL + std::string(boxInner, g.horiz) + g.cornerTR);
+        // A rule drawn at the foot of the row hugs the text under it;
+        // a blank framed row evens the gap with the bottom edge.
+        if (g.footRule)
+            emitRaw(pad + g.vert + spaces(boxInner) + g.vert);
         for (const std::string &l : lines)
         {
             size_t slack = boxInner > l.size() ? boxInner - l.size() : 0;

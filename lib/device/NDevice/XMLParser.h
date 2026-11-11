@@ -2,6 +2,7 @@
 #define XMLPARSER_H
 
 #include "NParser.h"
+#include "BusCharset.h"
 #include "fnxml.h" // FIXME - move all that in here
 
 class XMLParser : public NParser

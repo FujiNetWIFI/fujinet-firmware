@@ -18,9 +18,7 @@ void PrettyParser::applyDefaults()
     _pretty.setLineEnding(_eol);
     _pretty.setProtocol(_protocol);
 
-    _pretty.setNativeCharset(SYSTEM_BUS.nativeEncoding() == SystemBusBase::NativeEncoding::ATASCII
-                                 ? PrettyCharset::Atascii
-                                 : PrettyCharset::Ascii);
+    _pretty.setNativeCharset(busNativeCharset());
 }
 
 fujiError_t PrettyParser::write(std::string &)

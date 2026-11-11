@@ -3,13 +3,15 @@
 #include "fnpretty.h"
 #include "../fntext/fn_sanitize.h"
 
-std::string fn_render_html_text(const std::string &html, uint8_t width, const std::string &eol)
+std::string fn_render_html_text(const std::string &html, uint8_t width, const std::string &eol,
+                                PrettyCharset charset)
 {
     FNPretty pretty;
 
     pretty.setLineEnding("\n");
     pretty.setScreenWidth(width != 0 ? width : FN_RENDER_TEXT_DEFAULT_WIDTH);
-    // Defaults already give ASCII furniture and no link rendering.
+    pretty.setCharset(charset);
+    // Defaults give no link rendering.
 
     std::string text;
     if (pretty.renderDocument(html))

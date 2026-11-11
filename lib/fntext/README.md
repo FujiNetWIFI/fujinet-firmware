@@ -14,7 +14,7 @@ that turns web text into something an 8-bit host can print.
 |---|---|---|
 | VERBATIM | 0x00 | the document's own bytes (plus the optional Atari remap) |
 | ASCII | 0x10 | entity-decoded, transliterated printable ASCII, no line breaks |
-| TEXT | 0x20 | the value rendered as HTML into word-wrapped plain ASCII, lines joined by the parser's EOL (the bus's `nativeEOL()` or a `NET_SET_EOL` override, `$9B` on the Atari); wrap width is `NET_SET_PARAMETER` param 2 (0 = 40 columns). Rendered by `fn_render_html_text()` in [lib/fnpretty/](../fnpretty/); links are not rendered |
+| TEXT | 0x20 | the value rendered as HTML into word-wrapped plain ASCII, lines joined by the parser's EOL (the bus's `nativeEOL()` or a `NET_SET_EOL` override, `$9B` on the Atari); wrap width is `NET_SET_PARAMETER` param 2 (0 = 40 columns). Rendered by `fn_render_html_text()` in [lib/fnpretty/](../fnpretty/); links are not rendered. |
 
 The mode is chosen by the query parameter byte (`NET_SET_PARAMETER` param 0, or the flags byte
 a bus sends with `NET_QUERY`). The parser appends its usual line ending after the value in every mode.

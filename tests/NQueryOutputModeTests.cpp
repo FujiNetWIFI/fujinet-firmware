@@ -74,13 +74,18 @@ std::string query(XMLParser &p, std::string &rx, const std::string &path, uint8_
     return rx;
 }
 
+struct TestXMLParser : XMLParser
+{
+    using XMLParser::XMLParser;
+};
+
 // A whole session against the canned feed. Repeating a path advances the match
 // index, so comparing two output modes needs a session each, not two queries.
 struct Session
 {
     std::string rx, tx, sp;
     CannedProtocol proto;
-    XMLParser parser;
+    TestXMLParser parser;
 
     explicit Session(const char *body = kFeed)
         : proto(&rx, &tx, &sp, body), parser(&proto) {}
@@ -151,7 +156,8 @@ TEST_CASE("only the defined query flags are accepted")
     CHECK(fn_query_param_is_valid(FN_QUERY_DELETE_SGML_TAGS)); // 0x04, rejected before
     CHECK(fn_query_param_is_valid(FN_QUERY_DELETE_SGML_TAGS | FN_QUERY_OUTPUT_ASCII));
 
-    CHECK_FALSE(fn_query_param_is_valid(0x08)); // unassigned low-nibble bit
+    CHECK_FALSE(fn_query_param_is_valid(0x08)); // bit 3 is unused
+    CHECK_FALSE(fn_query_param_is_valid(0x28));
     CHECK(fn_query_param_is_valid(FN_QUERY_OUTPUT_TEXT));
     CHECK(fn_query_param_is_valid(0x20));
     CHECK(fn_query_param_is_valid(FN_QUERY_OUTPUT_TEXT | FN_QUERY_DELETE_SGML_TAGS));
@@ -375,6 +381,15 @@ TEST_CASE("TEXT mode passes a value that is not markup through as wrapped text")
 
     s.query("//item/description", FN_QUERY_OUTPUT_TEXT); // first item
     CHECK(stripEol(s.query("//item/description", FN_QUERY_OUTPUT_TEXT)) == "just words");
+}
+
+TEST_CASE("fn_render_html_text takes a charset")
+{
+    std::string out = fn_render_html_text("<ul><li>one</li></ul>", 40, "\n", PrettyCharset::Atascii);
+    REQUIRE(!out.empty());
+    CHECK((unsigned char) out[out.find_first_not_of(' ')] == 0x14);
+    out = fn_render_html_text("<ul><li>one</li></ul>", 40, "\n");
+    CHECK(out[out.find_first_not_of(' ')] == '*');
 }
 
 TEST_CASE("fn_render_html_text has no trailing break and honours the width")

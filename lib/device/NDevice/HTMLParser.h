@@ -2,6 +2,7 @@
 #define HTMLPARSER_H
 
 #include "NParser.h"
+#include "BusCharset.h"
 #include "fnhtml.h" // FIXME - move all that in here
 
 class HTMLParser : public NParser

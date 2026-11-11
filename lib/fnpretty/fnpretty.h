@@ -56,6 +56,10 @@ enum PrettyFlags_t {
 enum class PrettyCharset : uint8_t {
     Ascii = 0,   // 7-bit ASCII: +--+ frames, '*' bullets, '=' / '-' underlines
     Atascii = 1, // Atari: ATASCII box graphics and inverse video
+    MouseText = 2, // Apple II: MouseText line glyphs and inverse video. The
+                   // wire byte n (0x00-0x1F) stands for MouseText glyph
+                   // $40+n; the client maps it, since $40-$5F are also
+                   // ASCII. Bit 7 set means inverse, as on the Atari.
 };
 
 /**
@@ -82,6 +86,8 @@ struct PrettyGlyphs
 
     bool boxed;         // has true box-drawing glyphs (not just +-|)
     bool inverse;       // has inverse video (bit 7 set)
+    bool footRule;      // horiz sits at the foot of its cell, so a frame's
+                        // top edge needs a blank framed row under it
 };
 
 /**

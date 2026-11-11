@@ -3,6 +3,7 @@
 
 #include "NParser.h"
 #include "fnpretty.h"
+#include "BusCharset.h"
 
 /**
  * PARSER::PRETTY: the whole document, rendered to word-wrapped plain text by

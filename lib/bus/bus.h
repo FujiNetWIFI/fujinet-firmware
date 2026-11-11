@@ -150,6 +150,7 @@ public:
         PETSCII_Lower,
         PETSCII_Graphics,
         ATASCII,
+        APPLE2,     // ASCII, plus MouseText on an enhanced //e and later
         CP437,
         MSX_International,
         MSX_Japanese,

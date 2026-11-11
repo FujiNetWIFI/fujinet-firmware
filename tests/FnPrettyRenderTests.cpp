@@ -1424,3 +1424,84 @@ TEST_CASE("setOption: !gfx=1 followed by rerender switches an existing page")
     CHECK(renderer.rendered() == "  " + gl(0x14) + " one");
 }
 
+
+// ============================================================================
+// Apple II MouseText: wire byte n is glyph $40+n, bit 7 is inverse
+// ============================================================================
+
+static std::vector<std::string> render_mousetext(const std::string &html, uint8_t width)
+{
+    FNPretty renderer;
+    RenderOptions opts;
+    opts.width = width;
+    opts.charset = PrettyCharset::MouseText;
+    return render_lines(renderer, html, opts);
+}
+
+TEST_CASE("MouseText h1 is a solid inverse block, as on the Atari")
+{
+    auto lines = render_mousetext("<h1>Title</h1>", 40);
+
+    REQUIRE(lines.size() == 3);
+    std::string pad(15, ' ');
+    CHECK(lines[0] == pad + inv(std::string(9, ' ')));
+    CHECK(lines[1] == pad + inv("  Title  "));
+    CHECK(lines[2] == pad + inv(std::string(9, ' ')));
+}
+
+TEST_CASE("MouseText h2 is framed with edge bars and underscores")
+{
+    auto lines = render_mousetext("<h2>Title</h2>", 40);
+
+    // The top edge is at the foot of its row, so a blank framed row
+    // follows it to match the gap the bottom edge leaves.
+    REQUIRE(lines.size() == 4);
+    std::string pad(15, ' ');
+    CHECK(lines[0] == pad + "_" + rep('_', 7) + " ");
+    CHECK(lines[1] == pad + gl(0x1F) + std::string(7, ' ') + gl(0x1F));
+    CHECK(lines[2] == pad + gl(0x1F) + " Title " + gl(0x1F));
+    CHECK(lines[3] == pad + gl(0x14) + rep('_', 7) + gl(0x1F));
+}
+
+TEST_CASE("MouseText h3 is inverse; h4-h6 underline with MouseText bars")
+{
+    auto lines = render_mousetext("<h3>Three</h3><h4>Four</h4>"
+                                  "<h5>Five</h5><h6>Six</h6>", 40);
+
+    REQUIRE(lines.size() == 10);
+    CHECK(lines[0] == inv("Three"));
+    CHECK(lines[2] == "Four");
+    CHECK(lines[3] == rep(0x0C, 4));
+    CHECK(lines[5] == "Five");
+    CHECK(lines[6] == rep(0x13, 4));
+    CHECK(lines[9] == rep(0x13, 3));
+}
+
+TEST_CASE("MouseText bullets are the diamond; inverse keeps } and ~")
+{
+    auto lines = render_mousetext("<ul><li>one</li></ul><h3>a}b~c</h3>", 40);
+
+    REQUIRE(lines.size() >= 3);
+    CHECK(lines[0] == "  " + gl(0x1B) + " one");
+    // The Atari's } / ~ fold is an E: workaround; the Apple shows both.
+    CHECK(lines.back() == inv("a}b~c"));
+}
+
+TEST_CASE("MouseText furniture never uses the Apple EOL or a byte the client treats as space")
+{
+    // CR is the Apple line ending; tab, LF and 0x9B are whitespace to the
+    // fujireader wrapper. None may appear in any glyph or its inverse.
+    auto lines = render_mousetext("<h1>T</h1><h2>T</h2><h4>T</h4><h5>T</h5><hr>"
+                                  "<ul><li>x</li></ul>"
+                                  "<table><tr><td>a</td><td>b</td></tr>"
+                                  "<tr><td>c</td><td>d</td></tr></table>", 40);
+    for (const std::string &l : lines)
+        for (char c : l)
+        {
+            unsigned char u = (unsigned char)c;
+            CHECK(u != 0x0D);
+            CHECK(u != 0x0A);
+            CHECK(u != 0x09);
+            CHECK(u != 0x9B);
+        }
+}
