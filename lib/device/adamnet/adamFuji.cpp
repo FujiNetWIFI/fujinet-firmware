@@ -27,6 +27,7 @@
 #endif /* _WIN32 */
 
 #define IMAGE_EXTENSION ".ddp"
+#define LOBBY_URL       "tnfs://tnfs.fujinet.online/ADAM/lobby.ddp"
 #define COPY_SIZE 532
 
 adamFuji platformFuji;
@@ -41,7 +42,7 @@ using namespace std;
 // sioNetwork sioNetDevs[MAX_NETWORK_DEVICES];
 
 // Constructor
-adamFuji::adamFuji() : fujiDevice(MAX_DISK_DEVICES, IMAGE_EXTENSION, std::nullopt)
+adamFuji::adamFuji() : fujiDevice(MAX_DISK_DEVICES, IMAGE_EXTENSION, LOBBY_URL)
 {
     // Helpful for debugging
     for (int i = 0; i < MAX_HOSTS; i++)
