@@ -391,6 +391,8 @@ void sioFuji::setup()
 
     // Disable booting from CONFIG if our settings say to turn it off
     boot_config = Config.get_general_config_enabled();
+    if (!boot_config)
+        FUJI_BOOTDISK->device_active = false;
 
     // Disable status_wait if our settings say to turn it off
     status_wait_enabled = Config.get_general_status_wait_enabled();

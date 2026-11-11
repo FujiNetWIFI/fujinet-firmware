@@ -276,6 +276,7 @@ void systemBus::_sio_process_cmd()
             {
                 Debug_printf("Disabling CONFIG boot.\n");
                 _fujiDev->boot_config = false;
+                _activeDev->device_active = false;
                 return;
             }
             else
