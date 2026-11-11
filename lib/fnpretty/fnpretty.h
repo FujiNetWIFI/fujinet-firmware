@@ -51,7 +51,7 @@ enum PrettyFlags_t {
  * Ascii is the portable default. The rest are host-native sets, which a
  * client selects generically ("give me native graphics") rather than by name:
  * the bus device declares its platform with setNativeCharset() and the client
- * asks for it with setNativeGraphics(true) / "!gfx=1".
+ * asks for it with setNativeGraphics(true).
  */
 enum class PrettyCharset : uint8_t {
     Ascii = 0,   // 7-bit ASCII: +--+ frames, '*' bullets, '=' / '-' underlines
@@ -90,15 +90,6 @@ struct PrettyGlyphs
                         // top edge needs a blank framed row under it
 };
 
-/**
- * Outcome of interpreting a query payload as an option assignment.
- */
-enum class PrettyOption {
-    NotAnOption, // payload is not the "!key=value" form; treat it as a selector
-    Applied,     // recognized and applied
-    Invalid,     // "!..." form, but the key or value is not usable
-};
-
 class FNPretty
 {
 public:
@@ -133,7 +124,7 @@ public:
 
     /**
      * @brief Declare the host platform's native character set - what
-     * setNativeGraphics(true) and "!gfx=1" resolve to on this bus. Stores
+     * setNativeGraphics(true) resolves to on this bus. Stores
      * only; it does not change the set currently in use.
      */
     void setNativeCharset(PrettyCharset cs);
@@ -161,21 +152,6 @@ public:
      */
     void setQuery(const std::string &selector);
     const std::string &query() const { return _query; }
-
-    /**
-     * @brief Apply an option assignment sent in place of a query selector:
-     * "!links=1", "!width=80", "!eol=13", "!gfx=1".
-     *
-     * Gives buses whose command set has no spare parameter byte a way to reach
-     * these settings. A CSS selector can never begin with '!', so this cannot
-     * collide with a section query. Keys are matched case-insensitively, since
-     * 8-bit hosts commonly send uppercase.
-     *
-     * Recognized: links=0|1, width=<columns>, eol=<decimal byte>,
-     * gfx=0|1 (0 = ASCII, 1 = the platform's native graphics set).
-     * Stores only - the caller re-renders.
-     */
-    PrettyOption setOption(const std::string &s);
 
     /**
      * @brief Fetch the document from the protocol and render it to text.

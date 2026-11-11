@@ -628,68 +628,6 @@ void FNPretty::setQuery(const std::string &selector)
 }
 
 /**
- * "!key=value" option assignment, as an alternative to a query selector for
- * buses with no spare command byte to carry width/links/eol. See the header
- * for the recognized keys.
- */
-PrettyOption FNPretty::setOption(const std::string &s)
-{
-    if (s.empty() || s[0] != '!')
-        return PrettyOption::NotAnOption;
-
-    size_t eq = s.find('=', 1);
-    if (eq == std::string::npos)
-        return PrettyOption::Invalid;
-
-    std::string key = trimAscii(s.substr(1, eq - 1));
-    std::string value = trimAscii(s.substr(eq + 1));
-    if (key.empty() || value.empty())
-        return PrettyOption::Invalid;
-
-    for (char &c : key)
-        c = (char)std::tolower(static_cast<unsigned char>(c));
-
-    for (char c : value)
-    {
-        if (c < '0' || c > '9')
-            return PrettyOption::Invalid;
-    }
-
-    errno = 0;
-    char *end = nullptr;
-    unsigned long parsed = strtoul(value.c_str(), &end, 10);
-    if (errno == ERANGE || end == value.c_str())
-        return PrettyOption::Invalid;
-
-    if (key == "links")
-    {
-        setRenderLinks(parsed != 0);
-        return PrettyOption::Applied;
-    }
-    else if (key == "width")
-    {
-        setScreenWidth((uint8_t)(parsed > 255 ? 255 : parsed));
-        return PrettyOption::Applied;
-    }
-    else if (key == "eol")
-    {
-        if (parsed == 0 || parsed > 255)
-            return PrettyOption::Invalid;
-        setLineEnding(std::string(1, (char)parsed));
-        return PrettyOption::Applied;
-    }
-    else if (key == "gfx")
-    {
-        if (parsed > 1)
-            return PrettyOption::Invalid;
-        setNativeGraphics(parsed != 0);
-        return PrettyOption::Applied;
-    }
-
-    return PrettyOption::Invalid;
-}
-
-/**
  * Drain the entire body from the protocol. Mirrors FNSGML::fetch semantics:
  * bounded chunks, a hard cap on total size, and a stall check so a dead
  * connection cannot spin here forever.

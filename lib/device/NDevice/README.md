@@ -25,9 +25,9 @@ an 8-bit program query one value out of a JSON, XML or HTML document.
   `NetworkProtocolFactory::createProtocol()` in [lib/network-protocol/](../../network-protocol/)
   for the adapter matching the scheme. The adapter owns the receive, transmit and special buffers.
 - `NET_SET_PARAMETER` sets a parser parameter: 0 = query flags, 1 = line ending byte, 2 = text
-  width in columns (0 = default 40; the PRETTY screen width, or the TEXT output mode's wrap width).
+  width in columns (0 = default 40; the PRETTY screen width, or the TEXT output mode's wrap width)), 3 = PRETTY only: furniture in the bus's native graphics set, ATASCII/MouseText (0/1), 4 = PRETTY only: number each link `[n]` (0/1). Other parsers reject 3 and 4.
 - `NET_SET_PARSER` swaps the `NParser` (0 none, 1 JSON, 2 HTML, 3 XML, 4 PRETTY); with no parser set, reads and writes pass straight through
-  to the protocol. PRETTY queries: digits = link URL, `sel@attr` = attribute of the first match of `sel` (both staged ahead of the page text, which then resumes), `!key=val` = option, anything else = CSS selector for the section to show.
+  to the protocol. PRETTY queries: digits = link URL, `sel@attr` = attribute of the first match of `sel` (both staged ahead of the page text, which then resumes), anything else = CSS selector for the section to show.
 - Platform differences are the `fujidev_*` virtuals (`fujidev_read`, `fujidev_write`,
   `fujidev_status`, `fujidev_set_prefix`, `fujidev_get_prefix`, `fujidev_set_query`,
   `fujidev_set_parser`, `fujidev_seek`, `fujidev_tell`) and `dir_long_width()`.

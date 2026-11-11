@@ -26,6 +26,9 @@ public:
     virtual error_is_true setLineEnding(const std::string &eol);
     // Text width in columns (NET_SET_PARAMETER param 2); 0 = parser default.
     virtual error_is_true setTextWidth(uint8_t width);
+    // PRETTY only (NET_SET_PARAMETER params 4 and 3); others reject them.
+    virtual error_is_true setRenderLinks(bool on);
+    virtual error_is_true setNativeGraphics(bool on);
 
     virtual NetworkStatus status();
 };

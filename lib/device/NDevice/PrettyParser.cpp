@@ -190,15 +190,7 @@ error_is_true PrettyParser::setQuery(const std::string &query)
         RETURN_SUCCESS_AS_FALSE();
     }
 
-    // "!key=value": an option assignment. A CSS selector never starts with '!'.
-    PrettyOption opt = _pretty.setOption(query);
-    if (opt == PrettyOption::Invalid)
-    {
-        _parseError = NDEV_STATUS::END_OF_FILE;
-        RETURN_ERROR_AS_TRUE();
-    }
-    if (opt == PrettyOption::NotAnOption)
-        _pretty.setQuery(query);
+    _pretty.setQuery(query);
 
     // A re-render replaces the previous section, so drop anything staged from it.
     _staged.clear();
@@ -230,6 +222,24 @@ error_is_true PrettyParser::setLineEnding(const std::string &eol)
 error_is_true PrettyParser::setTextWidth(uint8_t width)
 {
     _pretty.setScreenWidth(width);
+    _staged.clear();
+    _linkPending = false;
+    _pretty.rerender();
+    RETURN_SUCCESS_AS_FALSE();
+}
+
+error_is_true PrettyParser::setRenderLinks(bool on)
+{
+    _pretty.setRenderLinks(on);
+    _staged.clear();
+    _linkPending = false;
+    _pretty.rerender();
+    RETURN_SUCCESS_AS_FALSE();
+}
+
+error_is_true PrettyParser::setNativeGraphics(bool on)
+{
+    _pretty.setNativeGraphics(on);
     _staged.clear();
     _linkPending = false;
     _pretty.rerender();

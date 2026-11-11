@@ -28,6 +28,8 @@ typedef enum class PARSER_PARAM : uint8_t {
     QUERY = 0,
     EOL = 1,
     TEXT_WIDTH = 2, // columns: PRETTY screen width, and the TEXT output mode's wrap width
+    NATIVE_GFX = 3,   // PRETTY: furniture in the bus's native graphics set (ATASCII/MouseText); value 0/1
+    RENDER_LINKS = 4, // PRETTY: number each link "[n]" so the query "n" returns its URL; value 0/1
 } parserParam_t;
 
 // Reads the param using Enum's underlying integer type (so packet.param()

@@ -496,19 +496,13 @@ TEST_CASE("PRETTY uses the bus's native line ending unless told otherwise")
     CHECK(b.find(SYSTEM_BUS.nativeEOL()) == std::string::npos);
 }
 
-TEST_CASE("PRETTY width comes from the text width parameter or a !width option")
+TEST_CASE("PRETTY width comes from the text width parameter")
 {
     PrettySession a;
     REQUIRE(a.parser.setTextWidth(24).is_success());
     REQUIRE(a.parser.parse().is_success());
     std::string text24 = a.drain();
 
-    PrettySession b;
-    REQUIRE(b.parser.parse().is_success());
-    REQUIRE(b.parser.setQuery("!width=24").is_success());
-    std::string text24b = b.drain();
-
-    CHECK(text24 == text24b);
     CHECK(text24.size() > 0);
 
     std::string line;
@@ -524,9 +518,27 @@ TEST_CASE("PRETTY width comes from the text width parameter or a !width option")
             line += c;
     }
     CHECK(longest <= 24);
+}
 
-    PrettySession c;
-    CHECK(c.parser.setQuery("!bogus=1").is_error());
+TEST_CASE("PRETTY render-links and native-graphics settings re-render a parsed page")
+{
+    PrettySession s;
+    REQUIRE(s.parser.parse().is_success());
+    std::string plain = s.drain();
+    CHECK(plain.find("[1]") == std::string::npos);
+
+    REQUIRE(s.parser.setRenderLinks(true).is_success());
+    std::string linked = s.drain();
+    CHECK(linked.find("[1]") != std::string::npos);
+    CHECK(linked != plain);
+
+    REQUIRE(s.parser.setRenderLinks(false).is_success());
+    CHECK(s.drain() == plain);
+
+    // A "!name=value" query is no longer an option; it is just a selector
+    // that matches nothing.
+    REQUIRE(s.parser.setQuery("!links=1").is_success());
+    CHECK(s.drain().find("[1]") == std::string::npos);
 }
 
 TEST_CASE("PRETTY CSS selector narrows the page and an empty one restores it")
@@ -548,7 +560,7 @@ TEST_CASE("PRETTY numeric query stages a link URL ahead of the page, then the pa
 {
     PrettySession s;
     REQUIRE(s.parser.parse().is_success());
-    REQUIRE(s.parser.setQuery("!links=1").is_success());
+    REQUIRE(s.parser.setRenderLinks(true).is_success());
 
     std::string head;
     REQUIRE(s.parser.read(head, 5) == FUJI_ERROR::NONE);

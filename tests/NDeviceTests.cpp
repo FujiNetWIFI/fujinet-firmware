@@ -201,3 +201,12 @@ TEST_CASE("a plain channel has no text width to set")
     REQUIRE(dev.fujicore_set_parser(PARSER::NONE).is_success());
     CHECK(dev._parser->setTextWidth(32).is_error());
 }
+
+TEST_CASE("a plain channel rejects PRETTY-only render options")
+{
+    TestableNDevice dev;
+
+    REQUIRE(dev.fujicore_set_parser(PARSER::NONE).is_success());
+    CHECK(dev._parser->setRenderLinks(true).is_error());
+    CHECK(dev._parser->setNativeGraphics(true).is_error());
+}

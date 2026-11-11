@@ -1073,89 +1073,41 @@ TEST_CASE("img alt text is ASCII-folded like other text")
 }
 
 // ---------------------------------------------------------------------------
-// setOption() - "!key=value" query payload
+// setRenderLinks() / setLineEnding() followed by rerender()
 // ---------------------------------------------------------------------------
 
-TEST_CASE("setOption: links=1/0 toggles renderLinks")
+TEST_CASE("setRenderLinks toggles renderLinks")
 {
     FNPretty renderer;
     CHECK(renderer.renderLinks() == false);
 
-    CHECK(renderer.setOption("!links=1") == PrettyOption::Applied);
+    renderer.setRenderLinks(true);
     CHECK(renderer.renderLinks() == true);
 
-    CHECK(renderer.setOption("!links=0") == PrettyOption::Applied);
+    renderer.setRenderLinks(false);
     CHECK(renderer.renderLinks() == false);
 }
 
-TEST_CASE("setOption: width sets screenWidth; 0 leaves it unchanged")
-{
-    FNPretty renderer;
-    CHECK(renderer.setOption("!width=80") == PrettyOption::Applied);
-    CHECK(renderer.screenWidth() == 80);
-
-    CHECK(renderer.setOption("!width=0") == PrettyOption::Applied);
-    CHECK(renderer.screenWidth() == 80);
-}
-
-TEST_CASE("setOption: eol changes the line ending used by a following rerender; 0 is invalid")
+TEST_CASE("setLineEnding changes the line ending used by a following rerender")
 {
     FNPretty renderer;
     renderer.setLineEnding("\n");
     REQUIRE(renderer.renderDocument("<p>a</p><p>b</p>"));
     CHECK(renderer.rendered().find('\r') == std::string::npos);
 
-    CHECK(renderer.setOption("!eol=13") == PrettyOption::Applied);
+    renderer.setLineEnding("\r");
     CHECK(renderer.rerender());
     CHECK(renderer.rendered().find('\r') != std::string::npos);
-
-    CHECK(renderer.setOption("!eol=0") == PrettyOption::Invalid);
 }
 
-TEST_CASE("setOption: keys are matched case-insensitively")
-{
-    FNPretty renderer;
-    CHECK(renderer.setOption("!LINKS=1") == PrettyOption::Applied);
-    CHECK(renderer.renderLinks() == true);
-
-    CHECK(renderer.setOption("!Width=32") == PrettyOption::Applied);
-    CHECK(renderer.screenWidth() == 32);
-}
-
-TEST_CASE("setOption: whitespace around key and value is tolerated")
-{
-    FNPretty renderer;
-    CHECK(renderer.setOption("! links = 1 ") == PrettyOption::Applied);
-    CHECK(renderer.renderLinks() == true);
-}
-
-TEST_CASE("setOption: invalid forms")
-{
-    FNPretty renderer;
-    CHECK(renderer.setOption("!bogus=1") == PrettyOption::Invalid);   // unknown key
-    CHECK(renderer.setOption("!links") == PrettyOption::Invalid);     // no '='
-    CHECK(renderer.setOption("!links=") == PrettyOption::Invalid);    // empty value
-    CHECK(renderer.setOption("!width=abc") == PrettyOption::Invalid); // non-numeric value
-    CHECK(renderer.setOption("!=1") == PrettyOption::Invalid);        // empty key
-}
-
-TEST_CASE("setOption: NotAnOption for selectors and link indices, which fall through unchanged")
-{
-    FNPretty renderer;
-    CHECK(renderer.setOption("") == PrettyOption::NotAnOption);
-    CHECK(renderer.setOption("div.content") == PrettyOption::NotAnOption);
-    CHECK(renderer.setOption("#main") == PrettyOption::NotAnOption);
-    CHECK(renderer.setOption("42") == PrettyOption::NotAnOption);
-}
-
-TEST_CASE("setOption: !links=1 followed by rerender makes [n] markers appear")
+TEST_CASE("setRenderLinks followed by rerender makes [n] markers appear")
 {
     FNPretty renderer;
     renderer.setLineEnding("\n");
     REQUIRE(renderer.renderDocument("<p>See <a href=\"/more\">more</a>.</p>"));
     CHECK(renderer.rendered().find('[') == std::string::npos);
 
-    CHECK(renderer.setOption("!links=1") == PrettyOption::Applied);
+    renderer.setRenderLinks(true);
     CHECK(renderer.rerender());
     CHECK(renderer.rendered().find("[1]") != std::string::npos);
 }
@@ -1380,37 +1332,32 @@ TEST_CASE("ASCII stays the default until a client asks for native graphics")
     CHECK(declared.rendered() == def.rendered());
 }
 
-TEST_CASE("setOption: !gfx selects and clears the platform's native graphics")
+TEST_CASE("setNativeGraphics selects and clears the platform's native graphics")
 {
     FNPretty renderer;
     renderer.setNativeCharset(PrettyCharset::Atascii);
     CHECK(renderer.charset() == PrettyCharset::Ascii); // declared, not selected
 
-    CHECK(renderer.setOption("!gfx=1") == PrettyOption::Applied);
+    renderer.setNativeGraphics(true);
     CHECK(renderer.charset() == PrettyCharset::Atascii);
     CHECK(renderer.nativeGraphics());
 
-    // Keys are matched case-insensitively; 8-bit hosts commonly send caps.
-    CHECK(renderer.setOption("!GFX=0") == PrettyOption::Applied);
+    renderer.setNativeGraphics(false);
     CHECK(renderer.charset() == PrettyCharset::Ascii);
     CHECK_FALSE(renderer.nativeGraphics());
-
-    // gfx is a flag, not a charset id - a client cannot name a foreign set.
-    CHECK(renderer.setOption("!gfx=2") == PrettyOption::Invalid);
-    CHECK(renderer.charset() == PrettyCharset::Ascii);
 }
 
-TEST_CASE("setOption: !gfx=1 is a harmless no-op on a bus with no native set")
+TEST_CASE("setNativeGraphics(true) is a harmless no-op on a bus with no native set")
 {
     // rs232/iwm/adamnet/drivewire never declare one, so asking for native
     // graphics there leaves the ASCII rendering alone rather than failing.
     FNPretty renderer;
     CHECK(renderer.nativeCharset() == PrettyCharset::Ascii);
-    CHECK(renderer.setOption("!gfx=1") == PrettyOption::Applied);
+    renderer.setNativeGraphics(true);
     CHECK(renderer.charset() == PrettyCharset::Ascii);
 }
 
-TEST_CASE("setOption: !gfx=1 followed by rerender switches an existing page")
+TEST_CASE("setNativeGraphics followed by rerender switches an existing page")
 {
     FNPretty renderer;
     renderer.setLineEnding("\n");
@@ -1419,7 +1366,7 @@ TEST_CASE("setOption: !gfx=1 followed by rerender switches an existing page")
     REQUIRE(renderer.renderDocument("<ul><li>one</li></ul>"));
     CHECK(renderer.rendered() == "  * one"); // the final EOL is trimmed
 
-    CHECK(renderer.setOption("!gfx=1") == PrettyOption::Applied);
+    renderer.setNativeGraphics(true);
     CHECK(renderer.rerender());
     CHECK(renderer.rendered() == "  " + gl(0x14) + " one");
 }

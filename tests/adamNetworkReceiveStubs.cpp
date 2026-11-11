@@ -202,6 +202,8 @@ NetworkStatus NParser::status() { return {}; }
 error_is_true NParser::setQueryParam(uint8_t param) { RETURN_ERROR_AS_TRUE(); }
 error_is_true NParser::setLineEnding(const std::string &eol) { RETURN_ERROR_AS_TRUE(); }
 error_is_true NParser::setTextWidth(uint8_t width) { RETURN_ERROR_AS_TRUE(); }
+error_is_true NParser::setRenderLinks(bool on) { RETURN_ERROR_AS_TRUE(); }
+error_is_true NParser::setNativeGraphics(bool on) { RETURN_ERROR_AS_TRUE(); }
 fujiError_t JSONParser::write(std::string &buffer) { return FUJI_ERROR::UNSPECIFIED; }
 off_t JSONParser::seek(off_t offset, int whence) { return -1; }
 error_is_true JSONParser::setQuery(const std::string &query) { RETURN_ERROR_AS_TRUE(); }
@@ -232,4 +234,6 @@ error_is_true PrettyParser::parse() { RETURN_ERROR_AS_TRUE(); }
 error_is_true PrettyParser::setQueryParam(uint8_t param) { RETURN_ERROR_AS_TRUE(); }
 error_is_true PrettyParser::setLineEnding(const std::string &eol) { RETURN_ERROR_AS_TRUE(); }
 error_is_true PrettyParser::setTextWidth(uint8_t width) { RETURN_ERROR_AS_TRUE(); }
+error_is_true PrettyParser::setRenderLinks(bool on) { RETURN_ERROR_AS_TRUE(); }
+error_is_true PrettyParser::setNativeGraphics(bool on) { RETURN_ERROR_AS_TRUE(); }
 NetworkStatus PrettyParser::status() { return {}; }

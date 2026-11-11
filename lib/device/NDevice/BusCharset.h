@@ -6,7 +6,7 @@
 
 /**
  * The PrettyCharset matching the bus's native character encoding: what PRETTY's
- * "!gfx=1" selects.
+ * NET_SET_PARAMETER param 3 (NATIVE_GFX) selects for PRETTY.
  */
 inline PrettyCharset busNativeCharset()
 {

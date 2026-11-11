@@ -20,7 +20,6 @@
  *               [A-Za-z0-9_:-]+), raw but ASCII-folded; staged + EOL and served
  *               exactly like a link URL, page and section untouched. No match
  *               or no such attribute is an error (END_OF_FILE)
- *   "!key=val"  FNPretty::setOption (links, width, eol, gfx), then re-render
  *   anything    CSS selector naming the section to show (empty = whole page),
  *               then re-render
  */
@@ -50,6 +49,8 @@ public:
     error_is_true setQueryParam(uint8_t param) override;
     error_is_true setLineEnding(const std::string &eol) override;
     error_is_true setTextWidth(uint8_t width) override;
+    error_is_true setRenderLinks(bool on) override;
+    error_is_true setNativeGraphics(bool on) override;
 
     NetworkStatus status() override;
 };
