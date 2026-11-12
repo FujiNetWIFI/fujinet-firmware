@@ -615,8 +615,6 @@ success_is_true fujiDevice::fujicore_mount_disk_image_success(uint8_t deviceSlot
     fujiDisk &disk = *get_disk(deviceSlot);
     fujiHost &host = _fnHosts[disk.host_slot];
 
-    // Close the slot's old image first. A TNFS host has 8 file handles, and
-    // eight mounted slots left none to open the new image with.
     if (disk.fileh != nullptr)
     {
         get_disk_dev(deviceSlot)->unmount();
