@@ -130,10 +130,10 @@ jobs:
           gcc-arm-none-eabi libnewlib-arm-none-eabi
 
     - name: Create PlatformIO INI for Build
-      run: cd ${{ github.workspace }} && /usr/bin/bash ./build.sh -y -l ${{ github.workspace }}/.github/workflows/platformio.release-${{ matrix.target-platform }}.ini -i ${{ github.workspace }}/platformio-generated.ini
+      run: cd "$GITHUB_WORKSPACE" && /usr/bin/bash ./build.sh -y -l "$GITHUB_WORKSPACE"/.github/workflows/platformio.release-${{ matrix.target-platform }}.ini -i "$GITHUB_WORKSPACE"/platformio-generated.ini
 
     - name: Show platformio.ini
-      run: cat ${{ github.workspace }}/platformio-generated.ini
+      run: cat "$GITHUB_WORKSPACE"/platformio-generated.ini
 
     - uses: benjlevesque/short-sha@v3.0
       id: short-sha
@@ -153,17 +153,17 @@ jobs:
 
     - name: Set Nightly Version in Firmware
       id: nightly-version
-      run: sed -i 's/#define FN_VERSION_FULL "[^"]*"/#define FN_VERSION_FULL "${{ steps.version.outputs.VERSION }}"/' ${{ github.workspace }}/include/version.h
+      run: sed -i 's/#define FN_VERSION_FULL "[^"]*"/#define FN_VERSION_FULL "${{ steps.version.outputs.VERSION }}"/' "$GITHUB_WORKSPACE"/include/version.h
 
     - name: Set Version Date in Firmware
       id: nightly-date
-      run: sed -i 's/#define FN_VERSION_DATE "[^"]*"/#define FN_VERSION_DATE "${{ steps.commit-date.outputs.COMMIT_DATE }}"/' ${{ github.workspace }}/include/version.h
+      run: sed -i 's/#define FN_VERSION_DATE "[^"]*"/#define FN_VERSION_DATE "${{ steps.commit-date.outputs.COMMIT_DATE }}"/' "$GITHUB_WORKSPACE"/include/version.h
 
     - name: Create "version.txt" file
       run: echo "${{ steps.version.outputs.VERSION }}.${{ matrix.target-platform }}" > ./version.txt
 
     - name: Build release
-      run: cd ${{ github.workspace }} && /usr/bin/bash ./build.sh -y -z -l ${{ github.workspace }}/.github/workflows/platformio.release-${{ matrix.target-platform }}.ini -i ${{ github.workspace }}/platformio-generated.ini
+      run: cd "$GITHUB_WORKSPACE" && /usr/bin/bash ./build.sh -y -z -l "$GITHUB_WORKSPACE"/.github/workflows/platformio.release-${{ matrix.target-platform }}.ini -i "$GITHUB_WORKSPACE"/platformio-generated.ini
 
     - name: Save PlatformIO to the host cache
       if: success() && github.event_name != 'pull_request'
@@ -194,7 +194,7 @@ jobs:
           Current commit: [${{ steps.short-sha.outputs.sha }}](${{ github.server_url }}/${{ github.repository }}/commits/${{ github.sha }})
         name: Nightly Builds
         prerelease: true
-        files: ${{ github.workspace }}/firmware/fujinet-*-nightly.zip
+        files: firmware/fujinet-*-nightly.zip
         tag_name: nightly
         generate_release_notes: true
         make_latest: false
