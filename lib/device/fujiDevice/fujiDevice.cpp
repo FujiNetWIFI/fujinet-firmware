@@ -615,6 +615,9 @@ success_is_true fujiDevice::fujicore_mount_disk_image_success(uint8_t deviceSlot
     fujiDisk &disk = *get_disk(deviceSlot);
     fujiHost &host = _fnHosts[disk.host_slot];
 
+    // Not guarded on disk.fileh: WRITE DEVICE SLOTS clears it without closing
+    get_disk_dev(deviceSlot)->unmount();
+
     Debug_printf("Selecting '%s' from host #%u as %s on D%u:\r\n",
                  disk.filename, disk.host_slot, mode, deviceSlot + 1);
 
