@@ -499,6 +499,9 @@ jobs:
           path: pico-sdk
           submodules: true
 
+      - name: Point the builds at the pico-sdk checkout
+        run: echo "PICO_SDK_PATH=$GITHUB_WORKSPACE/pico-sdk" >> "$GITHUB_ENV"
+
       # build-essential builds the SDK's host tools (picotool, pioasm); the SDK
       # builds picotool without USB support, so it needs no libusb.
       - run: apt-get update && apt-get install -y
@@ -509,20 +512,14 @@ jobs:
       # proves the vendored PicoPAC still builds with our changes applied.
       - name: Odyssey 2 cartridge (FujiNet)
         working-directory: pico/o2
-        env:
-          PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
         run: ./build-cart.sh
 
       - name: Odyssey 2 cartridge (stock PicoPAC)
         working-directory: pico/o2
-        env:
-          PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
         run: ./build-cart.sh --stock
 
       - name: Odyssey 2 cartridge (FujiNet-O2 Rev0 board, RP2354B)
         working-directory: pico/o2
-        env:
-          PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
         run: ./build-cart.sh --board fujio2_rp2354b
 
       # Pulls no-OS-FatFS-SD (v3.6.2) and littlefs (master) over the network via
@@ -530,8 +527,6 @@ jobs:
       # shallow checkout, which is fine here.
       - name: Intellivision cartridge (fujicard)
         working-directory: pico/intellivision/firmware
-        env:
-          PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
         run: |
           cmake -B build -DPICO_BOARD=fujicard -DCMAKE_BUILD_TYPE=Release -G Ninja
           ninja -C build
@@ -539,15 +534,11 @@ jobs:
       # CONFIG comes from firmware/baked/; the Z80 clients have their own job.
       - name: Astrocade cartridge (fujicade)
         working-directory: pico/astrocade
-        env:
-          PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
         run: |
           ./build-cart.sh --baked
 
       - name: Channel F Videocart (fujichannelf)
         working-directory: pico/channelf
-        env:
-          PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
         run: |
           # CONFIG comes from firmware/baked/, so this job needs no AS.
           ./build-cart.sh --baked
@@ -555,8 +546,6 @@ jobs:
       # From firmware/baked/ alone, so the 1802 assembler is not needed here.
       - name: Studio II cartridge (fujistudio2_rp2354b)
         working-directory: pico/studio2
-        env:
-          PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
         run: ./build-cart.sh --baked
 
       # build-cart.sh bakes the loader ROM and a client into the firmware, so
@@ -564,8 +553,6 @@ jobs:
       # SRAM (copy_to_ram); tools/checksram.py asserts core1's symbols there.
       - name: NES cartridge (fujines_rp2354b)
         working-directory: pico/nes
-        env:
-          PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
         run: |
           apt-get install -y cc65
           ./build.sh loader hello fujitest fujiboot
@@ -575,23 +562,17 @@ jobs:
       # (z88dk is not on the runners).
       - name: Master System cartridge (fujisms_rp2354b)
         working-directory: pico/sms
-        env:
-          PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
         run: ./build-cart.sh --baked
 
       # CONFIG, the loader and the signed boot block come from
       # firmware/baked/.
       - name: Atari 7800 cartridge (fuji7800_rp2354b)
         working-directory: pico/atari-7800
-        env:
-          PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
         run: ./build-cart.sh --baked
 
       # CONFIG comes from firmware/baked/.
       - name: Atari 5200 cartridge (fuji5200_rp2354b)
         working-directory: pico/atari-5200
-        env:
-          PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
         run: ./build-cart.sh --baked
 
       # The boot page, CONFIG and the loader come from firmware/baked/ (z88dk
@@ -599,38 +580,28 @@ jobs:
       # so it runs here.
       - name: S-100 card (fujis100_rp2354b)
         working-directory: pico/s100
-        env:
-          PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
         run: |
           ./build-cart.sh --baked
           make -C firmware/host_test
 
       - name: Template cartridge (fujitemplate)
         working-directory: pico/template
-        env:
-          PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
         run: ./build-cart.sh --baked
 
       - name: Arcadia cartridge (fujiarcadia)
         working-directory: pico/arcadia
-        env:
-          PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
         run: |
           # CONFIG comes from firmware/baked/; the 2650 client job assembles the clients.
           ./build-cart.sh --baked
 
       - name: ColecoVision cartridge (fujicoleco)
         working-directory: pico/coleco
-        env:
-          PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
         run: |
           # CONFIG comes from firmware/baked/; the z88dk clients are not built in CI.
           ./build-cart.sh --baked
 
       - name: ColecoVision cartridge (FujiNet-ColecoVision Rev0 board, RP2350A)
         working-directory: pico/coleco
-        env:
-          PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
         run: ./build-cart.sh --baked fujicoleco_rp2350a
 
       # Drives the same [fujinet] pico_* keys the ESP32 build uses, so a
@@ -638,8 +609,6 @@ jobs:
       # here rather than halfway through an ESP-IDF build. --no-generate
       # skips writing the embedded-blob source, which nothing here compiles.
       - name: Fujiversal companion firmware (via build_pico.py)
-        env:
-          PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
         run: |
           for board in fujiversal-intv fujiversal-intv-pirto-ii-duo fujiversal-drivewire fujiversal-msx; do
             echo "::group::$board"
