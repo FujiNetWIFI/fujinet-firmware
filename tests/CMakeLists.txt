@@ -687,6 +687,7 @@ if(FUJINET_TARGET STREQUAL "ATARI")
   add_executable(nquery_output_mode_tests
     NQueryOutputModeTests.cpp
     NParserReadTests.cpp
+    NQueryValueModeTests.cpp
     ${CMAKE_SOURCE_DIR}/lib/device/NDevice/NParser.cpp
     ${CMAKE_SOURCE_DIR}/lib/device/NDevice/XMLParser.cpp
     ${CMAKE_SOURCE_DIR}/lib/device/NDevice/PrettyParser.cpp

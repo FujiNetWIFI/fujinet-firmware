@@ -10,7 +10,7 @@ formatted plain text, word-wrapped to the client's screen width.
 | `fn_render_text.h`, `fn_render_text.cpp` | `fn_render_html_text(html, width, eol, charset = Ascii)`: one-shot render of an HTML fragment to text (ASCII furniture unless a `PrettyCharset` is given) with its lines broken by `eol`, used by the query parsers' TEXT output mode |
 
 ## How it fits
-- `PrettyParser` in [lib/device/NDevice/](../device/NDevice/) wraps `FNPretty` for `NET_SET_PARSER` mode 4.
+- `PrettyParser` in [lib/device/NDevice/](../device/NDevice/) wraps `FNPretty` for `NET_SET_PARSER` mode 4. It calls `parse()` for a page, or `renderDocument()` on a query parser's raw value when PRETTY is chosen after a query.
 - `FNXML`, `FNHTML` and `FNJSON` call `fn_render_html_text()` for `FN_QUERY_OUTPUT_TEXT`
   (see [lib/fntext/](../fntext/)).
 - Text is folded to ASCII with [lib/fntext/](../fntext/); parsing is Gumbo plus gumbo-query from `components/`.

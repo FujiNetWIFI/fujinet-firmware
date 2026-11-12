@@ -112,6 +112,7 @@ void FNJSON::setReadQuery(const std::string &queryString, uint8_t queryParam)
 #endif
     _queryString = queryString;
     _queryParam = queryParam;
+    _hasQuery = true;
     _item = resolveQuery();
     _json_bytes_remaining = readValueLen();
 }
@@ -329,6 +330,30 @@ bool FNJSON::readValue(uint8_t *rx_buf, unsigned short len)
 }
 
 /**
+ * The last query's item as it is in the document: a string's value, otherwise
+ * the item's normal text. No output mode or remapping.
+ */
+bool FNJSON::rawValue(std::string &out)
+{
+    out.clear();
+    if (!_hasQuery)
+        return false;
+    if (_item == nullptr)
+        return true;
+    if (cJSON_IsString(_item))
+    {
+        out = cJSON_GetStringValue(_item);
+        return true;
+    }
+
+    uint8_t saved = _queryParam;
+    _queryParam = 0;
+    out = getValue(_item);
+    _queryParam = saved;
+    return true;
+}
+
+/**
  * Return requested value length
  */
 int FNJSON::readValueLen()
@@ -345,6 +370,10 @@ int FNJSON::readValueLen()
 bool FNJSON::parse()
 {
     NetworkStatus ns;
+
+    // A new document invalidates the last query and its item.
+    _item = nullptr;
+    _hasQuery = false;
 
     if (_json != nullptr)
     {

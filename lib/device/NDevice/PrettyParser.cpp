@@ -10,6 +10,12 @@ PrettyParser::PrettyParser(NetworkProtocol *protocol) : NParser(protocol)
     applyDefaults();
 }
 
+PrettyParser::PrettyParser(NetworkProtocol *protocol, std::unique_ptr<NParser> saved, std::string value)
+    : NParser(protocol), _saved(std::move(saved)), _value(std::move(value)), _valueMode(true)
+{
+    applyDefaults();
+}
+
 void PrettyParser::applyDefaults()
 {
     _eol = SYSTEM_BUS.nativeEOL();
@@ -75,7 +81,15 @@ error_is_true PrettyParser::parse()
         }
     }
 
-    bool ok = _pretty.parse();
+    bool ok;
+    if (_valueMode)
+    {
+        ok = _pretty.renderDocument(_value);
+        _value.clear(); // the parsed document is retained
+        _value.shrink_to_fit();
+    }
+    else
+        ok = _pretty.parse();
 
     if (!ok)
         _parseError = NDEV_STATUS::GENERAL;

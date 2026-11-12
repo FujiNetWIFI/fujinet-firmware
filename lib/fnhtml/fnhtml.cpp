@@ -89,19 +89,19 @@ void FNHTML::setReadQuery(const std::string &queryString, uint8_t queryParam)
     }
     _queryString = queryString;
     _queryParam = queryParam;
+    _hasQuery = true;
     resolveQuery();
     _html_bytes_remaining = readValueLen();
 }
 
 /**
- * Run the CSS selector against the parsed document and build the result value.
+ * Run the CSS selector against the parsed document and fetch the current
+ * match, unprocessed. False if there is none.
  */
-void FNHTML::resolveQuery()
+bool FNHTML::matchValue(std::string &v)
 {
-    _value.clear();
-
     if (_doc == nullptr)
-        return;
+        return false;
 
     // Split an optional "@attr" suffix off the selector.
     std::string selector = _queryString;
@@ -115,7 +115,7 @@ void FNHTML::resolveQuery()
             selector.pop_back();
     }
     if (selector.empty())
-        return;
+        return false;
 
     // gumbo-query is patched to be exception-free: a malformed selector yields
     // an empty selection rather than throwing, so no try/catch is needed (the
@@ -124,12 +124,30 @@ void FNHTML::resolveQuery()
 
     // Return only the current match; an out-of-range index (iteration finished)
     // leaves _value empty so the caller sees 0 bytes available.
-    if (_matchIndex < sel.nodeNum())
-    {
-        CNode node = sel.nodeAt(_matchIndex);
-        std::string v = attr.empty() ? node.text() : node.attribute(attr);
+    if (_matchIndex >= sel.nodeNum())
+        return false;
+
+    CNode node = sel.nodeAt(_matchIndex);
+    v = attr.empty() ? node.text() : node.attribute(attr);
+    return true;
+}
+
+void FNHTML::resolveQuery()
+{
+    std::string v;
+
+    _value.clear();
+    if (matchValue(v))
         _value = processString(v) + lineEnding;
-    }
+}
+
+bool FNHTML::rawValue(std::string &out)
+{
+    out.clear();
+    if (!_hasQuery)
+        return false;
+    matchValue(out);
+    return true;
 }
 
 /**
@@ -235,6 +253,7 @@ bool FNHTML::parse()
     // Fresh document -> restart match iteration.
     _lastQuery.clear();
     _matchIndex = 0;
+    _hasQuery = false;
     return true;
 }
 

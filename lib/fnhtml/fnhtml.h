@@ -46,6 +46,10 @@ public:
     void setTextWidth(uint8_t width) { _textWidth = width; }
     uint8_t textWidth() const { return _textWidth; }
     size_t available() { return _html_bytes_remaining; }
+    // The last query's match as it is in the document (text or attribute), with no
+    // output mode or remapping. False if no query has been made since parse();
+    // empty if it matched nothing.
+    bool rawValue(std::string &out);
 
 private:
     CDocument *_doc = nullptr;
@@ -60,12 +64,14 @@ private:
     // next match; a different selector (or a fresh parse) restarts at the first.
     std::string _lastQuery;
     size_t _matchIndex = 0;
+    bool _hasQuery = false;
 
     // Result of the last resolved query, plus how many of its bytes are still
     // to be handed to the client.
     std::string _value;
     int _html_bytes_remaining = 0;
 
+    bool matchValue(std::string &v);
     void resolveQuery();
 };
 

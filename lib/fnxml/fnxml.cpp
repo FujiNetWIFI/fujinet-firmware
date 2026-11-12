@@ -92,6 +92,7 @@ void FNXML::setReadQuery(const std::string &queryString, uint8_t queryParam)
     }
     _queryString = queryString;
     _queryParam = queryParam;
+    _hasQuery = true;
     resolveQuery();
     _xml_bytes_remaining = readValueLen();
 }
@@ -107,6 +108,15 @@ void FNXML::resolveQuery()
     std::string v;
     if (fnxml_resolve_query(_doc, _queryString, _matchIndex, v))
         _value = processString(v) + lineEnding;
+}
+
+bool FNXML::rawValue(std::string &out)
+{
+    out.clear();
+    if (!_hasQuery)
+        return false;
+    fnxml_resolve_query(_doc, _queryString, _matchIndex, out);
+    return true;
 }
 
 /**
@@ -240,6 +250,7 @@ bool FNXML::parse()
     // Fresh document -> restart match iteration.
     _lastQuery.clear();
     _matchIndex = 0;
+    _hasQuery = false;
     return true;
 }
 

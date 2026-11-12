@@ -44,10 +44,15 @@ public:
     void setTextWidth(uint8_t width) { _textWidth = width; }
     uint8_t textWidth() const { return _textWidth; }
     size_t available() { return _json_bytes_remaining; }
+    // The last query's item as it is in the document, with no output mode or
+    // remapping. False if no query has been made since parse(); empty if it
+    // matched nothing.
+    bool rawValue(std::string &out);
 
 private:
     cJSON *_json = nullptr;
     cJSON *_item = nullptr;
+    bool _hasQuery = false;
     NetworkProtocol *_protocol = nullptr;
     std::string _queryString;
     uint8_t _queryParam = 0;

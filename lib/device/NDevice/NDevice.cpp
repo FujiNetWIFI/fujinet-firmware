@@ -533,6 +533,31 @@ void NDevice::fujidev_set_parser(const FUJI_COMMAND_PACKET &packet)
 
 error_is_true NDevice::fujicore_set_parser(parserMode_t mode)
 {
+    // From PRETTY over a query parser's value, asking for that parser's mode
+    // restores it, document and query state intact.
+    if (_parser != nullptr)
+    {
+        NParser *saved = _parser->savedParser();
+        if (saved != nullptr && saved->mode() == mode)
+        {
+            _parser = _parser->takeSavedParser();
+            RETURN_SUCCESS_AS_FALSE();
+        }
+    }
+
+    // PRETTY after a query: render that query's raw value instead of a fetched page.
+    if (mode == PARSER::PRETTY && _parser != nullptr)
+    {
+        std::string value;
+        if (_parser->rawValue(value))
+        {
+            if (_protocol != nullptr)
+                _protocol->receiveBuffer->clear();
+            _parser = std::make_unique<PrettyParser>(_protocol.get(), std::move(_parser), std::move(value));
+            RETURN_SUCCESS_AS_FALSE();
+        }
+    }
+
     switch (mode)
     {
     case PARSER::NONE:
@@ -695,9 +720,6 @@ void NDevice::fujidev_set_parameter(const FUJI_COMMAND_PACKET &packet)
 error_is_true NDevice::fujicore_seek(size_t offset)
 {
     if (_parser == nullptr)
-        RETURN_ERROR_AS_TRUE();
-
-    if (_parser->seek(offset, SEEK_SET) == -1)
         RETURN_ERROR_AS_TRUE();
 
     if (_parser->seek(offset, SEEK_SET) == -1)

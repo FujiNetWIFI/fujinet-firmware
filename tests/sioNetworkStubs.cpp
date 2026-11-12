@@ -47,6 +47,7 @@ void FNJSON::setProtocol(NetworkProtocol *newProtocol) {}
 void FNJSON::setReadQuery(const std::string &queryString, uint8_t queryParam) {}
 bool FNJSON::readValue(uint8_t *buf, unsigned short len) { return false; }
 bool FNJSON::parse() { return false; }
+bool FNJSON::rawValue(std::string &out) { out.clear(); return false; }
 
 #include "fnhtml.h"
 
@@ -57,6 +58,7 @@ void FNHTML::setProtocol(NetworkProtocol *newProtocol) {}
 void FNHTML::setReadQuery(const std::string &queryString, uint8_t queryParam) {}
 bool FNHTML::readValue(uint8_t *buf, unsigned short len) { return false; }
 bool FNHTML::parse() { return false; }
+bool FNHTML::rawValue(std::string &out) { out.clear(); return false; }
 
 #include "fnxml.h"
 
@@ -67,6 +69,7 @@ void FNXML::setProtocol(NetworkProtocol *newProtocol) {}
 void FNXML::setReadQuery(const std::string &queryString, uint8_t queryParam) {}
 bool FNXML::readValue(uint8_t *buf, unsigned short len) { return false; }
 bool FNXML::parse() { return false; }
+bool FNXML::rawValue(std::string &out) { out.clear(); return false; }
 
 int sam(int argc, char **argv) { return 0; }
 
@@ -208,21 +211,15 @@ error_is_true NParser::setLineEnding(const std::string &eol) { RETURN_ERROR_AS_T
 error_is_true NParser::setTextWidth(uint8_t width) { RETURN_ERROR_AS_TRUE(); }
 error_is_true NParser::setRenderLinks(bool on) { RETURN_ERROR_AS_TRUE(); }
 error_is_true NParser::setNativeGraphics(bool on) { RETURN_ERROR_AS_TRUE(); }
-fujiError_t JSONParser::write(std::string &buffer) { return FUJI_ERROR::UNSPECIFIED; }
-off_t JSONParser::seek(off_t offset, int whence) { return -1; }
-error_is_true JSONParser::setQuery(const std::string &query) { RETURN_ERROR_AS_TRUE(); }
+void JSONParser::runQuery(const std::string &query, std::string &out) {}
 error_is_true JSONParser::parse() { RETURN_ERROR_AS_TRUE(); }
 error_is_true JSONParser::setQueryParam(uint8_t param) { RETURN_ERROR_AS_TRUE(); }
 error_is_true JSONParser::setLineEnding(const std::string &eol) { RETURN_ERROR_AS_TRUE(); }
-fujiError_t HTMLParser::write(std::string &buffer) { return FUJI_ERROR::UNSPECIFIED; }
-off_t HTMLParser::seek(off_t offset, int whence) { return -1; }
-error_is_true HTMLParser::setQuery(const std::string &query) { RETURN_ERROR_AS_TRUE(); }
+void HTMLParser::runQuery(const std::string &query, std::string &out) {}
 error_is_true HTMLParser::parse() { RETURN_ERROR_AS_TRUE(); }
 error_is_true HTMLParser::setQueryParam(uint8_t param) { RETURN_ERROR_AS_TRUE(); }
 error_is_true HTMLParser::setLineEnding(const std::string &eol) { RETURN_ERROR_AS_TRUE(); }
-fujiError_t XMLParser::write(std::string &buffer) { return FUJI_ERROR::UNSPECIFIED; }
-off_t XMLParser::seek(off_t offset, int whence) { return -1; }
-error_is_true XMLParser::setQuery(const std::string &query) { RETURN_ERROR_AS_TRUE(); }
+void XMLParser::runQuery(const std::string &query, std::string &out) {}
 error_is_true XMLParser::parse() { RETURN_ERROR_AS_TRUE(); }
 error_is_true XMLParser::setQueryParam(uint8_t param) { RETURN_ERROR_AS_TRUE(); }
 error_is_true XMLParser::setLineEnding(const std::string &eol) { RETURN_ERROR_AS_TRUE(); }
@@ -246,3 +243,4 @@ error_is_true PrettyParser::setTextWidth(uint8_t width) { RETURN_ERROR_AS_TRUE()
 error_is_true PrettyParser::setRenderLinks(bool on) { RETURN_ERROR_AS_TRUE(); }
 error_is_true PrettyParser::setNativeGraphics(bool on) { RETURN_ERROR_AS_TRUE(); }
 NetworkStatus PrettyParser::status() { return {}; }
+PrettyParser::PrettyParser(NetworkProtocol *protocol, std::unique_ptr<NParser> saved, std::string value) : NParser(protocol), _saved(std::move(saved)) {}

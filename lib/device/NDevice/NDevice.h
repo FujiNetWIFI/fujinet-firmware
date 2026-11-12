@@ -3,6 +3,7 @@
 
 #include "bus.h"
 #include "Protocol.h"
+#include "NParser.h"
 #include "FS.h"
 
 #include <unordered_map>
@@ -15,14 +16,6 @@ typedef struct {
     nDevStatus_t err;
 } NDeviceStatus;
 static_assert(sizeof(NDeviceStatus) == 4, "NDeviceStatus must be 4 bytes");
-
-typedef enum class PARSER : uint8_t {
-    NONE = 0,
-    JSON = 1,
-    HTML = 2, // HTML via CSS selector (FNHTML, Gumbo)
-    XML  = 3, // XML via an XPath subset (FNXML, tinyxml2)
-    PRETTY = 4, // HTML rendered to word-wrapped plain text (FNPretty, Gumbo)
-} parserMode_t;
 
 typedef enum class PARSER_PARAM : uint8_t {
     QUERY = 0,
@@ -46,8 +39,6 @@ template <typename T>
 T param_as(const FUJI_COMMAND_PACKET &pkt, std::size_t idx) {
     return static_cast<T>(pkt.param(idx));
 }
-
-class NParser;
 
 class NDevice : public virtualDevice
 {
