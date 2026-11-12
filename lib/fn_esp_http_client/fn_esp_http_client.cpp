@@ -45,6 +45,7 @@ their original behavior.
 #include "errno.h"
 
 #include "fn_esp_http_client.h"
+#include "httpUserAgent.h"
 #include "fn_http_header.h"
 #include "fn_http_utils.h"
 #include "fn_http_auth.h"
@@ -69,7 +70,6 @@ static esp_err_t _clear_connection_info(esp_http_client_handle_t client);
 #define ASYNC_TRANS_CONNECTING 0
 #define ASYNC_TRANS_CONNECT_PASS 1
 
-static const char *DEFAULT_HTTP_USER_AGENT = "ESP32 HTTP Client/1.0";
 static const char *DEFAULT_HTTP_PROTOCOL = "HTTP/1.1";
 static const char *DEFAULT_HTTP_PATH = "/";
 static int DEFAULT_MAX_REDIRECT = 10;
@@ -219,7 +219,7 @@ static int http_on_chunk_header(http_parser *parser)
     esp_http_client_handle_t client = (esp_http_client_handle_t)parser->data;
     client->response->chunk_length = parser->content_length;
     client->response->total_chunk_length += parser->content_length;
-    ESP_LOGD(TAG, "http_on_chunk_header, chunk_length: %d, total_chunk_length: %d", 
+    ESP_LOGD(TAG, "http_on_chunk_header, chunk_length: %d, total_chunk_length: %d",
         client->response->chunk_length, client->response->total_chunk_length);
     return 0;
 }
@@ -424,7 +424,7 @@ static esp_err_t esp_http_client_prepare(esp_http_client_handle_t client)
             ESP_LOGD(TAG, "esp_http_client_prepare BASIC");
             auth_response = http_auth_basic(client->connection_info.username, client->connection_info.password);
         } else if (client->connection_info.auth_type == HTTP_AUTH_TYPE_DIGEST && client->auth_data) {
-            ESP_LOGD(TAG, "esp_http_client_prepare DIGEST");            
+            ESP_LOGD(TAG, "esp_http_client_prepare DIGEST");
             client->auth_data->uri = client->connection_info.path;
             client->auth_data->cnonce = ((uint64_t)esp_random() << 32) + esp_random();
             auth_response = http_auth_digest(client->connection_info.username, client->connection_info.password, client->auth_data);
@@ -506,7 +506,7 @@ esp_http_client_handle_t esp_http_client_init(const esp_http_client_config_t *co
         esp_transport_ssl_skip_common_name_check(ssl);
         ESP_LOGD(TAG, "esp_transport_ssl_skip_common_name_check() skipped");
     }
-    
+
 #endif
 
     if (_set_config(client, config) != ESP_OK) {
@@ -525,7 +525,7 @@ esp_http_client_handle_t esp_http_client_init(const esp_http_client_config_t *co
 
     if (config->host != NULL && config->path != NULL) {
         _success = (
-            (esp_http_client_set_header(client, "User-Agent", DEFAULT_HTTP_USER_AGENT) == ESP_OK) &&
+            (esp_http_client_set_header(client, "User-Agent", http_user_agent()) == ESP_OK) &&
             (esp_http_client_set_header(client, "Host", client->connection_info.host) == ESP_OK)
         );
 
@@ -536,7 +536,7 @@ esp_http_client_handle_t esp_http_client_init(const esp_http_client_config_t *co
     } else if (config->url != NULL) {
         _success = (
                     (esp_http_client_set_url(client, config->url) == ESP_OK) &&
-                    (esp_http_client_set_header(client, "User-Agent", DEFAULT_HTTP_USER_AGENT) == ESP_OK) &&
+                    (esp_http_client_set_header(client, "User-Agent", http_user_agent()) == ESP_OK) &&
                     (esp_http_client_set_header(client, "Host", client->connection_info.host) == ESP_OK)
                 );
 
@@ -709,7 +709,7 @@ esp_err_t esp_http_client_set_url(esp_http_client_handle_t client, const char *u
         } else {
             return ESP_ERR_NO_MEM;
         }
-    } 
+    }
 
     //Reset path and query if there are no information
     if (purl.field_data[UF_PATH].len) {
@@ -1326,7 +1326,7 @@ void esp_http_client_add_auth(esp_http_client_handle_t client)
     if (client->state != HTTP_STATE_RES_COMPLETE_HEADER) {
         return;
     }
-    // OMF Don't retry if auth_type has already been set 
+    // OMF Don't retry if auth_type has already been set
     if (client->connection_info.auth_type != HTTP_AUTH_TYPE_NONE)
         return;
 

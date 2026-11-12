@@ -39,13 +39,21 @@ template struct CompletionProbeAccess<&mgHttpClient::_handle, &mgHttpClient::_ac
                                       &mgHttpClient::_status_code>;
 }
 
-// Only the platform clock and string helper are substituted; HTTP and TCP are real.
+// Only the platform clock, version strings and string helper are substituted; HTTP and TCP are real.
 SystemManager::SystemManager() {}
 SystemManager fnSystem;
 uint64_t SystemManager::millis()
 {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::steady_clock::now().time_since_epoch()).count();
+}
+const char *SystemManager::get_fujinet_version(bool)
+{
+    return "test";
+}
+const char *SystemManager::get_target_platform_str()
+{
+    return "test";
 }
 std::string util_tolower(const std::string& text)
 {

@@ -19,6 +19,7 @@ FujiNet-PC, plus the outbound HTTP client each build uses.
 | `google_scopes.h` | `GOOGLE_OAUTH_SCOPES`: the single Google grant covering Drive, Gmail and Calendar, requested by both servers' OAuth pages |
 | `fnHttpClient.*` | `fnHttpClient`, the ESP client over [lib/fn_esp_http_client/](../fn_esp_http_client/) |
 | `mgHttpClient.*` | `mgHttpClient`, the PC client over mongoose |
+| `httpUserAgent.h` | `http_user_agent()`: the User-Agent both clients send |
 | `webdav/` | The ESP WebDAV server; see [webdav/](webdav/) |
 
 ## How it fits
