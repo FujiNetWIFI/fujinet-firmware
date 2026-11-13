@@ -21,16 +21,27 @@ struct Sent
     std::string payload;
 };
 
+// How a device last ended a transaction with the computer.
+enum class Outcome { None, Success, Error, Data, DataWithError };
+
 // FujiBus packets the systemBus stub was given, and the replies it plays back.
+// Also how the device answered the computer through the transaction calls.
 struct BusLog
 {
     std::vector<Sent> sent;
     std::vector<Reply> replies; // one per packet; ACK once it runs out
 
+    Outcome outcome = Outcome::None;
+    std::vector<uint8_t> answer;   // what transaction_send() sent
+    std::vector<uint8_t> incoming; // what transaction_get() hands the device
+
     void reset()
     {
         sent.clear();
         replies.clear();
+        outcome = Outcome::None;
+        answer.clear();
+        incoming.clear();
     }
 };
 

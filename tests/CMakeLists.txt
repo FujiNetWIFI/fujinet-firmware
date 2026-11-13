@@ -958,6 +958,52 @@ if(FUJINET_TARGET STREQUAL "RS232")
     target_link_libraries(rs232_rom_mount_tests PRIVATE ws2_32)
   endif()
   add_test(NAME rs232_rom_mount_tests COMMAND rs232_rom_mount_tests)
+
+  # Disk images through the real rs232Disk: mount, then READ, PUT, WRITE, and
+  # STATUS packets for each format, on in-memory images.
+  add_executable(rs232_disk_tests
+    RS232DiskTests.cpp
+    romMountStubs.cpp
+    channelStubs.cpp
+    ${CMAKE_SOURCE_DIR}/lib/device/rs232/disk.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFile.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/IMDImage.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rs232/diskType.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rs232/diskTypeAltair.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rs232/diskTypeIMD.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rs232/diskTypeImg.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/media.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rom/ROMMedia.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rom/Atari2600ROM.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rom/Atari5200ROM.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rom/Atari7800ROM.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rom/ChannelFROM.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rom/ColecoROM.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rom/IntellicartROM.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rom/IntellivisionROM.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rom/NESROM.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rom/SegaMasterROM.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rom/StudioIIROM.cpp
+    ${CMAKE_SOURCE_DIR}/lib/bus/FujiBusPacket.cpp
+    ${CMAKE_SOURCE_DIR}/lib/bus/DaisyChain.cpp
+  )
+  if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    target_sources(rs232_disk_tests PRIVATE
+        ${CMAKE_SOURCE_DIR}/lib/compat/strlcpy.c
+        ${CMAKE_SOURCE_DIR}/lib/compat/strlcat.c
+    )
+  endif()
+  target_compile_definitions(rs232_disk_tests PRIVATE UNIT_TESTS)
+  target_include_directories(rs232_disk_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/lib/device/rs232/
+    ${CMAKE_SOURCE_DIR}/lib/bus/rs232/
+    ${CMAKE_SOURCE_DIR}/lib/media/rs232/
+    ${ROM_MOUNT_TEST_INCLUDES}
+  )
+  if(WIN32)
+    target_link_libraries(rs232_disk_tests PRIVATE ws2_32)
+  endif()
+  add_test(NAME rs232_disk_tests COMMAND rs232_disk_tests)
 endif()
 
 # ------------------------------------------------------------------------------
