@@ -15,7 +15,6 @@ private:
     uint16_t _media_sector_size = VDK_BLOCK_SIZE;
 
 public:
-    uint8_t _media_blockbuff[VDK_BLOCK_SIZE];
     error_is_true read(uint32_t blockNum, uint16_t *readcount) override;
     error_is_true write(uint32_t blockNum, bool verify) override;
 
@@ -26,8 +25,6 @@ public:
     uint8_t status() override;
 
     static success_is_true create(FILE *f, uint32_t numBlock);
-
-    void get_block_buffer(uint8_t **p_buffer, uint16_t *p_blk_size) override;
 };
 
 

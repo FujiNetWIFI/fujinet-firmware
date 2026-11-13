@@ -131,11 +131,4 @@ success_is_true MediaTypeVDK::create(FILE *f, uint32_t numBlocks)
     RETURN_ERROR_AS_FALSE();
 }
 
-void MediaTypeVDK::get_block_buffer(uint8_t **p_buffer, uint16_t *p_blk_size)
-{
-    Debug_printv("MediaTypeVDK: get_block_buffer.");    
-    *p_buffer = &_media_blockbuff[0];
-    *p_blk_size = VDK_BLOCK_SIZE;
-}
-
 #endif // BUILD_COCO
