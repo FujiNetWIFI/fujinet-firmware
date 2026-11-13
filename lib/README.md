@@ -60,8 +60,10 @@ Conventions that follow from this:
   for devices on that bus, and the `FUJI_COMMAND_PACKET` type the shared device bases consume.
   Grep by directory, not by class name.
 - `SYSTEM_BUS` is the single bus instance, defined in `src/main.cpp`.
-- `theFuji` (a `fujiDevice *`) is set by each `lib/device/<bus>/<bus>Fuji.cpp`; `platformClock`
-  and `fnPrinters` are defined the same way per bus.
+- `SYSTEM_BUS.theFuji` (a `fujiDevice *`) is set by `src/main.cpp` through `setFuji()`. On sio,
+  iwm and drivewire it also sets `SYSTEM_BUS.platformFuji`, the same device under that
+  platform's own Fuji type. `platformClock` and `fnPrinters` are defined per bus in
+  `lib/device/<bus>/`.
 - Command IDs are one enum in [include/fujiCommandID.h](../include/fujiCommandID.h); values
   overlap across device families, so the target device gives a byte its meaning. Device IDs are
   in [include/fujiDeviceID.h](../include/fujiDeviceID.h), with a separate map for ADAM.

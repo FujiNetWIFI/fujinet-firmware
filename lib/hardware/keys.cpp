@@ -261,7 +261,7 @@ void KeyManager::_keystate_task(void *param)
 #endif //BLUETOOTH_SUPPORT
 #ifdef BUILD_MAC
             Debug_println("ACTION: Mount all disks");
-            theFuji->fujicore_mount_all_success();
+            SYSTEM_BUS.theFuji->fujicore_mount_all_success();
 #endif /* BUILD_MAC */
 
             break;
@@ -314,8 +314,8 @@ void KeyManager::_keystate_task(void *param)
 #endif /* BUILD_ADAM*/
 #ifdef BUILD_COCO
                 Debug_println("ACTION: Request image_rotate");
-                if (theFuji != nullptr)
-                    theFuji->fujicmd_image_rotate();
+                if (SYSTEM_BUS.theFuji != nullptr)
+                    SYSTEM_BUS.theFuji->fujicmd_image_rotate();
 #endif /* BUILD_COCO */
             }
             break;

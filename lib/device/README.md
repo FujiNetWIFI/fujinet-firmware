@@ -8,7 +8,7 @@ in [lib/bus/](../bus/) decides how bytes move, and [lib/media/](../media/) decod
 
 | File | Selects |
 |---|---|
-| `device.h` | the device headers for the active `BUILD_*` and the per-platform device globals (`sioR`, `sioZ`, `streamDev`, ...). It defines objects, so only `src/main.cpp` includes it |
+| `device.h` | the device headers for the active `BUILD_*`, the per-platform device globals (`sioR`, `sioZ`, `streamDev`, ...), and `PlatformFuji`, the Fuji class `src/main.cpp` makes and hands to `SYSTEM_BUS.setFuji()`. It defines objects, so only `src/main.cpp` includes it |
 | `disk.h` | `DISK_DEVICE`, the disk class embedded in every `fujiDisk` slot, and `disk_access_flags_t` |
 | `printer.h` | `PRINTER_CLASS` |
 | `modem.h`, `cassette.h`, `netstream.h`, `siocpm.h` | the matching device header per platform; `siocpm.h` is the CP/M switch for all platforms despite its name |
@@ -37,7 +37,7 @@ Every per-bus directory follows one layout:
 
 | File | Defines |
 |---|---|
-| `<bus>Fuji.h`, `.cpp` | the `fujiDevice` subclass; its `.cpp` defines `platformFuji` and points the global `theFuji` at it, unless `device.h` picks a per-board subclass (rs232) |
+| `<bus>Fuji.h`, `.cpp` | the `fujiDevice` subclass, or a per-board subclass of it (rs232), that `device.h` names as `PlatformFuji` |
 | `disk.h`, `.cpp` | the `DISK_DEVICE` class |
 | `<bus>Network.h`, `.cpp` | the `NDevice` subclass |
 | `<bus>Clock.h`, `.cpp` | the `fujiClock` subclass; defines the global `platformClock` |

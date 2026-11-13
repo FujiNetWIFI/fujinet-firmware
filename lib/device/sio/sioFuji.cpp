@@ -12,9 +12,6 @@ extern sioCPM sioZ;
 #define IMAGE_EXTENSION ".atr"
 #define LOBBY_URL       "tnfs://tnfs.fujinet.online/ATARI/_lobby.xex"
 
-sioFuji platformFuji;
-fujiDevice *theFuji = &platformFuji; // Global fuji object.
-
 #ifdef ESP_PLATFORM
 std::unique_ptr<sioNetwork, PSRAMDeleter<sioNetwork>> sioNetDevs[MAX_NETWORK_DEVICES];
 #else

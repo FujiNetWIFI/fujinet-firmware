@@ -14,8 +14,6 @@
 #define IMAGE_EXTENSION ".lnx"
 #define COPY_SIZE 532
 
-lynxFuji platformFuji;
-fujiDevice *theFuji = &platformFuji;        // global fuji device object
 lynxPrinter *thePrinter;                    // global printer
 
 #ifdef ESP_PLATFORM
@@ -147,7 +145,7 @@ void lynxFuji::setup()
     boot_config = false;
 
     // Add our devices to the bus
-    SYSTEM_BUS.addDevice(theFuji, FUJI_DEVICEID::FUJINET);   // Fuji becomes the gateway device.
+    SYSTEM_BUS.addDevice(SYSTEM_BUS.theFuji, FUJI_DEVICEID::FUJINET);   // Fuji becomes the gateway device.
 
     for (int i = 0; i < MAX_DISK_DEVICES; i++)
         SYSTEM_BUS.addDevice(&_fnDisks[i].disk_dev, (fujiDeviceID_t) (FUJI_DEVICEID::DISK + i));

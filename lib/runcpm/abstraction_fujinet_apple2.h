@@ -610,7 +610,7 @@ uint8_t bdos_readHostSlots(uint16_t addr)
         memset(hostSlots, 0, sizeof(hostSlots));
 
         for (int i = 0; i < 8; i++)
-                strlcpy(hostSlots[i], theFuji->get_host(i)->get_hostname(), 32);
+                strlcpy(hostSlots[i], SYSTEM_BUS.theFuji->get_host(i)->get_hostname(), 32);
 
         memset(&RAM[addr], 0, sizeof(hostSlots));
         memcpy(&RAM[addr], &hostSlots, sizeof(hostSlots));
@@ -630,9 +630,9 @@ uint8_t bdos_readDeviceSlots(uint16_t addr)
         // Load the data from our current device array
         for (int i = 0; i < MAX_A2DISK_DEVICES; i++)
         {
-                diskSlots[i].mode = theFuji->get_disk(i)->access_mode;
-                diskSlots[i].hostSlot = theFuji->get_disk(i)->host_slot;
-                strlcpy(diskSlots[i].filename, theFuji->get_disk(i)->filename, MAX_DISPLAY_FILENAME_LEN);
+                diskSlots[i].mode = SYSTEM_BUS.theFuji->get_disk(i)->access_mode;
+                diskSlots[i].hostSlot = SYSTEM_BUS.theFuji->get_disk(i)->host_slot;
+                strlcpy(diskSlots[i].filename, SYSTEM_BUS.theFuji->get_disk(i)->filename, MAX_DISPLAY_FILENAME_LEN);
         }
 
         // Transfer to Z80 RAM.

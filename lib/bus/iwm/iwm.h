@@ -167,6 +167,8 @@ public:
   IWMBusIDMap::busDeviceID_t id();
 };
 
+class iwmFuji;
+
 class systemBus : public SystemBusBase
 {
 private:
@@ -261,10 +263,13 @@ public:
   bool getShuttingDown() { return shuttingDown; };
   bool en35Host = false; // TRUE if we are connected to a host that supports the /EN35 signal
 
+  // theFuji under this platform's own type, so platform code needs no cast
+  iwmFuji *platformFuji = nullptr;
+  void setFuji(fujiDevice *fuji) override;
 };
 
 extern systemBus SYSTEM_BUS;
 
-#define IWM_ACTIVE_DISK2 ((iwmDisk2 *) theFuji->get_disk_dev(MAX_SPDISK_DEVICES + diskii_xface.iwm_active_drive() - 1))
+#define IWM_ACTIVE_DISK2 ((iwmDisk2 *) SYSTEM_BUS.theFuji->get_disk_dev(MAX_SPDISK_DEVICES + diskii_xface.iwm_active_drive() - 1))
 #endif // guard
 #endif /* BUILD_APPLE */

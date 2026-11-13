@@ -54,6 +54,4 @@ public:
     void rotate_disks();
 };
 
-extern drivewireFuji platformFuji;
-
 #endif // DRIVEWIREFUJI_H

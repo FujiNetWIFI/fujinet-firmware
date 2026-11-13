@@ -123,7 +123,7 @@ void iwmDisk::iwm_ctrl(const iwm_decoded_cmd_t &cmd)
     Debug_printf("Handling Eject command\r\n");
     unmount();
     switched = false; //force switched = false when ejected from host.
-    platformFuji.handle_ctl_eject(id());
+    SYSTEM_BUS.platformFuji->handle_ctl_eject(id());
     break;
   default:
     SYSTEM_BUS.transaction_error(SP_ERR::BADCTL);

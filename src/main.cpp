@@ -131,6 +131,9 @@ void main_setup()
 void main_setup(int argc, char *argv[])
 #endif
 {
+    // Before anything reaches the Fuji device through the bus
+    static PlatformFuji platformFuji;
+    SYSTEM_BUS.setFuji(&platformFuji);
 
     // program arguments
 #ifndef ESP_PLATFORM
@@ -263,8 +266,8 @@ void main_setup(int argc, char *argv[])
     // WiFi/BT auto connect moved to app_main()
 
 #ifdef BUILD_ATARI
-    theFuji->setup();
-    SYSTEM_BUS.addDevice(theFuji, FUJI_DEVICEID::FUJINET); // the FUJINET!
+    SYSTEM_BUS.theFuji->setup();
+    SYSTEM_BUS.addDevice(SYSTEM_BUS.theFuji, FUJI_DEVICEID::FUJINET); // the FUJINET!
 
     if (Config.get_apetime_enabled() == true)
         SYSTEM_BUS.addDevice(&platformClock, FUJI_DEVICEID::CLOCK); // APETime compatible, extended for additional return types
@@ -306,7 +309,7 @@ void main_setup(int argc, char *argv[])
 #endif // BUILD_ATARI
 
 #ifdef BUILD_COCO
-    theFuji->setup();
+    SYSTEM_BUS.theFuji->setup();
 
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
     drivewirePrinter::printer_type ptype = Config.get_printer_type(0);
@@ -327,20 +330,20 @@ void main_setup(int argc, char *argv[])
     // Setup IEC Bus
     SYSTEM_BUS.setup();
 
-    theFuji->setup();
+    SYSTEM_BUS.theFuji->setup();
     //sioR = new iecModem(ptrfs, Config.get_modem_sniffer_enabled());
 
 #endif // BUILD_IEC
 
 #ifdef BUILD_LYNX
-    theFuji->setup();
+    SYSTEM_BUS.theFuji->setup();
     SYSTEM_BUS.setup();
 #endif
 
 #ifdef BUILD_RS232
-    theFuji->setup();
+    SYSTEM_BUS.theFuji->setup();
     SYSTEM_BUS.setup();
-    SYSTEM_BUS.addDevice(theFuji, FUJI_DEVICEID::FUJINET);
+    SYSTEM_BUS.addDevice(SYSTEM_BUS.theFuji, FUJI_DEVICEID::FUJINET);
     SYSTEM_BUS.addDevice(&platformClock, FUJI_DEVICEID::CLOCK); // APETime compatible, extended for additional return types
 
     // Create a new printer object, setting its output depending on whether we have SD or not
@@ -381,7 +384,7 @@ void main_setup(int argc, char *argv[])
 #endif
 
 #ifdef BUILD_ADAM
-    theFuji->setup();
+    SYSTEM_BUS.theFuji->setup();
     SYSTEM_BUS.setup();
     fnSDFAT.create_path("/FujiNet");
 
@@ -425,7 +428,7 @@ void main_setup(int argc, char *argv[])
     fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
     SYSTEM_BUS.addDevice(ptr, FUJI_DEVICEID::PRINTER);
 
-    theFuji->setup();
+    SYSTEM_BUS.theFuji->setup();
     SYSTEM_BUS.setup(); // save device unit SP address somewhere and restore it after reboot?
 
 #endif /* BUILD_APPLE */
@@ -435,7 +438,7 @@ void main_setup(int argc, char *argv[])
 
     sioR = new macModem(ptrfs, Config.get_modem_sniffer_enabled());
     SYSTEM_BUS.setup();
-    theFuji->setup();
+    SYSTEM_BUS.theFuji->setup();
 
 #endif // BUILD_MAC
 
@@ -535,7 +538,7 @@ void fn_service_loop(void *param)
     // the setup and wifi has been started.
     //
     if (!Config.get_general_config_enabled() && Config.get_config_filename().empty())
-        theFuji->fujicore_mount_all_at_startup();
+        SYSTEM_BUS.theFuji->fujicore_mount_all_at_startup();
 
 #ifdef BUILD_ADAM
     // All devices registered and disks mounted: hand the AdamNet bus to its own

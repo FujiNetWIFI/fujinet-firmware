@@ -74,12 +74,12 @@ bool is_cassette(const string &filename)
 */
 string describe_slot(int device_slot)
 {
-    fujiDisk *disk = theFuji->get_disk(device_slot);
+    fujiDisk *disk = SYSTEM_BUS.theFuji->get_disk(device_slot);
 
     if (disk->host_slot == INVALID_HOST_SLOT)
         return "(Empty)";
 
-    string desc = util_html_escape(theFuji->get_host(disk->host_slot)->get_hostname());
+    string desc = util_html_escape(SYSTEM_BUS.theFuji->get_host(disk->host_slot)->get_hostname());
     desc += " :: ";
     desc += util_html_escape(disk->filename);
     desc += disk->access_mode == DISK_ACCESS_MODE_WRITE ? " (W)" : " (R)";
@@ -98,9 +98,9 @@ bool fnHttpBrowse::render_hostdir(int host_slot, const string &path, const strin
         return false;
     }
 
-    fujiHost *host = theFuji->get_host(host_slot);
+    fujiHost *host = SYSTEM_BUS.theFuji->get_host(host_slot);
 
-    theFuji->populate_slots_from_config();
+    SYSTEM_BUS.theFuji->populate_slots_from_config();
 
     // Open the directory before emitting anything, so a failure can still be
     // answered with the error page rather than a half-rendered listing.
@@ -192,7 +192,7 @@ fnHttpBrowse::slot_result fnHttpBrowse::render_slotpicker(int host_slot, const s
     emit("        <div class=\"fileflex\">\n"
          "            <div class=\"filechild\">\n"
          "               <header>SELECT DRIVE SLOT<span class=\"logowob\"></span>" +
-         util_html_escape(theFuji->get_host(host_slot)->get_hostname()) + " :: " +
+         util_html_escape(SYSTEM_BUS.theFuji->get_host(host_slot)->get_hostname()) + " :: " +
          util_html_escape(filename) +
          "</header>\n"
          "               <div class=\"abortline\"><a href=\"/\">ABORT</a></div>\n"
@@ -269,7 +269,7 @@ bool fnHttpBrowse::mount_file(const mount_params &params)
     if (!fnHTTPD.errMsgEmpty())
         return false;
 
-    if (!theFuji->get_host(params.host_slot)->mount())
+    if (!SYSTEM_BUS.theFuji->get_host(params.host_slot)->mount())
     {
         fnHTTPD.addToErrMsg("<li>Could not mount host slot " + to_string(params.host_slot) + "</li>");
         return false;
@@ -277,11 +277,11 @@ bool fnHttpBrowse::mount_file(const mount_params &params)
 
     disk_access_flags_t mode = params.mode == 2 ? DISK_ACCESS_MODE_WRITE : DISK_ACCESS_MODE_READ;
 
-    fujiDisk *disk = theFuji->get_disk(params.device_slot);
+    fujiDisk *disk = SYSTEM_BUS.theFuji->get_disk(params.device_slot);
     disk->host_slot = params.host_slot;
     strlcpy(disk->filename, params.filename.c_str(), sizeof(disk->filename));
 
-    if (!theFuji->fujicore_mount_disk_image_success(params.device_slot, mode))
+    if (!SYSTEM_BUS.theFuji->fujicore_mount_disk_image_success(params.device_slot, mode))
     {
         fnHTTPD.addToErrMsg("<li>Could not mount disk: " + util_html_escape(params.filename) + "</li>");
         return false;
@@ -291,7 +291,7 @@ bool fnHttpBrowse::mount_file(const mount_params &params)
                        mode == DISK_ACCESS_MODE_WRITE ? fnConfig::mount_modes::MOUNTMODE_WRITE
                                                       : fnConfig::mount_modes::MOUNTMODE_READ);
     Config.save();
-    theFuji->populate_slots_from_config(); // otherwise they don't show up in config.
+    SYSTEM_BUS.theFuji->populate_slots_from_config(); // otherwise they don't show up in config.
 
     return true;
 }
@@ -312,7 +312,7 @@ bool fnHttpBrowse::eject_slot(int device_slot)
 
     // get_disk_dev() is virtual - on Apple it maps the slot to the right
     // SmartPort/Disk ][ device rather than the fujiDisk's own member.
-    DISK_DEVICE *disk_dev = theFuji->get_disk_dev(device_slot);
+    DISK_DEVICE *disk_dev = SYSTEM_BUS.theFuji->get_disk_dev(device_slot);
 
 #ifdef BUILD_APPLE
     if (disk_dev->device_active) // set disk switched only if device was previously mounted.
@@ -322,18 +322,18 @@ bool fnHttpBrowse::eject_slot(int device_slot)
     disk_dev->unmount();
 
 #ifdef BUILD_ATARI
-    if (theFuji->get_disk(device_slot)->disk_type == MEDIATYPE_CAS ||
-        theFuji->get_disk(device_slot)->disk_type == MEDIATYPE_WAV)
+    if (SYSTEM_BUS.theFuji->get_disk(device_slot)->disk_type == MEDIATYPE_CAS ||
+        SYSTEM_BUS.theFuji->get_disk(device_slot)->disk_type == MEDIATYPE_WAV)
     {
-        platformFuji.cassette()->umount_cassette_file();
-        platformFuji.cassette()->sio_disable_cassette();
+        SYSTEM_BUS.platformFuji->cassette()->umount_cassette_file();
+        SYSTEM_BUS.platformFuji->cassette()->sio_disable_cassette();
     }
 #endif
 
-    theFuji->get_disk(device_slot)->reset();
+    SYSTEM_BUS.theFuji->get_disk(device_slot)->reset();
     Config.clear_mount(device_slot);
     Config.save();
-    theFuji->populate_slots_from_config(); // otherwise they don't show up in config.
+    SYSTEM_BUS.theFuji->populate_slots_from_config(); // otherwise they don't show up in config.
     disk_dev->device_active = false;
 
     // Finally, scan all device slots, if all empty, and config enabled, enable the config device.
@@ -342,7 +342,7 @@ bool fnHttpBrowse::eject_slot(int device_slot)
         bool all_empty = true;
         for (int i = 0; i < MAX_DISK_DEVICES; i++)
         {
-            if (theFuji->get_disk(i)->host_slot != INVALID_HOST_SLOT)
+            if (SYSTEM_BUS.theFuji->get_disk(i)->host_slot != INVALID_HOST_SLOT)
             {
                 all_empty = false;
                 break;
@@ -351,11 +351,11 @@ bool fnHttpBrowse::eject_slot(int device_slot)
 
         if (all_empty)
         {
-            theFuji->boot_config = true;
+            SYSTEM_BUS.theFuji->boot_config = true;
 #ifdef BUILD_ATARI
-            theFuji->status_wait_count = 5;
+            SYSTEM_BUS.theFuji->status_wait_count = 5;
 #endif
-            theFuji->device_active = true;
+            SYSTEM_BUS.theFuji->device_active = true;
         }
     }
 

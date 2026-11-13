@@ -1025,4 +1025,10 @@ void systemBus::shutdown()
   smartport.end_request_thread();
 #endif
 }
+void systemBus::setFuji(fujiDevice *fuji)
+{
+  SystemBusBase::setFuji(fuji);
+  platformFuji = static_cast<iwmFuji *>(theFuji);
+}
+
 #endif /* BUILD_APPLE */

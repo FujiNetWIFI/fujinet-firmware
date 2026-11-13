@@ -21,8 +21,8 @@ cartridge board.
 - `rs232Fuji` overrides `setup()`, `set_additional_direntry_details()`, `mount_media()` (to pass the
   host to the disk) and `appkey_read()`. `rs232Network` overrides `fujidev_set_query()`.
   `rs232Clock` overrides `fujidev_read_tz()` and `fujidev_alt_requested()`.
-- [lib/device/device.h](../device.h) defines `platformFuji`, an `h89Fuji` under `PINMAP_H89` and
-  an `rs232Fuji` otherwise, and points `theFuji` at it.
+- [lib/device/device.h](../device.h) makes `PlatformFuji` an `h89Fuji` under `PINMAP_H89` and an
+  `rs232Fuji` otherwise.
 - `src/main.cpp` adds the Fuji, clock, printer and modem devices.
 
 ## Build

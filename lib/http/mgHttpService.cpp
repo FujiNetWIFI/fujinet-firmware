@@ -1011,7 +1011,7 @@ int fnHttpService::get_handler_download(mg_connection *c, mg_http_message *hm)
         return -1;
     }
 
-    fujiHost *host = theFuji->get_host(hs);
+    fujiHost *host = SYSTEM_BUS.theFuji->get_host(hs);
 
     char fullpath[MAX_FILENAME_LEN];
     fnFile *fh = host->mount()
@@ -1046,7 +1046,7 @@ int fnHttpService::get_handler_swap(mg_connection *c, mg_http_message *hm)
 {
     // rotate disk images
     Debug_printf("Disk swap from webui\n");
-    theFuji->fujicmd_image_rotate();
+    SYSTEM_BUS.theFuji->fujicmd_image_rotate();
     return redirect_or_result(c, hm, 0);
 }
 
@@ -1061,7 +1061,7 @@ int fnHttpService::get_handler_mount(mg_connection *c, mg_http_message *hm)
     {
         // Mount all the things
         Debug_printf("Mount all from webui\n");
-        theFuji->fujicore_mount_all_success();
+        SYSTEM_BUS.theFuji->fujicore_mount_all_success();
         return redirect_or_result(c, hm, 0);
     }
 
@@ -1106,7 +1106,7 @@ int fnHttpService::get_handler_hosts(mg_connection *c, mg_http_message *hm)
 {
     std::string response = "";
     for (int hs = 0; hs < 8; hs++) {
-        response += std::string(theFuji->get_host(hs)->get_hostname()) + "\n";
+        response += std::string(SYSTEM_BUS.theFuji->get_host(hs)->get_hostname()) + "\n";
     }
     mg_http_reply(c, 200, "", "%s", response.c_str());
     return 0;
@@ -1119,11 +1119,11 @@ int fnHttpService::post_handler_hosts(mg_connection *c, mg_http_message *hm)
     char hostname[256] = "";
     mg_http_get_var(&hm->query, "hostname", hostname, sizeof(hostname));
 
-    theFuji->set_slot_hostname(atoi(hostslot), hostname);
+    SYSTEM_BUS.theFuji->set_slot_hostname(atoi(hostslot), hostname);
 
     std::string response = "";
     for (int hs = 0; hs < 8; hs++) {
-        response += std::string(theFuji->get_host(hs)->get_hostname()) + "\n";
+        response += std::string(SYSTEM_BUS.theFuji->get_host(hs)->get_hostname()) + "\n";
     }
     mg_http_reply(c, 200, "", "%s", response.c_str());
     return 0;

@@ -8,9 +8,6 @@
 #define IMAGE_EXTENSION ".dsk"
 #define LOBBY_URL       "tnfs://tnfs.fujinet.online/COCO/lobby.dsk"
 
-drivewireFuji platformFuji;
-fujiDevice *theFuji = &platformFuji; // Global fuji object.
-
 NDevice drivewireNetDevs[MAX_NETWORK_DEVICES];
 
 /**
@@ -110,7 +107,7 @@ void drivewireFuji::shutdown()
 // Initializes base settings and adds our devices to the DRIVEWIRE bus
 void drivewireFuji::setup()
 {
-    Debug_printf("theFuji->setup()\n");
+    Debug_printf("SYSTEM_BUS.theFuji->setup()\n");
     // set up Fuji device
 
     populate_slots_from_config();

@@ -312,6 +312,4 @@ public:
     void insert_boot_device(std::string boot_img, mediatype_t disk_type, DISK_DEVICE *disk_dev);
 };
 
-extern fujiDevice *theFuji;
-
 #endif // FUJIDEVICE_H

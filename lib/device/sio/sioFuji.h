@@ -61,6 +61,4 @@ public:
     }
 };
 
-extern sioFuji platformFuji;
-
 #endif // SIOFUJI_H

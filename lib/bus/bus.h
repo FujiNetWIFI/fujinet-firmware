@@ -26,6 +26,8 @@ typedef enum class TRANS_STATE {
     DID_GET,
 } transState_t;
 
+class fujiDevice;
+
 /**
  * Defines the transaction contract between devices and a system bus.
  *
@@ -47,6 +49,11 @@ protected:
     DaisyChain _daisyChain;
 
 public:
+    // The platform's Fuji device, set once from main() through setFuji()
+    fujiDevice *theFuji = nullptr;
+    // A bus whose code needs its own Fuji type overrides this to keep it in platformFuji too
+    virtual void setFuji(fujiDevice *fuji) { theFuji = fuji; }
+
     virtual void addDevice(virtualDevice *device, fujiDeviceID_t deviceType) {
         _daisyChain.addDevice(device, deviceType);
     }

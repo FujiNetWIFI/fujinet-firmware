@@ -5,7 +5,7 @@ The Macintosh 68k device set for `BUILD_MAC`. ESP32 only.
 ## Layout
 | File | Defines |
 |---|---|
-| `macFuji.h`, `macFuji.cpp` | `macFuji : fujiDevice` (`.dsk` images); defines `platformFuji` and sets `theFuji`; `process()` is empty because no Fuji commands reach this bus |
+| `macFuji.h`, `macFuji.cpp` | `macFuji : fujiDevice` (`.dsk` images); `process()` is empty because no Fuji commands reach this bus |
 | `floppy.h`, `floppy.cpp` | `macFloppy`, the `DISK_DEVICE`: one Mac disk slot that behaves as an HD20 (DCD) hard disk in the DCD slots or as the 800K GCR floppy in the floppy slot, and can mount a StuffIt archive through `SitMount` |
 | `modem.h`, `modem.cpp` | `macModem : macDevice` |
 | `printer.h`, `printer.cpp`, `printerlist.h`, `printerlist.cpp` | `macPrinter : macDevice` and `printerlist`; defines `fnPrinters` |

@@ -6,7 +6,7 @@ built on the shared bases in [lib/device/](../).
 ## Layout
 | File | Defines |
 |---|---|
-| `sioFuji.h`, `sioFuji.cpp` | `sioFuji : fujiDevice` (`.atr` images, Atari lobby); defines `platformFuji` and sets `theFuji`; owns the cassette and netstream devices and the `sioNetwork` instances; `setup()` registers the disks, networks, cassette, CP/M and MIDI devices on the bus |
+| `sioFuji.h`, `sioFuji.cpp` | `sioFuji : fujiDevice` (`.atr` images, Atari lobby); owns the cassette and netstream devices and the `sioNetwork` instances; `setup()` registers the disks, networks, cassette, CP/M and MIDI devices on the bus |
 | `disk.h`, `disk.cpp` | `sioDisk`, the `DISK_DEVICE`; `mount()` routes CAS and WAV files to the cassette and otherwise picks `MediaTypeATR`, `MediaTypeATX` or `MediaTypeXEX` |
 | `sioNetwork.h`, `sioNetwork.cpp` | `sioNetwork : NDevice` |
 | `sioClock.h`, `sioClock.cpp` | `sioClock : fujiClock`; defines `platformClock` |

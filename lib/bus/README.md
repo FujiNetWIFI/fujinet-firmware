@@ -19,6 +19,7 @@ payload and ends the transaction exactly once.
 | `nativeTextToUnicode`, `unicodeTextToNative`, `busEOL` | character-set hooks a bus overrides (PETSCII, CRLF) |
 | `nativeEOL` | the board's `FUJI_EOL` build flag if non-empty, else `busEOL()` |
 | `addDevice`, `fujiIDForDevice`, `assignFujiIDToDevice`, `setDeviceEnabled`, `rotateDevices` | the device registry, backed by a `DaisyChain` |
+| `theFuji`, `setFuji(fujiDevice *)` | the platform's Fuji device; sio, iwm and drivewire, whose code needs their own Fuji's members, override `setFuji()` to also keep it in a `platformFuji` of that type |
 | `writeFujiBusPacket`, `readFujiBusPacket`, `sendCommand` | `FujiBusPacket` frames: rs232 and fujiversal drivewire (to its companion MCU at `FUJI_DEVICEID::DBC`) override the first two, every other bus fails them; `sendCommand()` writes one and returns the reply |
 
 Command flow: hardware or a bus-over-IP socket → `systemBus::service()` → look the device ID up

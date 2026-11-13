@@ -14,9 +14,6 @@
 
 #define IMAGE_EXTENSION ".dsk"
 
-macFuji platformFuji;
-fujiDevice *theFuji = &platformFuji; // Global fuji object.
-
 macFuji::macFuji() : fujiDevice(MAX_DISK_DEVICES, IMAGE_EXTENSION, std::nullopt)
 {
     Debug_printf("Announcing the MacFuji!!!\n");

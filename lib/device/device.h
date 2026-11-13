@@ -14,6 +14,7 @@
 # include "sio/siocpm.h"
 # include "sio/voice.h"
 # include "sio/sioFuji.h"
+    using PlatformFuji = sioFuji;
 
     sioVoice sioV;
     // sioCassette sioC; // now part of sioFuji theFuji object
@@ -30,6 +31,7 @@
 # include "drivewire/printer.h"
 # include "drivewire/printerlist.h"
 # include "drivewire/drivewireFuji.h"
+    using PlatformFuji = drivewireFuji;
 
     drivewireModem *sioR;
 #endif
@@ -45,11 +47,10 @@
 # include "rs232/rs232Fuji.h"
 # ifdef PINMAP_H89
 #  include "rs232/h89Fuji.h"
-    h89Fuji platformFuji;
+    using PlatformFuji = h89Fuji;
 # else
-    rs232Fuji platformFuji;
+    using PlatformFuji = rs232Fuji;
 # endif
-    fujiDevice *theFuji = &platformFuji;
 
     rs232Modem *sioR;
     rs232CPM sioZ;
@@ -64,6 +65,7 @@
 # include "iec/printer.h"
 # include "iec/printerlist.h"
 # include "iec/iecFuji.h"
+    using PlatformFuji = iecFuji;
 
     iecModem *sioR;
 #endif
@@ -74,6 +76,7 @@
 # include "adamnet/printer.h"
 # include "adamnet/printerlist.h"
 # include "adamnet/adamFuji.h"
+    using PlatformFuji = adamFuji;
 
 //# define NO_VIRTUAL_KEYBOARD
     adamKeyboard *sioK;
@@ -86,6 +89,7 @@
 # include "comlynx/printerlist.h"
 # include "comlynx/lynxFuji.h"
 # include "comlynx/netstream.h"
+    using PlatformFuji = lynxFuji;
 
 //lynxModem *sioR;
 lynxNetStream streamDev;
@@ -97,6 +101,7 @@ lynxNetStream streamDev;
 # include "iwm/modem.h"
 # include "iwm/printer.h"
 # include "iwm/printerlist.h"
+    using PlatformFuji = iwmFuji;
     iwmModem *sioR;
 #endif
 
@@ -106,6 +111,7 @@ lynxNetStream streamDev;
 #include "mac/modem.h"
 #include "mac/printer.h"
 #include "mac/printerlist.h"
+    using PlatformFuji = macFuji;
     macModem *sioR;
 #endif
 
