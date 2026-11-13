@@ -233,9 +233,13 @@ void systemBus::op_readex()
                 }
             }
         }
-        // send zeros on error
+        // Send zeros on error, from our own buffer: the media's holds its cached block
         if (rc != DISK_CTRL_STATUS_CLEAR)
+        {
+            blk_buffer = sector_data;
+            blk_size = MEDIA_BLOCK_SIZE;
             memset(blk_buffer, 0x00, blk_size);
+        }
     }
     // send sector data
     _port->write(blk_buffer, blk_size);
