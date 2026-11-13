@@ -47,7 +47,7 @@ fnFile *fujiHost::fnfile_open(const char *path, char *, int, const char *)
     auto found = host_files.files.find(path);
     if (found == host_files.files.end())
         return nullptr;
-    host_files.opened.push_back(std::make_unique<MemFile>(found->second));
+    host_files.opened.push_back(MemFile::sharing(found->second));
     return host_files.opened.back().get();
 }
 
