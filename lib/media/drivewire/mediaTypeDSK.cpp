@@ -60,6 +60,13 @@ error_is_true MediaTypeDSK::write(uint32_t blockNum, bool verify)
 {
     // Debug_printf("DSK WRITE\n", blockNum, _media_num_blocks);
 
+    if (blockNum >= _media_num_blocks)
+    {
+        Debug_printf("::write block %lu >= %lu\n", blockNum, _media_num_blocks);
+        _media_controller_status = 2;
+        RETURN_ERROR_AS_TRUE();
+    }
+
     fnFile *hsFileh = nullptr;
     fnFile *oldFileh = nullptr;
 
