@@ -43,7 +43,7 @@
  * ------------------------------------------------------------------------- */
 static void _cpm_run(void)
 {
-    while (true)
+    while (!_cpm_stop_requested)
     {
         Status = Debug = 0;
         Break = Step = -1;
@@ -68,8 +68,10 @@ static void _cpm_run(void)
         free(RAM);
         RAM = nullptr;
 
-        /* Status == 1: clean exit requested — stop looping */
-        if (Status == 1)
+        /* Status == 1: clean exit requested — stop looping. A CTRL-C at the
+         * prompt turns Status into 2 (warm boot), so a close is carried by
+         * _cpm_stop_requested as well. */
+        if (Status == 1 || _cpm_stop_requested)
             break;
         /* Status == 2: warm-boot — re-enter the CCP loop */
     }
@@ -82,9 +84,13 @@ static void _cpm_run(void)
 static void _cpm_task_entry(void *arg)
 {
     _cpm_run();
+    xSemaphoreGive(_cpm_exited);
     vTaskDelete(nullptr);
 }
 #endif
+
+/* How long close() waits for the CP/M task to leave */
+#define CPM_STOP_TIMEOUT_MS 2000
 
 /* =========================================================================
  * NetworkProtocolCPM implementation
@@ -115,11 +121,13 @@ fujiError_t NetworkProtocolCPM::open(PeoplesUrlParser *urlParser,
         stopCPM();
 
     _cpm_session_ended = false;
+    _cpm_stop_requested = false;
 
 #ifdef ESP_PLATFORM
     _cpm_rxq = xQueueCreate(2048, sizeof(uint8_t));
     _cpm_txq = xQueueCreate(2048, sizeof(uint8_t));
-    if (_cpm_rxq == nullptr || _cpm_txq == nullptr
+    _cpm_exited = xSemaphoreCreateBinary();
+    if (_cpm_rxq == nullptr || _cpm_txq == nullptr || _cpm_exited == nullptr
         || xTaskCreatePinnedToCore(_cpm_task_entry,
                                    "cpmnet",
 #ifdef BUILD_APPLE
@@ -137,11 +145,19 @@ fujiError_t NetworkProtocolCPM::open(PeoplesUrlParser *urlParser,
                      esp_get_free_internal_heap_size(), esp_get_free_heap_size());
         if (_cpm_rxq != nullptr) { vQueueDelete(_cpm_rxq); _cpm_rxq = nullptr; }
         if (_cpm_txq != nullptr) { vQueueDelete(_cpm_txq); _cpm_txq = nullptr; }
+        if (_cpm_exited != nullptr) { vSemaphoreDelete(_cpm_exited); _cpm_exited = nullptr; }
         cpmTaskHandle = nullptr;
         error = NDEV_STATUS::GENERAL;
         return FUJI_ERROR::UNSPECIFIED;
     }
 #else
+    {
+        /* nothing from the last session may reach this one */
+        std::lock_guard<std::mutex> rxlock(_cpm_rxmtx);
+        std::lock_guard<std::mutex> txlock(_cpm_txmtx);
+        _cpm_rxq = std::queue<uint8_t>();
+        _cpm_txq = std::queue<uint8_t>();
+    }
     cpmStopped.store(false);
     cpmThread = std::thread(_cpm_run);
 #endif
@@ -165,25 +181,32 @@ void NetworkProtocolCPM::stopCPM()
     if (!running) return;
     running = false;
 
-    /* Signal the CCP to stop re-booting */
+    /* Signal the CCP to stop re-booting. Status ends a running program; the
+     * flag survives the CCP turning a CTRL-C into a warm boot. */
+    _cpm_stop_requested = true;
     Status = 1;
 
-    /* Unblock any _getch() call waiting for user input */
-    uint8_t sentinel = 0x03;  // CTRL-C
 #ifdef ESP_PLATFORM
-    if (_cpm_txq != nullptr)
-        xQueueSend(_cpm_txq, &sentinel, pdMS_TO_TICKS(200));
-
-    /* Give the FreeRTOS task time to notice Status==1 and self-delete */
-    vTaskDelay(pdMS_TO_TICKS(300));
-
-    if (_cpm_rxq != nullptr) { vQueueDelete(_cpm_rxq); _cpm_rxq = nullptr; }
-    if (_cpm_txq != nullptr) { vQueueDelete(_cpm_txq); _cpm_txq = nullptr; }
+    /* The task wakes within one queue slice, sees the flag and gives the
+     * semaphore as its last act. */
+    if (xSemaphoreTake(_cpm_exited, pdMS_TO_TICKS(CPM_STOP_TIMEOUT_MS)) == pdTRUE)
+    {
+        vQueueDelete(_cpm_rxq);
+        vQueueDelete(_cpm_txq);
+        vSemaphoreDelete(_cpm_exited);
+        _cpm_rxq = nullptr;
+        _cpm_txq = nullptr;
+        _cpm_exited = nullptr;
+    }
+    else
+    {
+        /* Better to leak than to free queues under a live task. */
+        Debug_printv("CP/M task did not stop within %d ms", CPM_STOP_TIMEOUT_MS);
+    }
     cpmTaskHandle = nullptr;
 #else
     {
         std::lock_guard<std::mutex> lk(_cpm_txmtx);
-        _cpm_txq.push(sentinel);
         _cpm_txcv.notify_all();
     }
     if (cpmThread.joinable())
