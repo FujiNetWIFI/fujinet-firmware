@@ -36,6 +36,7 @@
 #endif
 
 #include "fnSystem.h"
+#include "httpUserAgent.h"
 #include "utils.h"
 #include "mgHttpClient.h"
 
@@ -449,6 +450,10 @@ void mgHttpClient::send_request(struct mg_connection *c)
                             "Host: %.*s\r\n"
                             "Connection: %s\r\n",
                             method_str, mg_url_uri(url), (int)host.len, host.buf, conn_hdr);
+
+            // A caller-supplied User-Agent goes out with the custom headers below
+            if (_request_headers.find("User-Agent") == _request_headers.end())
+                mg_printf(c, "User-Agent: %s\r\n", http_user_agent());
 
             // send auth header
             if (!_username.empty())
