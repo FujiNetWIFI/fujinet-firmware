@@ -19,10 +19,14 @@ enum fnQueryFlags_t {
 
     // Bits 4-5: how a queried value is post-processed before it is returned.
     // VERBATIM is 0, so a client that sends no output mode keeps the historical
-    // behavior exactly. 0x20 and 0x30 are reserved.
+    // behavior exactly. 0x30 is reserved.
     FN_QUERY_OUTPUT_MASK     = 0x30,
     FN_QUERY_OUTPUT_VERBATIM = 0x00, // bytes exactly as the document had them
     FN_QUERY_OUTPUT_ASCII    = 0x10, // decode entities, transliterate, strip non-ASCII
+    FN_QUERY_OUTPUT_TEXT     = 0x20, // render the value as HTML into word-wrapped plain ASCII
+                                     // text (lib/fnpretty fn_render_html_text); lines are
+                                     // separated by the parser's EOL, wrapped to the parser's text width
+                                     // (NET_SET_PARAMETER param 2, default 40); links not rendered
 };
 
 // True for a query param a client may legally send.
@@ -32,7 +36,8 @@ static inline bool fn_query_param_is_valid(uint8_t qp)
         return false;
 
     uint8_t out = qp & FN_QUERY_OUTPUT_MASK;
-    return out == FN_QUERY_OUTPUT_VERBATIM || out == FN_QUERY_OUTPUT_ASCII;
+    return out == FN_QUERY_OUTPUT_VERBATIM || out == FN_QUERY_OUTPUT_ASCII ||
+           out == FN_QUERY_OUTPUT_TEXT;
 }
 
 #endif /* FN_QUERY_FLAGS_H */

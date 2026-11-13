@@ -70,3 +70,21 @@ error_is_true NParser::setLineEnding(const std::string &eol)
     _protocol->setLineEnding(eol);
     RETURN_SUCCESS_AS_FALSE();
 }
+
+error_is_true NParser::setTextWidth(uint8_t width)
+{
+    // A plain pass-through channel has no text to wrap.
+    RETURN_ERROR_AS_TRUE();
+}
+
+error_is_true NParser::setRenderLinks(bool on)
+{
+    // Only the PRETTY renderer numbers links.
+    RETURN_ERROR_AS_TRUE();
+}
+
+error_is_true NParser::setNativeGraphics(bool on)
+{
+    // Only PRETTY has a mode for this; other parsers use query flag 0x08.
+    RETURN_ERROR_AS_TRUE();
+}

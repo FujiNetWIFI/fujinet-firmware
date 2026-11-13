@@ -18,6 +18,7 @@
 #include <string>
 
 #include "../fntext/fn_query_flags.h"
+#include "../fnpretty/fnpretty.h"
 #include "../network-protocol/Protocol.h"
 
 namespace tinyxml2 { class XMLDocument; class XMLElement; }
@@ -44,13 +45,21 @@ public:
     std::string processString(std::string in);
     void setQueryParam(uint8_t qp);
     uint8_t queryParam() const { return _queryParam; }
+    // Wrap width in columns for FN_QUERY_OUTPUT_TEXT; 0 = default (40).
+    void setTextWidth(uint8_t width) { _textWidth = width; }
+    uint8_t textWidth() const { return _textWidth; }
     size_t available() { return _xml_bytes_remaining; }
+    // The last query's match as it is in the document (entities and CDATA already
+    // resolved by tinyxml2), with no output mode or remapping. False if no query
+    // has been made since parse(); empty if it matched nothing.
+    bool rawValue(std::string &out);
 
 private:
     tinyxml2::XMLDocument *_doc = nullptr;
     NetworkProtocol *_protocol = nullptr;
     std::string _queryString;
     uint8_t _queryParam = 0;
+    uint8_t _textWidth = 0;
     std::string lineEnding;
     std::string _parseBuffer;
 
@@ -58,6 +67,7 @@ private:
     // next match; a different path (or a fresh parse) restarts at the first.
     std::string _lastQuery;
     size_t _matchIndex = 0;
+    bool _hasQuery = false;
 
     // Result of the last resolved query, plus how many of its bytes are still
     // to be handed to the client.

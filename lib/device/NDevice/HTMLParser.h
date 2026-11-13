@@ -1,27 +1,29 @@
 #ifndef HTMLPARSER_H
 #define HTMLPARSER_H
 
-#include "NParser.h"
+#include "QueryParser.h"
 #include "fnhtml.h" // FIXME - move all that in here
 
-class HTMLParser : public NParser
+class HTMLParser : public QueryParser
 {
 protected:
     FNHTML _html;
 
+    void runQuery(const std::string &query, std::string &out) override;
+
 public:
-    HTMLParser(NetworkProtocol *protocol) : NParser(protocol) {
+    HTMLParser(NetworkProtocol *protocol) : QueryParser(protocol) {
         _html.setLineEnding(SYSTEM_BUS.nativeEOL());
         _html.setProtocol(_protocol);
     }
 
-    fujiError_t write(std::string &buffer) override;
-    off_t seek(off_t offset, int whence) override;
-
-    error_is_true setQuery(const std::string &query) override;
     error_is_true parse() override;
     error_is_true setQueryParam(uint8_t param) override;
     error_is_true setLineEnding(const std::string &eol) override;
+    error_is_true setTextWidth(uint8_t width) override { _html.setTextWidth(width); RETURN_SUCCESS_AS_FALSE(); }
+
+    parserMode_t mode() const override { return PARSER::HTML; }
+    bool rawValue(std::string &out) override { return _html.rawValue(out); }
 };
 
 #endif /* HTMLPARSER_H */

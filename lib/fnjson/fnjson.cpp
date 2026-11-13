@@ -8,6 +8,7 @@
 #include "fnjson.h"
 
 #include "../fntext/fn_sanitize.h"
+#include "../fnpretty/fn_render_text.h"
 
 #include <string.h>
 #include <cctype>
@@ -111,6 +112,7 @@ void FNJSON::setReadQuery(const std::string &queryString, uint8_t queryParam)
 #endif
     _queryString = queryString;
     _queryParam = queryParam;
+    _hasQuery = true;
     _item = resolveQuery();
     _json_bytes_remaining = readValueLen();
 }
@@ -131,6 +133,11 @@ cJSON *FNJSON::resolveQuery()
  */
 std::string FNJSON::processString(std::string in)
 {
+    // TEXT interprets the markup, so it must see the tags (and runs before the
+    // DELETE_SGML_TAGS strip below, which would otherwise leave only bare text).
+    if ((_queryParam & FN_QUERY_OUTPUT_MASK) == FN_QUERY_OUTPUT_TEXT)
+        return fn_render_html_text(in, _textWidth, lineEnding);
+
     if (_queryParam & JSON_DELETE_SGML_TAGS)
     {
         size_t startpos = 0;
@@ -221,7 +228,12 @@ std::string FNJSON::getValue(cJSON *item)
 #ifdef VERBOSE_PROTOCOL
         Debug_printf("S: [cJSON_IsString] ... (not printing)\r\n");
 #endif
-        ss << processString(strValue + lineEnding);
+        // TEXT output is a rendered block: the line ending goes after it,
+        // not through the renderer as if it were page text.
+        if ((_queryParam & FN_QUERY_OUTPUT_MASK) == FN_QUERY_OUTPUT_TEXT)
+            ss << processString(strValue) + lineEnding;
+        else
+            ss << processString(strValue + lineEnding);
     }
     else if (cJSON_IsBool(item))
     {
@@ -318,6 +330,30 @@ bool FNJSON::readValue(uint8_t *rx_buf, unsigned short len)
 }
 
 /**
+ * The last query's item as it is in the document: a string's value, otherwise
+ * the item's normal text. No output mode or remapping.
+ */
+bool FNJSON::rawValue(std::string &out)
+{
+    out.clear();
+    if (!_hasQuery)
+        return false;
+    if (_item == nullptr)
+        return true;
+    if (cJSON_IsString(_item))
+    {
+        out = cJSON_GetStringValue(_item);
+        return true;
+    }
+
+    uint8_t saved = _queryParam;
+    _queryParam = 0;
+    out = getValue(_item);
+    _queryParam = saved;
+    return true;
+}
+
+/**
  * Return requested value length
  */
 int FNJSON::readValueLen()
@@ -334,6 +370,10 @@ int FNJSON::readValueLen()
 bool FNJSON::parse()
 {
     NetworkStatus ns;
+
+    // A new document invalidates the last query and its item.
+    _item = nullptr;
+    _hasQuery = false;
 
     if (_json != nullptr)
     {

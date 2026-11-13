@@ -150,6 +150,7 @@ public:
         PETSCII_Lower,
         PETSCII_Graphics,
         ATASCII,
+        APPLE2,     // ASCII, plus MouseText on an enhanced //e and later
         CP437,
         MSX_International,
         MSX_Japanese,
@@ -172,6 +173,7 @@ public:
         return busEOL();
     }
     virtual std::string busEOL() { return "\r"; }
+    virtual NativeEncoding nativeEncoding() { return NativeEncoding::ASCII; }
 
     // FujiBus framing, on buses that carry it (rs232, and DriveWire's link to
     // its companion MCU at FUJI_DEVICEID::DBC). Other buses keep these defaults.

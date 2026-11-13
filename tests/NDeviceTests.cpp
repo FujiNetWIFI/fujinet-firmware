@@ -3,6 +3,7 @@
 
 #include "NDevice/NDevice.h"
 #include "NDevice/NParser.h"
+#include "NDevice/PrettyParser.h"
 #include "sioNetworkStubs.h"
 #include "fn_query_flags.h"
 
@@ -168,4 +169,115 @@ TEST_CASE("the JSON, HTML and XML parsers end values in the Atari's $9B (#2334)"
     CHECK(eol_given_to(PARSER::JSON) == "\x9b");
     CHECK(eol_given_to(PARSER::HTML) == "\x9b");
     CHECK(eol_given_to(PARSER::XML) == "\x9b");
+}
+
+// --------------------------------------------------------------------------------
+// NET_SET_PARSER modes
+// --------------------------------------------------------------------------------
+
+TEST_CASE("the parser modes match fujinet-lib's, with PRETTY as 4")
+{
+    CHECK(static_cast<uint8_t>(PARSER::NONE) == 0);
+    CHECK(static_cast<uint8_t>(PARSER::JSON) == 1);
+    CHECK(static_cast<uint8_t>(PARSER::HTML) == 2);
+    CHECK(static_cast<uint8_t>(PARSER::XML) == 3);
+    CHECK(static_cast<uint8_t>(PARSER::PRETTY) == 4);
+}
+
+TEST_CASE("PRETTY is a settable parser mode and 5 is not")
+{
+    TestableNDevice dev;
+
+    CHECK(dev.fujicore_set_parser(PARSER::PRETTY).is_success());
+    CHECK(dynamic_cast<PrettyParser *>(dev._parser.get()) != nullptr);
+
+    CHECK(dev.fujicore_set_parser(static_cast<parserMode_t>(5)).is_error());
+}
+
+TEST_CASE("a plain channel has no text width to set")
+{
+    TestableNDevice dev;
+
+    REQUIRE(dev.fujicore_set_parser(PARSER::NONE).is_success());
+    CHECK(dev._parser->setTextWidth(32).is_error());
+}
+
+TEST_CASE("a plain channel rejects PRETTY-only render options")
+{
+    TestableNDevice dev;
+
+    REQUIRE(dev.fujicore_set_parser(PARSER::NONE).is_success());
+    CHECK(dev._parser->setRenderLinks(true).is_error());
+    CHECK(dev._parser->setNativeGraphics(true).is_error());
+}
+
+// --------------------------------------------------------------------------------
+// PRETTY over a query parser's value, and back
+// --------------------------------------------------------------------------------
+
+// A query parser stand-in: the mode it reports and whether it has a query.
+class FakeQueryParser : public NParser
+{
+public:
+    parserMode_t _mode;
+    bool _hasQuery;
+
+    FakeQueryParser(parserMode_t mode, bool hasQuery) : NParser(nullptr), _mode(mode), _hasQuery(hasQuery) {}
+    parserMode_t mode() const override { return _mode; }
+    bool rawValue(std::string &out) override { out = "value"; return _hasQuery; }
+};
+
+class BufferedProtocol : public NetworkProtocol
+{
+public:
+    std::string rx, tx, sp;
+    BufferedProtocol() : NetworkProtocol(&rx, &tx, &sp) { receiveBuffer = &rx; }
+    size_t available() override { return 0; }
+};
+
+TEST_CASE("PRETTY after a query takes over that parser and clears the receive buffer")
+{
+    TestableNDevice dev;
+    auto proto = std::make_unique<BufferedProtocol>();
+    BufferedProtocol *p = proto.get();
+    dev._protocol = std::move(proto);
+    p->rx = "unread";
+    dev._parser = std::make_unique<FakeQueryParser>(PARSER::XML, true);
+    NParser *query = dev._parser.get();
+
+    REQUIRE(dev.fujicore_set_parser(PARSER::PRETTY).is_success());
+    CHECK(dev._parser->mode() == PARSER::PRETTY);
+    CHECK(dev._parser->savedParser() == query);
+    CHECK(p->rx.empty());
+
+    // Asking for the saved parser's mode puts it back.
+    REQUIRE(dev.fujicore_set_parser(PARSER::XML).is_success());
+    CHECK(dev._parser.get() == query);
+}
+
+TEST_CASE("leaving value mode for another mode builds a fresh parser")
+{
+    TestableNDevice dev;
+    dev._protocol = std::make_unique<BufferedProtocol>();
+    dev._parser = std::make_unique<FakeQueryParser>(PARSER::XML, true);
+    REQUIRE(dev.fujicore_set_parser(PARSER::PRETTY).is_success());
+
+    REQUIRE(dev.fujicore_set_parser(PARSER::JSON).is_success());
+    CHECK(dev._parser->mode() == PARSER::JSON);
+    CHECK(dev._parser->savedParser() == nullptr);
+}
+
+TEST_CASE("PRETTY with no query yet, or no query parser, is a fresh page parser")
+{
+    TestableNDevice dev;
+    dev._protocol = std::make_unique<BufferedProtocol>();
+
+    dev._parser = std::make_unique<FakeQueryParser>(PARSER::XML, false);
+    REQUIRE(dev.fujicore_set_parser(PARSER::PRETTY).is_success());
+    CHECK(dev._parser->mode() == PARSER::PRETTY);
+    CHECK(dev._parser->savedParser() == nullptr);
+
+    dev._parser = std::make_unique<NParser>(dev._protocol.get());
+    REQUIRE(dev.fujicore_set_parser(PARSER::PRETTY).is_success());
+    CHECK(dev._parser->savedParser() == nullptr);
 }

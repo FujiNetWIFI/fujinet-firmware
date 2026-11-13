@@ -61,6 +61,10 @@ class CNode
 
 		CSelection find(std::string aSelector);
 
+		// FujiNet: expose the raw Gumbo node so callers that need direct tree
+		// access (e.g. FNPretty's layout walk) don't have to duplicate it.
+		GumboNode* node() const { return mpNode; }
+
 	private:
 
 		GumboNode* mpNode;

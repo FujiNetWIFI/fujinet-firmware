@@ -5,6 +5,7 @@
 #include "fnxml.h"
 
 #include "../fntext/fn_sanitize.h"
+#include "../fnpretty/fn_render_text.h"
 
 #include <string.h>
 #include <vector>
@@ -91,6 +92,7 @@ void FNXML::setReadQuery(const std::string &queryString, uint8_t queryParam)
     }
     _queryString = queryString;
     _queryParam = queryParam;
+    _hasQuery = true;
     resolveQuery();
     _xml_bytes_remaining = readValueLen();
 }
@@ -108,6 +110,15 @@ void FNXML::resolveQuery()
         _value = processString(v) + lineEnding;
 }
 
+bool FNXML::rawValue(std::string &out)
+{
+    out.clear();
+    if (!_hasQuery)
+        return false;
+    fnxml_resolve_query(_doc, _queryString, _matchIndex, out);
+    return true;
+}
+
 /**
  * Character remapping for target platforms (mirrors FNHTML).
  */
@@ -118,6 +129,11 @@ std::string FNXML::processString(std::string in)
     // to do, so the two are alternatives rather than a pipeline.
     if ((_queryParam & FN_QUERY_OUTPUT_MASK) == FN_QUERY_OUTPUT_ASCII)
         return fn_sanitize_ascii(in);
+
+    // TEXT renders the value as HTML into wrapped ASCII; the caller appends
+    // the line ending after it.
+    if ((_queryParam & FN_QUERY_OUTPUT_MASK) == FN_QUERY_OUTPUT_TEXT)
+        return fn_render_html_text(in, _textWidth, lineEnding);
 
 #ifdef BUILD_ATARI
     if (_queryParam & XML_REMAP_CHARS)
@@ -234,6 +250,7 @@ bool FNXML::parse()
     // Fresh document -> restart match iteration.
     _lastQuery.clear();
     _matchIndex = 0;
+    _hasQuery = false;
     return true;
 }
 

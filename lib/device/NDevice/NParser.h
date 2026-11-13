@@ -3,6 +3,16 @@
 
 #include "Protocol.h"
 
+#include <memory>
+
+typedef enum class PARSER : uint8_t {
+    NONE = 0,
+    JSON = 1,
+    HTML = 2, // HTML via CSS selector (FNHTML, Gumbo)
+    XML  = 3, // XML via an XPath subset (FNXML, tinyxml2)
+    PRETTY = 4, // HTML rendered to word-wrapped plain text (FNPretty, Gumbo)
+} parserMode_t;
+
 class NParser
 {
 protected:
@@ -24,8 +34,24 @@ public:
     virtual error_is_true parse();
     virtual error_is_true setQueryParam(uint8_t param);
     virtual error_is_true setLineEnding(const std::string &eol);
+    // Text width in columns (NET_SET_PARAMETER param 2); 0 = parser default.
+    virtual error_is_true setTextWidth(uint8_t width);
+    // PRETTY only (NET_SET_PARAMETER params 4 and 3); others reject them.
+    virtual error_is_true setRenderLinks(bool on);
+    virtual error_is_true setNativeGraphics(bool on);
 
     virtual NetworkStatus status();
+
+    // Which parser this is, so NET_SET_PARSER can tell whether a mode is already in place.
+    virtual parserMode_t mode() const { return PARSER::NONE; }
+
+    // The last query's value as it is in the document: no query flags applied, no charset
+    // conversion. False when there has been no query. Query parsers only.
+    virtual bool rawValue(std::string &out) { return false; }
+
+    // PRETTY over a query parser's value keeps that parser here; others hold none.
+    virtual NParser *savedParser() { return nullptr; }
+    virtual std::unique_ptr<NParser> takeSavedParser() { return nullptr; }
 };
 
 // Bound after a failed OPEN in place of the protocol, so STATUS can report why.

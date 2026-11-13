@@ -32,6 +32,10 @@ class CDocument: public CObject
 
 		CSelection find(std::string aSelector);
 
+		// FujiNet: expose the parsed tree's root so callers that need to walk it
+		// directly (e.g. FNPretty's layout engine) don't have to reparse it.
+		GumboNode* root() const { return mpOutput == NULL ? NULL : mpOutput->root; }
+
 	private:
 
 		void reset();
