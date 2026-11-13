@@ -24,9 +24,9 @@ error_is_true MediaTypeDSK::read(uint32_t blockNum, uint16_t *readcount)
     // Debug_print("DW DSK READ\n");
 
     // Return an error if we're trying to read beyond the end of the disk
-    if (blockNum > _media_num_blocks)
+    if (blockNum >= _media_num_blocks)
     {
-        Debug_printf("::read block %lu > %lu\n", blockNum, _media_num_blocks);
+        Debug_printf("::read block %lu >= %lu\n", blockNum, _media_num_blocks);
         _media_controller_status = 2;
         RETURN_ERROR_AS_TRUE();
     }
