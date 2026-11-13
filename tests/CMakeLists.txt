@@ -770,6 +770,78 @@ if(FUJINET_TARGET STREQUAL "ADAM")
     target_link_libraries(adam_network_receive_tests PRIVATE ws2_32)
   endif()
   add_test(NAME adam_network_receive_tests COMMAND adam_network_receive_tests)
+
+  # Disk images through the real adamDisk: mount, then the block number and
+  # block data the bus hands it, for DDP and DSK, on in-memory images.
+  add_executable(adam_disk_tests
+    AdamDiskTests.cpp
+    adamDiskStubs.cpp
+    channelStubs.cpp
+    ${CMAKE_SOURCE_DIR}/lib/device/adamnet/disk.cpp
+    ${CMAKE_SOURCE_DIR}/lib/bus/adamnet/FujiAdamPacket.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFile.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/adam/mediaType.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/adam/mediaTypeDDP.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/adam/mediaTypeDSK.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/adam/mediaTypeROM.cpp
+    ${CMAKE_SOURCE_DIR}/lib/bus/DaisyChain.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFS.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnDirCache.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFsSPIFFS.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFileLocal.cpp
+  )
+  if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    target_sources(adam_disk_tests PRIVATE
+        ${CMAKE_SOURCE_DIR}/lib/compat/strlcpy.c
+        ${CMAKE_SOURCE_DIR}/lib/compat/strlcat.c
+    )
+  endif()
+  target_compile_definitions(adam_disk_tests PRIVATE UNIT_TESTS FLASH_SPIFFS)
+  target_include_directories(adam_disk_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/include/
+    ${CMAKE_SOURCE_DIR}/lib/
+    ${CMAKE_SOURCE_DIR}/lib/bus/
+    ${CMAKE_SOURCE_DIR}/lib/bus/adamnet/
+    ${CMAKE_SOURCE_DIR}/lib/device/
+    ${CMAKE_SOURCE_DIR}/lib/device/NDevice/
+    ${CMAKE_SOURCE_DIR}/lib/device/adamnet/
+    ${CMAKE_SOURCE_DIR}/lib/device/fujiDevice/
+    ${CMAKE_SOURCE_DIR}/lib/hardware/
+    ${CMAKE_SOURCE_DIR}/lib/sam/
+    ${CMAKE_SOURCE_DIR}/lib/printer-emulator/
+    ${CMAKE_SOURCE_DIR}/lib/encoding/
+    ${CMAKE_SOURCE_DIR}/lib/media/
+    ${CMAKE_SOURCE_DIR}/lib/fuji/
+    ${CMAKE_SOURCE_DIR}/lib/modem-sniffer/
+    ${CMAKE_SOURCE_DIR}/lib/telnet/
+    ${CMAKE_SOURCE_DIR}/lib/tcpip/
+    ${CMAKE_SOURCE_DIR}/lib/compat/
+    ${CMAKE_SOURCE_DIR}/lib/ftp/
+    ${CMAKE_SOURCE_DIR}/lib/webdav/
+    ${CMAKE_SOURCE_DIR}/lib/http/
+    ${CMAKE_SOURCE_DIR}/lib/TNFSlib/
+    ${CMAKE_SOURCE_DIR}/components_pc/libssh/include/
+    ${CMAKE_BINARY_DIR}/components_pc/libssh/include/
+    ${CMAKE_SOURCE_DIR}/components_pc/mongoose/
+    ${CMAKE_SOURCE_DIR}/components/gumbo-query/
+    ${CMAKE_SOURCE_DIR}/lib/network-protocol/
+    ${CMAKE_SOURCE_DIR}/lib/utils/
+    ${CMAKE_SOURCE_DIR}/components_pc/
+    ${CMAKE_SOURCE_DIR}/components_pc/doctest/
+    ${CMAKE_SOURCE_DIR}/components_pc/cJSON/
+    ${CMAKE_SOURCE_DIR}/lib/fnjson/
+    ${CMAKE_SOURCE_DIR}/lib/fnhtml/
+    ${CMAKE_SOURCE_DIR}/lib/fnxml/
+    ${CMAKE_SOURCE_DIR}/lib/fntext/
+    ${CMAKE_SOURCE_DIR}/lib/tinyxml2/
+    ${CMAKE_SOURCE_DIR}/lib/config/
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/
+    ${MBEDTLS_INCLUDE_DIR}
+  )
+  if(WIN32)
+    target_link_libraries(adam_disk_tests PRIVATE ws2_32)
+  endif()
+  add_test(NAME adam_disk_tests COMMAND adam_disk_tests)
 endif()
 
 # ------------------------------------------------------------------------------
