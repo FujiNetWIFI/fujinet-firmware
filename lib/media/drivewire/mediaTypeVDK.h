@@ -13,6 +13,7 @@ private:
     uint32_t _block_to_offset(uint32_t blockNum);
     bool bIsVDK;
     uint16_t _media_sector_size = VDK_BLOCK_SIZE;
+    uint16_t _header_size = 12;
 
 public:
     error_is_true read(uint32_t blockNum, uint16_t *readcount) override;
