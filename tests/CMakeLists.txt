@@ -825,6 +825,7 @@ if(FUJINET_TARGET STREQUAL "COCO")
   add_executable(drivewire_rom_mount_tests
     DrivewireROMMountTests.cpp
     romMountStubs.cpp
+    drivewireBusStubs.cpp
     channelStubs.cpp
     ${CMAKE_SOURCE_DIR}/lib/device/drivewire/disk.cpp
     ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFile.cpp
@@ -859,6 +860,7 @@ if(FUJINET_TARGET STREQUAL "COCO")
   add_executable(media_tests
     MediaTests.cpp
     romMountStubs.cpp
+    drivewireBusStubs.cpp
     channelStubs.cpp
     ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFile.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/media.cpp

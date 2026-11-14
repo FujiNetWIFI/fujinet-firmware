@@ -44,8 +44,6 @@ public:
     macFloppy *bootdisk() { return &_fnDisks[MAC_FLOPPY_SLOT].disk_dev; }
 };
 
-extern macFuji platformFuji;
-
 #endif // MACFUJI_H
 #endif // BUILD_MAC
 

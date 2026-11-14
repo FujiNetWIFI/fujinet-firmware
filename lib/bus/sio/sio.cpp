@@ -959,4 +959,10 @@ bool systemBus::commandAsserted()
     return false;
 #endif /* ESP_PLATFORM */
 }
+void systemBus::setFuji(fujiDevice *fuji)
+{
+    SystemBusBase::setFuji(fuji);
+    platformFuji = static_cast<sioFuji *>(theFuji);
+}
+
 #endif /* BUILD_ATARI */

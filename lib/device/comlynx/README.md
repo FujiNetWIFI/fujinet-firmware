@@ -5,7 +5,7 @@ The Atari Lynx device set for `BUILD_LYNX`.
 ## Layout
 | File | Defines |
 |---|---|
-| `lynxFuji.h`, `lynxFuji.cpp` | `lynxFuji : fujiDevice` (`.lnx` images); defines `platformFuji` and sets `theFuji`; owns the `lynxNetStream`; `setup()` registers itself, the disks, the networks and the stream device |
+| `lynxFuji.h`, `lynxFuji.cpp` | `lynxFuji : fujiDevice` (`.lnx` images); owns the `lynxNetStream`; `setup()` registers itself, the disks, the networks and the stream device |
 | `disk.h`, `disk.cpp` | `lynxDisk`, the `DISK_DEVICE`; sends blocks LZ4-compressed |
 | `lynxNetwork.h`, `lynxNetwork.cpp` | `lynxNetwork : NDevice` |
 | `printer.h`, `printer.cpp`, `printerlist.h`, `printerlist.cpp` | `lynxPrinter` and `printerlist`; defines `fnPrinters` |

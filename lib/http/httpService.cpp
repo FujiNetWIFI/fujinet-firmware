@@ -634,7 +634,7 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
     {
         // Mount all the things
         Debug_printf("Mount all slots from webui\n");
-        theFuji->fujicore_mount_all_success();
+        SYSTEM_BUS.theFuji->fujicore_mount_all_success();
     }
     else
     {
@@ -693,7 +693,7 @@ esp_err_t fnHttpService::get_handler_swap(httpd_req_t *req)
 
     // rotate disk images
     Debug_printf("Disk swap from webui\n");
-    theFuji->fujicmd_image_rotate();
+    SYSTEM_BUS.theFuji->fujicmd_image_rotate();
 
     if (!fnHTTPD.errMsgEmpty())
     {
@@ -933,7 +933,7 @@ esp_err_t fnHttpService::get_handler_hosts(httpd_req_t *req)
 {
     std::string response = "";
     for (int hs = 0; hs < 8; hs++) {
-        response += std::string(theFuji->get_host(hs)->get_hostname()) + "\n";
+        response += std::string(SYSTEM_BUS.theFuji->get_host(hs)->get_hostname()) + "\n";
     }
     httpd_resp_send(req, response.c_str(), response.length());
     return ESP_OK;
@@ -947,11 +947,11 @@ esp_err_t fnHttpService::post_handler_hosts(httpd_req_t *req)
     int hostslot = atoi(qp.query_parsed["hostslot"].c_str());
     char *hostname = (char *)qp.query_parsed["hostname"].c_str();
 
-    theFuji->set_slot_hostname(hostslot, hostname);
+    SYSTEM_BUS.theFuji->set_slot_hostname(hostslot, hostname);
 
     std::string response = "";
     for (int hs = 0; hs < 8; hs++) {
-        response += std::string(theFuji->get_host(hs)->get_hostname()) + "\n";
+        response += std::string(SYSTEM_BUS.theFuji->get_host(hs)->get_hostname()) + "\n";
     }
     httpd_resp_send(req, response.c_str(), response.length());
     return ESP_OK;
@@ -1457,7 +1457,7 @@ esp_err_t fnHttpService::get_handler_mac_activity(httpd_req_t *req)
     int n = snprintf(buf, sizeof(buf), "{\"ms\":%lu,\"slots\":[", static_cast<unsigned long>(fnSystem.millis()));
     for (int i = 0; i <= MAC_FLOPPY_SLOT && n < static_cast<int>(sizeof(buf)); i++)
     {
-        DISK_DEVICE *dd = theFuji->get_disk_dev(i);
+        DISK_DEVICE *dd = SYSTEM_BUS.theFuji->get_disk_dev(i);
         n += snprintf(buf + n, sizeof(buf) - n,
                       "%s{\"n\":%d,\"loaded\":%s,\"r\":%lu,\"w\":%lu,\"e\":%lu,\"s\":%lu",
                       i ? "," : "", i + 1, dd->is_loaded() ? "true" : "false",

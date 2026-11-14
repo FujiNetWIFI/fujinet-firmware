@@ -152,7 +152,7 @@ fnHttpApi::response h_drives(const request &)
 
         std::string path = Config.get_mount_path(i);
         cJSON_AddStringToObject(slot, "path", path.c_str());
-        cJSON_AddBoolToObject(slot, "mounted", theFuji->get_disk(i)->fileh != nullptr);
+        cJSON_AddBoolToObject(slot, "mounted", SYSTEM_BUS.theFuji->get_disk(i)->fileh != nullptr);
 
         fnConfig::mount_mode_t mode = Config.get_mount_mode(i);
         cJSON_AddStringToObject(slot, "mode", mode == fnConfig::MOUNTMODE_WRITE ? "w" : "r");
@@ -187,7 +187,7 @@ fnHttpApi::response h_drive_slot(const request &r)
 
     std::string path = Config.get_mount_path(slot);
     cJSON_AddStringToObject(root, "path", path.c_str());
-    cJSON_AddBoolToObject(root, "mounted", theFuji->get_disk(slot)->fileh != nullptr);
+    cJSON_AddBoolToObject(root, "mounted", SYSTEM_BUS.theFuji->get_disk(slot)->fileh != nullptr);
 
     fnConfig::mount_mode_t mode = Config.get_mount_mode(slot);
     cJSON_AddStringToObject(root, "mode", mode == fnConfig::MOUNTMODE_WRITE ? "w" : "r");
@@ -242,13 +242,13 @@ fnHttpApi::response h_drive_mount(const request &r)
 
     // Recording the mount is not mounting it: the host has to be up and the
     // image opened before the slot is live. Same sequence the web UI runs.
-    if (!theFuji->get_host(host_slot)->mount())
+    if (!SYSTEM_BUS.theFuji->get_host(host_slot)->mount())
     {
         cJSON_Delete(body);
         return json_error("could not mount host slot", 500);
     }
 
-    fujiDisk *disk = theFuji->get_disk(slot);
+    fujiDisk *disk = SYSTEM_BUS.theFuji->get_disk(slot);
     // Remember what the slot held. An image that fails to open must not be
     // left sitting in the live slot, where the next config sync would write it
     // out as a mount that never happened.
@@ -264,7 +264,7 @@ fnHttpApi::response h_drive_mount(const request &r)
         ? DISK_ACCESS_MODE_WRITE
         : DISK_ACCESS_MODE_READ;
 
-    if (!theFuji->fujicore_mount_disk_image_success(slot, access_mode))
+    if (!SYSTEM_BUS.theFuji->fujicore_mount_disk_image_success(slot, access_mode))
     {
         disk->host_slot = prev_host_slot;
         disk->access_mode = prev_access_mode;
@@ -275,7 +275,7 @@ fnHttpApi::response h_drive_mount(const request &r)
 
     Config.store_mount(slot, host_slot, path, mount_mode);
     Config.save();
-    theFuji->populate_slots_from_config();
+    SYSTEM_BUS.theFuji->populate_slots_from_config();
 
     cJSON *resp = cJSON_CreateObject();
     cJSON_AddStringToObject(resp, "status", "success");
@@ -321,7 +321,7 @@ fnHttpApi::response h_hosts(const request &)
 
         // Hostname comes from the live slot because that is what the rest of
         // the firmware runs on; type still has to come from the config.
-        std::string name = theFuji->get_host(i)->get_hostname();
+        std::string name = SYSTEM_BUS.theFuji->get_host(i)->get_hostname();
         cJSON_AddStringToObject(slot, "hostname", name.c_str());
         cJSON_AddBoolToObject(slot, "configured", !name.empty());
 
@@ -354,7 +354,7 @@ fnHttpApi::response h_host_slot(const request &r)
 
         // Hostname comes from the live slot because that is what the rest of
         // the firmware runs on; type still has to come from the config.
-        std::string name = theFuji->get_host(slot)->get_hostname();
+        std::string name = SYSTEM_BUS.theFuji->get_host(slot)->get_hostname();
         cJSON_AddStringToObject(root, "hostname", name.c_str());
         cJSON_AddBoolToObject(root, "configured", !name.empty());
 
@@ -402,9 +402,9 @@ fnHttpApi::response h_host_slot(const request &r)
         }
 
         // Config alone is not enough: the web UI, the drive chooser and the bus
-        // all read theFuji's live slots, and set_slot_hostname() syncs the
+        // all read SYSTEM_BUS.theFuji's live slots, and set_slot_hostname() syncs the
         // config back from them.
-        theFuji->set_slot_hostname(slot, (char *)hostname);
+        SYSTEM_BUS.theFuji->set_slot_hostname(slot, (char *)hostname);
         // populate_config_from_slots() cannot know the type the caller asked
         // for — the live host works the protocol out from the name when it
         // mounts — so put an explicitly requested one back afterwards.

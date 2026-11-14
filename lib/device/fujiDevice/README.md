@@ -1,7 +1,7 @@
 # lib/device/fujiDevice
 
-The shared FujiNet CONFIG device: the one every platform's `<bus>Fuji` class derives from and the
-global `theFuji` points at. It owns the host and disk slots, WiFi configuration, directory
+The shared FujiNet CONFIG device: the one every platform's `<bus>Fuji` class derives from and
+`SYSTEM_BUS.theFuji` points at. It owns the host and disk slots, WiFi configuration, directory
 browsing and image mounting, and it is the model for how device code should be structured.
 
 ## Layout

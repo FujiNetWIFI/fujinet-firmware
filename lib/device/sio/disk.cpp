@@ -231,7 +231,7 @@ mediatype_t sioDisk::mount(fnFile *f, const char *filename, uint32_t disksize,
     if (_is_tape)
     {
         _is_tape = false;
-        platformFuji.cassette()->stop_fsk_loader();
+        SYSTEM_BUS.platformFuji->cassette()->stop_fsk_loader();
     }
 
     // Destroy any existing MediaType
@@ -252,7 +252,7 @@ mediatype_t sioDisk::mount(fnFile *f, const char *filename, uint32_t disksize,
     case MEDIATYPE_WAV:
         // open the cassette file
         _is_tape = true;
-        platformFuji.cassette()->mount_cassette_file(f, disksize);
+        SYSTEM_BUS.platformFuji->cassette()->mount_cassette_file(f, disksize);
         return disk_type;
         // TODO left off here for tape cassette
         break;
@@ -313,7 +313,7 @@ void sioDisk::unmount()
     if (_is_tape)
     {
         _is_tape = false;
-        platformFuji.cassette()->stop_fsk_loader();
+        SYSTEM_BUS.platformFuji->cassette()->stop_fsk_loader();
     }
 
     if (_disk != nullptr)
@@ -342,7 +342,7 @@ void sioDisk::sio_process(const FujiSIOPacket &packet)
         return;
 
     if ((device_active == false && packet.device() != FUJI_DEVICEID::DISK) || // not active and not D1
-        (device_active == false && theFuji->boot_config == false)) // not active and not config boot
+        (device_active == false && SYSTEM_BUS.theFuji->boot_config == false)) // not active and not config boot
         return;
 
     Debug_printf("disk sio_process(), baud: %d\n", SYSTEM_BUS.getBaudrate());
@@ -363,9 +363,9 @@ void sioDisk::sio_process(const FujiSIOPacket &packet)
     case CMD::DISK_HSIO_STATUS:
         if (is_config_device == true)
         {
-            if (theFuji->boot_config == true)
+            if (SYSTEM_BUS.theFuji->boot_config == true)
             {
-                if (status_wait_count > 0 && platformFuji.status_wait_enabled)
+                if (status_wait_count > 0 && SYSTEM_BUS.platformFuji->status_wait_enabled)
                 {
                     Debug_print("ignoring status command\n");
                     status_wait_count--;

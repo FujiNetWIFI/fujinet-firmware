@@ -1232,7 +1232,7 @@ void sioCassette::mount_turbo_loader()
     // so the bootdisk won't interfere. Our XEX gets device_active=true and
     // D1: responds with the loader on next boot.
     int8_t slot = 0;
-    if (theFuji->get_disk_dev(slot)->disktype() != MEDIATYPE_UNKNOWN)
+    if (SYSTEM_BUS.theFuji->get_disk_dev(slot)->disktype() != MEDIATYPE_UNKNOWN)
     {
         Debug_printf("%s: D1: is not free for loader!\n", label);
         return;
@@ -1256,7 +1256,7 @@ void sioCassette::mount_turbo_loader()
 
     // Mount on free slot as XEX (PicoBoot + AUTORUN)
     // mount_disk_media(), not mount(): this can run inside sioDisk::mount(), which routed the CAS here.
-    DISK_DEVICE *disk = theFuji->get_disk_dev(slot);
+    DISK_DEVICE *disk = SYSTEM_BUS.theFuji->get_disk_dev(slot);
     disk->mount_disk_media(f, xex_path, fsize, MEDIATYPE_XEX);
 
     _turbo_loader_slot = slot;
@@ -1277,7 +1277,7 @@ void sioCassette::unmount_turbo_loader()
 {
     if (_turbo_loader_slot >= 0)
     {
-        DISK_DEVICE *disk = theFuji->get_disk_dev(_turbo_loader_slot);
+        DISK_DEVICE *disk = SYSTEM_BUS.theFuji->get_disk_dev(_turbo_loader_slot);
         disk->unmount();
         Debug_printf("T2K: Loader unmounted from D%d:\n", _turbo_loader_slot + 1);
         _turbo_loader_slot = -1;

@@ -94,7 +94,5 @@ public:
     void fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl) override;
 };
 
-extern iwmFuji platformFuji;
-
 #endif // IWMFUJI_H
 #endif /* BUILD_APPLE */

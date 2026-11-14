@@ -5,7 +5,7 @@ The Coleco ADAM device set for `BUILD_ADAM`.
 ## Layout
 | File | Defines |
 |---|---|
-| `adamFuji.h`, `adamFuji.cpp` | `adamFuji : fujiDevice` (`.ddp` images); defines `platformFuji` and sets `theFuji`; `setup()` registers four disks, two networks and itself, and mounts `/autorun.ddp` or `/mount-and-boot.ddp` from flash into the first slot |
+| `adamFuji.h`, `adamFuji.cpp` | `adamFuji : fujiDevice` (`.ddp` images); `setup()` registers four disks, two networks and itself, and mounts `/autorun.ddp` or `/mount-and-boot.ddp` from flash into the first slot |
 | `disk.h`, `disk.cpp` | `adamDisk`, the `DISK_DEVICE` |
 | `adamNetwork.h`, `adamNetwork.cpp` | `adamNetwork : NDevice` |
 | `adamClock.h`, `adamClock.cpp` | `adamClock : fujiClock`; defines `platformClock` |

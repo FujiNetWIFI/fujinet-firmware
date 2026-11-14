@@ -87,7 +87,7 @@ size_t systemBus::read_exact(void *buffer, size_t length, unsigned timeout_ms)
 
 static inline macFloppy &floppy_dev()
 {
-  return theFuji->get_disk(MAC_FLOPPY_SLOT)->disk_dev;
+  return SYSTEM_BUS.theFuji->get_disk(MAC_FLOPPY_SLOT)->disk_dev;
 }
 
 void systemBus::handle_floppy_command(int c)

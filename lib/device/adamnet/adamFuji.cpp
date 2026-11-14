@@ -30,8 +30,6 @@
 #define LOBBY_URL       "tnfs://tnfs.fujinet.online/ADAM/lobby.ddp"
 #define COPY_SIZE 532
 
-adamFuji platformFuji;
-fujiDevice *theFuji = &platformFuji;         // global fuji device object
 adamNetwork *theNetwork;  // global network device object (temporary)
 adamNetwork *theNetwork2; // another network device
 adamPrinter *thePrinter;  // global printer
@@ -226,7 +224,7 @@ void adamFuji::setup()
         theNetwork2 = new adamNetwork();
         SYSTEM_BUS.addDevice(theNetwork, FUJI_DEVICEID::NETWORK);  // temporary.
         SYSTEM_BUS.addDevice(theNetwork2, static_cast<fujiDeviceID_t>(FUJI_DEVICEID::NETWORK + 1)); // temporary
-        SYSTEM_BUS.addDevice(theFuji, FUJI_DEVICEID::FUJINET);    // Fuji becomes the gateway device.
+        SYSTEM_BUS.addDevice(SYSTEM_BUS.theFuji, FUJI_DEVICEID::FUJINET);    // Fuji becomes the gateway device.
     }
 }
 

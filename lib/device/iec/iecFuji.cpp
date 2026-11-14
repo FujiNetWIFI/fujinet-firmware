@@ -11,9 +11,6 @@
 
 #define IMAGE_EXTENSION ".d64"
 
-iecFuji platformFuji;
-fujiDevice *theFuji = &platformFuji; // Global fuji object.
-
 // iecNetwork sioNetDevs[MAX_NETWORK_DEVICES];
 
 bool _validate_host_slot(uint8_t slot, const char *dmsg = nullptr);

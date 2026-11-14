@@ -27,7 +27,7 @@ FujiNet-PC, plus the outbound HTTP client each build uses.
 - Pages come from the www directory on `fsFlash`, which is the image generated from
   [data/webui/](../../data/webui/).
 - Reads and writes `Config` from [lib/config/](../config/), and uses `fnPassword`, `fnSystem`,
-  `fnWiFi`, `fnSDFAT`, `theFuji` and the printer list.
+  `fnWiFi`, `fnSDFAT`, `SYSTEM_BUS.theFuji` and the printer list.
 - Consumers pick a client with a macro: `HTTP_CLIENT_CLASS` in [lib/FileSystem/](../FileSystem/),
   `GDRIVE_HTTP_CLIENT` and `GCAL_HTTP_CLIENT_CLASS` in
   [lib/network-protocol/](../network-protocol/).

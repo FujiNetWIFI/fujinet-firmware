@@ -354,7 +354,7 @@ int mount(int argc, char **argv)
     int did = atoi(argv[1]);
     fprintf(stdout, "Mounted %d -> %s\r\n", did, argv[2]);
 
-    theFuji->fujicmd_mount_all_success();
+    SYSTEM_BUS.theFuji->fujicmd_mount_all_success();
 
     return EXIT_SUCCESS;
 }

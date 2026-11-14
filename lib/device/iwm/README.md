@@ -5,7 +5,7 @@ The Apple II device set for `BUILD_APPLE`: SmartPort devices plus Disk II emulat
 ## Layout
 | File | Defines |
 |---|---|
-| `iwmFuji.h`, `iwmFuji.cpp` | `iwmFuji : fujiDevice` (`.po` images, Apple lobby); defines `platformFuji` and sets `theFuji`; `MAX_SPDISK_DEVICES` SmartPort slots plus `MAX_DISK2_DEVICES` Disk II slots, mapped by `get_disk_dev()` |
+| `iwmFuji.h`, `iwmFuji.cpp` | `iwmFuji : fujiDevice` (`.po` images, Apple lobby); `MAX_SPDISK_DEVICES` SmartPort slots plus `MAX_DISK2_DEVICES` Disk II slots, mapped by `get_disk_dev()` |
 | `disk.h`, `disk.cpp` | `iwmDisk`, the `DISK_DEVICE` (SmartPort block device) |
 | `disk2.h`, `disk2.cpp` | `iwmDisk2 : iwmDisk`, the Disk II emulation driven by the bus's Disk II service loop |
 | `iwmNetwork.h`, `iwmNetwork.cpp` | `iwmNetwork : NDevice` |
@@ -23,7 +23,7 @@ The Apple II device set for `BUILD_APPLE`: SmartPort devices plus Disk II emulat
   `setup()` registers itself, the networks, `platformClock`, CP/M and the disks. `iwmClock` maps
   writes to `iwm_ctrl()` and reads to `iwm_status()` and overrides `fujidev_canonical_command()` and
   `reject_command()`.
-- `src/main.cpp` adds the modem and printer before calling `theFuji->setup()`.
+- `src/main.cpp` adds the modem and printer before calling `SYSTEM_BUS.theFuji->setup()`.
 
 ## Build
 ESP: globbed by `src/CMakeLists.txt`, compiled only under `BUILD_APPLE`. PC: `FUJINET_TARGET=APPLE`

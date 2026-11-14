@@ -321,6 +321,10 @@ public:
         else
             _port = &_netsio;
     }
+
+    // theFuji under this platform's own type, so platform code needs no cast
+    sioFuji *platformFuji = nullptr;
+    void setFuji(fujiDevice *fuji) override;
 };
 
 extern systemBus SYSTEM_BUS;

@@ -301,6 +301,10 @@ public:
         _diskSwapRequested = true;
     }
     fujiDeviceID_t fujiIDForDevice(drivewireDisk *device);
+
+    // theFuji under this platform's own type, so platform code needs no cast
+    drivewireFuji *platformFuji = nullptr;
+    void setFuji(fujiDevice *fuji) override;
 };
 
 extern systemBus SYSTEM_BUS;

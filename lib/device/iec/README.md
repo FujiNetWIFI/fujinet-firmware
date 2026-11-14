@@ -5,7 +5,7 @@ The Commodore device set for `BUILD_IEC`, on ESP32 and FujiNet-PC.
 ## Layout
 | File | Defines |
 |---|---|
-| `iecFuji.h`, `iecFuji.cpp` | `iecFuji : fujiDevice` (`.d64` images); defines `platformFuji` and sets `theFuji`; `setup()` attaches the printer, the drives, the network, the clock and itself to the bus under their Commodore device numbers |
+| `iecFuji.h`, `iecFuji.cpp` | `iecFuji : fujiDevice` (`.d64` images); `setup()` attaches the printer, the drives, the network, the clock and itself to the bus under their Commodore device numbers |
 | `drive.h`, `drive.cpp` | `iecDrive : IECFileDevice`, the `DISK_DEVICE`: a Commodore drive whose channels (`iecChannelHandler`), directory and disk images come from [lib/meatloaf/](../../meatloaf/); `write_blank()` writes the image for NEW DISK |
 | `iecNetwork.h`, `iecNetwork.cpp` | `iecNetwork : NDevice` |
 | `iecClock.h`, `iecClock.cpp` | `iecClock : fujiClock`, device 29: the FujiNet clock commands on channel 15 |
