@@ -40,6 +40,8 @@ void FNJSON::setProtocol(NetworkProtocol *newProtocol) {}
 void FNJSON::setReadQuery(const std::string &queryString, uint8_t queryParam) {}
 bool FNJSON::readValue(uint8_t *buf, unsigned short len) { return false; }
 bool FNJSON::parse() { return false; }
+std::optional<std::string> FNJSON::rawValue() { return std::nullopt; }
+void FNJSON::setDocument(std::string document) {}
 
 #include "fnhtml.h"
 
@@ -50,6 +52,8 @@ void FNHTML::setProtocol(NetworkProtocol *newProtocol) {}
 void FNHTML::setReadQuery(const std::string &queryString, uint8_t queryParam) {}
 bool FNHTML::readValue(uint8_t *buf, unsigned short len) { return false; }
 bool FNHTML::parse() { return false; }
+std::optional<std::string> FNHTML::rawValue() { return std::nullopt; }
+void FNHTML::setDocument(std::string document) {}
 
 #include "fnxml.h"
 
@@ -60,6 +64,8 @@ void FNXML::setProtocol(NetworkProtocol *newProtocol) {}
 void FNXML::setReadQuery(const std::string &queryString, uint8_t queryParam) {}
 bool FNXML::readValue(uint8_t *buf, unsigned short len) { return false; }
 bool FNXML::parse() { return false; }
+std::optional<std::string> FNXML::rawValue() { return std::nullopt; }
+void FNXML::setDocument(std::string document) {}
 
 void util_debug_printf(const char *fmt, ...) {}
 std::string util_hexdump(const void *buf, size_t len) { return ""; }

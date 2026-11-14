@@ -88,23 +88,24 @@ void FNHTML::setReadQuery(const std::string &queryString, uint8_t queryParam)
     }
     _queryString = queryString;
     _queryParam = queryParam;
+    _hasQuery = true;
     resolveQuery();
     _html_bytes_remaining = readValueLen();
 }
 
 /**
- * Run the CSS selector against the parsed document and build the result value.
+ * Run the CSS selector against the parsed document and fetch the current
+ * match: the node, and the attribute name if the query ends in "@attr".
+ * Returns false if there is no match.
  */
-void FNHTML::resolveQuery()
+bool FNHTML::findMatch(CNode &node, std::string &attr)
 {
-    _value.clear();
-
     if (_doc == nullptr)
-        return;
+        return false;
 
     // Split an optional "@attr" suffix off the selector.
     std::string selector = _queryString;
-    std::string attr;
+    attr.clear();
     size_t at = _queryString.rfind('@');
     if (at != std::string::npos)
     {
@@ -114,21 +115,61 @@ void FNHTML::resolveQuery()
             selector.pop_back();
     }
     if (selector.empty())
-        return;
+        return false;
 
     // gumbo-query is patched to be exception-free: a malformed selector yields
     // an empty selection rather than throwing, so no try/catch is needed (the
     // ESP firmware builds with C++ exceptions disabled).
     CSelection sel = _doc->find(selector);
 
-    // Return only the current match; an out-of-range index (iteration finished)
-    // leaves _value empty so the caller sees 0 bytes available.
-    if (_matchIndex < sel.nodeNum())
+    // Only the current match; an out-of-range index means iteration finished.
+    if (_matchIndex >= sel.nodeNum())
+        return false;
+
+    node = sel.nodeAt(_matchIndex);
+    return true;
+}
+
+/**
+ * Build the result value of the current match.
+ */
+void FNHTML::resolveQuery()
+{
+    CNode node;
+    std::string attr;
+
+    _value.clear();
+    if (findMatch(node, attr))
     {
-        CNode node = sel.nodeAt(_matchIndex);
         std::string v = attr.empty() ? node.text() : node.attribute(attr);
         _value = processString(v) + lineEnding;
     }
+}
+
+std::optional<std::string> FNHTML::rawValue()
+{
+    if (!_hasQuery)
+        return std::nullopt;
+
+    CNode node;
+    std::string attr;
+    if (!findMatch(node, attr))
+        return std::string();
+    if (!attr.empty())
+        return node.attribute(attr);
+
+    // Inner source markup, so the value can be parsed as a document again. Gumbo
+    // has no offsets for elements it implied; those fall back to the text.
+    size_t start = node.startPos();
+    size_t end = node.endPos();
+    if (end <= start || end > _parseBuffer.size())
+        return node.text();
+    return _parseBuffer.substr(start, end - start);
+}
+
+void FNHTML::setDocument(std::string document)
+{
+    _document = std::move(document);
 }
 
 /**
@@ -177,10 +218,18 @@ bool FNHTML::parse()
 {
     NetworkStatus ns;
 
+    _hasQuery = false;
     if (_doc != nullptr)
     {
         delete _doc;
         _doc = nullptr;
+    }
+
+    if (_document)
+    {
+        _parseBuffer = std::move(*_document);
+        _document.reset();
+        return parseBuffer().is_success();
     }
 
     if (_protocol == nullptr)
@@ -218,8 +267,13 @@ bool FNHTML::parse()
 #endif
     }
 
+    return parseBuffer().is_success();
+}
+
+success_is_true FNHTML::parseBuffer()
+{
     if (_parseBuffer.empty())
-        return false;
+        RETURN_ERROR_AS_FALSE();
 
     // Gumbo does full HTML5 error-recovery, so the raw (malformed) body is fine.
     CDocument *doc = new CDocument();
@@ -229,7 +283,7 @@ bool FNHTML::parse()
     // Fresh document -> restart match iteration.
     _lastQuery.clear();
     _matchIndex = 0;
-    return true;
+    RETURN_SUCCESS_AS_TRUE();
 }
 
 bool FNHTML::status(NetworkStatus *s)

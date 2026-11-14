@@ -6,7 +6,7 @@ XPath-subset query.
 ## Layout
 | File | Defines |
 |---|---|
-| `fnxml.h`, `fnxml.cpp` | `FNXML`: `setProtocol`, `setReadQuery`, `parse`, `status`, `readValueLen`, `readValue`, `available`, `setLineEnding`; repeating a query steps to the next match |
+| `fnxml.h`, `fnxml.cpp` | `FNXML`: `setProtocol`, `setReadQuery`, `parse`, `status`, `readValueLen`, `readValue`, `available`, `setLineEnding`, `rawValue`, `setDocument`; repeating a query steps to the next match |
 | `fnxml_query.h`, `fnxml_query.cpp` | `fnxml_resolve_query`, the XPath subset (`/` steps, `//` descendants, `*`, `[n]`, `[@attr]`, `[@attr="v"]`, `[text()="v"]`, trailing `@attr`) kept separate so it can be tested without a protocol |
 
 ## How it fits
