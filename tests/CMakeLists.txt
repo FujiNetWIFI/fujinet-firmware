@@ -1139,6 +1139,48 @@ if(FUJINET_TARGET STREQUAL "RS232")
 endif()
 
 # ------------------------------------------------------------------------------
+# Disk images through the real iwmDisk: mount, then the SmartPort READ BLOCK and
+# WRITE BLOCK the bus hands it, for PO, DO, DSK, and 2MG, on in-memory images.
+# ------------------------------------------------------------------------------
+if(FUJINET_TARGET STREQUAL "APPLE")
+  add_executable(iwm_disk_tests
+    IWMDiskTests.cpp
+    iwmDiskStubs.cpp
+    channelStubs.cpp
+    ${CMAKE_SOURCE_DIR}/lib/device/iwm/disk.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/apple/mediaType.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/apple/mediaTypeDO.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/apple/mediaTypePO.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/apple/mediaType2MG.cpp
+    ${CMAKE_SOURCE_DIR}/lib/bus/DaisyChain.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFile.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFS.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnDirCache.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFsSPIFFS.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFileLocal.cpp
+  )
+  if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    target_sources(iwm_disk_tests PRIVATE
+        ${CMAKE_SOURCE_DIR}/lib/compat/strlcpy.c
+        ${CMAKE_SOURCE_DIR}/lib/compat/strlcat.c
+    )
+  endif()
+  target_compile_definitions(iwm_disk_tests PRIVATE UNIT_TESTS FLASH_SPIFFS)
+  target_include_directories(iwm_disk_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/lib/device/iwm/
+    ${CMAKE_SOURCE_DIR}/lib/bus/iwm/
+    ${CMAKE_SOURCE_DIR}/lib/media/apple/
+    ${CMAKE_SOURCE_DIR}/lib/devrelay/service/
+    ${CMAKE_SOURCE_DIR}/lib/devrelay/types/
+    ${ROM_MOUNT_TEST_INCLUDES}
+  )
+  if(WIN32)
+    target_link_libraries(iwm_disk_tests PRIVATE ws2_32)
+  endif()
+  add_test(NAME iwm_disk_tests COMMAND iwm_disk_tests)
+endif()
+
+# ------------------------------------------------------------------------------
 # Request header serialization in the vendored HTTP client. A single header is
 # never split across buffers, and getting that boundary wrong drops the blank
 # line that ends the header block - the server then reads the body as headers
