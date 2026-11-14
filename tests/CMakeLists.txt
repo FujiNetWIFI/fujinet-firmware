@@ -647,6 +647,66 @@ if(FUJINET_TARGET STREQUAL "ATARI")
   target_link_libraries(sio_network_tests PRIVATE sio_network_stubs)
   add_test(NAME sio_network_tests COMMAND sio_network_tests)
 
+  # Disk images through the real sioDisk: mount, then the READ, PUT, and WRITE
+  # commands the bus hands it, on in-memory ATR images.
+  add_executable(sio_disk_tests
+    SIODiskTests.cpp
+    sioDiskStubs.cpp
+    channelStubs.cpp
+    ${CMAKE_SOURCE_DIR}/lib/device/sio/disk.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/atari/diskType.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/atari/diskTypeAtr.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/atari/diskTypeAtx.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/atari/diskTypeXex.cpp
+    ${CMAKE_SOURCE_DIR}/lib/bus/sio/FujiSIOPacket.cpp
+    ${CMAKE_SOURCE_DIR}/lib/bus/DaisyChain.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFile.cpp
+    ${CMAKE_SOURCE_DIR}/lib/hardware/IOChannel.cpp
+  )
+  target_compile_definitions(sio_disk_tests PRIVATE UNIT_TESTS)
+  target_include_directories(sio_disk_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/include/
+    ${CMAKE_SOURCE_DIR}/lib/
+    ${CMAKE_SOURCE_DIR}/lib/bus/
+    ${CMAKE_SOURCE_DIR}/lib/sam/
+    ${CMAKE_SOURCE_DIR}/lib/device/
+    ${CMAKE_SOURCE_DIR}/lib/config/
+    ${CMAKE_SOURCE_DIR}/lib/printer-emulator/
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/
+    ${CMAKE_SOURCE_DIR}/lib/encoding/
+    ${CMAKE_SOURCE_DIR}/lib/media/
+    ${CMAKE_SOURCE_DIR}/lib/fuji/
+    ${CMAKE_SOURCE_DIR}/lib/modem-sniffer/
+    ${CMAKE_SOURCE_DIR}/lib/telnet/
+    ${CMAKE_SOURCE_DIR}/lib/device/NDevice/
+    ${CMAKE_SOURCE_DIR}/lib/device/fujiDevice/
+    ${CMAKE_SOURCE_DIR}/lib/hardware/
+    ${CMAKE_SOURCE_DIR}/lib/tcpip/
+    ${CMAKE_SOURCE_DIR}/lib/compat/
+    ${CMAKE_SOURCE_DIR}/lib/network-protocol/
+    ${CMAKE_SOURCE_DIR}/lib/utils/
+    ${CMAKE_SOURCE_DIR}/lib/ftp/
+    ${CMAKE_SOURCE_DIR}/lib/webdav/
+    ${CMAKE_SOURCE_DIR}/lib/http/
+    ${CMAKE_SOURCE_DIR}/lib/TNFSlib/
+    ${CMAKE_SOURCE_DIR}/lib/fnjson/
+    ${CMAKE_SOURCE_DIR}/lib/fnhtml/
+    ${CMAKE_SOURCE_DIR}/lib/fntext/
+    ${CMAKE_SOURCE_DIR}/lib/fnxml/
+    ${CMAKE_SOURCE_DIR}/components_pc/
+    ${CMAKE_SOURCE_DIR}/components_pc/libsmb2/include/   # asprintf.h on Windows
+    ${CMAKE_SOURCE_DIR}/components_pc/libssh/include/
+    ${CMAKE_BINARY_DIR}/components_pc/libssh/include/
+    ${CMAKE_SOURCE_DIR}/components_pc/cJSON/
+    ${CMAKE_SOURCE_DIR}/components_pc/mongoose/
+    ${CMAKE_SOURCE_DIR}/components/gumbo-query/
+    ${MBEDTLS_INCLUDE_DIR}
+    )
+  if(WIN32)
+    target_link_libraries(sio_disk_tests PRIVATE ws2_32)
+  endif()
+  add_test(NAME sio_disk_tests COMMAND sio_disk_tests)
+
   # The shared NDevice on its own; ATARI-only only because the stubs are.
   add_executable(ndevice_tests NDeviceTests.cpp)
   target_link_libraries(ndevice_tests PRIVATE sio_network_stubs)
