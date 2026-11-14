@@ -1181,6 +1181,71 @@ if(FUJINET_TARGET STREQUAL "APPLE")
 endif()
 
 # ------------------------------------------------------------------------------
+# Disk images through the real iecDrive: mount, then the OPEN, READ, WRITE, and
+# CLOSE the bus hands it on a channel, on in-memory D64 images read through
+# Meatloaf.
+# ------------------------------------------------------------------------------
+if(FUJINET_TARGET STREQUAL "IEC")
+  add_executable(iec_disk_tests
+    IECDiskTests.cpp
+    iecDiskStubs.cpp
+    channelStubs.cpp
+    ${CMAKE_SOURCE_DIR}/lib/device/iec/drive.cpp
+    ${CMAKE_SOURCE_DIR}/lib/bus/iec/IECFileDevice.cpp
+    ${CMAKE_SOURCE_DIR}/lib/bus/iec/IECDevice.cpp
+    ${CMAKE_SOURCE_DIR}/lib/meatloaf/meatloaf.cpp
+    ${CMAKE_SOURCE_DIR}/lib/meatloaf/meat_media.cpp
+    ${CMAKE_SOURCE_DIR}/lib/meatloaf/device/flash.cpp
+    ${CMAKE_SOURCE_DIR}/lib/meatloaf/device/fnfile.cpp
+    ${CMAKE_SOURCE_DIR}/lib/meatloaf/disk/d64.cpp
+    ${CMAKE_SOURCE_DIR}/lib/meatloaf/file/p00.cpp
+    ${CMAKE_SOURCE_DIR}/lib/meatloaf/tape/t64.cpp
+    ${CMAKE_SOURCE_DIR}/lib/meatloaf/tape/tcrt.cpp
+    ${CMAKE_SOURCE_DIR}/lib/meatloaf/wrappers/iec_buffer.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/cbm/mediaType.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/cbm/BlankImage.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFile.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFileLocal.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFS.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFsSD.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnDirCache.cpp
+    ${CMAKE_SOURCE_DIR}/lib/bus/iec/iec.cpp
+    ${CMAKE_SOURCE_DIR}/lib/bus/iec/IECBusHandler.cpp
+    ${CMAKE_SOURCE_DIR}/lib/bus/iec/NetIEC.cpp
+    ${CMAKE_SOURCE_DIR}/lib/bus/iec/virtualDevice.cpp
+    ${CMAKE_SOURCE_DIR}/lib/bus/iec/FujiIECPacket.cpp
+    ${CMAKE_SOURCE_DIR}/lib/bus/DaisyChain.cpp
+    ${CMAKE_SOURCE_DIR}/lib/hardware/IOChannel.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/peoples_url_parser.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/string_utils.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/utils.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/U8Char.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/punycode.cpp
+    ${CMAKE_SOURCE_DIR}/lib/compat/compat_gettimeofday.c
+  )
+  if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    target_sources(iec_disk_tests PRIVATE
+        ${CMAKE_SOURCE_DIR}/lib/compat/strlcpy.c
+        ${CMAKE_SOURCE_DIR}/lib/compat/strlcat.c
+    )
+  endif()
+  target_compile_definitions(iec_disk_tests PRIVATE UNIT_TESTS)
+  target_include_directories(iec_disk_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/lib/device/iec/
+    ${CMAKE_SOURCE_DIR}/lib/bus/iec/
+    ${CMAKE_SOURCE_DIR}/lib/meatloaf/
+    ${CMAKE_SOURCE_DIR}/lib/media/cbm/
+    ${CMAKE_SOURCE_DIR}/components_pc/libsmb2/include/   # asprintf.h on Windows
+    ${ROM_MOUNT_TEST_INCLUDES}
+  )
+  target_link_libraries(iec_disk_tests PRIVATE ${MBEDCRYPTO_STATIC_LIB})
+  if(WIN32)
+    target_link_libraries(iec_disk_tests PRIVATE ws2_32)
+  endif()
+  add_test(NAME iec_disk_tests COMMAND iec_disk_tests)
+endif()
+
+# ------------------------------------------------------------------------------
 # Request header serialization in the vendored HTTP client. A single header is
 # never split across buffers, and getting that boundary wrong drops the blank
 # line that ends the header block - the server then reads the body as headers
