@@ -52,6 +52,10 @@ typedef struct
 #include "freertos/queue.h"
 static QueueHandle_t _cpm_rxq = nullptr;
 static QueueHandle_t _cpm_txq = nullptr;
+#include "freertos/semphr.h"
+/* Given by the CP/M task as its last act, so stopCPM() knows it is safe to
+ * delete the queues. */
+static SemaphoreHandle_t _cpm_exited = nullptr;
 #else
 #include <queue>
 #include <mutex>
@@ -66,6 +70,14 @@ static std::condition_variable _cpm_txcv;
 /* Set by _cpm_run() when the CCP exits of its own accord (e.g. user typed EXIT).
  * Polled by NetworkProtocolCPM::status() to drive EOF back to the host. */
 static volatile bool _cpm_session_ended = false;
+
+/* Set by stopCPM(). Unlike RunCPM's Status (which a CTRL-C at the prompt
+ * resets to "warm boot"), nothing in RunCPM clears this, so the CP/M task
+ * cannot miss a close. */
+static volatile bool _cpm_stop_requested = false;
+
+/* How long the ESP tasks wait on a queue before looking at the stop flag */
+#define CPM_QUEUE_SLICE_MS 100
 
 /* -------------------------------------------------------------------------
  * Path helpers
@@ -425,38 +437,44 @@ static uint8_t _getch(void)
 {
     uint8_t c = 0;
 #ifdef ESP_PLATFORM
-    if (_cpm_txq != nullptr)
-        xQueueReceive(_cpm_txq, &c, portMAX_DELAY);
+    while (_cpm_txq != nullptr && !_cpm_stop_requested)
+    {
+        if (xQueueReceive(_cpm_txq, &c, pdMS_TO_TICKS(CPM_QUEUE_SLICE_MS)) == pdTRUE)
+            return c;
+    }
+    /* closing: a CTRL-C gets RunCPM out of whatever it was waiting for */
+    return 0x03;
 #else
     std::unique_lock<std::mutex> lk(_cpm_txmtx);
-    _cpm_txcv.wait(lk, [] { return !_cpm_txq.empty(); });
+    _cpm_txcv.wait(lk, [] { return !_cpm_txq.empty() || _cpm_stop_requested; });
+    if (_cpm_txq.empty())
+        return 0x03;
     c = _cpm_txq.front();
     _cpm_txq.pop();
-#endif
     return c;
+#endif
 }
+
+static void _putch(uint8_t ch);
 
 static uint8_t _getche(void)
 {
     uint8_t c = _getch();
     /* echo back through rxq so the terminal sees it */
-#ifdef ESP_PLATFORM
-    if (_cpm_rxq != nullptr)
-        xQueueSend(_cpm_rxq, &c, portMAX_DELAY);
-#else
-    {
-        std::lock_guard<std::mutex> lk(_cpm_rxmtx);
-        _cpm_rxq.push(c);
-    }
-#endif
+    _putch(c);
     return c;
 }
 
 static void _putch(uint8_t ch)
 {
 #ifdef ESP_PLATFORM
-    if (_cpm_rxq != nullptr)
-        xQueueSend(_cpm_rxq, &ch, portMAX_DELAY);
+    /* If nobody is reading (the host hung up), give up on the byte once a
+     * stop is requested instead of blocking the task forever. */
+    while (_cpm_rxq != nullptr && !_cpm_stop_requested)
+    {
+        if (xQueueSend(_cpm_rxq, &ch, pdMS_TO_TICKS(CPM_QUEUE_SLICE_MS)) == pdTRUE)
+            break;
+    }
 #else
     {
         std::lock_guard<std::mutex> lk(_cpm_rxmtx);
