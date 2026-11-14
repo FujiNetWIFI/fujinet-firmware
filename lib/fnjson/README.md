@@ -6,7 +6,7 @@ JSON Pointer query with the value as text.
 ## Layout
 | File | Defines |
 |---|---|
-| `fnjson.h`, `fnjson.cpp` | `FNJSON`: `setProtocol`, `setReadQuery`, `parse`, `status`, `readValueLen`, `readValue`, `available`, `setLineEnding`; `JSONQueryFlags_t` aliases the shared query flags |
+| `fnjson.h`, `fnjson.cpp` | `FNJSON`: `setProtocol`, `setReadQuery`, `parse`, `status`, `readValueLen`, `readValue`, `available`, `setLineEnding`, `rawValue`, `setDocument`; `JSONQueryFlags_t` aliases the shared query flags |
 
 ## How it fits
 - Wrapped by `JSONParser` in [lib/device/NDevice/](../device/NDevice/); reads the document through

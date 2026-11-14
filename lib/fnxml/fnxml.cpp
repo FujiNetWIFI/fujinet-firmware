@@ -91,6 +91,7 @@ void FNXML::setReadQuery(const std::string &queryString, uint8_t queryParam)
     }
     _queryString = queryString;
     _queryParam = queryParam;
+    _hasQuery = true;
     resolveQuery();
     _xml_bytes_remaining = readValueLen();
 }
@@ -106,6 +107,21 @@ void FNXML::resolveQuery()
     std::string v;
     if (fnxml_resolve_query(_doc, _queryString, _matchIndex, v))
         _value = processString(v) + lineEnding;
+}
+
+std::optional<std::string> FNXML::rawValue()
+{
+    if (!_hasQuery)
+        return std::nullopt;
+
+    std::string out;
+    fnxml_resolve_query(_doc, _queryString, _matchIndex, out);
+    return out;
+}
+
+void FNXML::setDocument(std::string document)
+{
+    _document = std::move(document);
 }
 
 /**
@@ -154,10 +170,18 @@ bool FNXML::parse()
 {
     NetworkStatus ns;
 
+    _hasQuery = false;
     if (_doc != nullptr)
     {
         delete _doc;
         _doc = nullptr;
+    }
+
+    if (_document)
+    {
+        _parseBuffer = std::move(*_document);
+        _document.reset();
+        return parseBuffer().is_success();
     }
 
     if (_protocol == nullptr)
@@ -195,8 +219,13 @@ bool FNXML::parse()
 #endif
     }
 
+    return parseBuffer().is_success();
+}
+
+success_is_true FNXML::parseBuffer()
+{
     if (_parseBuffer.empty())
-        return false;
+        RETURN_ERROR_AS_FALSE();
 
     // Strip UTF-8 BOM if present.
     if (_parseBuffer.length() >= 3 &&
@@ -215,7 +244,7 @@ bool FNXML::parse()
         _parseBuffer = _parseBuffer.substr(firstNonWs);
 
     if (_parseBuffer.empty())
-        return false;
+        RETURN_ERROR_AS_FALSE();
 
     // Parse with tinyxml2.
     _doc = new tinyxml2::XMLDocument();
@@ -228,13 +257,13 @@ bool FNXML::parse()
 #endif
         delete _doc;
         _doc = nullptr;
-        return false;
+        RETURN_ERROR_AS_FALSE();
     }
 
     // Fresh document -> restart match iteration.
     _lastQuery.clear();
     _matchIndex = 0;
-    return true;
+    RETURN_SUCCESS_AS_TRUE();
 }
 
 bool FNXML::status(NetworkStatus *s)

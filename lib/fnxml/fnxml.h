@@ -14,6 +14,7 @@
 #ifndef FNXML_H
 #define FNXML_H
 
+#include <optional>
 #include <string.h>
 #include <string>
 
@@ -45,6 +46,11 @@ public:
     void setQueryParam(uint8_t qp);
     uint8_t queryParam() const { return _queryParam; }
     size_t available() { return _xml_bytes_remaining; }
+    // The last query's match with entities and CDATA resolved, no output mode or
+    // remapping; none before a query since parse().
+    std::optional<std::string> rawValue();
+    // The next parse() reads this instead of the protocol.
+    void setDocument(std::string document);
 
 private:
     tinyxml2::XMLDocument *_doc = nullptr;
@@ -58,6 +64,8 @@ private:
     // next match; a different path (or a fresh parse) restarts at the first.
     std::string _lastQuery;
     size_t _matchIndex = 0;
+    bool _hasQuery = false;
+    std::optional<std::string> _document;
 
     // Result of the last resolved query, plus how many of its bytes are still
     // to be handed to the client.
@@ -65,6 +73,7 @@ private:
     int _xml_bytes_remaining = 0;
 
     void resolveQuery();
+    success_is_true parseBuffer();
 };
 
 #endif /* FNXML_H */

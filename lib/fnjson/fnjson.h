@@ -10,6 +10,7 @@
 
 #include <cJSON.h>
 #include <cJSON_Utils.h>
+#include <optional>
 #include <string.h>
 
 #include "../fntext/fn_query_flags.h"
@@ -40,16 +41,23 @@ public:
     void setQueryParam(uint8_t qp);
     uint8_t queryParam() const { return _queryParam; }
     size_t available() { return _json_bytes_remaining; }
+    // The last query's value: a string's text, else the item's JSON source; none before a query since parse().
+    std::optional<std::string> rawValue();
+    // The next parse() reads this instead of the protocol.
+    void setDocument(std::string document);
 
 private:
     cJSON *_json = nullptr;
     cJSON *_item = nullptr;
+    bool _hasQuery = false;
+    std::optional<std::string> _document;
     NetworkProtocol *_protocol = nullptr;
     std::string _queryString;
     uint8_t _queryParam = 0;
     std::string lineEnding;
     std::string getValue(cJSON *item);
     std::string _parseBuffer;
+    success_is_true parseBuffer();
     int _json_bytes_remaining = 0;
 };
 

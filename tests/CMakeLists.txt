@@ -662,11 +662,13 @@ if(FUJINET_TARGET STREQUAL "ATARI")
   # concrete systemBus.
   #
   # NParserReadTests.cpp shares its stubs: NParser::read() when the protocol
-  # leaves fewer bytes than asked for (#1689).
+  # leaves fewer bytes than asked for (#1689). NQueryChainTests.cpp: an XML
+  # parser over another's query value.
   # ----------------------------------------------------------------------------
   add_executable(nquery_output_mode_tests
     NQueryOutputModeTests.cpp
     NParserReadTests.cpp
+    NQueryChainTests.cpp
     ${CMAKE_SOURCE_DIR}/lib/device/NDevice/NParser.cpp
     ${CMAKE_SOURCE_DIR}/lib/device/NDevice/XMLParser.cpp
     ${CMAKE_SOURCE_DIR}/lib/fntext/fn_sanitize.cpp

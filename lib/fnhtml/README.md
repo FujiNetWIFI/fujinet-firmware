@@ -6,7 +6,7 @@ selector query with the matching text or attribute.
 ## Layout
 | File | Defines |
 |---|---|
-| `fnhtml.h`, `fnhtml.cpp` | `FNHTML`: `setProtocol`, `setReadQuery`, `parse`, `status`, `readValueLen`, `readValue`, `available`, `setLineEnding`; the same shape as `FNJSON` and `FNXML` |
+| `fnhtml.h`, `fnhtml.cpp` | `FNHTML`: `setProtocol`, `setReadQuery`, `parse`, `status`, `readValueLen`, `readValue`, `available`, `setLineEnding`, `rawValue`, `setDocument`; the same shape as `FNJSON` and `FNXML` |
 
 ## How it fits
 - Wrapped by `HTMLParser` in [lib/device/NDevice/](../device/NDevice/), which is what the
