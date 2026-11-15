@@ -11,8 +11,9 @@
 #include "../../include/global_types.h"
 
 // Fixed leading portion of a VDK header; bytes 2-3 give the real header
-// size (this struct plus an optional disk-name string), and the low 3 bits
-// of the flags byte mark a compressed image, which we don't decompress.
+// size (this struct plus any trailing disk-name string or reserved padding),
+// and the low 3 bits of the flags byte mark a compressed image, which we
+// don't decompress.
 struct __attribute__((packed)) vdkHeader_t
 {
     uint8_t magic[2];
@@ -137,6 +138,10 @@ mediatype_t MediaTypeVDK::mount(fnFile *f, uint32_t disksize)
 {
     Debug_print("VDK MOUNT\n");
 
+    // Set before any early return below so a refused mount still closes f
+    // (via ~MediaType()) instead of leaking the handle.
+    _media_fileh = f;
+
     vdkHeader_t header;
     if (fnio::fseek(f, 0, SEEK_SET) != 0 ||
         fnio::fread(&header, 1, sizeof(header), f) != sizeof(header))
@@ -163,7 +168,6 @@ mediatype_t MediaTypeVDK::mount(fnFile *f, uint32_t disksize)
         return MEDIATYPE_UNKNOWN;
     }
 
-    _media_fileh = f;
     _mediatype = MEDIATYPE_VDK;
     _media_num_blocks = (disksize - _header_size) / VDK_BLOCK_SIZE;
     Debug_printf("_media_num_blocks %lu (header %u bytes)\r\n", _media_num_blocks, _header_size);
