@@ -130,7 +130,8 @@ TEST_CASE("each file on a mounted D64 reads back as stored")
     auto image = d64_with_files({{"HELLO", hello}, {"WORLD", world}});
     MemFile file(image);
     TestDrive drive;
-    drive.mount(&file, D64_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ);
+    REQUIRE(drive.mount(&file, D64_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
+            == MEDIATYPE_D64);
 
     for (int pass = 0; pass < 2; pass++)
     {
@@ -152,7 +153,8 @@ TEST_CASE("the directory lists each file on the D64")
     auto image = d64_with_files({{"HELLO", make_image(600)}, {"WORLD", make_image(100)}});
     MemFile file(image);
     TestDrive drive;
-    drive.mount(&file, D64_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ);
+    REQUIRE(drive.mount(&file, D64_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
+            == MEDIATYPE_D64);
 
     REQUIRE(drive.open(LOAD_CHANNEL, "$"));
     auto listing = read_all(drive, LOAD_CHANNEL);
@@ -168,7 +170,8 @@ TEST_CASE("a file not on the D64 isn't found")
     auto image = d64_with_files({{"HELLO", make_image(600)}});
     MemFile file(image);
     TestDrive drive;
-    drive.mount(&file, D64_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ);
+    REQUIRE(drive.mount(&file, D64_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
+            == MEDIATYPE_D64);
 
     CHECK_FALSE(drive.open(LOAD_CHANNEL, "MISSING"));
     CHECK(drive.getStatusCode() != ST_OK);
@@ -180,7 +183,8 @@ TEST_CASE("saving to a file on a D64 is refused as write-protected")
     auto image = d64_with_files({{"HELLO", make_image(600)}});
     MemFile file(image);
     TestDrive drive;
-    drive.mount(&file, D64_TEST_FILE, image.size(), DISK_ACCESS_MODE_WRITE);
+    REQUIRE(drive.mount(&file, D64_TEST_FILE, image.size(), DISK_ACCESS_MODE_WRITE)
+            == MEDIATYPE_D64);
 
     CHECK_FALSE(drive.open(SAVE_CHANNEL, "NEWFILE"));
     CHECK(drive.getStatusCode() == ST_WRITE_PROTECT_ON);
@@ -199,8 +203,10 @@ TEST_CASE("mounting over a disk closes the old image once")
     MemFile second(second_image);
     TestDrive drive;
 
-    drive.mount(&first, D64_TEST_FILE, first_image.size(), DISK_ACCESS_MODE_READ);
-    drive.mount(&second, D64_TEST_FILE, second_image.size(), DISK_ACCESS_MODE_READ);
+    REQUIRE(drive.mount(&first, D64_TEST_FILE, first_image.size(), DISK_ACCESS_MODE_READ)
+            == MEDIATYPE_D64);
+    REQUIRE(drive.mount(&second, D64_TEST_FILE, second_image.size(), DISK_ACCESS_MODE_READ)
+            == MEDIATYPE_D64);
     CHECK(first.closes == 1);
     CHECK(second.closes == 0);
 
@@ -216,7 +222,8 @@ TEST_CASE("unmount closes the image once and its files are gone")
     auto image = d64_with_files({{"HELLO", make_image(600)}});
     MemFile file(image);
     TestDrive drive;
-    drive.mount(&file, D64_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ);
+    REQUIRE(drive.mount(&file, D64_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
+            == MEDIATYPE_D64);
 
     check_closed_once(drive, file);
     CHECK_FALSE(drive.open(LOAD_CHANNEL, "HELLO"));
