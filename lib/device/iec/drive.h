@@ -260,7 +260,7 @@ class iecDrive : public IECFileDevice
 #endif /* UNUSED */
   bool is_config_device = false;
 
- private:
+ protected:
   // open file "name" on channel
   virtual bool open(uint8_t channel, const char *name);
 
@@ -291,6 +291,7 @@ class iecDrive : public IECFileDevice
   // called on falling edge of RESET line
   virtual void reset();
 
+ private:
   void set_cwd(std::string path);
 
   // name a mounted image's handle has in Meatloaf's fnfile:// file system
