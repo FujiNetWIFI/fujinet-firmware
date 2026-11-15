@@ -856,6 +856,41 @@ if(FUJINET_TARGET STREQUAL "COCO")
   endif()
   add_test(NAME drivewire_rom_mount_tests COMMAND drivewire_rom_mount_tests)
 
+  # Disk images through the real drivewireDisk: mount, read, write, and unmount
+  # for each format, on in-memory images.
+  add_executable(drivewire_disk_tests
+    DrivewireDiskTests.cpp
+    romMountStubs.cpp
+    drivewireBusStubs.cpp
+    channelStubs.cpp
+    ${CMAKE_SOURCE_DIR}/lib/device/drivewire/disk.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFile.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/mediaType.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/media.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rom/ROMMedia.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rom/CoCoCartROM.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/mediaTypeDSK.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/mediaTypeMRM.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/mediaTypeVDK.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/mediaTypeCASDSK.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/casIndex.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/casReader.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/decbLayout.cpp
+    ${CMAKE_SOURCE_DIR}/lib/bus/FujiBusPacket.cpp
+    ${CMAKE_SOURCE_DIR}/lib/bus/DaisyChain.cpp
+  )
+  target_compile_definitions(drivewire_disk_tests PRIVATE UNIT_TESTS PINMAP_FUJIVERSAL_DRIVEWIRE)
+  target_include_directories(drivewire_disk_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/lib/device/drivewire/
+    ${CMAKE_SOURCE_DIR}/lib/bus/drivewire/
+    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/
+    ${ROM_MOUNT_TEST_INCLUDES}
+  )
+  if(WIN32)
+    target_link_libraries(drivewire_disk_tests PRIVATE ws2_32)
+  endif()
+  add_test(NAME drivewire_disk_tests COMMAND drivewire_disk_tests)
+
   # The Media root class's helpers, through the same in-memory fujiHost.
   add_executable(media_tests
     MediaTests.cpp
