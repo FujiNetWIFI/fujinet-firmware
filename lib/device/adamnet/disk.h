@@ -29,11 +29,11 @@ private:
     // block are stale re-polls to ignore. Cleared on a new block number / reset.
     bool _receive_acked = false;
 
-    void adamnet_control_send(const FujiAdamPacket &packet) override;
-
     void adamnet_control_send_block_num(const FujiAdamPacket &packet);
     void adamnet_control_send_block_data();
 
+protected:
+    void adamnet_control_send(const FujiAdamPacket &packet) override;
     AdamNetStatus deviceStatus() override;
 
 public:
