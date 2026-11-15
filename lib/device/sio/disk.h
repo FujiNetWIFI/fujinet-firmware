@@ -15,12 +15,14 @@ private:
     void sio_write(const FujiSIOPacket &packet);
     void sio_format();
     void sio_status(const FujiSIOPacket &packet) override;
-    void sio_process(const FujiSIOPacket &packet) override;
 
     void derive_percom_block(uint16_t numSectors);
     void sio_read_percom_block();
     void sio_write_percom_block();
     void dump_percom_block();
+
+protected:
+    void sio_process(const FujiSIOPacket &packet) override;
 
 public:
     sioDisk();
