@@ -19,12 +19,14 @@ private:
     void rs232_write(uint32_t sector, bool verify);
     void rs232_format();
     void rs232_status(FujiStatusReq reqType);
-    void rs232_process(const FujiBusPacket &packet) override;
 
     void derive_percom_block(uint16_t numSectors);
     void rs232_read_percom_block();
     void rs232_write_percom_block();
     void dump_percom_block();
+
+protected:
+    void rs232_process(const FujiBusPacket &packet) override;
 
 public:
     rs232Disk();
