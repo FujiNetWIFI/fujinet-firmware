@@ -131,7 +131,7 @@ TEST_CASE("each file on a mounted D64 reads back as stored")
     MemFile file(image);
     TestDrive drive;
     REQUIRE(drive.mount(&file, D64_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
-            == MEDIATYPE_D64);
+            .is_success());
 
     for (int pass = 0; pass < 2; pass++)
     {
@@ -154,7 +154,7 @@ TEST_CASE("the directory lists each file on the D64")
     MemFile file(image);
     TestDrive drive;
     REQUIRE(drive.mount(&file, D64_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
-            == MEDIATYPE_D64);
+            .is_success());
 
     REQUIRE(drive.open(LOAD_CHANNEL, "$"));
     auto listing = read_all(drive, LOAD_CHANNEL);
@@ -171,7 +171,7 @@ TEST_CASE("a file not on the D64 isn't found")
     MemFile file(image);
     TestDrive drive;
     REQUIRE(drive.mount(&file, D64_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
-            == MEDIATYPE_D64);
+            .is_success());
 
     CHECK_FALSE(drive.open(LOAD_CHANNEL, "MISSING"));
     CHECK(drive.getStatusCode() != ST_OK);
@@ -184,7 +184,7 @@ TEST_CASE("saving to a file on a D64 is refused as write-protected")
     MemFile file(image);
     TestDrive drive;
     REQUIRE(drive.mount(&file, D64_TEST_FILE, image.size(), DISK_ACCESS_MODE_WRITE)
-            == MEDIATYPE_D64);
+            .is_success());
 
     CHECK_FALSE(drive.open(SAVE_CHANNEL, "NEWFILE"));
     CHECK(drive.getStatusCode() == ST_WRITE_PROTECT_ON);
@@ -204,9 +204,9 @@ TEST_CASE("mounting over a disk closes the old image once")
     TestDrive drive;
 
     REQUIRE(drive.mount(&first, D64_TEST_FILE, first_image.size(), DISK_ACCESS_MODE_READ)
-            == MEDIATYPE_D64);
+            .is_success());
     REQUIRE(drive.mount(&second, D64_TEST_FILE, second_image.size(), DISK_ACCESS_MODE_READ)
-            == MEDIATYPE_D64);
+            .is_success());
     CHECK(first.closes == 1);
     CHECK(second.closes == 0);
 
@@ -223,7 +223,7 @@ TEST_CASE("unmount closes the image once and its files are gone")
     MemFile file(image);
     TestDrive drive;
     REQUIRE(drive.mount(&file, D64_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
-            == MEDIATYPE_D64);
+            .is_success());
 
     check_closed_once(drive, file);
     CHECK_FALSE(drive.open(LOAD_CHANNEL, "HELLO"));

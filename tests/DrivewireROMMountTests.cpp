@@ -38,7 +38,7 @@ void check_closed_once(drivewireDisk &disk, const MemFile &file)
 void check_nothing_mounted(drivewireDisk &disk, const MemFile &file)
 {
     CHECK_FALSE(disk.device_active);
-    CHECK(disk.disktype() == MEDIATYPE_UNKNOWN);
+    CHECK(disk.mediatype() == MEDIATYPE_UNKNOWN);
     CHECK(file.closes == 1);
 }
 
@@ -52,7 +52,7 @@ TEST_CASE("a ROM image goes to the DBC in 256-byte blocks between OPEN and CLOSE
 
     drivewireDisk disk;
     CHECK(disk.mount(&file, ROM_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
-          == MEDIATYPE_ROM);
+         .is_success());
     check_closed_once(disk, file);
 
     REQUIRE(bus.sent.size() == 2 + CART_8K / MEDIA_BLOCK_SIZE);
@@ -79,7 +79,7 @@ TEST_CASE("a .ccc or .rom mounts in either case")
         MemFile file(image);
 
         drivewireDisk disk;
-        CHECK(disk.mount(&file, filename, image.size(), DISK_ACCESS_MODE_READ) == MEDIATYPE_ROM);
+        CHECK(disk.mount(&file, filename, image.size(), DISK_ACCESS_MODE_READ).is_success());
         CHECK(written_bytes() == std::string(image.begin(), image.end()));
         check_closed_once(disk, file);
     }
@@ -91,7 +91,7 @@ TEST_CASE("an empty ROM image fails without touching the bus")
     MemFile file({});
 
     drivewireDisk disk;
-    CHECK(disk.mount(&file, ROM_TEST_FILE, 0, DISK_ACCESS_MODE_READ) == MEDIATYPE_UNKNOWN);
+    CHECK(disk.mount(&file, ROM_TEST_FILE, 0, DISK_ACCESS_MODE_READ).is_error());
     check_nothing_mounted(disk, file);
     check_closed_once(disk, file);
     CHECK(bus.sent.empty());
@@ -104,8 +104,7 @@ TEST_CASE("no reply to OPEN fails the mount and sends nothing more")
     MemFile file(make_image(CART_8K));
 
     drivewireDisk disk;
-    CHECK(disk.mount(&file, ROM_TEST_FILE, CART_8K, DISK_ACCESS_MODE_READ)
-          == MEDIATYPE_UNKNOWN);
+    CHECK(disk.mount(&file, ROM_TEST_FILE, CART_8K, DISK_ACCESS_MODE_READ).is_error());
     check_nothing_mounted(disk, file);
     check_closed_once(disk, file);
     REQUIRE(bus.sent.size() == 1);
@@ -119,8 +118,7 @@ TEST_CASE("no reply to a block fails the mount but still sends CLOSE")
     MemFile file(make_image(CART_8K));
 
     drivewireDisk disk;
-    CHECK(disk.mount(&file, ROM_TEST_FILE, CART_8K, DISK_ACCESS_MODE_READ)
-          == MEDIATYPE_UNKNOWN);
+    CHECK(disk.mount(&file, ROM_TEST_FILE, CART_8K, DISK_ACCESS_MODE_READ).is_error());
     check_nothing_mounted(disk, file);
     check_closed_once(disk, file);
     REQUIRE(bus.sent.size() == 4);
@@ -137,11 +135,11 @@ TEST_CASE("a second ROM mount sends the new image and closes each handle once")
     drivewireDisk disk;
     bus.reset();
     REQUIRE(disk.mount(&first_file, ROM_TEST_FILE, first.size(), DISK_ACCESS_MODE_READ)
-            == MEDIATYPE_ROM);
+           .is_success());
 
     bus.reset();
     CHECK(disk.mount(&second_file, ROM_TEST_FILE, second.size(), DISK_ACCESS_MODE_READ)
-          == MEDIATYPE_ROM);
+         .is_success());
     CHECK(written_bytes() == std::string(second.begin(), second.end()));
     check_closed_once(disk, second_file);
     CHECK(first_file.closes == 1);
@@ -157,7 +155,7 @@ TEST_CASE("every cartridge size mounts")
         MemFile file(image);
 
         drivewireDisk disk;
-        CHECK(disk.mount(&file, ROM_TEST_FILE, size, DISK_ACCESS_MODE_READ) == MEDIATYPE_ROM);
+        CHECK(disk.mount(&file, ROM_TEST_FILE, size, DISK_ACCESS_MODE_READ).is_success());
         CHECK(written_bytes() == std::string(image.begin(), image.end()));
         check_closed_once(disk, file);
     }
@@ -170,7 +168,7 @@ TEST_CASE("a caller-given ROM type still needs a .ccc or .rom")
 
     drivewireDisk disk;
     CHECK(disk.mount(&file, "cart.dat", CART_8K, DISK_ACCESS_MODE_READ, MEDIATYPE_ROM)
-          == MEDIATYPE_UNKNOWN);
+          .is_error());
     CHECK(bus.sent.empty());
     check_nothing_mounted(disk, file);
     check_closed_once(disk, file);
@@ -190,7 +188,7 @@ TEST_CASE("a size no cartridge has is refused before anything is sent")
 
         drivewireDisk disk;
         CHECK(disk.mount(&file, ROM_TEST_FILE, size, DISK_ACCESS_MODE_READ)
-              == MEDIATYPE_UNKNOWN);
+             .is_error());
         CHECK(bus.sent.empty());
         check_nothing_mounted(disk, file);
         check_closed_once(disk, file);

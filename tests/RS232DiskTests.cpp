@@ -109,9 +109,9 @@ TEST_CASE("an .img mounts raw, writable or read-only")
     {
         MemFile file(numbered_sectors(4, IMG_SECTOR_SIZE));
         TestDisk disk;
-        CHECK(disk.mount(&file, IMG_TEST_FILE, file.contents().size(), mode) == MEDIATYPE_IMG);
+        CHECK(disk.mount(&file, IMG_TEST_FILE, file.contents().size(), mode).is_success());
         CHECK(disk.device_active);
-        CHECK(disk.disktype() == MEDIATYPE_IMG);
+        CHECK(disk.mediatype() == MEDIATYPE_IMG);
         CHECK(disk.mount_time() != 0);
         check_closed_once(disk, file);
     }
@@ -123,7 +123,7 @@ TEST_CASE("every IMG sector reads back as stored, in any order")
     MemFile file(image);
     TestDisk disk;
     REQUIRE(disk.mount(&file, IMG_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
-            == MEDIATYPE_IMG);
+            .is_success());
 
     for (uint32_t sector : {2, 0, 1, 3, 3, 1})
     {
@@ -144,7 +144,7 @@ TEST_CASE("an IMG write lands in its sector and reads back, with or without veri
         MemFile file(image);
         TestDisk disk;
         REQUIRE(disk.mount(&file, IMG_TEST_FILE, image.size(), DISK_ACCESS_MODE_WRITE)
-                == MEDIATYPE_IMG);
+                .is_success());
 
         REQUIRE(read_sector(disk, 2).has_value());
         CHECK(write_sector(disk, 2, filled(IMG_SECTOR_SIZE, 0x77), command)
@@ -164,7 +164,7 @@ TEST_CASE("an IMG write past the end, or short of a sector, is refused")
     MemFile file(image);
     TestDisk disk;
     REQUIRE(disk.mount(&file, IMG_TEST_FILE, image.size(), DISK_ACCESS_MODE_WRITE)
-            == MEDIATYPE_IMG);
+            .is_success());
 
     CHECK(write_sector(disk, 4, filled(IMG_SECTOR_SIZE, 0x77)) == Outcome::Error);
     CHECK(write_sector(disk, 1, filled(IMG_SECTOR_SIZE - 1, 0x77)) == Outcome::Error);
@@ -177,7 +177,7 @@ TEST_CASE("unmount closes the image once and leaves nothing to read or write")
     MemFile file(numbered_sectors(4, IMG_SECTOR_SIZE));
     TestDisk disk;
     REQUIRE(disk.mount(&file, IMG_TEST_FILE, file.contents().size(), DISK_ACCESS_MODE_WRITE)
-            == MEDIATYPE_IMG);
+            .is_success());
 
     check_closed_once(disk, file);
     CHECK_FALSE(disk.device_active);
@@ -198,9 +198,9 @@ TEST_CASE("mounting over a disk closes the old image once")
     TestDisk disk;
 
     REQUIRE(disk.mount(&first, IMG_TEST_FILE, first_image.size(), DISK_ACCESS_MODE_READ)
-            == MEDIATYPE_IMG);
+            .is_success());
     REQUIRE(disk.mount(&second, IMG_TEST_FILE, second_image.size(), DISK_ACCESS_MODE_READ)
-            == MEDIATYPE_IMG);
+            .is_success());
     CHECK(first.closes == 1);
     CHECK(second.closes == 0);
     CHECK(read_sector(disk, 6) == sector_of(second_image, 6, IMG_SECTOR_SIZE));
@@ -213,7 +213,7 @@ TEST_CASE("IMD sectors read back in LBA order")
     MemFile file(image);
     TestDisk disk;
     REQUIRE(disk.mount(&file, IMD_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
-            == MEDIATYPE_IMD);
+            .is_success());
     CHECK(disk.device_active);
 
     const uint8_t track_fill[] = {0xA0, 0xA1, 0xB0, 0xB1};
@@ -232,7 +232,7 @@ TEST_CASE("an IMD image is found by its contents under another name")
     MemFile file(image);
     TestDisk disk;
     CHECK(disk.mount(&file, "rs232_disk_test.dat", image.size(), DISK_ACCESS_MODE_READ)
-          == MEDIATYPE_IMD);
+          .is_success());
     CHECK(read_sector(disk, 4) == filled(IMD_SECTOR_SIZE, 0xA1));
     check_closed_once(disk, file);
 }
@@ -245,7 +245,7 @@ TEST_CASE("a writable IMD stores a sector in place, and a read-only one refuses"
         MemFile file(image);
         TestDisk disk;
         REQUIRE(disk.mount(&file, IMD_TEST_FILE, image.size(), DISK_ACCESS_MODE_WRITE)
-                == MEDIATYPE_IMD);
+                .is_success());
 
         std::vector<uint8_t> data = filled(IMD_SECTOR_SIZE, 0x11);
         data[64] = 0x22;
@@ -262,7 +262,7 @@ TEST_CASE("a writable IMD stores a sector in place, and a read-only one refuses"
         MemFile file(image);
         TestDisk disk;
         REQUIRE(disk.mount(&file, IMD_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
-                == MEDIATYPE_IMD);
+                .is_success());
 
         CHECK(write_sector(disk, 6, filled(IMD_SECTOR_SIZE, 0x5A)) == Outcome::Error);
         CHECK(file.contents() == image);
@@ -280,7 +280,7 @@ TEST_CASE("an Altair-sized .dsk mounts as Altair, with 137-byte sectors")
     MemFile file(image);
     TestDisk disk;
     REQUIRE(disk.mount(&file, ALTAIR_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
-            == MEDIATYPE_ALTAIR);
+            .is_success());
 
     for (uint32_t sector : {300u, 0u, 1u, ALTAIR_MINIDISK_SECTORS - 1})
     {
@@ -298,7 +298,7 @@ TEST_CASE("an Altair write lands in its sector, and a read-only mount refuses")
         auto image = numbered_sectors(ALTAIR_MINIDISK_SECTORS, ALTAIR_SECTOR_SIZE);
         MemFile file(image);
         TestDisk disk;
-        REQUIRE(disk.mount(&file, ALTAIR_TEST_FILE, image.size(), mode) == MEDIATYPE_ALTAIR);
+        REQUIRE(disk.mount(&file, ALTAIR_TEST_FILE, image.size(), mode).is_success());
 
         std::vector<uint8_t> expected = image;
         if (mode == DISK_ACCESS_MODE_WRITE)
@@ -324,7 +324,7 @@ TEST_CASE("a .dsk that isn't an Altair size mounts raw")
     MemFile file(image);
     TestDisk disk;
     CHECK(disk.mount(&file, ALTAIR_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
-          == MEDIATYPE_IMG);
+          .is_success());
     CHECK(read_sector(disk, 3) == sector_of(image, 3, IMG_SECTOR_SIZE));
     check_closed_once(disk, file);
 }

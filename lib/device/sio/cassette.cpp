@@ -1232,7 +1232,7 @@ void sioCassette::mount_turbo_loader()
     // so the bootdisk won't interfere. Our XEX gets device_active=true and
     // D1: responds with the loader on next boot.
     int8_t slot = 0;
-    if (SYSTEM_BUS.theFuji->get_disk_dev(slot)->disktype() != MEDIATYPE_UNKNOWN)
+    if (SYSTEM_BUS.theFuji->get_disk_dev(slot)->mediatype() != MEDIATYPE_UNKNOWN)
     {
         Debug_printf("%s: D1: is not free for loader!\n", label);
         return;

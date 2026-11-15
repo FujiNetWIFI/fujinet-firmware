@@ -26,9 +26,9 @@ protected:
 
 public:
     sioDisk();
-    mediatype_t mount(fnFile *f, const char *filename, uint32_t disksize,
-                      disk_access_flags_t access_mode,
-                      mediatype_t disk_type = MEDIATYPE_UNKNOWN);
+    error_is_true mount(fnFile *f, const char *filename, uint32_t disksize,
+                        disk_access_flags_t access_mode,
+                        mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     mediatype_t mount_disk_media(fnFile *f, const char *filename, uint32_t disksize,
                                  mediatype_t disk_type);
     void unmount();
@@ -41,7 +41,7 @@ public:
     } __attribute__((packed));
     success_is_true write_blank(fnFile *f, const NewDiskRequest &req);
 
-    mediatype_t disktype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_disktype; };
+    mediatype_t mediatype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_disktype; };
 
     ~sioDisk();
 };

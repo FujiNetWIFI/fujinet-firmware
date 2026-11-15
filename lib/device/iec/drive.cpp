@@ -1477,10 +1477,9 @@ void iecDrive::set_cwd(std::string path)
 /* Mount Disk
    We determine the type of image based on the filename extension.
    If the disk_type value passed is not MEDIATYPE_UNKNOWN then that's used instead.
-   Return value is MEDIATYPE_UNKNOWN in case of failure.
 */
-mediatype_t iecDrive::mount(fnFile *f, const char *filename, uint32_t disksize,
-                            disk_access_flags_t access_mode, mediatype_t disk_type)
+error_is_true iecDrive::mount(fnFile *f, const char *filename, uint32_t disksize,
+                              disk_access_flags_t access_mode, mediatype_t disk_type)
 {
   Debug_printv("filename[%s], disksize[%lu] disktype[%d]", filename, disksize, disk_type);
 
@@ -1494,7 +1493,7 @@ mediatype_t iecDrive::mount(fnFile *f, const char *filename, uint32_t disksize,
 
   m_cwd.reset( MFSOwner::File( url ) );
 
-  return MediaType::discover_mediatype(filename); // MEDIATYPE_UNKNOWN
+  RETURN_ERROR_IF(MediaType::discover_mediatype(filename) == MEDIATYPE_UNKNOWN);
 }
 
 

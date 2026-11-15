@@ -232,8 +232,8 @@ iwmDisk::iwmDisk()
   Debug_printf("iwmDisk::iwmDisk()\n");
 }
 
-mediatype_t iwmDisk::mount(fnFile *f, const char *filename, uint32_t disksize,
-                           disk_access_flags_t access_mode, mediatype_t disk_type)
+error_is_true iwmDisk::mount(fnFile *f, const char *filename, uint32_t disksize,
+                             disk_access_flags_t access_mode, mediatype_t disk_type)
 {
   Debug_printf("disk MOUNT %s\n", filename);
 
@@ -262,7 +262,7 @@ mediatype_t iwmDisk::mount(fnFile *f, const char *filename, uint32_t disksize,
         readonly = false;
     }
 
-  return disk_type;
+  RETURN_ERROR_IF(disk_type == MEDIATYPE_UNKNOWN);
 }
 
 mediatype_t iwmDisk::mount_file(fnFile *f, uint32_t disksize, mediatype_t disk_type)

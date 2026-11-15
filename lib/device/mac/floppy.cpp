@@ -11,8 +11,8 @@
 #define NS_PER_BIT_TIME 125
 #define BLANK_TRACK_LEN 6400
 
-mediatype_t macFloppy::mount(FILE *f, const char *filename, uint32_t disksize,
-                             disk_access_flags_t access_mode, mediatype_t disk_type)
+error_is_true macFloppy::mount(FILE *f, const char *filename, uint32_t disksize,
+                               disk_access_flags_t access_mode, mediatype_t disk_type)
 {
   if (_disk != nullptr)
     unmount();
@@ -31,7 +31,7 @@ mediatype_t macFloppy::mount(FILE *f, const char *filename, uint32_t disksize,
   {
     Debug_printf("\n'%s' cannot be mounted in slot %c\n", filename, disk_num + 1);
     device_active = false;
-    return MEDIATYPE_UNKNOWN;
+    RETURN_ERROR_AS_TRUE();
   }
   media->set_readonly(readonly);
 
@@ -41,7 +41,7 @@ mediatype_t macFloppy::mount(FILE *f, const char *filename, uint32_t disksize,
     Debug_printf("\nMount of '%s' failed\n", filename);
     delete media;
     device_active = false;
-    return MEDIATYPE_UNKNOWN;
+    RETURN_ERROR_AS_TRUE();
   }
   _disk = media;
   device_active = true;
@@ -55,7 +55,7 @@ mediatype_t macFloppy::mount(FILE *f, const char *filename, uint32_t disksize,
     _disk_size_in_blocks = _disk->num_blocks;
     SYSTEM_BUS.add_dcd_mount(id());
   }
-  return mt;
+  RETURN_ERROR_IF(mt == MEDIATYPE_UNKNOWN);
 }
 
 // Tell the Pico a disk is in the floppy drive

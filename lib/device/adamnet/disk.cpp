@@ -36,8 +36,8 @@ void adamDisk::reset()
     }
 }
 
-mediatype_t adamDisk::mount(fnFile *f, const char *filename, uint32_t disksize,
-                            disk_access_flags_t access_mode, mediatype_t disk_type)
+error_is_true adamDisk::mount(fnFile *f, const char *filename, uint32_t disksize,
+                              disk_access_flags_t access_mode, mediatype_t disk_type)
 {
     mediatype_t mt = MEDIATYPE_UNKNOWN;
 
@@ -78,7 +78,7 @@ mediatype_t adamDisk::mount(fnFile *f, const char *filename, uint32_t disksize,
         break;
     }
 
-    return mt;
+    RETURN_ERROR_IF(mt == MEDIATYPE_UNKNOWN);
 }
 
 void adamDisk::unmount()

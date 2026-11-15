@@ -70,9 +70,9 @@ public:
     macFloppy() {};
     ~macFloppy() {};
 
-    mediatype_t mount(FILE *f, const char *filename, uint32_t disksize,
-                      disk_access_flags_t access_mode,
-                      mediatype_t disk_type = MEDIATYPE_UNKNOWN);
+    error_is_true mount(FILE *f, const char *filename, uint32_t disksize,
+                        disk_access_flags_t access_mode,
+                        mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     void unmount();
     struct NewDiskRequest {
         uint8_t hostSlot;
@@ -89,7 +89,7 @@ public:
     void write_capture_end();
     void set_disk_number(char c) { disk_num = c; _devnum = c; }
     char get_disk_number() { return disk_num; };
-    mediatype_t disktype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_mediatype; };
+    mediatype_t mediatype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_mediatype; };
 
     // Called from the bus service loop: flush an idle HD20 write cache
     void flush_if_idle();

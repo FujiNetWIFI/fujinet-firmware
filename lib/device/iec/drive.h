@@ -227,10 +227,11 @@ class iecDrive : public IECFileDevice
   iecDrive(uint8_t devnum = 0xFF);
   ~iecDrive();
 
-  mediatype_t mount(fnFile *f, const char *filename, uint32_t disksize,
-                    disk_access_flags_t access_mode,
-                    mediatype_t disk_type = MEDIATYPE_UNKNOWN);
+  error_is_true mount(fnFile *f, const char *filename, uint32_t disksize,
+                      disk_access_flags_t access_mode,
+                      mediatype_t disk_type = MEDIATYPE_UNKNOWN);
   void unmount();
+  mediatype_t mediatype() { return MEDIATYPE_UNKNOWN; }
 
   struct NewDiskRequest {
     u16le_t numSectors;

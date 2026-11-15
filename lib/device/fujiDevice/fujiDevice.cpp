@@ -638,14 +638,11 @@ success_is_true fujiDevice::fujicore_mount_disk_image_success(uint8_t deviceSlot
         RETURN_ERROR_AS_FALSE();
     }
     DISK_DEVICE *disk_dev = get_disk_dev(deviceSlot);
-    disk.disk_type = mount_media(disk_dev, disk, host, access_mode);
+    error_is_true mounted = mount_media(disk_dev, disk, host, access_mode);
+    disk.disk_type = mounted.is_error() ? MEDIATYPE_UNKNOWN : disk_dev->mediatype();
     disk_dev->is_config_device = false;
 
-    // mount() returns MEDIATYPE_UNKNOWN on failure
-    if (disk.disk_type == MEDIATYPE_UNKNOWN)
-        RETURN_ERROR_AS_FALSE();
-
-    RETURN_SUCCESS_AS_TRUE();
+    RETURN_SUCCESS_IF(mounted.is_success());
 }
 
 success_is_true fujiDevice::fujicmd_mount_disk_image_success(uint8_t deviceSlot,

@@ -79,8 +79,8 @@ drivewireDisk::~drivewireDisk()
 {
 }
 
-mediatype_t drivewireDisk::mount(fnFile *f, const char *filename, uint32_t disksize,
-                                 disk_access_flags_t access_mode, mediatype_t disk_type)
+error_is_true drivewireDisk::mount(fnFile *f, const char *filename, uint32_t disksize,
+                                   disk_access_flags_t access_mode, mediatype_t disk_type)
 {
     mediatype_t mt = MEDIATYPE_UNKNOWN;
 
@@ -117,12 +117,12 @@ mediatype_t drivewireDisk::mount(fnFile *f, const char *filename, uint32_t disks
         if (!rom)
         {
             fnio::fclose(f);
-            return MEDIATYPE_UNKNOWN;
+            RETURN_ERROR_AS_TRUE();
         }
 
         error_is_true pushed = push_rom_image(*rom);
         rom->close();
-        return pushed.is_success() ? MEDIATYPE_ROM : MEDIATYPE_UNKNOWN;
+        RETURN_ERROR_IF(pushed.is_error());
     }
     case MEDIATYPE_CAS:
         _media = new MediaTypeCASDSK();
@@ -149,7 +149,7 @@ mediatype_t drivewireDisk::mount(fnFile *f, const char *filename, uint32_t disks
         }
     }
 
-    return mt;
+    RETURN_ERROR_IF(mt == MEDIATYPE_UNKNOWN);
 }
 
 void drivewireDisk::unmount()

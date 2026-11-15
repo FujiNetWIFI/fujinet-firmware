@@ -182,8 +182,8 @@ protected:
     dirEntryDetails _additional_direntry_details(fsdir_entry_t *f);
 
     // Platform hook for fujicore_mount_disk_image_success()
-    virtual mediatype_t mount_media(DISK_DEVICE *disk_dev, fujiDisk &disk, fujiHost &host,
-                                    disk_access_flags_t mode)
+    virtual error_is_true mount_media(DISK_DEVICE *disk_dev, fujiDisk &disk, fujiHost &host,
+                                      disk_access_flags_t mode)
     {
         return disk_dev->mount(disk.fileh, disk.filename, disk.disk_size, mode);
     }
