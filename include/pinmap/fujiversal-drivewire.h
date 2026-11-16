@@ -1,6 +1,6 @@
 #ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
 
-#define PIN_BUTTON_A            GPIO_NUM_NC
+#define PIN_BUTTON_A            GPIO_NUM_0
 #define PIN_BUTTON_B            GPIO_NUM_NC
 #define PIN_BUTTON_C            GPIO_NUM_NC
 
@@ -9,7 +9,7 @@
 #define PIN_LED_WIFI            GPIO_NUM_NC
 
 // Freenove ESP32-S3 CAM onboard WS2812, used as a single combined status light:
-// white = WiFi up, fast orange flicker = bus activity
+// white = WiFi up, fast orange flicker = bus activity, orange count = slot rotated to drive 1
 #define PIN_LED_STRIP           GPIO_NUM_48
 #define LED_STRIP_COUNT         1
 #define LED_STRIP_STATUS_LIGHT          // WS2812 acts as a combined status light

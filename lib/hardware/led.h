@@ -26,6 +26,7 @@ private:
     void applyState(eLed led, bool on);
 #ifdef ESP_PLATFORM
     void flickerTick();
+    void restoreSteady();
     static void flickerTimerCb(void *arg);
 #endif
 
@@ -39,6 +40,8 @@ private:
     int64_t mNextFlickerUs[eLed::LED_COUNT] = { 0 };
     bool mFlickerPhase[eLed::LED_COUNT] = { 0 };
     bool mFlickerActive[eLed::LED_COUNT] = { 0 };
+    // Set while blink() counts on a flickering LED; the flicker timer leaves it alone.
+    volatile bool mCounting[eLed::LED_COUNT] = { 0 };
 };
 
 extern LedManager fnLedManager;

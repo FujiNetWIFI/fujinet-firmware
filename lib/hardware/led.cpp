@@ -11,7 +11,7 @@
 #include "esp_random.h"
 #endif
 
-#define BLINKING_TIME 100 // 200 ms
+#define BLINKING_TIME 100 // ms
 
 // Per-LED flicker interval (microseconds). A board's pinmap may override these;
 // 0 (the default) means the LED is steady and never flickers.
@@ -96,7 +96,7 @@ void LedManager::setup()
         fnSystem.set_pin_mode(PIN_LED_BT, gpio_mode_t::GPIO_MODE_OUTPUT);
         fnSystem.digital_write(PIN_LED_BT, DIGI_HIGH);
     }
-#endif // PIN_LED_BUS
+#endif // PIN_LED_BT
 
 #ifdef PIN_LED_WIFI
     if (PIN_LED_WIFI != GPIO_NUM_NC)
@@ -104,7 +104,7 @@ void LedManager::setup()
         fnSystem.set_pin_mode(PIN_LED_WIFI, gpio_mode_t::GPIO_MODE_OUTPUT);
         fnSystem.digital_write(PIN_LED_WIFI, DIGI_HIGH);
     }
-#endif // PIN_LED_BUS
+#endif // PIN_LED_WIFI
 #endif // PINMAP_LYNX_S3
 
     // If any LED is configured to flicker, start the periodic timer that drives it
@@ -201,6 +201,26 @@ void LedManager::toggle(eLed led)
 void LedManager::blink(eLed led, int count)
 {
 #ifdef ESP_PLATFORM
+    if (mFlickerIntervalUs[led] > 0)
+    {
+        // Dark gaps before and after set the count apart from flicker and the steady LEDs
+        mCounting[led] = true;
+        mFlickerPhase[led] = false;
+        mLedState[led] = false;
+        applyState(led, false);
+        for (int idx = 0; idx < count; idx++)
+        {
+            fnSystem.delay(BLINKING_TIME);
+            applyState(led, true);
+            fnSystem.delay(BLINKING_TIME);
+            applyState(led, false);
+        }
+        fnSystem.delay(BLINKING_TIME);
+        restoreSteady();
+        mCounting[led] = false;
+        return;
+    }
+
     for (int i = 0; i < count; i++)
     {
         toggle(led);
@@ -226,7 +246,7 @@ void LedManager::flickerTick()
 
     for (int i = 0; i < eLed::LED_COUNT; i++)
     {
-        if (mFlickerIntervalUs[i] == 0)
+        if (mFlickerIntervalUs[i] == 0 || mCounting[i])
             continue;
 
         bool active = (now - mActivityUs[i]) < LED_ACTIVITY_WINDOW_US;
@@ -252,12 +272,17 @@ void LedManager::flickerTick()
             mFlickerPhase[i] = false;
             mLedState[i] = false;
             applyState((eLed)i, false);
-            for (int j = 0; j < eLed::LED_COUNT; j++)
-                if (mFlickerIntervalUs[j] == 0 && mLedState[j])
-                    applyState((eLed)j, true);
+            restoreSteady();
         }
 
         mFlickerActive[i] = active;
     }
+}
+
+void LedManager::restoreSteady()
+{
+    for (int idx = 0; idx < eLed::LED_COUNT; idx++)
+        if (mFlickerIntervalUs[idx] == 0 && mLedState[idx])
+            applyState((eLed)idx, true);
 }
 #endif // ESP_PLATFORM
