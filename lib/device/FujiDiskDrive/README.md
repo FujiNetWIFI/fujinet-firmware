@@ -1,0 +1,34 @@
+# lib/device/FujiDiskDrive
+
+The shared base for every bus's disk drive, and the contract code outside the drive uses to ask
+about it.
+
+## Layout
+
+| File | Defines |
+|---|---|
+| `FujiDiskDrive.h` | `FujiDiskDrive`, which owns the drive's `_media` and answers `isMounted()` from it; `disk_access_flags_t`, the access mode `mount()` takes; `MAX_FILENAME_LEN` |
+
+## How it works
+
+- `isMounted()` is the authority on whether the drive has an image mounted. Ask the drive, not a
+  `fujiDisk` slot or a cached file handle.
+- A drive keeps its mounted image in `_media`, the platform's `MediaType` from
+  [lib/media/](../../media/), and sets it back to `nullptr` once nothing is mounted. `iecDrive`
+  holds no `MediaType`, so it overrides `isMounted()`.
+- `FujiDiskDrive` derives from `DiskDriveBase`, which each bus header in [lib/bus/](../../bus/)
+  names: `virtualDevice` on most buses, `drivewireDevice` on DriveWire, `IECFileDevice` on IEC.
+  Its constructors are the base's.
+
+Subclasses: `sioDisk`, `iwmDisk` (and `iwmDisk2`), `drivewireDisk`, `rs232Disk`, `adamDisk`,
+`lynxDisk`, `iecDrive`, `macFloppy`, `cx16Disk`, `rc2014Disk`, and `s100spiDisk`, each in its bus
+directory under [lib/device/](../).
+
+## How it fits
+
+- Every `DISK_DEVICE` selected by `lib/device/disk.h` is a `FujiDiskDrive`.
+- Covered by the `no_build_ifdefs_in_fujidevice` ctest.
+
+## Build
+
+Header only; reaches every ESP and PC target through the per-bus disk headers that include it.

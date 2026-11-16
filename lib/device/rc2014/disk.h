@@ -1,9 +1,7 @@
 #ifndef DISK_H
 #define DISK_H
 
-#include "bus.h"
-#include "media.h"
-#include "../disk.h"
+#include "FujiDiskDrive.h"
 
 #define STATUS_OK        0
 #define STATUS_BAD_BLOCK 1
@@ -13,10 +11,9 @@
 
 #define CMD::DISK_SIZE     0x47 // G - RC2014 specific: get disk size
 
-class rc2014Disk : public virtualDevice
+class rc2014Disk : public FujiDiskDrive
 {
 private:
-    MediaType *_media = nullptr;
     TaskHandle_t diskTask;
 
     unsigned long blockNum=INVALID_SECTOR_VALUE;

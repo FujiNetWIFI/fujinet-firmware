@@ -338,6 +338,9 @@ protected:
     rc2014Fifo<1024> streamFifoRx; // streamed data destined for rc2014
 };
 
+// The class FujiDiskDrive derives from on this bus
+using DiskDriveBase = virtualDevice;
+
 /**
  * @brief The rc2014 Bus
  */

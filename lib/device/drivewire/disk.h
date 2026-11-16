@@ -1,15 +1,10 @@
 #ifndef DISK_H
 #define DISK_H
 
-#include "../disk.h"
-#include "bus.h"
-#include "media.h"
+#include "FujiDiskDrive.h"
 
-class drivewireDisk : public drivewireDevice
+class drivewireDisk : public FujiDiskDrive
 {
-private:
-    MediaType *_media = nullptr;
-
 public:
     /**
      * @brief Is this virtualDevice holding the virtual disk drive used to boot CONFIG?

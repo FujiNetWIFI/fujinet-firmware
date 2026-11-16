@@ -556,6 +556,7 @@ add_test(
             ${CMAKE_SOURCE_DIR}/lib/device/fujiDevice
             ${CMAKE_SOURCE_DIR}/lib/device/fujiClock
             ${CMAKE_SOURCE_DIR}/lib/device/NDevice
+            ${CMAKE_SOURCE_DIR}/lib/device/FujiDiskDrive
 )
 
 # ------------------------------------------------------------------------------
@@ -616,6 +617,7 @@ if(FUJINET_TARGET STREQUAL "ATARI")
     ${CMAKE_SOURCE_DIR}/lib/telnet/
     ${CMAKE_SOURCE_DIR}/lib/device/NDevice/
     ${CMAKE_SOURCE_DIR}/lib/device/fujiDevice/
+    ${CMAKE_SOURCE_DIR}/lib/device/FujiDiskDrive/
     ${CMAKE_SOURCE_DIR}/lib/hardware/
     ${CMAKE_SOURCE_DIR}/lib/tcpip/
     ${CMAKE_SOURCE_DIR}/lib/compat/
@@ -680,6 +682,7 @@ if(FUJINET_TARGET STREQUAL "ATARI")
     ${CMAKE_SOURCE_DIR}/lib/telnet/
     ${CMAKE_SOURCE_DIR}/lib/device/NDevice/
     ${CMAKE_SOURCE_DIR}/lib/device/fujiDevice/
+    ${CMAKE_SOURCE_DIR}/lib/device/FujiDiskDrive/
     ${CMAKE_SOURCE_DIR}/lib/hardware/
     ${CMAKE_SOURCE_DIR}/lib/tcpip/
     ${CMAKE_SOURCE_DIR}/lib/compat/
@@ -750,6 +753,7 @@ if(FUJINET_TARGET STREQUAL "ATARI")
     ${CMAKE_SOURCE_DIR}/lib/telnet/
     ${CMAKE_SOURCE_DIR}/lib/device/NDevice/
     ${CMAKE_SOURCE_DIR}/lib/device/fujiDevice/
+    ${CMAKE_SOURCE_DIR}/lib/device/FujiDiskDrive/
     ${CMAKE_SOURCE_DIR}/lib/hardware/
     ${CMAKE_SOURCE_DIR}/lib/tcpip/
     ${CMAKE_SOURCE_DIR}/lib/compat/
@@ -794,6 +798,7 @@ if(FUJINET_TARGET STREQUAL "ADAM")
     ${CMAKE_SOURCE_DIR}/lib/device/NDevice/
     ${CMAKE_SOURCE_DIR}/lib/device/adamnet/
     ${CMAKE_SOURCE_DIR}/lib/device/fujiDevice/
+    ${CMAKE_SOURCE_DIR}/lib/device/FujiDiskDrive/
     ${CMAKE_SOURCE_DIR}/lib/hardware/
     ${CMAKE_SOURCE_DIR}/lib/sam/
     ${CMAKE_SOURCE_DIR}/lib/printer-emulator/
@@ -866,6 +871,7 @@ if(FUJINET_TARGET STREQUAL "ADAM")
     ${CMAKE_SOURCE_DIR}/lib/device/NDevice/
     ${CMAKE_SOURCE_DIR}/lib/device/adamnet/
     ${CMAKE_SOURCE_DIR}/lib/device/fujiDevice/
+    ${CMAKE_SOURCE_DIR}/lib/device/FujiDiskDrive/
     ${CMAKE_SOURCE_DIR}/lib/hardware/
     ${CMAKE_SOURCE_DIR}/lib/sam/
     ${CMAKE_SOURCE_DIR}/lib/printer-emulator/
@@ -921,6 +927,7 @@ set(ROM_MOUNT_TEST_INCLUDES
   ${CMAKE_SOURCE_DIR}/lib/device/
   ${CMAKE_SOURCE_DIR}/lib/device/NDevice/
   ${CMAKE_SOURCE_DIR}/lib/device/fujiDevice/
+  ${CMAKE_SOURCE_DIR}/lib/device/FujiDiskDrive/
   ${CMAKE_SOURCE_DIR}/lib/hardware/
   ${CMAKE_SOURCE_DIR}/lib/sam/
   ${CMAKE_SOURCE_DIR}/lib/printer-emulator/
@@ -1425,6 +1432,7 @@ target_include_directories(tcp_protocol_tests BEFORE PRIVATE
     ${CMAKE_SOURCE_DIR}/tests/tcp_harness/    # first: replaces fnTcpClient.h, fnTcpServer.h, bus.h
     ${CMAKE_SOURCE_DIR}/lib/network-protocol/
     ${CMAKE_SOURCE_DIR}/lib/device/fujiDevice/
+    ${CMAKE_SOURCE_DIR}/lib/device/FujiDiskDrive/
     ${CMAKE_SOURCE_DIR}/lib/utils/
     ${CMAKE_SOURCE_DIR}/lib/sam/
     ${CMAKE_SOURCE_DIR}/lib/compat/
@@ -1469,6 +1477,7 @@ target_include_directories(udp_protocol_tests BEFORE PRIVATE
     ${CMAKE_SOURCE_DIR}/tests/tcp_harness/    # first: replaces fnUDP.h, fnDNS.h, fnTcpClient.h, fnTcpServer.h, bus.h
     ${CMAKE_SOURCE_DIR}/lib/network-protocol/
     ${CMAKE_SOURCE_DIR}/lib/device/fujiDevice/
+    ${CMAKE_SOURCE_DIR}/lib/device/FujiDiskDrive/
     ${CMAKE_SOURCE_DIR}/lib/utils/
     ${CMAKE_SOURCE_DIR}/lib/sam/
     ${CMAKE_SOURCE_DIR}/lib/compat/
@@ -1513,6 +1522,7 @@ target_include_directories(fs_protocol_tests BEFORE PRIVATE
     ${CMAKE_SOURCE_DIR}/tests/tcp_harness/    # first: replaces fnTcpClient.h, fnTcpServer.h, bus.h
     ${CMAKE_SOURCE_DIR}/lib/network-protocol/
     ${CMAKE_SOURCE_DIR}/lib/device/fujiDevice/
+    ${CMAKE_SOURCE_DIR}/lib/device/FujiDiskDrive/
     ${CMAKE_SOURCE_DIR}/lib/utils/
     ${CMAKE_SOURCE_DIR}/lib/sam/
     ${CMAKE_SOURCE_DIR}/lib/compat/
@@ -1561,6 +1571,7 @@ target_include_directories(http_protocol_tests BEFORE PRIVATE
     ${CMAKE_SOURCE_DIR}/lib/network-protocol/
     ${CMAKE_SOURCE_DIR}/lib/webdav/
     ${CMAKE_SOURCE_DIR}/lib/device/fujiDevice/
+    ${CMAKE_SOURCE_DIR}/lib/device/FujiDiskDrive/
     ${CMAKE_SOURCE_DIR}/lib/utils/
     ${CMAKE_SOURCE_DIR}/lib/sam/
     ${CMAKE_SOURCE_DIR}/lib/compat/
@@ -1612,6 +1623,7 @@ target_include_directories(smb_protocol_tests BEFORE PRIVATE
     ${CMAKE_SOURCE_DIR}/lib/network-protocol/
     ${CMAKE_SOURCE_DIR}/lib/FileSystem/
     ${CMAKE_SOURCE_DIR}/lib/device/fujiDevice/
+    ${CMAKE_SOURCE_DIR}/lib/device/FujiDiskDrive/
     ${CMAKE_SOURCE_DIR}/lib/utils/
     ${CMAKE_SOURCE_DIR}/lib/sam/
     ${CMAKE_SOURCE_DIR}/lib/compat/
@@ -1663,6 +1675,7 @@ target_include_directories(telnet_protocol_tests BEFORE PRIVATE
     ${CMAKE_SOURCE_DIR}/lib/network-protocol/
     ${CMAKE_SOURCE_DIR}/lib/telnet/
     ${CMAKE_SOURCE_DIR}/lib/device/fujiDevice/
+    ${CMAKE_SOURCE_DIR}/lib/device/FujiDiskDrive/
     ${CMAKE_SOURCE_DIR}/lib/utils/
     ${CMAKE_SOURCE_DIR}/lib/sam/
     ${CMAKE_SOURCE_DIR}/lib/compat/

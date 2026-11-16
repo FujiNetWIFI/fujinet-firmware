@@ -1,14 +1,11 @@
 #ifndef DISK_H
 #define DISK_H
 
-#include "bus.h"
-#include "media.h"
+#include "FujiDiskDrive.h"
 
-class cx16Disk : public virtualDevice
+class cx16Disk : public FujiDiskDrive
 {
 private:
-    MediaType *_disk = nullptr;
-
     void sio_read();
     void sio_write(bool verify);
     void sio_format();
@@ -23,7 +20,7 @@ public:
     void unmount();
     bool write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors);
 
-    mediatype_t disktype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_mediatype; };
+    mediatype_t disktype() { return _media == nullptr ? MEDIATYPE_UNKNOWN : _media->_mediatype; };
 
     ~cx16Disk();
 };

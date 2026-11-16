@@ -1,10 +1,7 @@
 #ifndef LYNX_DISK_H
 #define LYNX_DISK_H
 
-#include "../disk.h"
-#include "bus.h"
-#include "global_types.h"
-#include "media.h"
+#include "FujiDiskDrive.h"
 
 typedef enum
 {
@@ -16,10 +13,9 @@ typedef enum
 #define BLOCK_COMPRESS_CUTOFF   950
 
 
-class lynxDisk : public virtualDevice
+class lynxDisk : public FujiDiskDrive
 {
 private:
-    MediaType *_media = nullptr;
   
     unsigned long blockNum=INVALID_SECTOR_VALUE;
     

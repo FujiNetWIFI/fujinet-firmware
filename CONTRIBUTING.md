@@ -107,8 +107,9 @@ workflow runs a linter or a formatter. So:
 ## Enforced architecture rules
 
 A `#if`, `#ifdef`, `#ifndef` or `#elif` anywhere under `lib/device/fujiDevice`,
-`lib/device/fujiClock`, or `lib/device/NDevice` may name only an allowed macro: `__cplusplus`, an
-include guard, an entry in `tests/ifdef_check_config.json`, or one named by a
+`lib/device/fujiClock`, `lib/device/FujiDiskDrive`, or `lib/device/NDevice` may name only an
+allowed macro: `__cplusplus`, an include guard, an entry in `tests/ifdef_check_config.json`, or one
+named by a
 `// ifdef-check-allow: NAME` comment on that line or the line above. Every other name fails, so a
 new macro is no way around it. `tests/check_no_build_ifdefs.py` enforces this as the
 `no_build_ifdefs_in_fujidevice` ctest, ignoring comments and string literals. Customize by
@@ -447,8 +448,8 @@ start. Keep them in the same terse register as the code comments.
   selects the bus, device set and media.
 - `src/` holds only `main.cpp` (per-platform device assembly); nearly all code is in `lib/`.
 - `lib/bus/<bus>/` protocol and `systemBus`; `lib/device/<bus>/` that bus's devices;
-  `lib/media/<platform>/` disk-image formats; `lib/device/fujiDevice`, `NDevice`, `fujiClock` the
-  shared bases; `lib/fuji/` host and disk-slot model.
+  `lib/media/<platform>/` disk-image formats; `lib/device/fujiDevice`, `NDevice`, `fujiClock`,
+  `FujiDiskDrive` the shared bases; `lib/fuji/` host and disk-slot model.
 - Cross-cutting: `lib/config/` (`fnConfig`, one `fnc_<section>.cpp` per INI section),
   `lib/FileSystem/`, `lib/http/`, `lib/network-protocol/`, `lib/hardware/`.
 - `include/pinmap/` one header per board, guarded by its `PINMAP_*` macro.

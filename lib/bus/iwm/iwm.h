@@ -167,6 +167,9 @@ public:
   IWMBusIDMap::busDeviceID_t id();
 };
 
+// The class FujiDiskDrive derives from on this bus
+using DiskDriveBase = virtualDevice;
+
 class iwmFuji;
 
 class systemBus : public SystemBusBase
