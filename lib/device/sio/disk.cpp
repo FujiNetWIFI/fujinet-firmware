@@ -218,10 +218,9 @@ void sioDisk::sio_write_percom_block()
    If the disk_type value passed is not MEDIATYPE_UNKNOWN then that's used instead.
    If filename has no extension or is NULL and disk_type is MEDIATYPE_UNKOWN,
    then we assume it's MEDIATYPE_ATR.
-   Return value is MEDIATYPE_UNKNOWN in case of failure.
 */
-mediatype_t sioDisk::mount(fnFile *f, const char *filename, uint32_t disksize,
-                           disk_access_flags_t access_mode, mediatype_t disk_type)
+error_is_true sioDisk::mount(fnFile *f, const char *filename, uint32_t disksize,
+                             disk_access_flags_t access_mode, mediatype_t disk_type)
 {
     // TAPE or CASSETTE: use this function to send file info to cassette device
     //  MediaType::discover_mediatype(filename) can detect CAS and WAV files
@@ -253,11 +252,12 @@ mediatype_t sioDisk::mount(fnFile *f, const char *filename, uint32_t disksize,
         // open the cassette file
         _is_tape = true;
         SYSTEM_BUS.platformFuji->cassette()->mount_cassette_file(f, disksize);
-        return disk_type;
+        RETURN_SUCCESS_AS_FALSE();
         // TODO left off here for tape cassette
         break;
     default:
-        return mount_disk_media(f, filename, disksize, disk_type);
+        RETURN_ERROR_IF(mount_disk_media(f, filename, disksize, disk_type)
+                        == MEDIATYPE_UNKNOWN);
     }
 }
 

@@ -30,12 +30,12 @@ protected:
 
 public:
     rs232Disk();
-    mediatype_t mount(fnFile *f, const char *filename, uint32_t disksize,
-                      disk_access_flags_t access_mode,
-                      mediatype_t disk_type = MEDIATYPE_UNKNOWN,
-                      fujiHost *host = nullptr);
-    mediatype_t mount_disk_media(fnFile *f, const char *filename, uint32_t disksize,
-                                 mediatype_t disk_type);
+    error_is_true mount(fnFile *f, const char *filename, uint32_t disksize,
+                        disk_access_flags_t access_mode,
+                        mediatype_t disk_type = MEDIATYPE_UNKNOWN,
+                        fujiHost *host = nullptr);
+    error_is_true mount_disk_media(fnFile *f, const char *filename, uint32_t disksize,
+                                   mediatype_t disk_type);
     void unmount();
     struct NewDiskRequest {
         u16le_t numSectors;
@@ -46,7 +46,7 @@ public:
     } __attribute__((packed));
     success_is_true write_blank(fnFile *f, const NewDiskRequest &req);
 
-    mediatype_t disktype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_disktype; };
+    mediatype_t mediatype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_disktype; };
     time_t mount_time() { return _mount_time; }
 
     ~rs232Disk();

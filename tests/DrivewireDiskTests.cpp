@@ -142,9 +142,9 @@ TEST_CASE("a .dsk mounts as DSK, writable or read-only")
     {
         MemFile file(numbered_sectors(4));
         drivewireDisk disk;
-        CHECK(disk.mount(&file, DSK_TEST_FILE, file.contents().size(), mode) == MEDIATYPE_DSK);
+        CHECK(disk.mount(&file, DSK_TEST_FILE, file.contents().size(), mode).is_success());
         CHECK(disk.device_active);
-        CHECK(disk.disktype() == MEDIATYPE_DSK);
+        CHECK(disk.mediatype() == MEDIATYPE_DSK);
         CHECK(disk.get_media_status() == DISK_CTRL_STATUS_CLEAR);
         check_closed_once(disk, file);
     }
@@ -156,7 +156,7 @@ TEST_CASE("every DSK sector reads back as stored, in any order")
     MemFile file(image);
     drivewireDisk disk;
     REQUIRE(disk.mount(&file, DSK_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
-            == MEDIATYPE_DSK);
+           .is_success());
 
     for (uint32_t lsn : {2, 0, 1, 3, 3, 1})
     {
@@ -172,7 +172,7 @@ TEST_CASE("a DSK read at the block count reports EOF")
     MemFile file(numbered_sectors(4));
     drivewireDisk disk;
     REQUIRE(disk.mount(&file, DSK_TEST_FILE, file.contents().size(), DISK_ACCESS_MODE_READ)
-            == MEDIATYPE_DSK);
+           .is_success());
 
     CHECK(disk.read(3, nullptr).is_success());
     CHECK(disk.read(4, nullptr).is_error());
@@ -186,7 +186,7 @@ TEST_CASE("a DSK write lands in its sector and reads back")
     MemFile file(image);
     drivewireDisk disk;
     REQUIRE(disk.mount(&file, DSK_TEST_FILE, image.size(), DISK_ACCESS_MODE_WRITE)
-            == MEDIATYPE_DSK);
+           .is_success());
 
     REQUIRE(coco_read(disk, 2) == sector_of(image, 2));
     CHECK(write_filled(disk, 2, 0x77).is_success());
@@ -205,7 +205,7 @@ TEST_CASE("a DSK write past the end, or to a read-only mount, is refused")
         auto image = numbered_sectors(4);
         MemFile file(image);
         drivewireDisk disk;
-        REQUIRE(disk.mount(&file, DSK_TEST_FILE, image.size(), mode) == MEDIATYPE_DSK);
+        REQUIRE(disk.mount(&file, DSK_TEST_FILE, image.size(), mode).is_success());
 
         if (mode == DISK_ACCESS_MODE_READ)
             CHECK(write_filled(disk, 1, 0x77).is_error());
@@ -230,7 +230,7 @@ TEST_CASE("a high-score sector on a read-only DSK is written through the host")
 
     drivewireDisk disk;
     REQUIRE(disk.mount(file.get(), DSK_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
-            == MEDIATYPE_DSK);
+           .is_success());
     disk.set_media_host(&host);
 
     CHECK(write_filled(disk, HIGH_SCORE_LSN + 1, 0x77).is_success());
@@ -251,11 +251,11 @@ TEST_CASE("unmount closes the image once and leaves nothing to read")
     MemFile file(numbered_sectors(4));
     drivewireDisk disk;
     REQUIRE(disk.mount(&file, DSK_TEST_FILE, file.contents().size(), DISK_ACCESS_MODE_READ)
-            == MEDIATYPE_DSK);
+           .is_success());
 
     check_closed_once(disk, file);
     CHECK_FALSE(disk.device_active);
-    CHECK(disk.disktype() == MEDIATYPE_UNKNOWN);
+    CHECK(disk.mediatype() == MEDIATYPE_UNKNOWN);
     CHECK(disk.get_media_status() == NO_MEDIA_STATUS);
     CHECK(disk.read(0, nullptr).is_error());
     CHECK(write_filled(disk, 0, 0x77).is_error());
@@ -271,9 +271,9 @@ TEST_CASE("mounting over a disk closes the old image once")
     drivewireDisk disk;
 
     REQUIRE(disk.mount(&first, DSK_TEST_FILE, first_image.size(), DISK_ACCESS_MODE_READ)
-            == MEDIATYPE_DSK);
+           .is_success());
     REQUIRE(disk.mount(&second, DSK_TEST_FILE, second_image.size(), DISK_ACCESS_MODE_READ)
-            == MEDIATYPE_DSK);
+           .is_success());
     CHECK(first.closes == 1);
     CHECK(second.closes == 0);
     CHECK(coco_read(disk, 6) == sector_of(second_image, 6));
@@ -286,7 +286,7 @@ TEST_CASE("VDK sectors start at LSN 1, after the header")
     MemFile file(image);
     drivewireDisk disk;
     REQUIRE(disk.mount(&file, VDK_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
-            == MEDIATYPE_VDK);
+           .is_success());
     CHECK(disk.device_active);
 
     for (uint32_t lsn : {3, 1, 2, 4, 4})
@@ -306,7 +306,7 @@ TEST_CASE("a VDK write lands in its sector, and one past the end is refused")
     MemFile file(image);
     drivewireDisk disk;
     REQUIRE(disk.mount(&file, VDK_TEST_FILE, image.size(), DISK_ACCESS_MODE_WRITE)
-            == MEDIATYPE_VDK);
+           .is_success());
 
     CHECK(write_filled(disk, 2, 0x77).is_success());
     CHECK(write_filled(disk, 5, 0x77).is_error());
@@ -324,7 +324,7 @@ TEST_CASE("an MRM reads in 32K blocks, padding the last with $FF")
     MemFile file(image);
     drivewireDisk disk;
     REQUIRE(disk.mount(&file, MRM_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
-            == MEDIATYPE_MRM);
+           .is_success());
 
     CHECK(coco_read(disk, 0) == slice(image, 0, MRM_BLOCK));
 
@@ -343,7 +343,7 @@ TEST_CASE("an MRM refuses writes")
     MemFile file(image);
     drivewireDisk disk;
     REQUIRE(disk.mount(&file, MRM_TEST_FILE, image.size(), DISK_ACCESS_MODE_WRITE)
-            == MEDIATYPE_MRM);
+           .is_success());
 
     CHECK(write_filled(disk, 0, 0x77).is_error());
     CHECK(file.contents() == image);
@@ -357,7 +357,7 @@ TEST_CASE("a .cas mounts as a Disk BASIC disk holding the tape's file")
     MemFile file(tape);
     drivewireDisk disk;
     REQUIRE(disk.mount(&file, CAS_TEST_FILE, tape.size(), DISK_ACCESS_MODE_READ)
-            == MEDIATYPE_CAS);
+           .is_success());
     CHECK(disk.device_active);
 
     auto directory = coco_read(disk, DECB_LSN_DIR_FIRST);
@@ -389,7 +389,7 @@ TEST_CASE("a .cas refuses writes, even on a writable mount")
     MemFile file(tape);
     drivewireDisk disk;
     REQUIRE(disk.mount(&file, CAS_TEST_FILE, tape.size(), DISK_ACCESS_MODE_WRITE)
-            == MEDIATYPE_CAS);
+           .is_success());
 
     CHECK(write_filled(disk, DECB_LSN_DIR_FIRST, 0x77).is_error());
     CHECK(write_filled(disk, 0, 0x77).is_error());
@@ -403,9 +403,9 @@ TEST_CASE("a .cas holding no file doesn't mount, and its image is closed")
     MemFile file(tape);
     drivewireDisk disk;
     CHECK(disk.mount(&file, CAS_TEST_FILE, tape.size(), DISK_ACCESS_MODE_READ)
-          == MEDIATYPE_UNKNOWN);
+         .is_error());
     CHECK_FALSE(disk.device_active);
-    CHECK(disk.disktype() == MEDIATYPE_UNKNOWN);
+    CHECK(disk.mediatype() == MEDIATYPE_UNKNOWN);
     CHECK(file.closes == 1);
     disk.unmount();
     CHECK(file.closes == 1);

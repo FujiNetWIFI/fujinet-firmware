@@ -109,7 +109,7 @@ TEST_CASE("a .ddp mounts as DDP and the drive reports media")
     CHECK(disk.deviceStatus().status == (STATUS_BASE | STATUS_NO_MEDIA));
 
     CHECK(disk.mount(&file, DDP_TEST_FILE, file.contents().size(), DISK_ACCESS_MODE_WRITE)
-          == MEDIATYPE_DDP);
+          .is_success());
     CHECK(disk.device_active);
     CHECK(disk.mediatype() == MEDIATYPE_DDP);
     CHECK(disk.deviceStatus().status == STATUS_BASE);
@@ -122,7 +122,7 @@ TEST_CASE("every DDP block reads back as stored, in any order")
     MemFile file(image);
     TestDisk disk;
     REQUIRE(disk.mount(&file, DDP_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
-            == MEDIATYPE_DDP);
+            .is_success());
 
     for (uint32_t block : {2, 0, 1, 3, 3, 1})
     {
@@ -141,7 +141,7 @@ TEST_CASE("a block number's upper half is ignored on a disk under 64K blocks")
     MemFile file(image);
     TestDisk disk;
     REQUIRE(disk.mount(&file, DDP_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
-            == MEDIATYPE_DDP);
+            .is_success());
 
     CHECK(read_block(disk, 0x10002) == slice(image, 2 * BLOCK_SIZE, BLOCK_SIZE));
     check_closed_once(disk, file);
@@ -153,7 +153,7 @@ TEST_CASE("a DDP write lands in its block and reads back")
     MemFile file(image);
     TestDisk disk;
     REQUIRE(disk.mount(&file, DDP_TEST_FILE, image.size(), DISK_ACCESS_MODE_WRITE)
-            == MEDIATYPE_DDP);
+            .is_success());
 
     std::vector<uint8_t> data = filled(BLOCK_SIZE, 0x77);
     data[700] = 0x22;
@@ -172,7 +172,7 @@ TEST_CASE("the config disk refuses writes")
     MemFile file(image);
     TestDisk disk;
     REQUIRE(disk.mount(&file, DDP_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
-            == MEDIATYPE_DDP);
+            .is_success());
     disk.is_config_device = true;
 
     CHECK(write_block(disk, 1, filled(BLOCK_SIZE, 0x77)) == Outcome::Error);
@@ -187,7 +187,7 @@ TEST_CASE("DSK blocks are read from their two interleaved sectors")
     MemFile file(image);
     TestDisk disk;
     REQUIRE(disk.mount(&file, DSK_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
-            == MEDIATYPE_DSK);
+            .is_success());
     CHECK(disk.device_active);
 
     for (uint32_t block : {5, 0, 1, 2, 3, 7, 4, 6})
@@ -207,7 +207,7 @@ TEST_CASE("a DSK write lands in the block's two sectors and reads back")
     MemFile file(image);
     TestDisk disk;
     REQUIRE(disk.mount(&file, DSK_TEST_FILE, image.size(), DISK_ACCESS_MODE_WRITE)
-            == MEDIATYPE_DSK);
+            .is_success());
 
     std::vector<uint8_t> data = filled(DSK_SECTOR_SIZE, 0x11);
     data.resize(BLOCK_SIZE, 0x22);
@@ -227,7 +227,7 @@ TEST_CASE("unmount closes the image once and leaves the drive inactive")
     MemFile file(numbered_sectors(4, BLOCK_SIZE));
     TestDisk disk;
     REQUIRE(disk.mount(&file, DDP_TEST_FILE, file.contents().size(), DISK_ACCESS_MODE_READ)
-            == MEDIATYPE_DDP);
+            .is_success());
 
     check_closed_once(disk, file);
     CHECK_FALSE(disk.device_active);
@@ -245,9 +245,9 @@ TEST_CASE("mounting over a disk closes the old image once")
     TestDisk disk;
 
     REQUIRE(disk.mount(&first, DDP_TEST_FILE, first_image.size(), DISK_ACCESS_MODE_READ)
-            == MEDIATYPE_DDP);
+            .is_success());
     REQUIRE(disk.mount(&second, DDP_TEST_FILE, second_image.size(), DISK_ACCESS_MODE_READ)
-            == MEDIATYPE_DDP);
+            .is_success());
     CHECK(first.closes == 1);
     CHECK(second.closes == 0);
     CHECK(read_block(disk, 6) == slice(second_image, 6 * BLOCK_SIZE, BLOCK_SIZE));

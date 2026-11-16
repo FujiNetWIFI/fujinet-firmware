@@ -122,9 +122,9 @@ TEST_CASE("every single-density ATR sector reads back as stored, in any order")
     MemFile file(image);
     TestDisk disk;
     REQUIRE(disk.mount(&file, ATR_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
-            == MEDIATYPE_ATR);
+            .is_success());
     CHECK(disk.device_active);
-    CHECK(disk.disktype() == MEDIATYPE_ATR);
+    CHECK(disk.mediatype() == MEDIATYPE_ATR);
 
     for (uint16_t sector : {5, 1, 2, 10, 10, 3})
     {
@@ -140,7 +140,7 @@ TEST_CASE("a double-density ATR keeps its three boot sectors at 128 bytes")
     MemFile file(image);
     TestDisk disk;
     REQUIRE(disk.mount(&file, ATR_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
-            == MEDIATYPE_ATR);
+            .is_success());
 
     for (uint16_t sector : {4, 1, 3, 2, 10, 5})
     {
@@ -159,7 +159,7 @@ TEST_CASE("sector 0 and a sector past the end are refused")
     MemFile file(image);
     TestDisk disk;
     REQUIRE(disk.mount(&file, ATR_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
-            == MEDIATYPE_ATR);
+            .is_success());
 
     for (uint16_t sector : {0, 11})
     {
@@ -178,7 +178,7 @@ TEST_CASE("an ATR write lands in its sector and reads back, with or without veri
         MemFile file(image);
         TestDisk disk;
         REQUIRE(disk.mount(&file, ATR_TEST_FILE, image.size(), DISK_ACCESS_MODE_WRITE)
-                == MEDIATYPE_ATR);
+                .is_success());
 
         REQUIRE(read_sector(disk, 6).has_value());
         CHECK(write_sector(disk, 6, filled(256, 0x77), command) == Outcome::Success);
@@ -200,7 +200,7 @@ TEST_CASE("an ATR write past the end, or short of a sector, is refused")
     MemFile file(image);
     TestDisk disk;
     REQUIRE(disk.mount(&file, ATR_TEST_FILE, image.size(), DISK_ACCESS_MODE_WRITE)
-            == MEDIATYPE_ATR);
+            .is_success());
 
     CHECK(write_sector(disk, 11, filled(128, 0x77)) == Outcome::Error);
     CHECK(write_sector(disk, 4, filled(127, 0x77)) == Outcome::Error);
@@ -214,11 +214,11 @@ TEST_CASE("unmount closes the image once and the drive stops answering")
     MemFile file(image);
     TestDisk disk;
     REQUIRE(disk.mount(&file, ATR_TEST_FILE, image.size(), DISK_ACCESS_MODE_WRITE)
-            == MEDIATYPE_ATR);
+            .is_success());
 
     check_closed_once(disk, file);
     CHECK_FALSE(disk.device_active);
-    CHECK(disk.disktype() == MEDIATYPE_UNKNOWN);
+    CHECK(disk.mediatype() == MEDIATYPE_UNKNOWN);
     CHECK_FALSE(read_sector(disk, 1).has_value());
     CHECK(bus.outcome == Outcome::None);
     CHECK(write_sector(disk, 4, filled(128, 0x77)) == Outcome::None);
@@ -235,9 +235,9 @@ TEST_CASE("mounting over a disk closes the old image once")
     TestDisk disk;
 
     REQUIRE(disk.mount(&first, ATR_TEST_FILE, first_image.size(), DISK_ACCESS_MODE_READ)
-            == MEDIATYPE_ATR);
+            .is_success());
     REQUIRE(disk.mount(&second, ATR_TEST_FILE, second_image.size(), DISK_ACCESS_MODE_READ)
-            == MEDIATYPE_ATR);
+            .is_success());
     CHECK(first.closes == 1);
     CHECK(second.closes == 0);
     CHECK(read_sector(disk, 15) == sector_of(second_image, 15, 256));
@@ -251,8 +251,8 @@ TEST_CASE("an image without the ATR header doesn't mount, and the drive doesn't 
     MemFile file(image);
     TestDisk disk;
     CHECK(disk.mount(&file, ATR_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
-          == MEDIATYPE_UNKNOWN);
-    CHECK(disk.disktype() == MEDIATYPE_UNKNOWN);
+            .is_error());
+    CHECK(disk.mediatype() == MEDIATYPE_UNKNOWN);
     CHECK_FALSE(read_sector(disk, 1).has_value());
     CHECK(bus.outcome == Outcome::None);
 }

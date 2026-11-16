@@ -333,11 +333,10 @@ void rs232Disk::rs232_write_percom_block()
    A disk_type other than MEDIATYPE_UNKNOWN is used as given. Otherwise the type
    comes from the filename, or from the contents when the name says nothing, and
    an image of unknown type mounts raw.
-   Return value is MEDIATYPE_UNKNOWN in case of failure.
 */
-mediatype_t rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksize,
-                             disk_access_flags_t access_mode, mediatype_t disk_type,
-                             fujiHost *host)
+error_is_true rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksize,
+                               disk_access_flags_t access_mode, mediatype_t disk_type,
+                               fujiHost *host)
 {
     Debug_print("disk MOUNT\n");
 
@@ -377,12 +376,12 @@ mediatype_t rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksize,
         if (!rom)
         {
             fnio::fclose(f);
-            return MEDIATYPE_UNKNOWN;
+            RETURN_ERROR_AS_TRUE();
         }
 
         error_is_true pushed = push_rom_streams(*rom);
         rom->close();
-        return pushed.is_success() ? MEDIATYPE_ROM : MEDIATYPE_UNKNOWN;
+        RETURN_ERROR_IF(pushed.is_error());
     }
     case MEDIATYPE_IMD:
     {
@@ -393,7 +392,7 @@ mediatype_t rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksize,
         imd->_media_host = host;
         if (filename != nullptr)
             strlcpy(imd->_disk_filename, filename, sizeof(imd->_disk_filename));
-        return imd->mount(f, disksize);
+        RETURN_ERROR_IF(imd->mount(f, disksize) == MEDIATYPE_UNKNOWN);
     }
     case MEDIATYPE_ALTAIR:
     {
@@ -404,7 +403,7 @@ mediatype_t rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksize,
         altair->_media_host = host;
         if (filename != nullptr)
             strlcpy(altair->_disk_filename, filename, sizeof(altair->_disk_filename));
-        return altair->mount(f, disksize);
+        RETURN_ERROR_IF(altair->mount(f, disksize) == MEDIATYPE_UNKNOWN);
     }
     case MEDIATYPE_IMG:
     case MEDIATYPE_UNKNOWN:
@@ -412,12 +411,12 @@ mediatype_t rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksize,
         device_active = true;
         _mount_time = time(NULL);
         _disk = new MediaTypeImg();
-        return _disk->mount(f, disksize);
+        RETURN_ERROR_IF(_disk->mount(f, disksize) == MEDIATYPE_UNKNOWN);
     }
 }
 
-mediatype_t rs232Disk::mount_disk_media(fnFile *f, const char *filename, uint32_t disksize,
-                                         mediatype_t disk_type)
+error_is_true rs232Disk::mount_disk_media(fnFile *f, const char *filename, uint32_t disksize,
+                                          mediatype_t disk_type)
 {
     return mount(f, filename, disksize, DISK_ACCESS_MODE_READ, disk_type);
 }

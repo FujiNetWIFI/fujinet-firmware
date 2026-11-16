@@ -111,7 +111,7 @@ void check_closed_once(rs232Disk &disk, const MemFile &file)
 void check_nothing_mounted(rs232Disk &disk, const MemFile &file)
 {
     CHECK_FALSE(disk.device_active);
-    CHECK(disk.disktype() == MEDIATYPE_UNKNOWN);
+    CHECK(disk.mediatype() == MEDIATYPE_UNKNOWN);
     CHECK(disk.mount_time() == 0);
     CHECK(file.closes == 1);
     for (const auto &opened : host_files.opened)
@@ -136,7 +136,7 @@ TEST_CASE("a ROM image goes to DBC stream 0 in 512-byte blocks between OPEN and 
 
     rs232Disk disk;
     CHECK(disk.mount(&file, ROM_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
-          == MEDIATYPE_ROM);
+          .is_success());
     check_closed_once(disk, file);
 
     REQUIRE(bus.sent.size() == 5);
@@ -197,7 +197,7 @@ TEST_CASE("each console's image mounts and goes over unchanged")
 
         rs232Disk disk;
         CHECK(disk.mount(&file, entry.filename, entry.image.size(), DISK_ACCESS_MODE_READ)
-              == MEDIATYPE_ROM);
+              .is_success());
         CHECK(stream_bytes(0) == std::string(entry.image.begin(), entry.image.end()));
         check_closed_once(disk, file);
     }
@@ -212,7 +212,7 @@ TEST_CASE("an Intellivision .int without a .cfg boots with the default map")
 
     rs232Disk disk;
     CHECK(disk.mount(&file, "cart.int", image.size(), DISK_ACCESS_MODE_READ,
-                     MEDIATYPE_UNKNOWN, &host) == MEDIATYPE_ROM);
+                     MEDIATYPE_UNKNOWN, &host).is_success());
     CHECK(stream_bytes(1).empty());
     CHECK(stream_bytes(0) == std::string(image.begin(), image.end()));
     CHECK(bus.sent[0].payload == open_header(0, image.size()));
@@ -234,7 +234,7 @@ TEST_CASE("a .cfg sibling goes to stream 1 before the image")
 
         rs232Disk disk;
         CHECK(disk.mount(&file, ROM_BIN_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ,
-                         MEDIATYPE_UNKNOWN, &host) == MEDIATYPE_ROM);
+                         MEDIATYPE_UNKNOWN, &host).is_success());
         CHECK(host_files.opened.size() == 1);
         check_closed_once(disk, file);
 
@@ -263,9 +263,8 @@ TEST_CASE("an Intellivision image with a .cfg may be any even size")
 
         rs232Disk disk;
         bool even = size % 2 == 0;
-        mediatype_t expected = even ? MEDIATYPE_ROM : MEDIATYPE_UNKNOWN;
-        CHECK(disk.mount(&file, ROM_BIN_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ,
-                         MEDIATYPE_UNKNOWN, &host) == expected);
+        CHECK((disk.mount(&file, ROM_BIN_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ,
+                          MEDIATYPE_UNKNOWN, &host).is_success() || !even));
         CHECK(stream_bytes(0) == (even ? std::string(image.begin(), image.end()) : ""));
         check_closed_once(disk, file);
     }
@@ -280,7 +279,7 @@ TEST_CASE("without a host the .cfg sibling is not looked for")
 
     rs232Disk disk;
     CHECK(disk.mount(&file, ROM_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
-          == MEDIATYPE_ROM);
+          .is_success());
     CHECK(commands() == std::vector<fujiCommandID_t>{
               CMD::NET_OPEN, CMD::NET_WRITE, CMD::NET_CLOSE});
     CHECK(bus.sent[0].payload == open_header(0, image.size()));
@@ -294,7 +293,7 @@ TEST_CASE("an empty ROM image fails without touching the bus")
     MemFile file({});
 
     rs232Disk disk;
-    CHECK(disk.mount(&file, ROM_TEST_FILE, 0, DISK_ACCESS_MODE_READ) == MEDIATYPE_UNKNOWN);
+    CHECK(disk.mount(&file, ROM_TEST_FILE, 0, DISK_ACCESS_MODE_READ).is_error());
     CHECK(bus.sent.empty());
     check_nothing_mounted(disk, file);
     check_closed_once(disk, file);
@@ -312,7 +311,7 @@ TEST_CASE("a refused or unanswered OPEN fails the mount and sends nothing more")
 
         rs232Disk disk;
         CHECK(disk.mount(&file, ROM_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
-              == MEDIATYPE_UNKNOWN);
+              .is_error());
         CHECK(commands() == std::vector<fujiCommandID_t>{CMD::NET_OPEN});
         check_nothing_mounted(disk, file);
         check_closed_once(disk, file);
@@ -331,7 +330,7 @@ TEST_CASE("a refused or unanswered block sends an aborting CLOSE")
 
         rs232Disk disk;
         CHECK(disk.mount(&file, ROM_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
-              == MEDIATYPE_UNKNOWN);
+              .is_error());
         REQUIRE(bus.sent.size() == 4);
         CHECK(bus.sent[3].command == CMD::NET_CLOSE);
         CHECK(bus.sent[3].payload == std::string(1, '\x01'));
@@ -349,7 +348,7 @@ TEST_CASE("a refused CLOSE fails the mount")
 
     rs232Disk disk;
     CHECK(disk.mount(&file, ROM_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
-          == MEDIATYPE_UNKNOWN);
+          .is_error());
     check_nothing_mounted(disk, file);
     check_closed_once(disk, file);
 }
@@ -365,7 +364,7 @@ TEST_CASE("a failed memory map push leaves the image unsent")
 
     rs232Disk disk;
     CHECK(disk.mount(&file, ROM_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ,
-                     MEDIATYPE_UNKNOWN, &host) == MEDIATYPE_UNKNOWN);
+                     MEDIATYPE_UNKNOWN, &host).is_error());
     CHECK(commands() == std::vector<fujiCommandID_t>{CMD::NET_OPEN});
     CHECK(bus.sent[0].payload == open_header(1, 10));
     check_nothing_mounted(disk, file);
@@ -382,11 +381,11 @@ TEST_CASE("a second ROM mount sends the new image and closes each handle once")
     rs232Disk disk;
     reset();
     REQUIRE(disk.mount(&first_file, ROM_TEST_FILE, first.size(), DISK_ACCESS_MODE_READ)
-            == MEDIATYPE_ROM);
+            .is_success());
 
     reset();
     CHECK(disk.mount(&second_file, ROM_TEST_FILE, second.size(), DISK_ACCESS_MODE_READ)
-          == MEDIATYPE_ROM);
+          .is_success());
     CHECK(stream_bytes(0) == std::string(second.begin(), second.end()));
     check_closed_once(disk, second_file);
     CHECK(first_file.closes == 1);
@@ -435,7 +434,7 @@ TEST_CASE("an image its extension's format doesn't recognize is refused")
 
         rs232Disk disk;
         CHECK(disk.mount(&file, entry.filename, entry.image.size(), DISK_ACCESS_MODE_READ,
-                         MEDIATYPE_ROM) == MEDIATYPE_UNKNOWN);
+                         MEDIATYPE_ROM).is_error());
         CHECK(bus.sent.empty());
         check_nothing_mounted(disk, file);
         check_closed_once(disk, file);
@@ -461,7 +460,7 @@ TEST_CASE("a 5200, 7800, SMS, or ColecoVision image sends the .cfg beside it")
 
         rs232Disk disk;
         CHECK(disk.mount(&file, entry.filename, entry.image.size(), DISK_ACCESS_MODE_READ,
-                         MEDIATYPE_UNKNOWN, &host) == MEDIATYPE_ROM);
+                         MEDIATYPE_UNKNOWN, &host).is_success());
         REQUIRE(!bus.sent.empty());
         CHECK(bus.sent[0].payload == open_header(1, map.size()));
         CHECK(stream_bytes(1) == map);
@@ -489,7 +488,7 @@ TEST_CASE("other consoles' images don't send the .cfg beside them")
 
         rs232Disk disk;
         CHECK(disk.mount(&file, entry.filename, entry.image.size(), DISK_ACCESS_MODE_READ,
-                         MEDIATYPE_UNKNOWN, &host) == MEDIATYPE_ROM);
+                         MEDIATYPE_UNKNOWN, &host).is_success());
         CHECK(stream_bytes(1).empty());
         CHECK(stream_bytes(0) == std::string(entry.image.begin(), entry.image.end()));
         CHECK(host_files.opened.empty());

@@ -124,9 +124,9 @@ TEST_CASE("every PO block reads back as stored, in any order")
     MemFile file(image);
     TestDisk disk;
     REQUIRE(disk.mount(&file, PO_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
-            == MEDIATYPE_PO);
+            .is_success());
     CHECK(disk.device_active);
-    CHECK(disk.disktype() == MEDIATYPE_PO);
+    CHECK(disk.mediatype() == MEDIATYPE_PO);
 
     for (uint32_t block : {3, 0, 1, 7, 7, 2})
     {
@@ -146,7 +146,7 @@ TEST_CASE("a PO write lands in its block and reads back")
     MemFile file(image);
     TestDisk disk;
     REQUIRE(disk.mount(&file, PO_TEST_FILE, image.size(), DISK_ACCESS_MODE_WRITE)
-            == MEDIATYPE_PO);
+            .is_success());
 
     std::vector<uint8_t> data = filled(BLOCK_SIZE, 0x77);
     data[300] = 0x22;
@@ -165,7 +165,7 @@ TEST_CASE("a read-only disk refuses writes as write-protected")
     MemFile file(image);
     TestDisk disk;
     REQUIRE(disk.mount(&file, PO_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
-            == MEDIATYPE_PO);
+            .is_success());
 
     CHECK(write_block(disk, 5, filled(BLOCK_SIZE, 0x77)) == Outcome::Error);
     CHECK(last_sp_error == SP_ERR::NOWRITE);
@@ -179,7 +179,7 @@ TEST_CASE("DO blocks are read from their two interleaved sectors")
     MemFile file(image);
     TestDisk disk;
     REQUIRE(disk.mount(&file, DO_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
-            == MEDIATYPE_DO);
+            .is_success());
 
     for (uint32_t block : {0, 1, 2, 3, 4, 5, 6, 7, 8, 279})
     {
@@ -195,7 +195,7 @@ TEST_CASE("a DO write lands in the block's two sectors and reads back")
     MemFile file(image);
     TestDisk disk;
     REQUIRE(disk.mount(&file, DO_TEST_FILE, image.size(), DISK_ACCESS_MODE_WRITE)
-            == MEDIATYPE_DO);
+            .is_success());
 
     std::vector<uint8_t> data = filled(SECTOR_SIZE, 0x11);
     data.resize(BLOCK_SIZE, 0x22);
@@ -218,7 +218,7 @@ TEST_CASE("a .dsk is DOS order unless block 2 holds a ProDOS volume header")
         MemFile file(image);
         TestDisk disk;
         CHECK(disk.mount(&file, DSK_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
-              == MEDIATYPE_DO);
+              .is_success());
         CHECK(read_block(disk, 3) == do_block(image, 3));
         check_closed_once(disk, file);
     }
@@ -236,7 +236,7 @@ TEST_CASE("a .dsk is DOS order unless block 2 holds a ProDOS volume header")
         MemFile file(image);
         TestDisk disk;
         CHECK(disk.mount(&file, DSK_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
-              == MEDIATYPE_PO);
+              .is_success());
         CHECK(read_block(disk, 3) == slice(image, 3 * BLOCK_SIZE, BLOCK_SIZE));
         check_closed_once(disk, file);
     }
@@ -251,7 +251,7 @@ TEST_CASE("2MG blocks start after the header, whatever the name says")
         MemFile file(image);
         TestDisk disk;
         REQUIRE(disk.mount(&file, name, image.size(), DISK_ACCESS_MODE_WRITE)
-                == MEDIATYPE_2MG);
+                .is_success());
 
         CHECK(read_block(disk, 6)
               == slice(image, TWO_MG_HEADER_SIZE + 6 * BLOCK_SIZE, BLOCK_SIZE));
@@ -270,11 +270,11 @@ TEST_CASE("unmount closes the image once and the drive reports offline")
     MemFile file(image);
     TestDisk disk;
     REQUIRE(disk.mount(&file, PO_TEST_FILE, image.size(), DISK_ACCESS_MODE_WRITE)
-            == MEDIATYPE_PO);
+            .is_success());
 
     check_closed_once(disk, file);
     CHECK_FALSE(disk.device_active);
-    CHECK(disk.disktype() == MEDIATYPE_UNKNOWN);
+    CHECK(disk.mediatype() == MEDIATYPE_UNKNOWN);
     CHECK_FALSE(read_block(disk, 1).has_value());
     CHECK(last_sp_error == SP_ERR::OFFLINE);
     CHECK(write_block(disk, 1, filled(BLOCK_SIZE, 0x77)) == Outcome::Error);
@@ -292,9 +292,9 @@ TEST_CASE("mounting over a disk closes the old image and reports the switch once
     TestDisk disk;
 
     REQUIRE(disk.mount(&first, PO_TEST_FILE, first_image.size(), DISK_ACCESS_MODE_READ)
-            == MEDIATYPE_PO);
+            .is_success());
     REQUIRE(disk.mount(&second, PO_TEST_FILE, second_image.size(), DISK_ACCESS_MODE_READ)
-            == MEDIATYPE_PO);
+            .is_success());
     CHECK(first.closes == 1);
     CHECK(second.closes == 0);
 
