@@ -84,11 +84,6 @@ mediatype_t iwmDisk2::mount_file(fnFile *f, uint32_t disksize, mediatype_t disk_
     return mt;
 }
 
-void iwmDisk2::unmount()
-{
-
-}
-
 error_is_true iwmDisk2::write_blank(fnFile *f, uint16_t sectorSize, uint16_t numSectors)
 {
   RETURN_ERROR_AS_TRUE();
@@ -131,8 +126,11 @@ void IRAM_ATTR iwmDisk2::change_track(int indicator)
   if ((old_pos == track_pos) && indicator) // indicator=0 - always copy track, used for swapping drives
     return;
 
+  // The head can still step after an eject has freed the media
+  if (_disk == nullptr)
+    return;
+
   // should only copy track data over if it's changed
-  assert(_disk != NULL);
   assert(old_pos >= 0 && old_pos < MAX_TRACKS);
   assert(track_pos >= 0 && track_pos < MAX_TRACKS);
   if ((((MediaTypeWOZ *)_disk)->trackmap(old_pos) == ((MediaTypeWOZ *)_disk)->trackmap(track_pos)) && indicator)
@@ -162,6 +160,7 @@ void IRAM_ATTR iwmDisk2::change_track(int indicator)
 
 error_is_true iwmDisk2::write_sector(int track, int sector, uint8_t* buffer)
 {
+  RETURN_ERROR_IF(_disk == nullptr);
   return _disk->write_sector(track, sector, buffer);
 }
 

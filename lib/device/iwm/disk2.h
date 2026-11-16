@@ -9,9 +9,6 @@ class iwmDisk2 : public iwmDisk
 {
 
 protected:
-    MediaType *_disk = nullptr;
-
-    char disk_num;
     int track_pos;
     int old_pos;
     uint8_t oldphases;
@@ -20,14 +17,11 @@ public:
     iwmDisk2();
     void init();
     virtual mediatype_t mount_file(fnFile *f, uint32_t disksize, mediatype_t disk_type) override;
-    void unmount();
     error_is_true write_blank(fnFile *f, uint16_t sectorSize, uint16_t numSectors);
     int get_track_pos() { return track_pos; };
     bool phases_valid(uint8_t phases);
     success_is_true move_head();
     void change_track(int indicator);
-    // void set_disk_number(char c) { disk_num = c; }
-    // char get_disk_number() { return disk_num; };
 
     error_is_true write_sector(int track, int sector, uint8_t* buffer);
 
