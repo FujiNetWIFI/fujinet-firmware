@@ -16,6 +16,7 @@
 
 #include "mbedtls/bignum.h"
 #include "mbedtls/md5.h"
+#include "mbedtls/version.h"
 #include "afp_random.h"
 
 /* ------------------------------------------------------------------ *
@@ -217,8 +218,14 @@ void gcry_md_hash_buffer(int algo, void *digest,
                           const void *buffer, size_t length)
 {
     (void)algo;
+    /* 2.x deprecates mbedtls_md5 in favour of _ret; 3.x drops _ret. */
+#if MBEDTLS_VERSION_MAJOR < 3
+    mbedtls_md5_ret((const unsigned char *)buffer, length,
+                    (unsigned char *)digest);
+#else
     mbedtls_md5((const unsigned char *)buffer, length,
                 (unsigned char *)digest);
+#endif
 }
 
 /* ------------------------------------------------------------------ *
