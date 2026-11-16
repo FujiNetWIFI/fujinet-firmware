@@ -16,8 +16,9 @@ lib/bus/<bus>            wire protocol and timing: systemBus, FUJI_COMMAND_PACKE
         |
 lib/device/<bus>         device behavior for that bus (disk, printer, modem, network, clock ...)
 lib/device/fujiDevice    shared bases the per-bus devices derive from: fujiDevice (CONFIG
-lib/device/NDevice       commands plus mixins), NDevice (the N: network device), fujiClock
-lib/device/fujiClock
+lib/device/NDevice       commands plus mixins), NDevice (the N: network device), fujiClock,
+lib/device/fujiClock     FujiDiskDrive (the disk drive contract)
+lib/device/FujiDiskDrive
         |
 lib/fuji                 host slots (fujiHost) and disk slots (fujiDisk, which embeds DISK_DEVICE)
 lib/media/<platform>     disk image formats: one MediaType family per platform, shared IMDImage

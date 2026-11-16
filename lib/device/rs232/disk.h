@@ -1,18 +1,15 @@
 #ifndef DISK_H
 #define DISK_H
 
+#include "FujiDiskDrive.h"
 #include <ctime>
 
-#include "../disk.h"
-#include "bus.h"
-#include "media.h"
 
 class fujiHost;
 
-class rs232Disk : public virtualDevice
+class rs232Disk : public FujiDiskDrive
 {
 private:
-    MediaType *_disk = nullptr;
     time_t _mount_time = 0;
 
     void rs232_read(uint32_t sector);
@@ -46,7 +43,7 @@ public:
     } __attribute__((packed));
     success_is_true write_blank(fnFile *f, const NewDiskRequest &req);
 
-    mediatype_t mediatype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_disktype; };
+    mediatype_t mediatype() { return _media == nullptr ? MEDIATYPE_UNKNOWN : _media->_disktype; };
     time_t mount_time() { return _mount_time; }
 
     ~rs232Disk();

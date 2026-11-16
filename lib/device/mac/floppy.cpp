@@ -14,7 +14,7 @@
 error_is_true macFloppy::mount(FILE *f, const char *filename, uint32_t disksize,
                                disk_access_flags_t access_mode, mediatype_t disk_type)
 {
-  if (_disk != nullptr)
+  if (_media != nullptr)
     unmount();
 
   if (disk_type == MEDIATYPE_UNKNOWN)
@@ -23,7 +23,7 @@ error_is_true macFloppy::mount(FILE *f, const char *filename, uint32_t disksize,
   _disk_size_in_blocks = disksize / 512;
   readonly = !(access_mode & DISK_ACCESS_MODE_WRITE);
 
-  // Mounted before it is published: the bus task uses _disk while an
+  // Mounted before it is published: the bus task uses _media while an
   // archive is still being unpacked
   MediaType *media = (disk_type == MEDIATYPE_SIT) ? new MediaTypeSIT(is_floppy_slot(), _archive_entry)
                                                   : MediaType::create(disk_type, is_floppy_slot());
@@ -43,7 +43,7 @@ error_is_true macFloppy::mount(FILE *f, const char *filename, uint32_t disksize,
     device_active = false;
     RETURN_ERROR_AS_TRUE();
   }
-  _disk = media;
+  _media = media;
   device_active = true;
 
   if (is_floppy_slot())
@@ -52,7 +52,7 @@ error_is_true macFloppy::mount(FILE *f, const char *filename, uint32_t disksize,
   {
     // the media decides how many blocks the Mac sees (drive images only
     // expose their HFS partition, DC42 images strip their header)
-    _disk_size_in_blocks = _disk->num_blocks;
+    _disk_size_in_blocks = _media->num_blocks;
     SYSTEM_BUS.add_dcd_mount(id());
   }
   RETURN_ERROR_IF(mt == MEDIATYPE_UNKNOWN);
@@ -67,7 +67,7 @@ void macFloppy::insert_floppy()
   old_pos = 2;     // make different to force change_track buffer copy
   change_track(0); // initialize rmt buffer
   change_track(1); // initialize rmt buffer
-  switch (_disk->num_sides)
+  switch (_media->num_sides)
   {
   case 1:
     SYSTEM_BUS.write((uint8_t)'s');
@@ -84,7 +84,7 @@ void macFloppy::insert_floppy()
   }
   // media that takes sector writes is writable when mounted read/write;
   // MOOFs and read-only mounts stay write protected on the Pico
-  SYSTEM_BUS.write((uint8_t)((_disk->accepts_sector_writes() && !readonly) ? 'u' : 'l'));
+  SYSTEM_BUS.write((uint8_t)((_media->accepts_sector_writes() && !readonly) ? 'u' : 'l'));
 }
 
 // void macFloppy::init()
@@ -144,13 +144,13 @@ DCDDATA       Communication channel from DCD device to Macintosh
 void macFloppy::unmount()
 {
   // anything mounted in slots 1-4 is an HD20, archive-backed or not
-  bool was_dcd = (_disk != nullptr) && is_dcd_slot();
+  bool was_dcd = (_media != nullptr) && is_dcd_slot();
 
-  if (_disk != nullptr)
+  if (_media != nullptr)
   {
-    _disk->unmount();
-    delete _disk; // virtual destructor, handles MOOF track buffers
-    _disk = nullptr;
+    _media->unmount();
+    delete _media; // virtual destructor, handles MOOF track buffers
+    _media = nullptr;
   }
 
   if (was_dcd)
@@ -167,8 +167,8 @@ void macFloppy::unmount()
 
 void macFloppy::flush_if_idle()
 {
-  if (_disk != nullptr)
-    _disk->flush_if_idle();
+  if (_media != nullptr)
+    _media->flush_if_idle();
 }
 
 int IRAM_ATTR macFloppy::step()
@@ -197,7 +197,7 @@ int IRAM_ATTR macFloppy::step()
 
 void macFloppy::update_track_buffers()
 {
-  if (device_active && _disk != nullptr)
+  if (device_active && _media != nullptr)
     act_reads = act_reads + 1;
   change_track(0);
   change_track(1);
@@ -207,14 +207,14 @@ void macFloppy::update_track_buffers()
 // sector of it was rewritten)
 void macFloppy::reload_track_buffers()
 {
-  if (!device_active || _disk == nullptr)
+  if (!device_active || _media == nullptr)
     return;
   for (int side = 0; side < 2; side++)
   {
-    int tp = track_pos + ((_disk->num_sides == 1) ? 0 : side);
-    if (_disk->trackmap(tp) != 255)
-      floppy_ll.copy_track(_disk->get_track(tp), side, _disk->track_len(tp), _disk->num_bits(tp),
-                           NS_PER_BIT_TIME * _disk->optimal_bit_timing);
+    int tp = track_pos + ((_media->num_sides == 1) ? 0 : side);
+    if (_media->trackmap(tp) != 255)
+      floppy_ll.copy_track(_media->get_track(tp), side, _media->track_len(tp), _media->num_bits(tp),
+                           NS_PER_BIT_TIME * _media->optimal_bit_timing);
   }
 }
 
@@ -256,9 +256,9 @@ void macFloppy::write_capture_end()
   Debug_printf("\nFloppy write: %u bytes captured at cyl %d side %d%s", (unsigned)_wcap_len,
                track_pos / 2, _wcap_side, _wcap_overflow ? " (overflow)" : "");
 
-  if (_disk == nullptr || !_disk->accepts_sector_writes() || readonly)
+  if (_media == nullptr || !_media->accepts_sector_writes() || readonly)
   {
-    Debug_printf("\nFloppy write: ignored (%s)", _disk == nullptr ? "no disk" : !_disk->accepts_sector_writes() ? "not a sector image" : "read-only mount");
+    Debug_printf("\nFloppy write: ignored (%s)", _media == nullptr ? "no disk" : !_media->accepts_sector_writes() ? "not a sector image" : "read-only mount");
     return;
   }
 
@@ -275,7 +275,7 @@ void macFloppy::write_capture_end()
   {
     int cyl = ws[i].cyl >= 0 ? ws[i].cyl : track_pos / 2;
     int side = ws[i].side >= 0 ? ws[i].side : _wcap_side;
-    if (_disk->num_sides == 1)
+    if (_media->num_sides == 1)
       side = 0; // a 400K disk has one side whatever the head-select line says
     if (ws[i].cyl >= 0 && (ws[i].cyl != track_pos / 2 || ws[i].side != _wcap_side))
       Debug_printf("\nFloppy write: header says C%d H%d, head is at C%d H%d", ws[i].cyl, ws[i].side,
@@ -285,7 +285,7 @@ void macFloppy::write_capture_end()
       Debug_printf("\nFloppy write: bad checksum for C%d H%d S%d, not stored", cyl, side, ws[i].sector);
       continue;
     }
-    if (_disk->write_sector(cyl, side, ws[i].sector, ws[i].data).is_success())
+    if (_media->write_sector(cyl, side, ws[i].sector, ws[i].data).is_success())
       written++;
   }
   if (n == 0)
@@ -298,11 +298,11 @@ void macFloppy::write_capture_end()
 
 void IRAM_ATTR macFloppy::change_track(int side)
 {
-  if (!device_active || _disk == nullptr)
+  if (!device_active || _media == nullptr)
     return;
 
   // a single-sided disk serves its one track whichever head is selected
-  int ds = (_disk->num_sides == 1) ? 0 : side;
+  int ds = (_media->num_sides == 1) ? 0 : side;
   int tp = track_pos + ds;
   int op = old_pos + ds;
 
@@ -310,25 +310,25 @@ void IRAM_ATTR macFloppy::change_track(int side)
     return;
 
   // should only copy track data over if it's changed
-  if (_disk->trackmap(op) == _disk->trackmap(tp))
+  if (_media->trackmap(op) == _media->trackmap(tp))
     return;
 
   // need to tell diskii_xface the number of bits in the track
   // and where the track data is located so it can convert it
-  if (_disk->trackmap(tp) != 255)
+  if (_media->trackmap(tp) != 255)
     floppy_ll.copy_track(
-        _disk->get_track(tp),
+        _media->get_track(tp),
         side,
-        _disk->track_len(tp),
-        _disk->num_bits(tp),
-        NS_PER_BIT_TIME * _disk->optimal_bit_timing);
+        _media->track_len(tp),
+        _media->num_bits(tp),
+        NS_PER_BIT_TIME * _media->optimal_bit_timing);
   else
     floppy_ll.copy_track(
         nullptr,
         side,
         BLANK_TRACK_LEN,
         BLANK_TRACK_LEN * 8,
-        NS_PER_BIT_TIME * _disk->optimal_bit_timing);
+        NS_PER_BIT_TIME * _media->optimal_bit_timing);
   // Since the empty track has no data, and therefore no length, using a fake length of 51,200 bits (6400 bytes) works very well.
 }
 
@@ -459,7 +459,7 @@ void macFloppy::process(mac_cmd_t cmd)
   {
   case 'R':
     SYSTEM_BUS.read_exact(s, 3);
-    if (_disk == nullptr)
+    if (_media == nullptr)
     {
       Debug_printf("\nDCD read with no media mounted");
       memset(buffer, 0, sizeof(buffer));
@@ -468,7 +468,7 @@ void macFloppy::process(mac_cmd_t cmd)
     }
     sector_num = ((uint32_t)s[0] << 16) + ((uint32_t)s[1] << 8) + (uint32_t)s[2];
     Debug_printf("\nDCD sector request: %06lx", sector_num);
-    if (_disk->read(sector_num, buffer))
+    if (_media->read(sector_num, buffer))
     {
       Debug_printf("\nError Reading Sector %06lx",sector_num);
       act_errors = act_errors + 1;
@@ -481,8 +481,8 @@ void macFloppy::process(mac_cmd_t cmd)
   case 'T':
     act_status = act_status + 1;
     // flush the write cache before the Mac looks at status
-    if (_disk != nullptr)
-      _disk->flush();
+    if (_media != nullptr)
+      _media->flush();
     memset(buffer,0,sizeof(buffer));
     dcd_status(buffer);
     Debug_printf("\nSending STATUS block");
@@ -500,7 +500,7 @@ void macFloppy::process(mac_cmd_t cmd)
     SYSTEM_BUS.read_exact(buffer, sizeof(buffer));
     sector_num = ((uint32_t)s[0] << 16) + ((uint32_t)s[1] << 8) + (uint32_t)s[2];
     Debug_printf("\nDCD sector write: %06lx", sector_num);
-    if (_disk == nullptr || readonly || _disk->write(sector_num, buffer))
+    if (_media == nullptr || readonly || _media->write(sector_num, buffer))
     {
       Debug_printf("\nError Writing Sector %06lx", sector_num);
       act_errors = act_errors + 1;

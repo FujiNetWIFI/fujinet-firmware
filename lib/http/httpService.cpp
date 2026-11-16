@@ -1460,7 +1460,7 @@ esp_err_t fnHttpService::get_handler_mac_activity(httpd_req_t *req)
         DISK_DEVICE *dd = SYSTEM_BUS.theFuji->get_disk_dev(i);
         n += snprintf(buf + n, sizeof(buf) - n,
                       "%s{\"n\":%d,\"loaded\":%s,\"r\":%lu,\"w\":%lu,\"e\":%lu,\"s\":%lu",
-                      i ? "," : "", i + 1, dd->is_loaded() ? "true" : "false",
+                      i ? "," : "", i + 1, dd->isMounted() ? "true" : "false",
                       static_cast<unsigned long>(dd->act_reads), static_cast<unsigned long>(dd->act_writes), static_cast<unsigned long>(dd->act_errors),
                       static_cast<unsigned long>(dd->act_status));
         if (i == MAC_FLOPPY_SLOT && n < static_cast<int>(sizeof(buf)))

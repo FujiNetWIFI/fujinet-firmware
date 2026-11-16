@@ -65,6 +65,9 @@ public:
     fujiDeviceID_t id();
 };
 
+// The class FujiDiskDrive derives from on this bus
+using DiskDriveBase = virtualDevice;
+
 /**
  * @brief The Comlynx Bus
  */

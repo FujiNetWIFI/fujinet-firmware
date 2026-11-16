@@ -82,7 +82,7 @@ string fnHttpServiceParser::mac_slots_json()
         }
 
         DISK_DEVICE *dd = SYSTEM_BUS.theFuji->get_disk_dev(i);
-        if (dd != nullptr && dd->is_loaded())
+        if (dd != nullptr && dd->isMounted())
         {
             cJSON_AddBoolToObject(s, "loaded", true);
             cJSON_AddBoolToObject(s, "ro", dd->readonly);

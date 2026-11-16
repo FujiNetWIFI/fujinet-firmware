@@ -108,6 +108,9 @@ public:
     virtual void setErrorCode(nDevStatus_t err) { _errorCode = err; }
 };
 
+// The class FujiDiskDrive derives from on this bus
+using DiskDriveBase = drivewireDevice;
+
 enum drivewire_message : uint16_t
 {
     DRIVEWIREMSG_DISKSWAP,  // Rotate disk

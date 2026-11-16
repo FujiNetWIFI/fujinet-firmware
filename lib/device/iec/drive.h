@@ -1,7 +1,7 @@
 #ifndef DRIVE_H
 #define DRIVE_H
 
-#include "../disk.h"
+#include "FujiDiskDrive.h"
 #include "../fuji/fujiHost.h"
 
 #include <string>
@@ -13,8 +13,6 @@
 #include "compat_esp.h"
 #endif
 
-#include "../../bus/iec/IECFileDevice.h"
-#include "../../media/media.h"
 #include "../meatloaf/meatloaf.h"
 #include "../meatloaf/meat_buffer.h"
 #include "../meatloaf/wrappers/iec_buffer.h"
@@ -221,7 +219,7 @@ class driveMemory
   }
 };
 
-class iecDrive : public IECFileDevice
+class iecDrive : public FujiDiskDrive
 {
  public:
   iecDrive(uint8_t devnum = 0xFF);
@@ -231,6 +229,7 @@ class iecDrive : public IECFileDevice
                       disk_access_flags_t access_mode,
                       mediatype_t disk_type = MEDIATYPE_UNKNOWN);
   void unmount();
+  bool isMounted() const { return m_image != nullptr; }
   mediatype_t mediatype() { return MEDIATYPE_UNKNOWN; }
 
   struct NewDiskRequest {

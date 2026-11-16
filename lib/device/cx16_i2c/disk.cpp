@@ -19,7 +19,7 @@ void cx16Disk::sio_read()
 {
     // Debug_print("disk READ\n");
 
-    if (_disk == nullptr)
+    if (_media == nullptr)
     {
         cx16_error();
         return;
@@ -27,10 +27,10 @@ void cx16Disk::sio_read()
 
     uint16_t readcount;
 
-    bool err = _disk->read(UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1), &readcount);
+    bool err = _media->read(UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1), &readcount);
 
     // Send result to Atari
-    bus_to_computer(_disk->_media_blockbuff, readcount, err);
+    bus_to_computer(_media->_media_blockbuff, readcount, err);
 }
 
 // Write disk data from computer
@@ -67,10 +67,10 @@ mediatype_t cx16Disk::mount(FILE *f, const char *filename, uint32_t disksize,
 // Destructor
 cx16Disk::~cx16Disk()
 {
-    if (_disk != nullptr)
+    if (_media != nullptr)
     {
-        delete _disk;
-        _disk = nullptr;
+        delete _media;
+        _media = nullptr;
     }
 }
 
@@ -79,11 +79,11 @@ void cx16Disk::unmount()
 {
     Debug_print("disk UNMOUNT\n");
 
-    if (_disk != nullptr)
+    if (_media != nullptr)
     {
-        _disk->unmount();
-        delete _disk;
-        _disk = nullptr;
+        _media->unmount();
+        delete _media;
+        _media = nullptr;
         device_active = false;
     }
 }
@@ -100,7 +100,7 @@ void cx16Disk::process(uint32_t commanddata, uint8_t checksum)
     cmdFrame.commanddata = commanddata;
     cmdFrame.checksum = checksum;
 
-    if (_disk == nullptr || _disk->_mediatype == MEDIATYPE_UNKNOWN)
+    if (_media == nullptr || _media->_mediatype == MEDIATYPE_UNKNOWN)
         return;
 
     if (device_active == false &&
@@ -112,7 +112,7 @@ void cx16Disk::process(uint32_t commanddata, uint8_t checksum)
     switch (cmdFrame.comnd)
     {
     case CMD::DISK_READ:
-        if (UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1) > _disk->_media_last_block)
+        if (UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1) > _media->_media_last_block)
         {
             cx16_nak();
             return;
@@ -129,7 +129,7 @@ void cx16Disk::process(uint32_t commanddata, uint8_t checksum)
         }
         return;
     case CMD::DISK_HSIO_READ:
-        if (_disk->_allow_hsio)
+        if (_media->_allow_hsio)
         {
             cx16_ack();
             sio_read();
@@ -137,7 +137,7 @@ void cx16Disk::process(uint32_t commanddata, uint8_t checksum)
         }
         break;
     case CMD::DISK_PUT:
-        if (UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1) > _disk->_media_last_block)
+        if (UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1) > _media->_media_last_block)
         {
             cx16_nak();
             return;
@@ -154,9 +154,9 @@ void cx16Disk::process(uint32_t commanddata, uint8_t checksum)
         }
         return;
     case CMD::DISK_HSIO_PUT:
-        if (_disk->_allow_hsio)
+        if (_media->_allow_hsio)
         {
-            if (UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1) > _disk->_media_last_block)
+            if (UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1) > _media->_media_last_block)
             {
                 cx16_nak();
                 return;
@@ -183,14 +183,14 @@ void cx16Disk::process(uint32_t commanddata, uint8_t checksum)
         }
         else
         {
-            if (cmdFrame.comnd == CMD::DISK_HSIO_STATUS && _disk->_allow_hsio == false)
+            if (cmdFrame.comnd == CMD::DISK_HSIO_STATUS && _media->_allow_hsio == false)
                 break;
             cx16_ack();
             status();
         }
         return;
     case CMD::DISK_WRITE:
-        if (UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1) > _disk->_media_last_block)
+        if (UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1) > _media->_media_last_block)
         {
             cx16_nak();
             return;
@@ -207,9 +207,9 @@ void cx16Disk::process(uint32_t commanddata, uint8_t checksum)
         }
         return;
     case CMD::DISK_HSIO_WRITE:
-        if (_disk->_allow_hsio)
+        if (_media->_allow_hsio)
         {
-            if (UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1) > _disk->_media_last_block)
+            if (UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1) > _media->_media_last_block)
             {
                 cx16_nak();
                 return;
@@ -234,7 +234,7 @@ void cx16Disk::process(uint32_t commanddata, uint8_t checksum)
         return;
     case CMD::DISK_HSIO_FORMAT:
     case CMD::DISK_HSIO_FORMAT_MEDIUM:
-        if (_disk->_allow_hsio)
+        if (_media->_allow_hsio)
         {
             cx16_ack();
             sio_format();

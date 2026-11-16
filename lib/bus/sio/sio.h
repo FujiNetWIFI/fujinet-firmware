@@ -139,6 +139,9 @@ public:
     uint8_t status_wait_count = 5;
 };
 
+// The class FujiDiskDrive derives from on this bus
+using DiskDriveBase = virtualDevice;
+
 enum sio_message : uint16_t
 {
     SIOMSG_DISKSWAP,  // Rotate disk

@@ -1,8 +1,7 @@
 #ifndef s100_DISK_H
 #define s100_DISK_H
 
-#include "bus.h"
-#include "media.h"
+#include "FujiDiskDrive.h"
 
 #define STATUS_OK        0
 #define STATUS_BAD_BLOCK 1
@@ -10,10 +9,9 @@
 #define STATUS_NO_MEDIA  3
 #define STATUS_NO_DRIVE  4
 
-class s100spiDisk : public virtualDevice
+class s100spiDisk : public FujiDiskDrive
 {
 private:
-    MediaType *_media = nullptr;
     TaskHandle_t diskTask;
 
     unsigned long blockNum=INVALID_SECTOR_VALUE;

@@ -5,6 +5,7 @@
 #include "IECBusHandler.h"
 #include "FujiIECPacket.h"
 #include "virtualDevice.h"
+#include "IECFileDevice.h"
 #include "string_utils.h"
 #include "NetIEC.h"
 #include "BoIPChannel.h"
@@ -25,6 +26,9 @@ enum {
   TRANSACTION_STATUS_OK    = 0x00,
   TRANSACTION_STATUS_ERROR = 0x01,
 };
+
+// The class FujiDiskDrive derives from on this bus
+using DiskDriveBase = IECFileDevice;
 
 class iecDrive;
 class iecFuji;

@@ -173,6 +173,9 @@ public:
 
 };
 
+// The class FujiDiskDrive derives from on this bus
+using DiskDriveBase = virtualDevice;
+
 /**
  * @brief The s100spi Bus
  */

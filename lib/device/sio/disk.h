@@ -1,14 +1,11 @@
 #ifndef DISK_H
 #define DISK_H
 
-#include "../disk.h"
-#include "bus.h"
-#include "media.h"
+#include "FujiDiskDrive.h"
 
-class sioDisk : public virtualDevice
+class sioDisk : public FujiDiskDrive
 {
 private:
-    MediaType *_disk = nullptr;
     bool _is_tape = false; // this slot holds a CAS/WAV image: it belongs to the cassette, not to a MediaType
 
     void sio_read(const FujiSIOPacket &packet);
@@ -41,7 +38,7 @@ public:
     } __attribute__((packed));
     success_is_true write_blank(fnFile *f, const NewDiskRequest &req);
 
-    mediatype_t mediatype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_disktype; };
+    mediatype_t mediatype() { return _media == nullptr ? MEDIATYPE_UNKNOWN : _media->_disktype; };
 
     ~sioDisk();
 };

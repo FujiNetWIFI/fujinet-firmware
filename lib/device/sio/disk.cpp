@@ -18,11 +18,11 @@ sioDisk::sioDisk()
 // Read disk data and send to computer
 void sioDisk::sio_read(const FujiSIOPacket &packet)
 {
-    if (packet.command() == CMD::DISK_HSIO_READ && !_disk->_allow_hsio)
+    if (packet.command() == CMD::DISK_HSIO_READ && !_media->_allow_hsio)
         return;
 
     uint16_t sectorNum = packet.param(0);
-    if (!sectorNum || sectorNum > _disk->_disk_num_sectors)
+    if (!sectorNum || sectorNum > _media->_disk_num_sectors)
     {
         SYSTEM_BUS.transaction_error();
         return;
@@ -32,7 +32,7 @@ void sioDisk::sio_read(const FujiSIOPacket &packet)
 
     // Debug_print("disk READ\n");
 
-    if (_disk == nullptr)
+    if (_media == nullptr)
     {
         // Send error but dummy sector.
         uint8_t dummySector[128];
@@ -43,17 +43,17 @@ void sioDisk::sio_read(const FujiSIOPacket &packet)
 
     uint16_t readcount;
 
-    bool err = _disk->read(sectorNum, &readcount);
+    bool err = _media->read(sectorNum, &readcount);
 
     // Send result to Atari
-    SYSTEM_BUS.transaction_send(_disk->_disk_sectorbuff, readcount, err);
+    SYSTEM_BUS.transaction_send(_media->_disk_sectorbuff, readcount, err);
 }
 
 // Write disk data from computer
 void sioDisk::sio_write(const FujiSIOPacket &packet)
 {
     if ((packet.command() == CMD::DISK_HSIO_PUT || packet.command() == CMD::DISK_HSIO_WRITE)
-        && !_disk->_allow_hsio)
+        && !_media->_allow_hsio)
         return;
 
     uint16_t sectorNum = packet.param(0);
@@ -65,12 +65,12 @@ void sioDisk::sio_write(const FujiSIOPacket &packet)
 
     // Debug_print("disk WRITE\n");
 
-    if (_disk != nullptr)
+    if (_media != nullptr)
     {
-        uint16_t sectorSize = _disk->sector_size(sectorNum);
+        uint16_t sectorSize = _media->sector_size(sectorNum);
 
-        if (SYSTEM_BUS.transaction_get(_disk->_disk_sectorbuff, sectorSize)
-            && _disk->write(sectorNum, verify).is_success())
+        if (SYSTEM_BUS.transaction_get(_media->_disk_sectorbuff, sectorSize)
+            && _media->write(sectorNum, verify).is_success())
         {
             SYSTEM_BUS.transaction_success();
             return;
@@ -124,19 +124,19 @@ void sioDisk::sio_status(const FujiSIOPacket &packet)
     uint8_t _status[4];
     _status[0] = 0x00;
 
-    if (_disk != nullptr)
+    if (_media != nullptr)
     {
-        if (_disk->_disk_num_sectors == 1040)
+        if (_media->_disk_num_sectors == 1040)
         {
             _status[0] |= 0x80; // 1050 density
         }
 
-        if (_disk->_disk_sector_size == 256)
+        if (_media->_disk_sector_size == 256)
         {
             _status[0] |= 0x20; // Double density
         }
 
-        if (_disk->_disk_num_sectors == 1440 || _disk->_disk_num_sectors == 2880)
+        if (_media->_disk_num_sectors == 1440 || _media->_disk_num_sectors == 2880)
         {
             _status[0] |= 0x40; // Double sided
         }
@@ -146,8 +146,8 @@ void sioDisk::sio_status(const FujiSIOPacket &packet)
     _status[2] = DRIVE_DEFAULT_TIMEOUT_810;
     _status[3] = 0x00;
 
-    if (_disk != nullptr)
-        _disk->status(_status);
+    if (_media != nullptr)
+        _media->status(_status);
 
     Debug_printf("response: 0x%02x, 0x%02x, 0x%02x\n", _status[0], _status[1], _status[2]);
 
@@ -161,17 +161,17 @@ void sioDisk::sio_format()
 
     Debug_print("disk FORMAT\n");
 
-    if (_disk == nullptr)
+    if (_media == nullptr)
     {
         SYSTEM_BUS.transaction_error();
         return;
     }
 
     uint16_t responsesize;
-    bool err = _disk->format(&responsesize);
+    bool err = _media->format(&responsesize);
 
     // Send to computer
-    SYSTEM_BUS.transaction_send(_disk->_disk_sectorbuff, responsesize, err);
+    SYSTEM_BUS.transaction_send(_media->_disk_sectorbuff, responsesize, err);
 }
 
 // Read percom block
@@ -181,16 +181,16 @@ void sioDisk::sio_read_percom_block()
 
     Debug_print("disk READ PERCOM BLOCK\n");
 
-    if (_disk == nullptr)
+    if (_media == nullptr)
     {
         SYSTEM_BUS.transaction_error();
         return;
     }
 
 #ifdef VERBOSE_DISK
-    _disk->dump_percom_block();
+    _media->dump_percom_block();
 #endif
-    SYSTEM_BUS.transaction_send((uint8_t *)&_disk->_percomBlock, sizeof(_disk->_percomBlock), false);
+    SYSTEM_BUS.transaction_send((uint8_t *)&_media->_percomBlock, sizeof(_media->_percomBlock), false);
 }
 
 // Write percom block
@@ -200,15 +200,15 @@ void sioDisk::sio_write_percom_block()
 
     Debug_print("disk WRITE PERCOM BLOCK\n");
 
-    if (_disk == nullptr)
+    if (_media == nullptr)
     {
         SYSTEM_BUS.transaction_error();
         return;
     }
 
-    SYSTEM_BUS.transaction_get(&_disk->_percomBlock, sizeof(_disk->_percomBlock));
+    SYSTEM_BUS.transaction_get(&_media->_percomBlock, sizeof(_media->_percomBlock));
 #ifdef VERBOSE_DISK
-    _disk->dump_percom_block();
+    _media->dump_percom_block();
 #endif
     SYSTEM_BUS.transaction_success();
 }
@@ -234,10 +234,10 @@ error_is_true sioDisk::mount(fnFile *f, const char *filename, uint32_t disksize,
     }
 
     // Destroy any existing MediaType
-    if (_disk != nullptr)
+    if (_media != nullptr)
     {
-        delete _disk;
-        _disk = nullptr;
+        delete _media;
+        _media = nullptr;
     }
 
     // Determine MediaType based on filename extension
@@ -270,36 +270,36 @@ mediatype_t sioDisk::mount_disk_media(fnFile *f, const char *filename, uint32_t 
     Debug_print("disk MOUNT\n");
 
     // Destroy any existing MediaType
-    if (_disk != nullptr)
+    if (_media != nullptr)
     {
-        delete _disk;
-        _disk = nullptr;
+        delete _media;
+        _media = nullptr;
     }
 
     switch (disk_type)
     {
     case MEDIATYPE_XEX:
-        _disk = new MediaTypeXEX();
+        _media = new MediaTypeXEX();
         break;
     case MEDIATYPE_ATX:
-        _disk = new MediaTypeATX();
+        _media = new MediaTypeATX();
         break;
     default:
-        _disk = new MediaTypeATR();
+        _media = new MediaTypeATR();
         break;
     }
     device_active = true;
-    strcpy(_disk->_disk_filename, filename);
-    return _disk->mount(f, disksize);
+    strcpy(_media->_disk_filename, filename);
+    return _media->mount(f, disksize);
 }
 
 // Destructor
 sioDisk::~sioDisk()
 {
-    if (_disk != nullptr)
+    if (_media != nullptr)
     {
-        delete _disk;
-        _disk = nullptr;
+        delete _media;
+        _media = nullptr;
     }
 }
 
@@ -317,13 +317,13 @@ void sioDisk::unmount()
         SYSTEM_BUS.platformFuji->cassette()->sio_disable_cassette();
     }
 
-    if (_disk != nullptr)
+    if (_media != nullptr)
     {
-        _disk->unmount();
+        _media->unmount();
         device_active = false;
 #ifndef ESP_PLATFORM // apc: good for ESP too?
-        delete _disk;
-        _disk = nullptr;
+        delete _media;
+        _media = nullptr;
 #endif
     }
 }
@@ -339,7 +339,7 @@ success_is_true sioDisk::write_blank(fnFile *f, const NewDiskRequest &req)
 // Process command
 void sioDisk::sio_process(const FujiSIOPacket &packet)
 {
-    if (_disk == nullptr || _disk->_disktype == MEDIATYPE_UNKNOWN)
+    if (_media == nullptr || _media->_disktype == MEDIATYPE_UNKNOWN)
         return;
 
     if ((device_active == false && packet.device() != FUJI_DEVICEID::DISK) || // not active and not D1
@@ -380,7 +380,7 @@ void sioDisk::sio_process(const FujiSIOPacket &packet)
         }
         else
         {
-            if (packet.command() == CMD::DISK_HSIO_STATUS && _disk->_allow_hsio == false)
+            if (packet.command() == CMD::DISK_HSIO_STATUS && _media->_allow_hsio == false)
                 break;
             sio_status(packet);
         }
@@ -391,7 +391,7 @@ void sioDisk::sio_process(const FujiSIOPacket &packet)
         return;
     case CMD::DISK_HSIO_FORMAT:
     case CMD::DISK_HSIO_FORMAT_MEDIUM:
-        if (_disk->_allow_hsio)
+        if (_media->_allow_hsio)
         {
             sio_format();
             return;
@@ -404,7 +404,7 @@ void sioDisk::sio_process(const FujiSIOPacket &packet)
         sio_write_percom_block();
         return;
     case CMD::DISK_HSIO_INDEX:
-        if (_disk->_allow_hsio)
+        if (_media->_allow_hsio)
         {
             sio_high_speed();
             SYSTEM_BUS.toggleBaudrate();

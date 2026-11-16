@@ -156,7 +156,7 @@ set(INCLUDE_DIRS include
     lib/modem-sniffer lib/printer-emulator
     lib/network-protocol
     lib/fuji lib/bus lib/device lib/media
-    lib/device/fujiDevice lib/device/fujiClock lib/device/NDevice
+    lib/device/fujiDevice lib/device/fujiClock lib/device/NDevice lib/device/FujiDiskDrive
     lib/encrypt
     lib/devrelay/commands lib/devrelay/service lib/devrelay/slip lib/devrelay/types
     lib/encoding
@@ -194,6 +194,7 @@ set(SOURCES src/main.cpp
     lib/config/fnc_wifi.cpp
     include/debug.h
     lib/device/fujiClock/fujiClock.h lib/device/fujiClock/fujiClock.cpp
+    lib/device/FujiDiskDrive/FujiDiskDrive.h
     lib/clipboard/clipboardManager.h lib/clipboard/clipboardManager.cpp
     lib/utils/utils.h lib/utils/utils.cpp
     lib/utils/cbuf.h lib/utils/cbuf.cpp

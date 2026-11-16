@@ -93,6 +93,9 @@ public:
     char id() { return _devnum; }
 };
 
+// The class FujiDiskDrive derives from on this bus
+using DiskDriveBase = virtualDevice;
+
 // Older Mac code used this name; keep it as an alias.
 using macDevice = virtualDevice;
 

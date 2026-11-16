@@ -178,7 +178,7 @@ void rs232Disk::rs232_read(uint32_t sector)
 
     Debug_printf("disk READ %lu\n", sector);
 
-    if (_disk == nullptr || !device_active)
+    if (_media == nullptr || !device_active)
     {
         SYSTEM_BUS.transaction_error();
         return;
@@ -186,10 +186,10 @@ void rs232Disk::rs232_read(uint32_t sector)
 
     uint32_t readcount;
 
-    bool err = _disk->read(sector, &readcount);
+    bool err = _media->read(sector, &readcount);
 
     // Send result to Atari
-    SYSTEM_BUS.transaction_send(_disk->_disk_sectorbuff, readcount, err);
+    SYSTEM_BUS.transaction_send(_media->_disk_sectorbuff, readcount, err);
 }
 
 // Write disk data from computer
@@ -199,15 +199,15 @@ void rs232Disk::rs232_write(uint32_t sector, bool verify)
 
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
 
-    if (_disk != nullptr && device_active)
+    if (_media != nullptr && device_active)
     {
-        uint16_t sectorSize = _disk->sector_size(sector);
+        uint16_t sectorSize = _media->sector_size(sector);
 
-        memset(_disk->_disk_sectorbuff, 0, DISK_SECTORBUF_SIZE);
+        memset(_media->_disk_sectorbuff, 0, DISK_SECTORBUF_SIZE);
 
-        if (SYSTEM_BUS.transaction_get(_disk->_disk_sectorbuff, sectorSize))
+        if (SYSTEM_BUS.transaction_get(_media->_disk_sectorbuff, sectorSize))
         {
-            if (_disk->write(sector, verify) == false)
+            if (_media->write(sector, verify) == false)
             {
                 SYSTEM_BUS.transaction_success();
                 return;
@@ -264,8 +264,8 @@ void rs232Disk::rs232_status(FujiStatusReq reqType)
     _status[2] = DRIVE_DEFAULT_TIMEOUT_810;
     _status[3] = 0x00;
 
-    if (_disk != nullptr)
-        _disk->status(_status);
+    if (_media != nullptr)
+        _media->status(_status);
 
     Debug_printf("response: 0x%02x, 0x%02x, 0x%02x\n", _status[0], _status[1], _status[2]);
 
@@ -278,17 +278,17 @@ void rs232Disk::rs232_format()
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     Debug_print("disk FORMAT\n");
 
-    if (_disk == nullptr)
+    if (_media == nullptr)
     {
         SYSTEM_BUS.transaction_error();
         return;
     }
 
     uint32_t responsesize;
-    bool err = _disk->format(&responsesize);
+    bool err = _media->format(&responsesize);
 
     // Send to computer
-    SYSTEM_BUS.transaction_send(_disk->_disk_sectorbuff, responsesize, err);
+    SYSTEM_BUS.transaction_send(_media->_disk_sectorbuff, responsesize, err);
 }
 
 // Read percom block
@@ -297,16 +297,16 @@ void rs232Disk::rs232_read_percom_block()
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     Debug_print("disk READ PERCOM BLOCK\n");
 
-    if (_disk == nullptr)
+    if (_media == nullptr)
     {
         SYSTEM_BUS.transaction_error();
         return;
     }
 
 #ifdef VERBOSE_DISK
-    _disk->dump_percom_block();
+    _media->dump_percom_block();
 #endif
-    SYSTEM_BUS.transaction_send((uint8_t *)&_disk->_percomBlock, sizeof(_disk->_percomBlock), false);
+    SYSTEM_BUS.transaction_send((uint8_t *)&_media->_percomBlock, sizeof(_media->_percomBlock), false);
 }
 
 // Write percom block
@@ -315,15 +315,15 @@ void rs232Disk::rs232_write_percom_block()
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
     Debug_print("disk WRITE PERCOM BLOCK\n");
 
-    if (_disk == nullptr)
+    if (_media == nullptr)
     {
         SYSTEM_BUS.transaction_error();
         return;
     }
 
-    SYSTEM_BUS.transaction_get((uint8_t *)&_disk->_percomBlock, sizeof(_disk->_percomBlock));
+    SYSTEM_BUS.transaction_get((uint8_t *)&_media->_percomBlock, sizeof(_media->_percomBlock));
 #ifdef VERBOSE_DISK
-    _disk->dump_percom_block();
+    _media->dump_percom_block();
 #endif
     SYSTEM_BUS.transaction_success();
 }
@@ -340,10 +340,10 @@ error_is_true rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksiz
     Debug_print("disk MOUNT\n");
 
     // Destroy any existing MediaType
-    if (_disk != nullptr)
+    if (_media != nullptr)
     {
-        delete _disk;
-        _disk = nullptr;
+        delete _media;
+        _media = nullptr;
     }
 
     if (disk_type == MEDIATYPE_UNKNOWN && filename != nullptr)
@@ -387,7 +387,7 @@ error_is_true rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksiz
         device_active = true;
         _mount_time = time(nullptr);
         MediaTypeIMD *imd = new MediaTypeIMD((access_mode & DISK_ACCESS_MODE_WRITE) != 0);
-        _disk = imd;
+        _media = imd;
         imd->_media_host = host;
         if (filename != nullptr)
             strlcpy(imd->_disk_filename, filename, sizeof(imd->_disk_filename));
@@ -398,7 +398,7 @@ error_is_true rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksiz
         device_active = true;
         _mount_time = time(nullptr);
         MediaTypeAltair *altair = new MediaTypeAltair((access_mode & DISK_ACCESS_MODE_WRITE) != 0);
-        _disk = altair;
+        _media = altair;
         altair->_media_host = host;
         if (filename != nullptr)
             strlcpy(altair->_disk_filename, filename, sizeof(altair->_disk_filename));
@@ -409,8 +409,8 @@ error_is_true rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksiz
     default:
         device_active = true;
         _mount_time = time(NULL);
-        _disk = new MediaTypeImg();
-        RETURN_ERROR_IF(_disk->mount(f, disksize) == MEDIATYPE_UNKNOWN);
+        _media = new MediaTypeImg();
+        RETURN_ERROR_IF(_media->mount(f, disksize) == MEDIATYPE_UNKNOWN);
     }
 }
 
@@ -423,10 +423,10 @@ error_is_true rs232Disk::mount_disk_media(fnFile *f, const char *filename, uint3
 // Destructor
 rs232Disk::~rs232Disk()
 {
-    if (_disk != nullptr)
+    if (_media != nullptr)
     {
-        delete _disk;
-        _disk = nullptr;
+        delete _media;
+        _media = nullptr;
     }
 }
 
@@ -435,11 +435,11 @@ void rs232Disk::unmount()
 {
     Debug_print("disk UNMOUNT\n");
 
-    if (_disk != nullptr)
+    if (_media != nullptr)
     {
-        _disk->unmount();
-        delete _disk;
-        _disk = nullptr;
+        _media->unmount();
+        delete _media;
+        _media = nullptr;
         device_active = false;
         _mount_time = 0;
     }

@@ -1,9 +1,7 @@
 #ifndef ADAM_DISK_H
 #define ADAM_DISK_H
 
-#include "../disk.h"
-#include "bus.h"
-#include "media.h"
+#include "FujiDiskDrive.h"
 
 #define STATUS_OK        0
 #define STATUS_BAD_BLOCK 1
@@ -11,10 +9,9 @@
 #define STATUS_NO_MEDIA  3
 #define STATUS_NO_DRIVE  4
 
-class adamDisk : public virtualDevice
+class adamDisk : public FujiDiskDrive
 {
 private:
-    MediaType *_media = nullptr;
 #ifdef ESP_PLATFORM
     TaskHandle_t diskTask;
 #endif /* ESP_PLATFORM */

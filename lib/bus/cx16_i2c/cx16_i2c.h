@@ -173,6 +173,9 @@ public:
     bool device_active = true;
 };
 
+// The class FujiDiskDrive derives from on this bus
+using DiskDriveBase = virtualDevice;
+
 /**
  * @class systemBus
  * @brief the system bus that all virtualDevices attach to.

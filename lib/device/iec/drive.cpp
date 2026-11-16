@@ -492,7 +492,7 @@ uint8_t iecChannelHandlerDir::readBufferData()
 // -------------------------------------------------------------------------------------------------
 
 
-iecDrive::iecDrive(uint8_t devnum) : IECFileDevice(devnum)
+iecDrive::iecDrive(uint8_t devnum) : FujiDiskDrive(devnum)
 {
   m_image = nullptr;
   m_cwd.reset( MFSOwner::File("/") );

@@ -28,7 +28,7 @@ uint8_t iwmDisk::create_status()
   status = (device_active) ? (status |   STATCODE_DEVICE_ONLINE) :
                              (status & ~(STATCODE_DEVICE_ONLINE));
   if (readonly)               status |=  STATCODE_WRITE_PROTECT;
-  if (_disk != nullptr)       status |=  (1 << 4);
+  if (_media != nullptr)       status |=  (1 << 4);
 
   return status;
 }
@@ -38,18 +38,18 @@ std::vector<uint8_t> iwmDisk::create_blocksize(bool is_32_bits)
   std::vector<uint8_t> block_size;
   block_size.reserve(is_32_bits ? 4 : 3); // Reserve space for either 3 or 4 bytes
 
-  if (_disk != nullptr)
+  if (_media != nullptr)
   {
-    block_size.push_back(static_cast<uint8_t>(_disk->num_blocks & 0xff));
-    block_size.push_back(static_cast<uint8_t>((_disk->num_blocks >> 8) & 0xff));
-    block_size.push_back(static_cast<uint8_t>((_disk->num_blocks >> 16) & 0xff));
+    block_size.push_back(static_cast<uint8_t>(_media->num_blocks & 0xff));
+    block_size.push_back(static_cast<uint8_t>((_media->num_blocks >> 8) & 0xff));
+    block_size.push_back(static_cast<uint8_t>((_media->num_blocks >> 16) & 0xff));
 
     if (is_32_bits)
     {
-        block_size.push_back(static_cast<uint8_t>((_disk->num_blocks >> 24) & 0xff));
+        block_size.push_back(static_cast<uint8_t>((_media->num_blocks >> 24) & 0xff));
     }
 
-    Debug_printf("\r\nDIB number of blocks %lu\r\n", _disk->num_blocks);
+    Debug_printf("\r\nDIB number of blocks %lu\r\n", _media->num_blocks);
   }
   else
   {
@@ -62,10 +62,10 @@ std::vector<uint8_t> iwmDisk::create_blocksize(bool is_32_bits)
 
 uint8_t iwmDisk::smartport_device_type()
 {
-  if (_disk == nullptr)
+  if (_media == nullptr)
     return prevtype; //report the last assigned type when offline.
 
-  if (_disk->num_blocks < 1601) {
+  if (_media->num_blocks < 1601) {
     prevtype = SP_TYPE_BYTE_35DISK;
     return SP_TYPE_BYTE_35DISK; // Floppy disk
   }
@@ -77,10 +77,10 @@ uint8_t iwmDisk::smartport_device_type()
 
 uint8_t iwmDisk::smartport_device_subtype()
 {
-  if (_disk == nullptr)
+  if (_media == nullptr)
     return SP_SUBTYPE_BYTE_SWITCHED;
 
-  if (_disk->num_blocks < 1601)
+  if (_media->num_blocks < 1601)
     return SP_SUBTYPE_BYTE_SWITCHED; // Floppy disk
   else
     return SP_SUBTYPE_BYTE_SWITCHED; // Hard Disk
@@ -91,8 +91,8 @@ iwm_device_status_block_t iwmDisk::create_status_reply_packet()
   iwm_device_status_block_t status;
 
   status.code = create_status();
-  if (_disk != nullptr)
-    status.block_size = _disk->num_blocks;
+  if (_media != nullptr)
+    status.block_size = _media->num_blocks;
   return status;
 }
 
@@ -138,7 +138,7 @@ void iwmDisk::iwm_readblock(const iwm_decoded_cmd_t &cmd)
   Debug_printf("\r\nDrive %02x ", id());
 
   Debug_printf(" Read block %06lx\r\n", cmd.frame.block_rw.num);
-  if (!(_disk != nullptr))
+  if (!(_media != nullptr))
   {
     Debug_printf(" - ERROR - No image mounted");
     SYSTEM_BUS.transaction_error(SP_ERR::OFFLINE);
@@ -160,7 +160,7 @@ void iwmDisk::iwm_readblock(const iwm_decoded_cmd_t &cmd)
 
   sdstato = BLOCK_DATA_LEN;
   ByteBuffer buffer(sdstato);
-  if (_disk->read(cmd.frame.block_rw.num, &sdstato, buffer.data()))
+  if (_media->read(cmd.frame.block_rw.num, &sdstato, buffer.data()))
   {
     Debug_printf("\r\nFile Seek or Read err: %d bytes", sdstato);
     SYSTEM_BUS.transaction_error(SP_ERR::IOERROR);
@@ -206,7 +206,7 @@ void iwmDisk::iwm_writeblock(const iwm_decoded_cmd_t &cmd)
   ByteBuffer buffer(sdstato, 0);
   SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
   SYSTEM_BUS.transaction_get(buffer.data(), buffer.size());
-  _disk->write(cmd.frame.block_rw.num, &sdstato, buffer.data());
+  _media->write(cmd.frame.block_rw.num, &sdstato, buffer.data());
 
   if (sdstato != BLOCK_DATA_LEN)
   {
@@ -238,7 +238,7 @@ error_is_true iwmDisk::mount(fnFile *f, const char *filename, uint32_t disksize,
   Debug_printf("disk MOUNT %s\n", filename);
 
   // Destroy any existing MediaType
-  if (_disk != nullptr)
+  if (_media != nullptr)
   {
     unmount();
     switched = true; //set disk switched only if we are mounting over an existing image.
@@ -253,8 +253,8 @@ error_is_true iwmDisk::mount(fnFile *f, const char *filename, uint32_t disksize,
       device_active = false;
       is_config_device = false;
   }
-  else if (_disk && strlen(_disk->_disk_filename))
-      strcpy(_disk->_disk_filename, filename);
+  else if (_media && strlen(_media->_disk_filename))
+      strcpy(_media->_disk_filename, filename);
 
     if (access_mode & DISK_ACCESS_MODE_WRITE)
     {
@@ -271,15 +271,15 @@ mediatype_t iwmDisk::mount_file(fnFile *f, uint32_t disksize, mediatype_t disk_t
     {
     case MEDIATYPE_DO:
       Debug_printf("\r\nMedia Type DO");
-      _disk = new MediaTypeDO();
+      _media = new MediaTypeDO();
       break;
     case MEDIATYPE_PO:
       Debug_printf("\r\nMedia Type PO");
-      _disk = new MediaTypePO();
+      _media = new MediaTypePO();
       break;
     case MEDIATYPE_2MG:
       Debug_printf("\r\nMedia Type 2MG");
-      _disk = new MediaType2MG();
+      _media = new MediaType2MG();
       break;
     default:
       Debug_printf("\r\nUnsupported Media Type for SmartPort");
@@ -288,18 +288,18 @@ mediatype_t iwmDisk::mount_file(fnFile *f, uint32_t disksize, mediatype_t disk_t
     }
 
   if (disk_type != MEDIATYPE_UNKNOWN) {
-    _disk->_mediatype = disk_type;
-    disk_type = _disk->mount(f, disksize);
+    _media->_mediatype = disk_type;
+    disk_type = _media->mount(f, disksize);
     if (disk_type == MEDIATYPE_UNKNOWN) {
-      delete _disk;
-      _disk = nullptr;
+      delete _media;
+      _media = nullptr;
     }
   }
 
   if (disk_type != MEDIATYPE_UNKNOWN) {
     // firmware needs to believe a high score enabled disk is
     // not write-protected. Otherwise it will skip write process
-    if (_disk->high_score_enabled)
+    if (_media->high_score_enabled)
       readonly = false;
 
     device_active = true; //change status only after we are mounted
@@ -311,12 +311,12 @@ mediatype_t iwmDisk::mount_file(fnFile *f, uint32_t disksize, mediatype_t disk_t
 
 void iwmDisk::unmount()
 {
-    if (_disk != nullptr)
+    if (_media != nullptr)
     {
-        // Clear _disk first so the Disk II head-step ISR stops finding the media. An ISR
+        // Clear _media first so the Disk II head-step ISR stops finding the media. An ISR
         // already inside change_track() on the other core can still race the delete.
-        MediaType *media = _disk;
-        _disk = nullptr;
+        MediaType *media = _media;
+        _media = nullptr;
         if (device_active)
             switched = true;
         device_active = false;
