@@ -290,6 +290,10 @@ mediatype_t iwmDisk::mount_file(fnFile *f, uint32_t disksize, mediatype_t disk_t
   if (disk_type != MEDIATYPE_UNKNOWN) {
     _disk->_mediatype = disk_type;
     disk_type = _disk->mount(f, disksize);
+    if (disk_type == MEDIATYPE_UNKNOWN) {
+      delete _disk;
+      _disk = nullptr;
+    }
   }
 
   if (disk_type != MEDIATYPE_UNKNOWN) {

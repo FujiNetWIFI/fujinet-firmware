@@ -82,6 +82,8 @@ void cx16Disk::unmount()
     if (_disk != nullptr)
     {
         _disk->unmount();
+        delete _disk;
+        _disk = nullptr;
         device_active = false;
     }
 }

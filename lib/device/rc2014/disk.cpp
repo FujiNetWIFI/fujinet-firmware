@@ -199,6 +199,8 @@ void rc2014Disk::unmount()
 
     if (_media != nullptr) {
         _media->unmount();
+        delete _media;
+        _media = nullptr;
         device_active = false;
     }
 }

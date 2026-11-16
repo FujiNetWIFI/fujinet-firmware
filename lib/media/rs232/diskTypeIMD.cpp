@@ -139,7 +139,7 @@ mediatype_t MediaTypeIMD::mount(fnFile *f, uint32_t disksize)
     return _disktype;
 }
 
-// rs232Disk::unmount() calls this and then leaves _disk alive, so the borrowed
+// rs232Disk::unmount() calls this before it deletes the media, so the borrowed
 // handle has to be dropped before the base closes it. The destructor path needs
 // nothing: ~IMDImage runs before ~MediaType.
 void MediaTypeIMD::unmount()
