@@ -321,15 +321,6 @@ bool fnHttpBrowse::eject_slot(int device_slot)
 
     disk_dev->unmount();
 
-#ifdef BUILD_ATARI
-    if (SYSTEM_BUS.theFuji->get_disk(device_slot)->disk_type == MEDIATYPE_CAS ||
-        SYSTEM_BUS.theFuji->get_disk(device_slot)->disk_type == MEDIATYPE_WAV)
-    {
-        SYSTEM_BUS.platformFuji->cassette()->umount_cassette_file();
-        SYSTEM_BUS.platformFuji->cassette()->sio_disable_cassette();
-    }
-#endif
-
     SYSTEM_BUS.theFuji->get_disk(device_slot)->reset();
     Config.clear_mount(device_slot);
     Config.save();
