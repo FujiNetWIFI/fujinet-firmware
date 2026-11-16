@@ -40,6 +40,8 @@ fnFile *fujiHost::fnfile_open(const char *, char *, int, const char *) { return 
 // sioDisk hands CAS and WAV images to the cassette, which the tests never mount.
 void sioCassette::mount_cassette_file(fnFile *, size_t) {}
 void sioCassette::stop_fsk_loader() {}
+void sioCassette::umount_cassette_file() {}
+void sioCassette::sio_disable_cassette() {}
 
 void systemBus::toggleBaudrate() {}
 void systemBus::_sio_ack() {}

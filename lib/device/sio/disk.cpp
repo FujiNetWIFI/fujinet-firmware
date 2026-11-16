@@ -308,12 +308,13 @@ void sioDisk::unmount()
 {
     Debug_print("disk UNMOUNT\n");
 
-    // A tape has no MediaType, so nothing below sees it, yet the progressive FSK loader reads its file
-    // from its own task and the caller closes that file right after this returns.
+    // A tape has no MediaType, so the cassette must let go of its file: the caller closes it
+    // right after this returns.
     if (_is_tape)
     {
         _is_tape = false;
-        SYSTEM_BUS.platformFuji->cassette()->stop_fsk_loader();
+        SYSTEM_BUS.platformFuji->cassette()->umount_cassette_file();
+        SYSTEM_BUS.platformFuji->cassette()->sio_disable_cassette();
     }
 
     if (_disk != nullptr)
