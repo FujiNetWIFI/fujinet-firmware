@@ -283,6 +283,17 @@ TEST_CASE("unmount closes the image once and the drive reports offline")
     CHECK_FALSE(file.usedAfterClose);
 }
 
+TEST_CASE("a DO the media refuses leaves no disk mounted")
+{
+    auto image = numbered_blocks(FLOPPY_BLOCKS - 1); // not a size MediaTypeDO accepts
+    MemFile file(image);
+    TestDisk disk;
+    disk.mount(&file, DO_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ);
+
+    CHECK(disk.mediatype() == MEDIATYPE_UNKNOWN);
+    CHECK_FALSE(read_block(disk, 0).has_value());
+}
+
 TEST_CASE("mounting over a disk closes the old image and reports the switch once")
 {
     auto first_image = numbered_blocks(8);

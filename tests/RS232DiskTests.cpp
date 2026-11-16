@@ -182,6 +182,7 @@ TEST_CASE("unmount closes the image once and leaves nothing to read or write")
     check_closed_once(disk, file);
     CHECK_FALSE(disk.device_active);
     CHECK(disk.mount_time() == 0);
+    CHECK(disk.mediatype() == MEDIATYPE_UNKNOWN);
     CHECK_FALSE(read_sector(disk, 0).has_value());
     CHECK(bus.outcome == Outcome::Error);
     CHECK(write_sector(disk, 0, filled(IMG_SECTOR_SIZE, 0x77)) == Outcome::Error);

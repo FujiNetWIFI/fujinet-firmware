@@ -178,7 +178,6 @@ void rs232Disk::rs232_read(uint32_t sector)
 
     Debug_printf("disk READ %lu\n", sector);
 
-    // unmount() closes the image but keeps _disk, so check device_active too
     if (_disk == nullptr || !device_active)
     {
         SYSTEM_BUS.transaction_error();
@@ -439,6 +438,8 @@ void rs232Disk::unmount()
     if (_disk != nullptr)
     {
         _disk->unmount();
+        delete _disk;
+        _disk = nullptr;
         device_active = false;
         _mount_time = 0;
     }

@@ -231,6 +231,7 @@ TEST_CASE("unmount closes the image once and leaves the drive inactive")
 
     check_closed_once(disk, file);
     CHECK_FALSE(disk.device_active);
+    CHECK(disk.mediatype() == MEDIATYPE_UNKNOWN);
     CHECK_FALSE(read_block(disk, 1).has_value());
     CHECK(file.closes == 1);
     CHECK_FALSE(file.usedAfterClose);

@@ -75,6 +75,8 @@ void s100spiDisk::unmount()
     if (_media != nullptr)
     {
         _media->unmount();
+        delete _media;
+        _media = nullptr;
         device_active = false;
     }
 }
