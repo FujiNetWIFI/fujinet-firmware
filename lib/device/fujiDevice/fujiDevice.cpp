@@ -615,32 +615,32 @@ success_is_true fujiDevice::fujicore_mount_disk_image_success(uint8_t deviceSlot
     fujiDisk &disk = *get_disk(deviceSlot);
     fujiHost &host = _fnHosts[disk.host_slot];
 
-    // Not guarded on disk.fileh: WRITE DEVICE SLOTS clears it without closing
     get_disk_dev(deviceSlot)->unmount();
 
     Debug_printf("Selecting '%s' from host #%u as %s on D%u:\r\n",
                  disk.filename, disk.host_slot, mode, deviceSlot + 1);
 
-    disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), mode);
+    // Handed to the drive by mount_media(); the slot keeps no copy
+    fnFile *fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), mode);
 
-    if (disk.fileh == nullptr)
+    if (fileh == nullptr)
         RETURN_ERROR_AS_FALSE();
 
-    // We've gotten this far, so make sure our bootable CONFIG disk is disabled
-    boot_config = false;
-
     // We need the file size for loading XEX files and for CASSETTE, so get that too
-    if (host.file_size(disk.fileh).to(&disk.disk_size).is_error())
+    if (host.file_size(fileh).to(&disk.disk_size).is_error())
     {
         Debug_printf("Refusing '%s': no size, or one too big for 32 bits\r\n", disk.filename);
-        fnio::fclose(disk.fileh);
-        disk.fileh = nullptr;
+        fnio::fclose(fileh);
         RETURN_ERROR_AS_FALSE();
     }
     DISK_DEVICE *disk_dev = get_disk_dev(deviceSlot);
-    error_is_true mounted = mount_media(disk_dev, disk, host, access_mode);
+    error_is_true mounted = mount_media(disk_dev, fileh, disk, host, access_mode);
     disk.disk_type = mounted.is_error() ? MEDIATYPE_UNKNOWN : disk_dev->mediatype();
     disk_dev->is_config_device = false;
+
+    // A disk is mounted, so make sure our bootable CONFIG disk is disabled
+    if (mounted.is_success())
+        boot_config = false;
 
     RETURN_SUCCESS_IF(mounted.is_success());
 }

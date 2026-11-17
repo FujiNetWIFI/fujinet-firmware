@@ -16,10 +16,10 @@ protected:
 
     // Passes `host` through so a ROM format can open the ROM's mapper
     // sibling through it -- see fujiDevice::mount_media().
-    error_is_true mount_media(DISK_DEVICE *disk_dev, fujiDisk &disk, fujiHost &host,
-                              disk_access_flags_t mode) override
+    error_is_true mount_media(DISK_DEVICE *disk_dev, fnFile *fileh, fujiDisk &disk,
+                              fujiHost &host, disk_access_flags_t mode) override
     {
-        return disk_dev->mount(disk.fileh, disk.filename, disk.disk_size, mode,
+        return disk_dev->mount(fileh, disk.filename, disk.disk_size, mode,
                                MEDIATYPE_UNKNOWN, &host);
     }
 
