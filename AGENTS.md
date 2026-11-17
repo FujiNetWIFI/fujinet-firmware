@@ -33,3 +33,4 @@ most damage when missed.
   prompt sheet, not a form.
 
 @CONTRIBUTING.md
+@docs/cpp-style.md
