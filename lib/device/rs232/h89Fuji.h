@@ -9,8 +9,7 @@
 class h89Fuji : public rs232Fuji
 {
 public:
-    void insert_boot_device(uint8_t image_id, mediatype_t disk_type,
-                            DISK_DEVICE *disk_dev) override {}
+    void insert_boot_device(uint8_t image_id, DISK_DEVICE *disk_dev) override {}
 };
 
 #endif /* H89FUJI_H */

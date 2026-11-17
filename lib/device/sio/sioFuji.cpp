@@ -318,12 +318,11 @@ void sioFuji::sio_set_hsio_index(const FujiSIOPacket &packet)
 }
 
 // Mounts the desired boot disk, honoring alternate SD config and CONFIG-NG settings.
-void sioFuji::insert_boot_device(uint8_t image_id, mediatype_t disk_type,
-                                 DISK_DEVICE *disk_dev)
+void sioFuji::insert_boot_device(uint8_t image_id, DISK_DEVICE *disk_dev)
 {
     if (image_id != 0)
     {
-        fujiDevice::insert_boot_device(image_id, disk_type, disk_dev);
+        fujiDevice::insert_boot_device(image_id, disk_dev);
         return;
     }
 
@@ -345,7 +344,8 @@ void sioFuji::insert_boot_device(uint8_t image_id, mediatype_t disk_type,
         {
             boot_img = altconfigfile;
             Debug_printf("Mounted Alternate CONFIG %s\n", boot_img.c_str());
-            disk_dev->mount(fBoot, boot_img.c_str(), image_size, DISK_ACCESS_MODE_READ, disk_type);
+            disk_dev->mount(fBoot, boot_img.c_str(), image_size,
+                            DISK_ACCESS_MODE_READ, MEDIATYPE_UNKNOWN);
             disk_dev->is_config_device = true;
             return;
         }
@@ -374,7 +374,8 @@ void sioFuji::insert_boot_device(uint8_t image_id, mediatype_t disk_type,
         fnio::fclose(fBoot);
         return;
     }
-    disk_dev->mount(fBoot, boot_img.c_str(), image_size, DISK_ACCESS_MODE_READ, disk_type);
+    disk_dev->mount(fBoot, boot_img.c_str(), image_size,
+                    DISK_ACCESS_MODE_READ, MEDIATYPE_UNKNOWN);
     disk_dev->is_config_device = true;
 }
 
@@ -384,7 +385,7 @@ void sioFuji::setup()
     // set up Fuji device
     populate_slots_from_config();
 
-    insert_boot_device(Config.get_general_boot_mode(), MEDIATYPE_UNKNOWN, FUJI_BOOTDISK);
+    insert_boot_device(Config.get_general_boot_mode(), FUJI_BOOTDISK);
 
     // Disable booting from CONFIG if our settings say to turn it off
     boot_config = Config.get_general_config_enabled();
