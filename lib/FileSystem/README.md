@@ -4,22 +4,6 @@ Storage behind host slots, printers and the web file manager: one `FileSystem` b
 backend per storage type, plus `FileHandler`, a stdio-free file abstraction that lets network
 filesystems work without a kernel VFS driver.
 
-## Layout
-| File | Defines |
-|---|---|
-| `fnFS.h`, `fnFS.cpp` | `FileSystem` (abstract): `file_open` or `filehandler_open`, `exists`, `remove`, `rename`, `mkdir`, `dir_open`, `dir_read`, `dir_close`, `is_global()`; `fsType`; `fsdir_entry_t`; `MAX_PATHLEN` |
-| `fnFsSD.*` | `FileSystemSDFAT` and global `fnSDFAT`: the SD card on ESP, a local directory on PC. Each instance keeps its own `dir_open()` listing; copying `fnSDFAT` gives a second handle on the mounted card |
-| `fnFsLittleFS.*`, `fnFsSPIFFS.*`, `fsFlash.h` | `FileSystemLittleFS` under `FLASH_LITTLEFS` (ESP) or `FileSystemSPIFFS` under `FLASH_SPIFFS` (PC); whichever is active defines the global `fsFlash` |
-| `fnFsTNFS.*`, `fnFsTNFSvfs.*` | `FileSystemTNFS` and global `fnTNFS` over [lib/TNFSlib/](../TNFSlib/); the VFS shim registers each mount with ESP-IDF so stdio works on ESP; a `_tcp.` or `_udp.` hostname prefix picks the transport |
-| `fnFsSMB.*`, `fnFsNFS.*`, `fnFsFTP.*`, `fnFsHTTP.*` | `FileSystemSMB` (libsmb2), `FileSystemNFS` (libnfs), `FileSystemFTP` over [lib/ftp/](../ftp/), `FileSystemHTTP` over index pages parsed by `IndexParser` |
-| `fnFile.h`, `fnFile.cpp` | `FileHandler` (abstract): `read`, `write`, `seek`, `tell`, `flush`, `close` |
-| `fnFileLocal.*`, `fnFileTNFS.*`, `fnFileSMB.*`, `fnFileNFS.*`, `fnFileMem.*`, `fnFileHTTP.*` | `FileHandler` backends: a stdio `FILE`, TNFS (PC only), SMB, NFS, an in-memory buffer, and ranged HTTP GET with read-ahead |
-| `fnio.h`, `fnio.cpp` | `fnFile` and the `fnio` wrappers: `FileHandler` on ATARI, APPLE, COCO, RS232, PC ADAM and PC IEC, a stdio `FILE` everywhere else (`FNIO_IS_STDIO`) |
-| `fnFileCache.*` | `FileCache`: keeps a downloaded file in memory and spills it to SD past a threshold |
-| `fnDirCache.*` | `DirCache`: a sorted, filtered directory listing, held in PSRAM on ESP |
-| `directoryPageGroup.h` | `DirectoryPageGroup`: the paged directory wire format used by `fujiDevice` |
-| `mediaTypeProxy.h` | Includes the platform's media header selected by `BUILD_*` |
-
 ## How it fits
 - [lib/fuji/](../fuji/) creates one backend per host slot. `fnSDFAT` and `fsFlash` are used directly
   by config, the printers, the web server, app keys and the password store.
@@ -35,3 +19,11 @@ PC: `fujinet_pc.cmake` lists every file except `fnFsLittleFS.cpp` and `fnFsTNFSv
 ## Notes
 - `is_global()` is true for `fnSDFAT` and `fsFlash`, so callers must not delete them.
 - `fnio.cpp` is empty; the wrappers are inline in the header.
+- `fnFsSD.*`: `fnSDFAT` is the SD card on ESP and a local directory on PC.
+- `fnFsLittleFS.*` is the ESP flash file system (`FLASH_LITTLEFS`) and `fnFsSPIFFS.*` the PC one
+  (`FLASH_SPIFFS`); whichever is active defines `fsFlash`.
+- `fnio.h`: `fnFile` is a `FileHandler` on ATARI, APPLE, COCO, RS232, PC ADAM and PC IEC, and a
+  stdio `FILE` everywhere else (`FNIO_IS_STDIO`).
+- Each `FileSystemSDFAT` keeps its own `dir_open()` listing; copying `fnSDFAT` gives a second handle
+  on the mounted card.
+- `fnFileTNFS.*` is PC only.

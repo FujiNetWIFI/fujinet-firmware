@@ -3,13 +3,6 @@
 Tandy CoCo and Dragon DriveWire bus for `BUILD_COCO`: the DriveWire protocol over UART, USB
 CDC-ACM or the Becker port (Bus-over-IP), dispatched by opcode rather than by device address.
 
-## Layout
-| File | Defines |
-|---|---|
-| `drivewire.h`, `drivewire.cpp` | `drivewireDevice` (base of every CoCo device), `virtualDevice` (Fuji-style devices implement `processCommand()`), and `systemBus` with one `op_*` handler per DriveWire opcode: `op_readex`, `op_write`, `op_fuji`, `op_net`, `op_cpm`, `op_clock`, `op_print`, the `op_ser*` serial family, `op_dwinit`, `op_namedobj_mnt` and the rest |
-| `FujiDWPacket.h`, `FujiDWPacket.cpp` | `FujiDWPacket`, this bus's `FUJI_COMMAND_PACKET` |
-| `opcode.h` | the DriveWire opcode numbers |
-
 ## How it fits
 - Selected by `BUILD_COCO` in [lib/bus/bus.h](../bus.h); devices live in
   [lib/device/drivewire/](../../device/drivewire/).
@@ -18,8 +11,8 @@ CDC-ACM or the Becker port (Bus-over-IP), dispatched by opcode rather than by de
   printer is handed over with `setPrinter()`. `rotateDevices()` only queues a disk swap, which
   `service()` hands to `drivewireFuji::rotate_disks()` between requests.
 - Under `PINMAP_FUJIVERSAL_DRIVEWIRE` the bus also exchanges `FujiBusPacket` frames from
-  [lib/bus/](../FujiBusPacket.h) with the RP2350 cartridge over USB, through the
-  `writeFujiBusPacket()` and `readFujiBusPacket()` overrides; both fail over Bus-over-IP.
+  [lib/bus/](../FujiBusPacket.h) with the RP2350 cartridge over USB; the exchange fails over
+  Bus-over-IP.
 
 ## Build
 ESP: globbed by `src/CMakeLists.txt`, compiled only under `BUILD_COCO`; `FUJINET_OVER_USB` is

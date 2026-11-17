@@ -3,12 +3,6 @@
 The shared base for every bus's disk drive, and the contract code outside the drive uses to ask
 about it.
 
-## Layout
-
-| File | Defines |
-|---|---|
-| `FujiDiskDrive.h` | `FujiDiskDrive`, which owns the drive's `_media` and answers `isMounted()` from it; `disk_access_flags_t`, the access mode `mount()` takes; `MAX_FILENAME_LEN` |
-
 ## How it works
 
 - `isMounted()` is the authority on whether the drive has an image mounted. Ask the drive, not a

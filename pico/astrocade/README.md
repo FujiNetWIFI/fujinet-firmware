@@ -93,36 +93,6 @@ in path, which is only as slow as it always was. The serve loop itself is a
 bank-pointer pair -- `bank[a >> 12][a & 0xFFF]` -- so the flat path is
 byte-identical to v1.
 
-## Layout
-
-```
-build.sh                assemble the Z80 clients (vendored zmac; checkrom.py
-                        enforces the fuji_mailbox.h layout on every image;
-                        fujibank/gamebank build banked images via the packers)
-build-cart.sh           RP2040 firmware (pico-sdk; bakes the CONFIG client in --
-                        the real fujinet-config build when build/config.bin
-                        is present, testrom stand-ins otherwise; --baked builds
-                        from firmware/baked/, --bake refreshes it)
-run.sh                  run a client in MAME against a live fujinet-pc
-emu/                    MAME cart device + apply.sh + SLIP-over-TCP transport;
-                        drive.lua/abcheck.lua/soak.lua headless helpers
-firmware/               RP2040 firmware; include/fuji_mailbox.h is the spec,
-                        baked/fujiconfigrom.h the client served at power-on
-testrom/                Z80 clients: fujitest, fujiboot, fujicfg, and the
-                        banked self-tests fujibank (APPBANK) and gamebank
-                        (256K/512K mapper, FujiNet-free) + HVGLIB.H
-tools/                  vendored zmac (PD, see PROVENANCE.md), checkrom,
-                        mkbanked/mkgame (banked-image packers, self-verifying),
-                        soak.sh (stream-and-boot an entire ROM corpus)
-```
-
-The shared protocol sources -- `fujimail.c` (hotspot decode, SEQ/ACKSEQ and
-SLICE_ECHO interlocks, DBC push receiver) and `fujibus.c` (SLIP + FujiBus
-codec), both from [pico/common/](../common/), and `astromap.c`
-(image -> window) -- are hardware-free, tested with plain gcc, and compiled
-verbatim into both the firmware and the MAME device. Emulator and cartridge
-stay identical by construction, not by discipline.
-
 ## Running it
 
 ```sh
@@ -239,6 +209,11 @@ with no link hardware at all.
   manual (system-call indexes, ports, ROM cells, SENTRY codes) -- checked
   in for provenance-clean CI, named so sources read like every other
   BallyAlley-convention program.
+- `tools/zmac/` is vendored zmac (public domain; see
+  `tools/zmac/PROVENANCE.md`).
+- `fujimail.c` and `fujibus.c` (from [pico/common/](../common/)) and
+  `astromap.c` are hardware-free, tested with plain gcc, and compiled verbatim
+  into both the firmware and the MAME device.
 
 ## The eventual hardware
 

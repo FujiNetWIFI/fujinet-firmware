@@ -25,8 +25,8 @@ most damage when missed.
   `SYSTEM_BUS` under `lib/media/`.
 - Keep comments short, keep one concern per pull request, and re-read the comments in your diff
   before committing to confirm the change did not make them untrue.
-- A new source directory gets a `README.md` in the shape CONTRIBUTING describes; a change that adds,
-  moves or deletes files updates that directory's README table in the same PR.
+- A new source directory gets a `README.md` in the shape CONTRIBUTING describes. It says what the
+  directory is for and what the code can't show; it doesn't list files or overridden methods.
 - Keep the pull request description short: why the change exists, what to look at, and what you did
   not test. Do not restate the diff file by file, paste build logs, narrate the work, or pad a
   section to look complete — leave a section out instead. `.github/PULL_REQUEST_TEMPLATE.md` is a

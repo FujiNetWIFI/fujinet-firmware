@@ -3,74 +3,6 @@
 Host-side unit tests and policy checks for the FujiNet-PC build. ctest runs them at the end of
 `./build.sh -p <TARGET>` and in the Build FujiNet-PC workflow.
 
-## Layout
-| File | Covers |
-|---|---|
-| `CMakeLists.txt` | One `add_executable` and `add_test` pair per test; each links only the unit under test, never the `fujinet` executable |
-| `FujiBusPacketTests.cpp` | `lib/bus/FujiBusPacket.cpp` SLIP framing (`fujibuspacket_tests`) |
-| `FujiIECPacketTests.cpp` | `lib/bus/iec/FujiIECPacket.cpp` params and data, and a command sent with no payload (`fujiiecpacket_tests`; built with `BUILD_IEC`) |
-| `DaisyChainTests.cpp` | `lib/bus/DaisyChain.cpp` device-ID rotation behind the disk swap (`daisychain_tests`) |
-| `FnSanitizeTests.cpp` | `lib/fntext/fn_sanitize.cpp` entity decoding and UTF-8 folding (`fn_sanitize_tests`) |
-| `PeoplesUrlParserTests.cpp` | `lib/utils/peoples_url_parser.cpp` query and fragment splitting, and `getFilePath()` (`url_parser_tests`) |
-| `UtilsTests.cpp` | `lib/utils/utils.cpp` `util_stoi()` (`utils_tests`) |
-| `FnxmlQueryTests.cpp` | `lib/fnxml/fnxml_query.cpp` XPath subset over tinyxml2 (`fnxml_query_tests`) |
-| `CalendarTests.cpp` | `lib/utils/fn_time.cpp` and `lib/network-protocol/calendar_draft.cpp` (`calendar_tests`) |
-| `QRCodeTests.cpp` | `lib/qrcode/qrcode.c` version and ECC selection (`qrcode_tests`) |
-| `MailDraftTests.cpp` | `lib/network-protocol/mail_draft.cpp` RFC822 compose and reply (`mail_tests`) |
-| `IMDImageTests.cpp`, `IMDFixture.h` | `lib/media/IMDImage.cpp`, including `probe()`, through a `std::fstream`, a `std::FILE` and a handle with `fnFile`'s methods (`imdimage_tests`; no FujiNet include paths) |
-| `MediaTypeIMDTests.cpp` | `lib/media/rs232/diskTypeIMD.cpp` adapter, and `diskType.cpp` finding an IMD by its contents (`mediatypeimd_tests`; built with `BUILD_RS232`) |
-| `MediaTypeAltairTests.cpp` | `lib/media/rs232/diskTypeAltair.cpp` adapter (`mediatypealtair_tests`; built with `BUILD_RS232`) |
-| `MediaTypeImgTests.cpp` | `lib/media/rs232/diskTypeImg.cpp` blank image from `create()` (`mediatypeimg_tests`; built with `BUILD_RS232`) |
-| `BlankImageTests.cpp` | `lib/media/cbm/BlankImage.cpp`: the formatted D64, D71 and D81 and the raw image NEW DISK writes on IEC, and the sizes it refuses (`blankimage_tests`; built with `BUILD_IEC`) |
-| `IECDiskTests.cpp`, `iecDiskStubs.cpp` | `lib/device/iec/drive.cpp` D64 mounts, through the OPEN, READ, and CLOSE the bus hands the drive on a channel and the real Meatloaf D64 reader: each file read back as stored, the directory listing, a missing file, a SAVE refused as write-protected, and every handle closed once; the stubs stand in for the globals the real IEC bus reaches for (`iec_disk_tests`; IEC target only) |
-| `FileSizeTests.cpp` | `file_size_t` in `include/global_types.h`: the types it converts to without a cast, and `to()` refusing -1 and a size that doesn't fit (`file_size_tests`) |
-| `MediaTypeAdamTests.cpp` | `lib/media/adam/` DDP, DSK and ROM 0-block mounts and block bounds (`mediatypeadam_tests`; built with `BUILD_ADAM`; not on Windows) |
-| `MediaType2MGTests.cpp` | `lib/media/apple/mediaType2MG.cpp` and `mediaTypePO.cpp` mounts, 2MG detection, the high-score marker and the 2MG header NEW DISK writes (`mediatype2mg_tests`; built with `BUILD_APPLE`) |
-| `IWMDiskTests.cpp`, `iwmDiskStubs.cpp` | `lib/device/iwm/disk.cpp` SmartPort mounts for PO, DO, DSK, and 2MG, through the READ BLOCK and WRITE BLOCK the bus hands the device: what each read sends back, where each write lands across DO's interleaved sectors, which order a `.dsk` is read in, the write-protected and offline refusals, the disk-switched report, and every handle closed once; the stubs record transactions in the `romMountStubs.h` `BusLog` and the SmartPort error in `last_sp_error` (`iwm_disk_tests`; APPLE target only) |
-| `FsSDListingTests.cpp` | `lib/FileSystem/fnFsSD.cpp` listings over a local directory: a second handle's `dir_open()` leaves `fnSDFAT`'s listing alone (`fssd_listing_tests`) |
-| `DirCacheTests.cpp` | `lib/FileSystem/fnDirCache.cpp` sorting for each directory option (`dircache_tests`) |
-| `PDFPrinterTests.cpp` | `lib/printer-emulator/pdf_printer.cpp` page breaks when one buffer holds more than one line (`pdf_printer_tests`; not on the APPLE target) |
-| `sioNetwork-DSTATS-test.cpp` | `sioNetwork` command recognition and DSTATS (`sio_dstats_tests`; ATARI target only) |
-| `sioNetworkTests.cpp` | What `sioNetwork` sends to the bus for a failed CLOSE, its repeat and a failed READ (`sio_network_tests`; ATARI target only) |
-| `NDeviceTests.cpp` | The shared `NDevice` without a bus subclass: a QUERY whose flags byte the parser refuses, and SET PREFIX (`ndevice_tests`; ATARI target only) |
-| `SIODiskTests.cpp`, `sioDiskStubs.cpp` | `lib/device/sio/disk.cpp` ATR mounts, through the READ, PUT, and WRITE commands the bus hands the device: what each read sends back in single and double density, where each write lands, the refusals, and every handle closed once; the stubs record transactions in the `romMountStubs.h` `BusLog` and stand in for the cassette and `fnSystem` (`sio_disk_tests`; ATARI target only) |
-| `sioNetworkStubs.cpp`, `sioNetworkStubs.h` | Link-time stubs shared by `sio_dstats_tests`, `sio_network_tests` and `ndevice_tests`; the `systemBus` stubs record into `bus` |
-| `AdamNetworkReceiveTests.cpp`, `adamNetworkReceiveStubs.cpp`, `adamNetworkReceiveStubs.h` | `lib/device/adamnet/adamNetwork.cpp` RECEIVE sending at most 1024 bytes and keeping the rest; the stubs record bus replies (`adam_network_receive_tests`; ADAM target only) |
-| `AdamDiskTests.cpp`, `adamDiskStubs.cpp` | `lib/device/adamnet/disk.cpp` disk mounts for DDP and DSK, through the block number and block data the bus hands the device: what each read sends back, where each write lands, the config disk refusing writes, and every handle closed once; the stubs record transactions in the `romMountStubs.h` `BusLog` (`adam_disk_tests`; ADAM target only) |
-| `DrivewireROMMountTests.cpp` | `lib/device/drivewire/disk.cpp` ROM mounts: the blocks sent to the cartridge MCU, what `mount()` returns when the bus fails, the drive left with nothing mounted, and the handle closed once (`drivewire_rom_mount_tests`; COCO target only, built with `PINMAP_FUJIVERSAL_DRIVEWIRE`) |
-| `DrivewireDiskTests.cpp` | `lib/device/drivewire/disk.cpp` disk mounts for DSK, VDK, MRM, and CAS: reads by the CoCo's and the Dragon's paths, writes, the refusals, EOF, the high-score sector, and every handle closed once (`drivewire_disk_tests`; COCO target only, built with `PINMAP_FUJIVERSAL_DRIVEWIRE`) |
-| `RS232ROMMountTests.cpp` | `lib/device/rs232/disk.cpp` ROM mounts through the `lib/media/rom/` formats: which images each console accepts, the image and `.cfg` mapper streams sent to the cartridge MCU, the aborting CLOSE on failure, the drive left with nothing mounted, and every handle closed once (`rs232_rom_mount_tests`; RS232 target only) |
-| `RS232DiskTests.cpp` | `lib/device/rs232/disk.cpp` disk mounts for IMG, IMD, and Altair, through the READ, PUT, WRITE, and STATUS packets the bus hands the device: what each read sends back, where each write lands, the refusals, and every handle closed once (`rs232_disk_tests`; RS232 target only) |
-| `MediaTests.cpp` | The `lib/media/media.h` `Media` root class: `open()` rewinding the handle and passing extra arguments on, `matchExtension()`, `findSibling()` and `contentsOfHostFile()` (`media_tests`; COCO target only) |
-| `romMountStubs.cpp`, `romMountStubs.h` | Link-time stubs shared by the two ROM mount tests, `drivewire_disk_tests`, and `media_tests`, built against each target's `systemBus`: FujiBus packets are recorded in `bus` and replies scripted, `MemFile` is a writable in-memory handle that counts closes, and `fujiHost` serves files from `host_files` under the prefix set there, writes through its handles landing in them |
-| `drivewireBusStubs.cpp` | The drivewire `systemBus::setFuji()` override for `drivewire_rom_mount_tests`, `drivewire_disk_tests`, and `media_tests`, which don't link `drivewire.cpp` |
-| `channelStubs.cpp` | Empty `TTYChannel` and `COMChannel` stubs for the tests above, which link a bus but never open a serial port |
-| `NQueryOutputModeTests.cpp`, `NParserReadTests.cpp` | `NParser` and `XMLParser` query output modes and short reads (`nquery_output_mode_tests`; ATARI target only) |
-| `MgHttpCompletionProbe.cpp`, `mg_http_completion_test.py` | Real PC HTTP fixed-length/chunked completion, redirect connection isolation, two-request reuse, body/status/EOF and hostname lookup through the system resolver (`mg_http_completion_tests`; POSIX hosts) |
-| `HttpHeaderTests.cpp` | `lib/fn_esp_http_client/fn_http_header.cpp` header chunking (`http_header_tests`; skipped where the BSD queue header is missing) |
-| `WebDavMethodsTests.cpp` | `lib/http/webdav/webdav_methods.h`: every method the WebDAV server handles is registered (`webdav_methods_tests`) |
-| `mac_gcr_test.cpp` | `lib/media/mac/macGCR.cpp` encode and decode round trip (`mac_gcr_tests`) |
-| `CasTapeTests.cpp`, `CassetteRewindRequestTests.cpp`, `CassetteTrailTests.cpp` | Atari cassette record timing, rewind request and trail (`cassette_tests`) |
-| `CasFSKTests.cpp` | `lib/media/atari/casFSK.cpp` run scan, chunk checks and timing (`casfsk_tests`) |
-| `CasFSKLoaderTests.cpp` | The value-to-symbol encoder in `casFSK.h` and the progressive loader in `lib/media/atari/casFSKLoader.cpp` (`casfskloader_tests`) |
-| `CassetteFSKReadTests.cpp` | `lib/device/sio/cassetteFSKRead.cpp` over a fake remote file that loses its position (`cassettefskread_tests`) |
-| `FSKTestImages.h` | Synthetic A8CAS images, a fake file and an encoder oracle shared by the two FSK test files above |
-| `TCPProtocolTests.cpp` | `lib/network-protocol/TCP.cpp` reads, writes, ACCEPT and CLOSE CLIENT over a fake socket (`tcp_protocol_tests`) |
-| `UDPProtocolTests.cpp` | `lib/network-protocol/UDP.cpp` `available()` over a fake socket, including after a status poll moves a datagram to the receive buffer (`udp_protocol_tests`) |
-| `ProtocolFSTests.cpp` | `lib/network-protocol/FS.cpp` unmounting when an open fails, keeping its error (`fs_protocol_tests`) |
-| `HTTPProtocolTests.cpp` | `lib/network-protocol/HTTP.cpp`: when a PUT or POST is sent, with what body, and that it is sent once (`http_protocol_tests`) |
-| `SMBProtocolTests.cpp` | `lib/network-protocol/SMB.cpp` MKDIR and RMDIR failing on a URL with no share and on an unreachable server (`smb_protocol_tests`) |
-| `TelnetProtocolTests.cpp` | `lib/network-protocol/Telnet.cpp` reads (also after the peer closes), writes and separate channels over the same fake socket (`telnet_protocol_tests`) |
-| `tcp_harness/` | Stand-ins for `fnTcpClient.h`, `fnTcpServer.h`, `fnUDP.h`, `fnDNS.h` and `bus.h`, backed by the fake peer in `fnTcpClient.h`; used by `tcp_protocol_tests`, `udp_protocol_tests`, `telnet_protocol_tests`, `fs_protocol_tests`, `smb_protocol_tests` and `http_protocol_tests` |
-| `http_harness/` | Stand-in for `mgHttpClient.h` that records each request in `fake_http`; used by `http_protocol_tests` |
-| `check_no_build_ifdefs.py`, `ifdef_check_config.json` | Policy: a preprocessor conditional under `lib/device/fujiDevice`, `lib/device/fujiClock` or `lib/device/NDevice` may name only an allowed macro; the JSON lists the allowed names globally, per directory or per file (`no_build_ifdefs_in_fujidevice`) |
-| `check_no_system_bus.py` | Policy: `SYSTEM_BUS` must not appear in any source under `lib/media` (`no_system_bus_in_media`) |
-| `unsit.c`, `stuffit_test.sh` | Host CLI over `lib/stuffit` and a comparison against `unar` (`stuffit_sample_tests`; registered only with `SIT_SAMPLES_DIR`) |
-| `ndif_blocks_test.c`, `ndif_test.sh` | NDIF decoding compared with ndif2raw (`ndif_sample_tests`; registered only with `NDIF2RAW_DIR`) |
-| `webdav_transfer_test.py`, `webdav/` | Files moving through the ESP-only WebDAV server over the real `lib/http/webdav` and Meatloaf `FlashMFile` code (`webdav_transfer_tests`; POSIX hosts). The script mirrors the sources into the build directory with `meatloaf.cpp` trimmed to the Flash filesystem; `webdav/` holds the fake `esp_http_server`, the stand-in headers and the doctest cases |
-| `esp_stubs/` | Stand-ins for ESP-IDF headers so ESP-only code compiles on a host: no-op `esp_err.h` and `esp_log.h` for `http_header_tests`, and the `http_method` names and `http_method_str()` in `http_parser.h` for the WebDAV tests |
-| `corpus_manifest.txt` | Provenance of the StuffIt sample archives; data only, read by nothing |
-
 ## How it fits
 - Added by the root `CMakeLists.txt` after `fujinet_pc.cmake`, only when `FUJINET_TARGET` is set.
 - doctest comes from [components_pc/doctest/](../components_pc/doctest/); the test file that owns
@@ -83,3 +15,5 @@ failing test aborts the whole invocation. The firmware workflows compile and nev
 ## Notes
 To add a test, add an executable and an `add_test` to `CMakeLists.txt`, and keep the unit under
 test free of hardware and FujiNet globals so it links alone.
+
+`corpus_manifest.txt` records the provenance of the StuffIt sample archives; nothing reads it.

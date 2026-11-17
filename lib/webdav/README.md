@@ -3,12 +3,6 @@
 Client-side parsers that turn a remote directory listing into entries: WebDAV PROPFIND XML and
 Apache-style HTML index pages.
 
-## Layout
-| File | Defines |
-|---|---|
-| `WebDAV.h`, `WebDAV.cpp` | `WebDAV`: an expat parser for PROPFIND responses producing `DAVEntry` records (name, directory flag, size) |
-| `IndexParser.h`, `IndexParser.cpp` | `IndexParser`: a hand-written parser for HTML index pages producing `IndexEntry` records (name, directory flag, size, modified time) |
-
 ## How it fits
 - `NetworkProtocolHTTP` in [lib/network-protocol/](../network-protocol/) uses `WebDAV` to read
   directories over HTTP.

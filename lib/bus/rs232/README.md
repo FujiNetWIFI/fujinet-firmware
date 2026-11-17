@@ -4,11 +4,6 @@ Generic serial FujiNet bus for `BUILD_RS232`: SLIP-framed `FujiBusPacket` frames
 over UART, USB CDC-ACM, an 82C55 or BoIP. It serves the PC/MS-DOS RS-232 boards, the H89 card and
 every `fujiversal-*` board, where the RP2xxx cartridge is the other end of the link.
 
-## Layout
-| File | Defines |
-|---|---|
-| `rs232.h`, `rs232.cpp` | `virtualDevice` (devices implement `rs232_process()`) and `systemBus` (the `readFujiBusPacket()`/`writeFujiBusPacket()` overrides, `sendReplyPacket()`, a per-unit network map; `busEOL()` is CR LF) |
-
 ## How it fits
 - Selected by `BUILD_RS232` in [lib/bus/bus.h](../bus.h); devices live in
   [lib/device/rs232/](../../device/rs232/).

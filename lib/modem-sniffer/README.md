@@ -3,11 +3,6 @@
 Logs the byte streams passing through an emulated modem to a file, so a session can be inspected
 afterwards.
 
-## Layout
-| File | Defines |
-|---|---|
-| `modem-sniffer.h`, `modem-sniffer.cpp` | `ModemSniffer(FileSystem *, enable)`: `dumpInput`, `dumpOutput`, `closeOutput`, `setEnable`, `setActiveFS`; writes `SNIFFER_OUTPUT_FILE` on the given filesystem |
-
 ## How it fits
 - Owned by every platform's modem device under [lib/device/](../device/) and enabled from the
   `[Modem]` config section that `lib/config/fnc_modem.cpp` reads.
