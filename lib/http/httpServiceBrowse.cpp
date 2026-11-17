@@ -315,7 +315,7 @@ bool fnHttpBrowse::eject_slot(int device_slot)
     DISK_DEVICE *disk_dev = SYSTEM_BUS.theFuji->get_disk_dev(device_slot);
 
 #ifdef BUILD_APPLE
-    if (disk_dev->device_active) // set disk switched only if device was previously mounted.
+    if (disk_dev->isMounted()) // set disk switched only if device was previously mounted.
         disk_dev->switched = true;
 #endif
 

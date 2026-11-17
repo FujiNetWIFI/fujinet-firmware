@@ -179,9 +179,9 @@ void fujiDevice::populate_slots_from_config()
 
     for (int i = 0; i < _totalDiskDevices; i++)
     {
-        // A mounted slot is already current; resetting it would drop the fileh
-        // that disk swap counts as mounted.
-        if (_fnDisks[i].fileh != nullptr)
+        // A mounted slot is already current; resetting it would clear the name of
+        // the image its drive is using.
+        if (get_disk_dev(i)->isMounted())
             continue;
 
         _fnDisks[i].reset();
@@ -327,7 +327,7 @@ void fujiDevice::shutdown()
 int fujiDevice::get_rotate_slot()
 {
     int count = 0;
-    while (count < (int)_totalDiskDevices && _fnDisks[count].fileh != nullptr)
+    while (count < (int)_totalDiskDevices && get_disk_dev(count)->isMounted())
         count++;
 
     if (count < 2)
@@ -352,7 +352,7 @@ void fujiDevice::fujicmd_image_rotate()
     std::vector<DISK_DEVICE *> mounted;
     for (size_t idx = 0; idx < _totalDiskDevices; idx++)
     {
-        if (_fnDisks[idx].fileh != nullptr)
+        if (get_disk_dev(idx)->isMounted())
             mounted.push_back(get_disk_dev(idx));
     }
 
@@ -1674,7 +1674,7 @@ void fujiDevice::fujicmd_read_device_slots()
         }
 
         DISK_DEVICE *disk_dev = get_disk_dev(i);
-        if (disk_dev->device_active && !disk_dev->is_config_device)
+        if (disk_dev->isMounted() && !disk_dev->is_config_device)
             diskSlots[i].mode |= DISK_ACCESS_MODE_MOUNTED;
     }
 

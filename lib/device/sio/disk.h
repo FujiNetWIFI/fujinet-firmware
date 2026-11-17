@@ -39,6 +39,7 @@ public:
     success_is_true write_blank(fnFile *f, const NewDiskRequest &req);
 
     mediatype_t mediatype() { return _media == nullptr ? MEDIATYPE_UNKNOWN : _media->_disktype; };
+    bool isMounted() const override { return _media != nullptr || _is_tape; }
 
     ~sioDisk();
 };

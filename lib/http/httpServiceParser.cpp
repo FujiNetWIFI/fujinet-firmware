@@ -748,10 +748,10 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     case FN_DRIVE9STATUS:
     case FN_DRIVE10STATUS:
 #endif
-        /* Is the disk the config names for this Drive Slot actually open? */
+        /* Is the disk the config names for this Drive Slot actually mounted? */
         drive_slot = tagid - FN_DRIVE1STATUS;
         if (Config.get_mount_host_slot(drive_slot) != HOST_SLOT_INVALID
-            && SYSTEM_BUS.theFuji->get_disk(drive_slot)->fileh == nullptr) {
+            && !SYSTEM_BUS.theFuji->get_disk_dev(drive_slot)->isMounted()) {
             resultstream << "(not mounted)";
         }
         break;
