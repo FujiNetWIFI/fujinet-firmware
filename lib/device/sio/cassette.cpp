@@ -1228,8 +1228,8 @@ void sioCassette::mount_turbo_loader()
         return;
 
     // Mount on D1: (slot 0) — CAS went to cassette handler so _media is nullptr.
-    // boot_config is already false (set by fujicore_mount_disk_image_success),
-    // so the bootdisk won't interfere. Our XEX gets device_active=true and
+    // fujicore_mount_disk_image_success() clears boot_config once this mount
+    // succeeds, so the bootdisk won't interfere. Our XEX gets device_active=true and
     // D1: responds with the loader on next boot.
     int8_t slot = 0;
     if (SYSTEM_BUS.theFuji->get_disk_dev(slot)->mediatype() != MEDIATYPE_UNKNOWN)
