@@ -1,5 +1,5 @@
 # autobuild.yml and build-fujinet-pc.yml skip a pull request that changes only Markdown,
-# which would leave master's required checks waiting forever; this reports them passed.
+# which would leave the base branch's required checks waiting forever; this reports them passed.
 name: Docs only
 
 on:
@@ -18,6 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       docs_only: ${{ steps.files.outputs.docs_only }}
+      checks: ${{ steps.files.outputs.checks }}
     steps:
       - id: files
         env:
@@ -25,7 +26,11 @@ jobs:
         run: |
           files=$(gh api --paginate --jq '.[].filename' \
             "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files")
-          if [ -n "$files" ] && ! grep -qv '\.md$' <<< "$files"; then
+          checks=$(gh api --jq '[.[] | select(.type == "required_status_checks")
+                                | .parameters.required_status_checks[].context] | tojson' \
+            "repos/${{ github.repository }}/rules/branches/${{ github.base_ref }}")
+          echo "checks=$checks" >> "$GITHUB_OUTPUT"
+          if [ -n "$files" ] && [ "$checks" != "[]" ] && ! grep -qv '\.md$' <<< "$files"; then
             echo "docs_only=true" >> "$GITHUB_OUTPUT"
           else
             echo "docs_only=false" >> "$GITHUB_OUTPUT"
@@ -39,22 +44,6 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # Master's required status checks
-        check:
-          - "PlatformIO CI (ADAM)"
-          - "PlatformIO CI (APPLE)"
-          - "PlatformIO CI (ATARI)"
-          - "PlatformIO CI (COCO)"
-          - "PlatformIO CI (LYNX-S3)"
-          - "PlatformIO CI (RS232)"
-          - "Ubuntu 24.04: Target APPLE"
-          - "Ubuntu 24.04: Target ATARI"
-          - "Ubuntu 24.04: Target COCO"
-          - "Windows: Target APPLE"
-          - "Windows: Target ATARI"
-          - "Windows: Target COCO"
-          - "macOS ARM: Target APPLE"
-          - "macOS ARM: Target ATARI"
-          - "macOS ARM: Target COCO"
+        check: ${{ fromJSON(needs.changes.outputs.checks) }}
     steps:
       - run: echo "Only Markdown changed"
