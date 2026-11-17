@@ -1,0 +1,49 @@
+# autobuild.yml and build-fujinet-pc.yml skip a pull request that changes only Markdown,
+# which would leave the base branch's required checks waiting forever; this reports them passed.
+name: Docs only
+
+on:
+  pull_request:
+    branches:
+      - "**"
+      - "!release"
+    paths:
+      - "**.md"
+
+permissions:
+  pull-requests: read
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      docs_only: ${{ steps.files.outputs.docs_only }}
+      checks: ${{ steps.files.outputs.checks }}
+    steps:
+      - id: files
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          files=$(gh api --paginate --jq '.[].filename' \
+            "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files")
+          checks=$(gh api --jq '[.[] | select(.type == "required_status_checks")
+                                | .parameters.required_status_checks[].context] | tojson' \
+            "repos/${{ github.repository }}/rules/branches/${{ github.base_ref }}")
+          echo "checks=$checks" >> "$GITHUB_OUTPUT"
+          if [ -n "$files" ] && [ "$checks" != "[]" ] && ! grep -qv '\.md$' <<< "$files"; then
+            echo "docs_only=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  required:
+    needs: changes
+    # When skipped, the job keeps its unexpanded name, so it can't pass for a real build
+    if: needs.changes.outputs.docs_only == 'true'
+    name: ${{ matrix.check }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        check: ${{ fromJSON(needs.changes.outputs.checks) }}
+    steps:
+      - run: echo "Only Markdown changed"
