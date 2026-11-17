@@ -269,7 +269,7 @@ void main_setup(int argc, char *argv[])
     defined(BUILD_RS232) || defined(BUILD_ADAM) || defined(BUILD_APPLE) || defined(BUILD_MAC)
     // Every bus latches this in shutdown(). A host that restarts the service in
     // one process runs main_setup() again; TNFS would otherwise fake success.
-    SYSTEM_BUS.shuttingDown = false;
+    SYSTEM_BUS.setShuttingDown(false);
 #endif
 
 #ifdef BUILD_ATARI

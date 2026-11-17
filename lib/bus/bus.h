@@ -47,11 +47,13 @@ class SystemBusBase
 protected:
     transState_t _transaction_state = TRANS_STATE::INVALID;
     DaisyChain _daisyChain;
+    // TRUE once shutdown() has begun; each bus's shutdown() sets it
+    bool shuttingDown = false;
 
 public:
-    // TRUE once shutdown() has begun; main_setup() clears it for a restart
-    bool shuttingDown = false;
     bool getShuttingDown() { return shuttingDown; }
+    // main_setup() clears it when the service is started again
+    void setShuttingDown(bool state) { shuttingDown = state; }
 
     // The platform's Fuji device, set once from main() through setFuji()
     fujiDevice *theFuji = nullptr;
