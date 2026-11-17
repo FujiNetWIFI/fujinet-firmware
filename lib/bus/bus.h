@@ -47,7 +47,7 @@ class SystemBusBase
 protected:
     transState_t _transaction_state = TRANS_STATE::INVALID;
     DaisyChain _daisyChain;
-    // TRUE once shutdown() has begun; each bus's shutdown() sets it
+    // TRUE once the bus's shutdown() has begun (the iec and comlynx buses never set it)
     bool shuttingDown = false;
 
 public:
