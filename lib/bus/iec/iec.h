@@ -57,12 +57,6 @@ public:
      */
     void shutdown();
 
-    /**
-     * @brief Are we shutting down?
-     * @return value of shuttingDown
-     */
-    bool getShuttingDown() { return shuttingDown; }
-
     // needed for fujiDevice compatibility
     void changeDeviceId(iecDrive *pDevice, int device_id);
 
@@ -104,11 +98,6 @@ public:
     fujiDeviceID_t fujiIDForDevice(iecDrive *device);
 
  private:
-    /**
-     * @brief is device shutting down?
-     */
-    bool shuttingDown = false;
-
     ByteBuffer _transaction_response;
 
     // With [BOIP] enabled, an emulator's bus master sends the transactions over NetIEC

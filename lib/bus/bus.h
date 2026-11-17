@@ -49,6 +49,10 @@ protected:
     DaisyChain _daisyChain;
 
 public:
+    // TRUE once shutdown() has begun; main_setup() clears it for a restart
+    bool shuttingDown = false;
+    bool getShuttingDown() { return shuttingDown; }
+
     // The platform's Fuji device, set once from main() through setFuji()
     fujiDevice *theFuji = nullptr;
     // A bus whose code needs its own Fuji type overrides this to keep it in platformFuji too

@@ -265,6 +265,13 @@ void main_setup(int argc, char *argv[])
 
     // WiFi/BT auto connect moved to app_main()
 
+#if defined(BUILD_ATARI) || defined(BUILD_COCO) || defined(BUILD_IEC) || defined(BUILD_LYNX) || \
+    defined(BUILD_RS232) || defined(BUILD_ADAM) || defined(BUILD_APPLE) || defined(BUILD_MAC)
+    // Every bus latches this in shutdown(). A host that restarts the service in
+    // one process runs main_setup() again; TNFS would otherwise fake success.
+    SYSTEM_BUS.shuttingDown = false;
+#endif
+
 #ifdef BUILD_ATARI
     SYSTEM_BUS.theFuji->setup();
     SYSTEM_BUS.addDevice(SYSTEM_BUS.theFuji, FUJI_DEVICEID::FUJINET); // the FUJINET!
