@@ -271,7 +271,7 @@ public:
     void fujicmd_read_host_slots();
     void fujicmd_write_host_slots();
     void fujicmd_set_boot_config(bool enable);
-    void fujicmd_set_boot_mode(uint8_t bootMode, mediatype_t disk_type, DISK_DEVICE *disk_dev);
+    void fujicmd_set_boot_mode(uint8_t bootMode, DISK_DEVICE *disk_dev);
     void fujicmd_set_host_prefix(uint8_t hostSlot, const char *prefix=nullptr);
     success_is_true fujicmd_unmount_host_success(uint8_t hostSlot);
     void fujicmd_read_device_slots();
@@ -308,8 +308,8 @@ public:
     success_is_true fujicore_net_set_ssid_success(const char *ssid, const char *password, bool save);
 
     // Should be protected but being called by drivewire.cpp
-    virtual void insert_boot_device(uint8_t image_id, mediatype_t disk_type, DISK_DEVICE *disk_dev);
-    void insert_boot_device(std::string boot_img, mediatype_t disk_type, DISK_DEVICE *disk_dev);
+    virtual void insert_boot_device(uint8_t image_id, DISK_DEVICE *disk_dev);
+    void insert_boot_device(std::string boot_img, DISK_DEVICE *disk_dev);
 };
 
 #endif // FUJIDEVICE_H

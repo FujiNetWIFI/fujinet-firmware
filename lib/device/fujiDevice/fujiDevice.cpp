@@ -126,7 +126,7 @@ fujiDevice::fujiDevice(unsigned int numDisk, std::string extension,
             fujicmd_random();
         } },
         { CMD::FUJI_SET_BOOT_MODE, [this](const FUJI_COMMAND_PACKET &packet) {
-            fujicmd_set_boot_mode(packet.param(0), MEDIATYPE_UNKNOWN, FUJI_BOOTDISK);
+            fujicmd_set_boot_mode(packet.param(0), FUJI_BOOTDISK);
         } },
         { CMD::FUJI_MOUNT_ALL, [this](const FUJI_COMMAND_PACKET &packet) {
             fujicmd_mount_all_success();
@@ -662,8 +662,7 @@ success_is_true fujiDevice::fujicmd_mount_disk_image_success(uint8_t deviceSlot,
 }
 
 // Mounts the desired boot disk number
-void fujiDevice::insert_boot_device(uint8_t image_id, mediatype_t disk_type,
-                                    DISK_DEVICE *disk_dev)
+void fujiDevice::insert_boot_device(uint8_t image_id, DISK_DEVICE *disk_dev)
 {
     std::string boot_img;
     fnFile *fBoot = nullptr;
@@ -718,13 +717,13 @@ void fujiDevice::insert_boot_device(uint8_t image_id, mediatype_t disk_type,
         fnio::fclose(fBoot);
         return;
     }
-    disk_dev->mount(fBoot, boot_img.c_str(), image_size, DISK_ACCESS_MODE_READ, disk_type);
+    disk_dev->mount(fBoot, boot_img.c_str(), image_size,
+                    DISK_ACCESS_MODE_READ, MEDIATYPE_UNKNOWN);
     disk_dev->is_config_device = true;
 }
 
 // Mounts the alternate config disk in desired boot disk number
-void fujiDevice::insert_boot_device(std::string boot_img, mediatype_t disk_type,
-                                    DISK_DEVICE *disk_dev)
+void fujiDevice::insert_boot_device(std::string boot_img, DISK_DEVICE *disk_dev)
 {
     fnFile *fBoot = nullptr;
     uint32_t image_size = 0;
@@ -743,7 +742,8 @@ void fujiDevice::insert_boot_device(std::string boot_img, mediatype_t disk_type,
         fnio::fclose(fBoot);
         return;
     }
-    disk_dev->mount(fBoot, boot_img.c_str(), image_size, DISK_ACCESS_MODE_READ, disk_type);
+    disk_dev->mount(fBoot, boot_img.c_str(), image_size,
+                    DISK_ACCESS_MODE_READ, MEDIATYPE_UNKNOWN);
     disk_dev->is_config_device = true;
 }
 
@@ -1542,11 +1542,10 @@ void fujiDevice::fujicmd_set_boot_config(bool enable)
 }
 
 // Set boot mode
-void fujiDevice::fujicmd_set_boot_mode(uint8_t bootMode, mediatype_t disk_type,
-                                       DISK_DEVICE *disk_dev)
+void fujiDevice::fujicmd_set_boot_mode(uint8_t bootMode, DISK_DEVICE *disk_dev)
 {
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-    insert_boot_device(bootMode, disk_type, disk_dev);
+    insert_boot_device(bootMode, disk_dev);
     boot_config = true;
     SYSTEM_BUS.transaction_success();
 }

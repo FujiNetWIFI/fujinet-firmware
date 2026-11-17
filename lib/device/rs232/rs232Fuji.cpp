@@ -33,7 +33,7 @@ void rs232Fuji::setup()
 
     populate_slots_from_config();
 
-    insert_boot_device(Config.get_general_boot_mode(), MEDIATYPE_UNKNOWN, FUJI_BOOTDISK);
+    insert_boot_device(Config.get_general_boot_mode(), FUJI_BOOTDISK);
 
     // Disable booting from CONFIG if our settings say to turn it off
     boot_config = Config.get_general_config_enabled();
@@ -316,7 +316,7 @@ void rs232Fuji::rs232_process(const FujiBusPacket &packet)
             SYSTEM_BUS.transaction_error();
         }
         else
-            fujicmd_set_boot_mode(packet.param(0), MEDIATYPE_UNKNOWN, FUJI_BOOTDISK);
+            fujicmd_set_boot_mode(packet.param(0), FUJI_BOOTDISK);
         break;
     case CMD::FUJI_DEVICE_READY:
         Debug_printf("FUJICMD DEVICE TEST\n");

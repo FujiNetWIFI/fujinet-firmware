@@ -112,7 +112,7 @@ void drivewireFuji::setup()
 
     populate_slots_from_config();
 
-    insert_boot_device(Config.get_general_boot_mode(), MEDIATYPE_UNKNOWN, FUJI_BOOTDISK);
+    insert_boot_device(Config.get_general_boot_mode(), FUJI_BOOTDISK);
 
     // Disable booting from CONFIG if our settings say to turn it off
     boot_config = Config.get_general_config_enabled();
@@ -122,8 +122,7 @@ void drivewireFuji::setup()
 // used by op_readex() from /AUTOLOAD.DWL to /DGNLOBBY.DWL for the next
 // szNamedMount reads. The normal lobby disk mount below still happens for
 // both Dragon and CoCo, unchanged.
-void drivewireFuji::insert_boot_device(uint8_t image_id, mediatype_t disk_type,
-                                       DISK_DEVICE *disk_dev)
+void drivewireFuji::insert_boot_device(uint8_t image_id, DISK_DEVICE *disk_dev)
 {
     if (image_id == 2 && SYSTEM_BUS.isDragon())
     {
@@ -131,7 +130,7 @@ void drivewireFuji::insert_boot_device(uint8_t image_id, mediatype_t disk_type,
         SYSTEM_BUS.useLobbyDwl = true;
     }
 
-    fujiDevice::insert_boot_device(image_id, disk_type, disk_dev);
+    fujiDevice::insert_boot_device(image_id, disk_dev);
 }
 
 std::string drivewireFuji::config_image()
