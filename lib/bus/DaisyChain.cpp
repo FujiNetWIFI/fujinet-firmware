@@ -35,6 +35,9 @@ std::optional<fujiDeviceID_t> DaisyChain::fujiIDForDevice(virtualDevice *device)
 
 void DaisyChain::addDevice(virtualDevice *newDev, fujiDeviceID_t devID)
 {
+    // setup() can run more than once: a device is on the chain once
+    if (entryForDevice(newDev))
+        return;
     _daisyChain.push_front({newDev, devID});
     return;
 }

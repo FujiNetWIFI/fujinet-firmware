@@ -520,6 +520,10 @@ void systemBus::setup()
 {
     Debug_println("SIO SETUP");
 
+    // shutdown() leaves this set; a bus set up again (the service restarted in
+    // one process) must not start out cutting every TNFS transaction short
+    shuttingDown = false;
+
 #ifdef ESP_PLATFORM
     configureGPIO();
 
