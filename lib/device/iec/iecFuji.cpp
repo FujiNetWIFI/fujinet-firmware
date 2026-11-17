@@ -234,8 +234,9 @@ size_t iecFuji::set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
         dirEntryTimestamp modified;
         uint32_t size;
         uint8_t flags;
-        uint8_t mediatype;
+        mediatype_t mediatype;
     } __attribute__((packed)) custom_details;
+    static_assert(sizeof(custom_details) == 12, "custom_details must be 12 bytes");
     dirEntryDetails details;
 
     details = _additional_direntry_details(f);

@@ -39,7 +39,7 @@ class fujiHost;
 
 // Wire-visible: emitted as the mediatype byte of directory entries, so append
 // only.
-enum mediatype_t
+enum mediatype_t : uint8_t
 {
     MEDIATYPE_UNKNOWN = 0,
     MEDIATYPE_IMG,

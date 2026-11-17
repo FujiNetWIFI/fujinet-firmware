@@ -32,7 +32,7 @@
 #define DISK_DRIVE_STATUS_DOUBLE_SIDED 0x40
 #define DISK_DRIVE_STATUS_ENHANCED_DENSITY 0x80
 
-enum mediatype_t
+enum mediatype_t : uint8_t
 {
     MEDIATYPE_UNKNOWN = 0,
     MEDIATYPE_ATR,
