@@ -532,22 +532,33 @@ void NDevice::fujidev_set_parser(const FUJI_COMMAND_PACKET &packet)
 
 error_is_true NDevice::fujicore_set_parser(parserMode_t mode)
 {
+    // Choosing the mode of the parser we chained over restores it, query state intact.
+    if (_parser != nullptr && _parser->outer() != nullptr && _parser->outer()->mode() == mode)
+    {
+        _parser = _parser->takeOuter();
+        if (_protocol != nullptr)
+            _protocol->receiveBuffer->clear();
+        RETURN_SUCCESS_AS_FALSE();
+    }
+
+    std::unique_ptr<NParser> next;
+
     switch (mode)
     {
     case PARSER::NONE:
-        _parser = std::make_unique<NParser>(_protocol.get());
+        next = std::make_unique<NParser>(_protocol.get());
         break;
 
     case PARSER::JSON:
-        _parser = std::make_unique<JSONParser>(_protocol.get());
+        next = std::make_unique<JSONParser>(_protocol.get());
         break;
 
     case PARSER::HTML:
-        _parser = std::make_unique<HTMLParser>(_protocol.get());
+        next = std::make_unique<HTMLParser>(_protocol.get());
         break;
 
     case PARSER::XML:
-        _parser = std::make_unique<XMLParser>(_protocol.get());
+        next = std::make_unique<XMLParser>(_protocol.get());
         break;
 
     default:
@@ -555,6 +566,19 @@ error_is_true NDevice::fujicore_set_parser(parserMode_t mode)
         RETURN_ERROR_AS_TRUE();
     }
 
+    // After a query, the new parser parses that query's value instead of the stream.
+    if (_parser != nullptr)
+    {
+        std::optional<std::string> value = _parser->rawValue();
+        if (value && next->setDocument(std::move(*value)).is_success())
+        {
+            next->setOuter(std::move(_parser));
+            if (_protocol != nullptr)
+                _protocol->receiveBuffer->clear();
+        }
+    }
+
+    _parser = std::move(next);
     RETURN_SUCCESS_AS_FALSE();
 }
 

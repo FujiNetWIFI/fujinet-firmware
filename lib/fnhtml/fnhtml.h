@@ -11,6 +11,7 @@
 #ifndef FNHTML_H
 #define FNHTML_H
 
+#include <optional>
 #include <string.h>
 #include <string>
 
@@ -18,6 +19,7 @@
 #include "../network-protocol/Protocol.h"
 
 class CDocument; // gumbo-query
+class CNode;
 
 enum HTMLQueryFlags_t {
     HTML_REMAP_CHARS = FN_QUERY_REMAP_CHARS,
@@ -42,6 +44,11 @@ public:
     void setQueryParam(uint8_t qp);
     uint8_t queryParam() const { return _queryParam; }
     size_t available() { return _html_bytes_remaining; }
+    // The last query's match as source: an element's inner markup, or an attribute's
+    // value; none before a query since parse().
+    std::optional<std::string> rawValue();
+    // The next parse() reads this instead of the protocol.
+    void setDocument(std::string document);
 
 private:
     CDocument *_doc = nullptr;
@@ -55,13 +62,17 @@ private:
     // next match; a different selector (or a fresh parse) restarts at the first.
     std::string _lastQuery;
     size_t _matchIndex = 0;
+    bool _hasQuery = false;
+    std::optional<std::string> _document;
 
     // Result of the last resolved query, plus how many of its bytes are still
     // to be handed to the client.
     std::string _value;
     int _html_bytes_remaining = 0;
 
+    bool findMatch(CNode &node, std::string &attr);
     void resolveQuery();
+    success_is_true parseBuffer();
 };
 
 #endif /* FNHTML_H */

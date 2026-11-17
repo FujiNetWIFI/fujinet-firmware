@@ -22,6 +22,14 @@ public:
     error_is_true parse() override;
     error_is_true setQueryParam(uint8_t param) override;
     error_is_true setLineEnding(const std::string &eol) override;
+
+    parserMode_t mode() const override { return PARSER::XML; }
+    std::optional<std::string> rawValue() override { return _xml.rawValue(); }
+    error_is_true setDocument(std::string document) override
+    {
+        _xml.setDocument(std::move(document));
+        RETURN_SUCCESS_AS_FALSE();
+    }
 };
 
 #endif /* XMLPARSER_H */

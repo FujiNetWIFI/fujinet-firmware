@@ -111,6 +111,7 @@ void FNJSON::setReadQuery(const std::string &queryString, uint8_t queryParam)
 #endif
     _queryString = queryString;
     _queryParam = queryParam;
+    _hasQuery = true;
     _item = resolveQuery();
     _json_bytes_remaining = readValueLen();
 }
@@ -318,6 +319,32 @@ bool FNJSON::readValue(uint8_t *rx_buf, unsigned short len)
 }
 
 /**
+ * The last query's item as it is in the document: a string's value, otherwise
+ * the item's JSON source. No output mode or remapping.
+ */
+std::optional<std::string> FNJSON::rawValue()
+{
+    if (!_hasQuery)
+        return std::nullopt;
+    if (_item == nullptr)
+        return std::string();
+    if (cJSON_IsString(_item))
+        return std::string(cJSON_GetStringValue(_item));
+
+    char *printed = cJSON_PrintUnformatted(_item);
+    if (printed == nullptr)
+        return std::string();
+    std::string out = printed;
+    cJSON_free(printed);
+    return out;
+}
+
+void FNJSON::setDocument(std::string document)
+{
+    _document = std::move(document);
+}
+
+/**
  * Return requested value length
  */
 int FNJSON::readValueLen()
@@ -335,11 +362,22 @@ bool FNJSON::parse()
 {
     NetworkStatus ns;
 
+    // A new document invalidates the last query and its item.
+    _item = nullptr;
+    _hasQuery = false;
+
     if (_json != nullptr)
     {
         // delete and set to null. we only set a new _json value if the parsebuffer is not empty
         cJSON_Delete(_json);
         _json = nullptr;
+    }
+
+    if (_document)
+    {
+        _parseBuffer = std::move(*_document);
+        _document.reset();
+        return parseBuffer().is_success();
     }
 
     if (_protocol == nullptr)
@@ -367,6 +405,11 @@ bool FNJSON::parse()
 #endif
     }
 
+    return parseBuffer().is_success();
+}
+
+success_is_true FNJSON::parseBuffer()
+{
     fnjson_log_body("recv", _parseBuffer);
 
     // only try and parse the buffer if it has data. Empty response doesn't need parsing.
@@ -380,10 +423,10 @@ bool FNJSON::parse()
 #ifdef VERBOSE_PROTOCOL
         Debug_printf("FNJSON::parse() - Could not parse JSON, parseBuffer length: %d\r\n", (int)_parseBuffer.size());
 #endif
-        return false;
+        RETURN_ERROR_AS_FALSE();
     }
 
-    return true;
+    RETURN_SUCCESS_AS_TRUE();
 }
 
 bool FNJSON::status(NetworkStatus *s)

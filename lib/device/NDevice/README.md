@@ -8,8 +8,8 @@ an 8-bit program query one value out of a JSON, XML or HTML document.
 
 | File | Defines |
 |---|---|
-| `NDevice.h`, `NDevice.cpp` | `NDevice`, the static `dispatch_table` of `NET_*` handlers, `parse_and_instantiate_protocol()`, the `PARSER` and `PARSER_PARAM` enums |
-| `NParser.h`, `NParser.cpp` | `NParser`, the strategy interface over a protocol (`read`, `write`, `available`, `seek`, `setQuery`, `parse`, `status`), and `NErrorParser`, bound after a failed open so `NET_STATUS` can report why |
+| `NDevice.h`, `NDevice.cpp` | `NDevice`, the static `dispatch_table` of `NET_*` handlers, `parse_and_instantiate_protocol()`, the `PARSER_PARAM` enum |
+| `NParser.h`, `NParser.cpp` | `NParser` and the `PARSER` mode enum; `NParser` is the strategy interface over a protocol (`read`, `write`, `available`, `seek`, `setQuery`, `parse`, `status`), and `NErrorParser`, bound after a failed open so `NET_STATUS` can report why |
 | `JSONParser.h`, `.cpp` | `JSONParser` over `FNJSON` from [lib/fnjson/](../../fnjson/) |
 | `XMLParser.h`, `.cpp` | `XMLParser` over `FNXML` from [lib/fnxml/](../../fnxml/) |
 | `HTMLParser.h`, `.cpp` | `HTMLParser` over `FNHTML` from [lib/fnhtml/](../../fnhtml/) |
@@ -25,6 +25,11 @@ an 8-bit program query one value out of a JSON, XML or HTML document.
   for the adapter matching the scheme. The adapter owns the receive, transmit and special buffers.
 - `NET_SET_PARSER` swaps the `NParser`; with no parser set, reads and writes pass straight through
   to the protocol.
+- `NET_SET_PARSER` with a document mode (JSON, HTML, XML) right after a query parses that query's
+  value instead of reading the protocol, and keeps the old parser inside the new one. Choosing the
+  old parser's mode pops back to it with its document and query state intact; any other choice
+  drops the chain. The value is a JSON string or the item's JSON source, an XML element's text
+  (entities and CDATA resolved) or attribute, or an HTML element's inner source markup or attribute.
 - Platform differences are the `fujidev_*` virtuals (`fujidev_read`, `fujidev_write`,
   `fujidev_status`, `fujidev_set_prefix`, `fujidev_get_prefix`, `fujidev_set_query`,
   `fujidev_set_parser`, `fujidev_seek`, `fujidev_tell`) and `dir_long_width()`.
