@@ -201,9 +201,9 @@ void drivewireFuji::rotate_disks()
     std::vector<SlotImage> before;
     for (uint8_t slot = 0; slot < MAX_DWDISK_DEVICES; slot++)
     {
-        const fujiDisk &disk = _fnDisks[slot];
-        if (disk.fileh == nullptr)
+        if (!get_disk_dev(slot)->isMounted())
             continue;
+        const fujiDisk &disk = _fnDisks[slot];
         slots.push_back(slot);
         before.push_back({disk.host_slot, disk.filename, disk.access_mode});
     }
