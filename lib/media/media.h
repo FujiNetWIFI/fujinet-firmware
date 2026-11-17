@@ -48,6 +48,10 @@ public:
     // channel (e.g. ROM save data) reports that capability itself.
     virtual bool isReadOnly() const = 0;
 
+    // The extension path ends in, dot included and in lower case, ignoring any
+    // query or fragment; nullopt if none.
+    static std::optional<std::string> fileExtension(const std::string &path);
+
     // The entry of extensions that path ends in, ignoring case; nullopt if none.
     static std::optional<std::string> matchExtension(
         const std::string &path, std::initializer_list<const char *> extensions);

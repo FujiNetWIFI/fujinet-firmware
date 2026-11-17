@@ -67,6 +67,16 @@ TEST_CASE("open() returns nullptr when attach() refuses the file")
     CHECK(Media::open<ProbeMedia>("cart.bin", &file, 0, false) == nullptr);
 }
 
+TEST_CASE("fileExtension() returns the extension in lower case, or nothing")
+{
+    CHECK(Media::fileExtension("cart.BIN") == ".bin");
+    CHECK(Media::fileExtension("tnfs://host/dir/Disk.Dsk?mode=r#top") == ".dsk");
+    CHECK(Media::fileExtension("dir.bin/cart") == std::nullopt);
+    CHECK(Media::fileExtension("cart") == std::nullopt);
+    CHECK(Media::fileExtension("cart.bin.gz") == ".gz");
+    CHECK(Media::fileExtension("") == std::nullopt);
+}
+
 TEST_CASE("matchExtension() returns the list's entry, whatever the path's case")
 {
     CHECK(Media::matchExtension("cart.BIN", {".rom", ".bin"}) == ".bin");
