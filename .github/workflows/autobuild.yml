@@ -13,6 +13,9 @@ on:
     branches:
       - "**"
       - "!release"
+    # docs-only.yml reports the required checks for a Markdown-only change
+    paths-ignore:
+      - "**.md"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
