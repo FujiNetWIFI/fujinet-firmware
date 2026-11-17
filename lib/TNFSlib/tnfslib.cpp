@@ -1491,6 +1491,10 @@ bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_
             break;
         }
 
+        // Nobody is waiting for the answer once shutdown has begun
+        if (SYSTEM_BUS.getShuttingDown())
+            return false;
+
         // Make sure we wait before retrying
         fnSystem.delay(m_info->min_retry_ms);
     }

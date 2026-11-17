@@ -262,8 +262,6 @@ public:
     using SystemBusBase::transaction_send;
     void transaction_send(const void *data, size_t len, bool is_error=false) override;
 
-    bool shuttingDown = false;                                  // TRUE if we are in shutdown process
-    bool getShuttingDown() { return shuttingDown; };
     bool motorActive = false;
     bool isDragon() { return bDragon; }
 

@@ -47,8 +47,14 @@ class SystemBusBase
 protected:
     transState_t _transaction_state = TRANS_STATE::INVALID;
     DaisyChain _daisyChain;
+    // TRUE once the bus's shutdown() has begun (the iec and comlynx buses never set it)
+    bool shuttingDown = false;
 
 public:
+    bool getShuttingDown() { return shuttingDown; }
+    // main_setup() clears it when the service is started again
+    void setShuttingDown(bool state) { shuttingDown = state; }
+
     // The platform's Fuji device, set once from main() through setFuji()
     fujiDevice *theFuji = nullptr;
     // A bus whose code needs its own Fuji type overrides this to keep it in platformFuji too

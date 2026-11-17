@@ -127,9 +127,6 @@ public:
     void service();
     void shutdown();
 
-    bool shuttingDown = false; // TRUE if we are in shutdown process
-    bool getShuttingDown() { return shuttingDown; };
-
     void add_dcd_mount(char c);
     void rem_dcd_mount(char c);
 

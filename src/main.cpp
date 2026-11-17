@@ -134,6 +134,9 @@ void main_setup(int argc, char *argv[])
     // Before anything reaches the Fuji device through the bus
     static PlatformFuji platformFuji;
     SYSTEM_BUS.setFuji(&platformFuji);
+    // A bus that was shut down latches this. A host that restarts the service in
+    // one process runs main_setup() again; TNFS would otherwise fake success.
+    SYSTEM_BUS.setShuttingDown(false);
 
     // program arguments
 #ifndef ESP_PLATFORM

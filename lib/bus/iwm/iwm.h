@@ -262,8 +262,6 @@ public:
 
   void setDefaultNetworkUnit(uint8_t unit);
 
-  bool shuttingDown = false;                                  // TRUE if we are in shutdown process
-  bool getShuttingDown() { return shuttingDown; };
   bool en35Host = false; // TRUE if we are connected to a host that supports the /EN35 signal
 
   // theFuji under this platform's own type, so platform code needs no cast

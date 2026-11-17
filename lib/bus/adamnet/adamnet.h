@@ -233,8 +233,6 @@ public:
     QueueHandle_t qAdamNetMessages = nullptr;
 #endif /* ESP_PLATFORM */
 
-    bool shuttingDown = false;                                  // TRUE if we are in shutdown process
-    bool getShuttingDown() { return shuttingDown; };
 
     void transaction_accept(transState_t expectMoreData) override;
     void transaction_success() override;

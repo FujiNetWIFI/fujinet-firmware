@@ -161,8 +161,6 @@ public:
     rs232CPM *getCPM() { return _cpmDev; }
 
 
-    bool shuttingDown = false;                                  // TRUE if we are in shutdown process
-    bool getShuttingDown() { return shuttingDown; };
 
     std::string busEOL() override { return "\r\n"; }
 
