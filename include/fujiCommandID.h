@@ -3,6 +3,10 @@
 
 #include <stdint.h>
 
+#ifdef PRINTER_WRITE
+#undef PRINTER_WRITE
+#endif
+
 /*
  * Fuji Device Command Definitions
  */
