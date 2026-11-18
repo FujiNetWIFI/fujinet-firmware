@@ -12,9 +12,13 @@ through its FujiNet.
 
 ## Build
 No sources of its own, so it reaches a build only through its consumers: every ESP target, and on
-PC whichever targets list a CP/M device plus the network adapter.
+PC whichever targets list a CP/M device plus the network adapter. The `runcpm_disk_tests` ctest
+builds the disk layer alone, except on Windows (#2431).
 
 ## Notes
+- The disk layer keeps up to `CPM_OPEN_FILES` host files open between records. A BDOS close,
+  delete, rename or make closes one, and the CCP closes the rest before each command, so a file a
+  running program holds open can lag on the card until then.
 - `globals.h` carries the upstream RunCPM version.
 - `abstraction_arduino.h`, `abstraction_posix.h`, `abstraction_vstudio.h`, `posix.h`, `lua.h` and
   `resource.h` are upstream leftovers with no consumer.

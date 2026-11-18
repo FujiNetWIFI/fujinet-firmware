@@ -625,6 +625,7 @@ RUNCPM_DECL uint8 _ccp_ext(void) {
         SET_LOW_REGISTER(BC, _RamRead(DSKByte));		// Sets C to the current drive/user
         PC = loadAddr;									// Sets CP/M application jump point
         SP = BDOSjmppage;								// Sets the stack to the top of the TPA
+        _sys_closeall();								// Closes the .COM, read through the file cache
         
         Z80run();										// Starts Z80 simulation
         
@@ -696,6 +697,7 @@ RUNCPM_DECL void _ccp(void) {
     }
     
     while (TRUE) {
+        _sys_closeall();    // Closes the host files the last command left open
         curDrive = (uint8)_ccp_bdos(DRV_GET, 0x0000);   // Get current drive
         curUser = (uint8)_ccp_bdos(F_USERNUM, 0x00FF);  // Get current user
         _RamWrite(DSKByte, (curUser << 4) + curDrive);  // Set user/drive on addr DSKByte
@@ -890,6 +892,7 @@ RUNCPM_DECL void _ccp(void) {
             break;
         }
     }
+    _sys_closeall();
     _puts("\r\n");
 } // _ccp
 
