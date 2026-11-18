@@ -6,8 +6,9 @@ through its FujiNet.
 ## How it fits
 - Each consumer `.cpp` includes exactly one abstraction header: the per-bus `cpm` devices under
   [lib/device/](../device/) and `lib/network-protocol/CPM.cpp`.
-- Disk access is `fnSDFAT` from [lib/FileSystem/](../FileSystem/); the CCP binary name comes from
-  the `[CPM]` config section.
+- Those headers share `abstraction_fujinet_disk.h` for disk access: CP/M drives are folders under
+  `/CPM/` on `fnSDFAT` from [lib/FileSystem/](../FileSystem/). The CCP binary name comes from the
+  `[CPM]` config section.
 
 ## Build
 No sources of its own, so it reaches a build only through its consumers: every ESP target, and on
