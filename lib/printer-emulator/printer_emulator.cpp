@@ -87,6 +87,24 @@ bool printer_emu::process(uint8_t linelen, uint8_t aux1, uint8_t aux2)
     return result;
 }
 
+void printer_emu::cpm_putc(uint8_t character)
+{
+    buffer[_cpm_len++] = character;
+
+    if (character == 0x0D || character == 0x0A || _cpm_len == CPM_RECORD_LEN)
+        flush_cpm();
+}
+
+void printer_emu::flush_cpm()
+{
+    if (_cpm_len == 0)
+        return;
+
+    size_t len = _cpm_len;
+    _cpm_len = 0;
+    process(len, 0, 0);
+}
+
 // Closes the output file and provides an open read handle to it afterwards
 FILE * printer_emu::closeOutputAndProvideReadHandle()
 {
@@ -97,6 +115,8 @@ FILE * printer_emu::closeOutputAndProvideReadHandle()
 // Closes the output file, giving the printer emulators a chance to provide closing output
 void printer_emu::closeOutput()
 {
+    flush_cpm();
+
     // Assume there's nothing to do if output hasn't been started
     if (_output_started == false)
         return;

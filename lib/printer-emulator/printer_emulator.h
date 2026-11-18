@@ -38,6 +38,10 @@ protected:
 
     uint8_t buffer[320];
 
+    // Longest record handed to process() from CP/M
+    static constexpr size_t CPM_RECORD_LEN = 80;
+    size_t _cpm_len = 0;
+
     // Called after a new printer output file is created (allows for providing header data)
     virtual void post_new_file()=0;
 
@@ -68,6 +72,10 @@ public:
     paper_t getPaperType() { return _paper_type; };
 
     uint8_t *provideBuffer() { return buffer; };
+
+    // Collect CP/M printer bytes into a record, written at CR, LF or a full record
+    void cpm_putc(uint8_t character);
+    void flush_cpm();
 
     void setPaper(paper_t ptype) { _paper_type = ptype; };
 
