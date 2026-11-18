@@ -314,9 +314,10 @@ RUNCPM_DECL uint8 _CloseFile(uint16 fcbaddr) {
 	uint8 result = 0xff;
 
 	if (!_SelectDisk(F->dr)) {
+		_FCBtoHostname(fcbaddr, &filename[0]);
+		_sys_closefile(&filename[0]);
 		if (!(F->s2 & 0x80)) {					// if file is modified
 			if (!RW) {
-				_FCBtoHostname(fcbaddr, &filename[0]);
 				if (fcbaddr == BatchFCB)
 					_Truncate((char*)filename, F->rc);	// Truncate $$$.SUB to F->rc CP/M records so SUBMIT.COM can work
 				result = 0x00;
