@@ -3,14 +3,6 @@
 The firmware entry point. `main.cpp` builds one platform's device set on the single bus instance
 and runs the service loop; everything it assembles comes from [lib/](../lib/).
 
-## Layout
-
-| File | Defines |
-|---|---|
-| `main.cpp` | `SYSTEM_BUS` (the one `systemBus` instance), `main_setup()`, `fn_service_loop()`, `app_main()` for ESP-IDF and `main()` for the PC build |
-| `CMakeLists.txt` | the ESP-IDF component: the include path, the per-directory `*.cpp` globs that decide which `lib/` code is compiled, the generated `fn_pico_blob_data.cpp` from the build directory, plus the IDF components it requires |
-| `idf_component.yml` | IDF component-manager dependencies (`led_strip` and `usb_host_cdc_acm` for the ESP32-S3, `esp_websocket_client`), fetched into `managed_components/` |
-
 ## How it works
 
 - `main_setup()` brings the system up in a fixed order: hardware version and GPIO, keys and LEDs,
@@ -39,3 +31,9 @@ and runs the service loop; everything it assembles comes from [lib/](../lib/).
 ESP: `src/CMakeLists.txt` is read by PlatformIO's ESP-IDF integration only to discover sources,
 includes and flags; linking is done by PlatformIO's own build. PC: `fujinet_pc.cmake` compiles
 `main.cpp` with its explicit source lists.
+
+## Notes
+
+- The per-directory `*.cpp` globs in `CMakeLists.txt` decide which `lib/` code the ESP build
+  compiles. It also adds `fn_pico_blob_data.cpp`, generated in the build directory.
+- `idf_component.yml`'s dependencies are fetched into `managed_components/`.

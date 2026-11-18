@@ -3,12 +3,6 @@
 The shared clock device: APETime-compatible time and time-zone commands, plus the formatters that
 turn the current time into the layouts the host programs expect.
 
-## Layout
-
-| File | Defines |
-|---|---|
-| `fujiClock.h`, `fujiClock.cpp` | `fujiClock`; static formatters `fujicore_time_iso`, `fujicore_time_simple`, `fujicore_time_prodos`, `fujicore_time_apetime`, `fujicore_time_simple_hundredths`, `fujicore_time_sos`; `valid_timezone`, `system_tz`, `tz_to_use` |
-
 ## How it works
 
 - `processCommand()` dispatches `APETIME_*` commands. Buses with a single command namespace call

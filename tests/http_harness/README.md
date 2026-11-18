@@ -3,11 +3,6 @@
 A stand-in for the HTTP client the N: HTTP protocol uses on a host, so the real
 `lib/network-protocol/HTTP.cpp` runs without a server.
 
-## Layout
-| File | Replaces | Defines |
-|---|---|---|
-| `mgHttpClient.h` | `lib/http/mgHttpClient.h` | `FakeHttpServer` (`requests`, `status`, `response`) and a client that records each request's method, body and headers in the one `fake_http`, answers with `status`, and reads back `response` |
-
 ## How it fits
 - Used by `http_protocol_tests` (`tests/HTTPProtocolTests.cpp`), which defines `fake_http` and
   links the real `HTTP.cpp`, `FS.cpp` and `Protocol.cpp` from

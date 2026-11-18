@@ -4,24 +4,6 @@ FujiNet for the ColecoVision: an RP2040 or RP2350 cartridge that serves the cons
 window, every ColecoVision mapper and a mailbox made entirely of reads, linked over USB CDC to an
 ESP32-S3 `fujiversal-coleco`.
 
-## Layout
-| Path | Defines |
-|---|---|
-| `firmware/include/fuji_mailbox.h` | the mailbox: the 1K reply at `$F800`, status fields, hotspot pages, the claim; register numbers and values come from [common/](../common/)'s `fuji_mailbox_proto.h` |
-| `firmware/include/coleco_cart.h`, `firmware/src/coleco_cart.c` | the pin map, `coleco_serve()`, and core1's two-tier bus loop: serve off the address, act once the chip select confirms |
-| `firmware/include/colmap.h`, `firmware/src/colmap.c` | flat, MegaCart, X-in-1, Activision, Opcode SGC and APPBANK: plan an image, the size gate, and the serve model core1 inlines and the MAME device runs |
-| `firmware/include/fuji_cart.h`, `firmware/src/fuji_cart.c` | what the two cores share: the hotspot ring, the two 32K windows, staging and the swap flags |
-| `firmware/include/fuji_store.h`, `firmware/src/fuji_store.c` | the push store: images up to 32K straight into the staging window, larger ones in the board header's `FUJI_STORE_RAM_SIZE` of SRAM; it replaces [common/](../common/)'s, which needs a flash tier |
-| `firmware/include/fujinet.h`, `firmware/src/fujinet.c` | the cart's `fuji_port_ops_t`: publishing a byte, and receiving, planning and staging a pushed image |
-| `firmware/include/fujiboot.h`, `firmware/src/fujiboot.c`, `firmware/src/main.c` | power-on: pins, clock, the baked client, core1, the USB loop and the console-power watch |
-| `firmware/baked/fujiconfigrom.h` | the CONFIG served at power-on when there is no fresh `build/gen` (CI, the ESP32 build) |
-| `firmware/boards/fujicoleco.{h,cmake}` | the default board: a stock Pico, 250 MHz |
-| `firmware/boards/fujicoleco_rp2350a.{h,cmake}` | the FujiNet-ColecoVision Rev0 cart (fujinet-hardware `ColecoVision/FujiNet-ColecoVision-Rev0`): an RP2350A and a 2 MB W25Q16, 250 MHz; `./build-cart.sh fujicoleco_rp2350a` |
-| `firmware/host_test/` | `test_colmap` (against MAME's own cartridge handlers), `test_busedge` (the two-tier loop), `test_swap` (a swapped-in client's mailbox), and [common/](../common/)'s `test_fujimail` against this mailbox map |
-| `testrom/` | z88dk clients: `hello`, `fujitest`, `fujiboot`, the `fujicfg` stand-in CONFIG, `fujibank` (the APPBANK test), and their display, input, sound, keyboard and mailbox library |
-| `emu/` | the MAME cart device (`apply.sh` grafts it), `screen.lua` (screen as text), `drive.lua` (drives CONFIG) and `soak.lua` |
-| `tools/` | `checkrom.py` (size, header, claim, clear mailbox pages), `expect.py` (the window a booted image should show, written apart from colmap), `mkbanked.py` (stamps `fujibank`'s APPBANK pages), `soak.sh` |
-
 ## How it fits
 - The FujiBus codec, the USB device, `fujimail.c`, the `.cfg` parser, `fuji_port.c`,
   `fuji_watchdog.c`, the build and the MAME graft steps come from [common/](../common/).
@@ -68,3 +50,8 @@ ESP32-S3 `fujiversal-coleco`.
   console's RESET doesn't reach the cart, and a booted game has ended the mailbox.
 - The FujiNet-ColecoVision Rev0 board hasn't been built yet; everything here ran in host tests
   and MAME only.
+- `firmware/boards/fujicoleco_rp2350a` is the FujiNet-ColecoVision Rev0 cart (fujinet-hardware
+  `ColecoVision/FujiNet-ColecoVision-Rev0`); `fujicoleco` is a stock Pico.
+- `firmware/src/fuji_store.c` replaces [common/](../common/)'s store, which needs a flash tier.
+- `firmware/baked/fujiconfigrom.h` is the CONFIG served at power-on when there is no fresh
+  `build/gen` (CI, the ESP32 build).

@@ -28,39 +28,6 @@ gets the mailbox only if its `.cfg` `[vars]` sets `fujinet = 1`. See
 how the two windows share the same RAM-claim branch in the bus loop at effectively zero
 extra cost in the timing-critical path.
 
-## Layout
-
-- `firmware/` — the forked Minty cartridge firmware (RP2040/RP2350, pico-sdk 2.2.0). See
-  its own `README.md` for Minty's general features; the FujiNet-specific additions are:
-  - `boards/fujicard.{cmake,h}` — new board, derived from `pintycard` (RP2354A, LittleFS,
-    no SD card), with the USB CDC device stack forced on in Release builds (the CDC link to
-    the ESP32-S3 is the whole point) and `CONFIG_FUJINET` enabled.
-  - `src/fujinet.c`/`include/fujinet.h` — the mailbox service (`fuji_mailbox_service()`) and
-    the ROM-boot receiver (`dbc_inbound_handler()`, `feed_rom_byte()`,
-    `apply_boot_mapping()`) that lets the ESP32 push a ROM (+ optional `.cfg` sibling) over
-    the same USB-CDC link a MOUNT_IMAGE mailbox transaction is using.
-  - `src/fujiboot.c`/`include/fujiboot.h` — `RunFujiConfig()`, which boots the Intellivision
-    straight into FujiNet CONFIG. Minty's own SD/flash launcher (`src/launcher.c` and
-    friends) is **deleted** in this fork — there is no menu, no chord, no fallback; CONFIG
-    is the only boot ROM.
-  - `include/fujiconfigrom.h` — the compiled CONFIG program, baked in as a byte array (see
-    "Building" below for how to regenerate it).
-  - `src/fujibus.c`/`include/fujibus.h` — plain-C port of `lib/bus/FujiBusPacket.cpp`'s
-    wire format. No hardware dependency; builds and unit-tests on a desktop (see
-    `firmware/host_test/`).
-  - `src/fujibus_usb.c`/`include/fujibus_usb.h` — TinyUSB CDC transport on top of the codec
-    above (`fujibus_transact()`).
-  - `include/fuji_mailbox.h` — the `$9C00-$9F3F` mailbox address map. Single source of truth
-    for the RP2040/RP2350 side; `fujinet-config/intv/fujinet.bas` hardcodes the same offsets
-    by hand (IntyBASIC has no `#include`).
-- `PROVENANCE.md` — licensing status of the vendored Minty firmware (resolved: GPLv3) and
-  the still-unresolved PCB question. Read this before doing anything with `firmware/`
-  beyond local development.
-
-The boot ROM itself — FujiNet CONFIG (WiFi setup, host slots, directory browsing, boot a
-selected ROM) — lives in a separate repository, `~/Workspace/fujinet-config/intv/`, not in
-this tree. See its own README for build/test instructions.
-
 ## Status
 
 Working end-to-end on real hardware on the prior PiRTO II-based prototype (Intellivision +
@@ -107,5 +74,20 @@ then rebuild the RP2040/RP2350 firmware as above. See that repository's own READ
 to test CONFIG against jzIntv (the FujiNet-patched Intellivision emulator) without hardware,
 including a `--fujinet-bootdump` mode that validates the ESP32's ROM-push path byte-for-byte
 against a source ROM with no cart attached at all.
+
+## Notes
+
+- `firmware/` builds with pico-sdk 2.2.0; its own `README.md` covers Minty's general
+  features. Minty's SD/flash launcher is deleted in this fork: CONFIG is the only boot ROM.
+- `firmware/src/fujibus.c` is a plain-C port of `lib/bus/FujiBusPacket.cpp`'s wire format.
+- `fujinet-config/intv/fujinet.bas` hardcodes the offsets in `firmware/include/fuji_mailbox.h`
+  by hand (IntyBASIC has no `#include`).
+- `firmware/boards/fujicard.{cmake,h}` is derived from `pintycard` (RP2354A, LittleFS, no SD
+  card), with the USB CDC stack forced on in Release builds, since the CDC link to the ESP32-S3
+  is the whole point.
+- The boot ROM, FujiNet CONFIG, lives in the fujinet-config repository (`intv/`), not in this
+  tree.
+- `PROVENANCE.md` records the vendored Minty firmware's license (GPLv3) and the unresolved PCB
+  question; read it before doing anything with `firmware/` beyond local development.
 
 -Thom

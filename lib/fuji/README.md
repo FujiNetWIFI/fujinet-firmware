@@ -3,12 +3,6 @@
 The host-slot and disk-slot model the CONFIG program manipulates: a host slot binds a name to a
 `FileSystem`, and a disk slot binds a mounted image to a `DISK_DEVICE`.
 
-## Layout
-| File | Defines |
-|---|---|
-| `fujiHost.h`, `fujiHost.cpp` | `fujiHost` and `fujiHostType`: `mount()` tries the local SD name first, then the smb, nfs, ftp, http and https URL schemes by prefix, and TNFS for anything else, creating the matching `FileSystem` backend; path prefix handling; `fnfile_open`, `file_size`, `file_remove`; directory iteration delegated to the backend |
-| `fujiDisk.h`, `fujiDisk.cpp` | `fujiDisk`: access mode, media type, size, owning host and slot, filename, and an embedded `DISK_DEVICE` named `disk_dev`; `reset()` |
-
 ## How it fits
 - `fujiDevice` in [lib/device/fujiDevice/](../device/fujiDevice/) owns the `_fnHosts` and
   `_fnDisks` arrays, so every disk device instance lives inside a `fujiDisk`. It syncs them with

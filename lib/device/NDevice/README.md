@@ -4,16 +4,6 @@ The shared N: network device. A host program opens a URL on an N: unit, and `NDe
 `NET_*` commands into calls on a `NetworkProtocol` adapter, optionally through a parser that lets
 an 8-bit program query one value out of a JSON, XML or HTML document.
 
-## Layout
-
-| File | Defines |
-|---|---|
-| `NDevice.h`, `NDevice.cpp` | `NDevice`, the static `dispatch_table` of `NET_*` handlers, `parse_and_instantiate_protocol()`, the `PARSER` and `PARSER_PARAM` enums |
-| `NParser.h`, `NParser.cpp` | `NParser`, the strategy interface over a protocol (`read`, `write`, `available`, `seek`, `setQuery`, `parse`, `status`), and `NErrorParser`, bound after a failed open so `NET_STATUS` can report why |
-| `JSONParser.h`, `.cpp` | `JSONParser` over `FNJSON` from [lib/fnjson/](../../fnjson/) |
-| `XMLParser.h`, `.cpp` | `XMLParser` over `FNXML` from [lib/fnxml/](../../fnxml/) |
-| `HTMLParser.h`, `.cpp` | `HTMLParser` over `FNHTML` from [lib/fnhtml/](../../fnhtml/) |
-
 ## How it works
 
 - `processCommand()` and `recognizesCommand()` look the command up in `dispatch_table`, which

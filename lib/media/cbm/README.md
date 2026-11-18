@@ -2,13 +2,6 @@
 
 Commodore media type identifiers and blank disk images for `BUILD_IEC`, on ESP32 and FujiNet-PC.
 
-## Layout
-| File | Defines |
-|---|---|
-| `mediaType.h`, `mediaType.cpp` | this platform's `MediaType` base and `discover_mediatype()` (PRG, D64, D71, D81) |
-| `BlankImage.h`, `BlankImage.cpp` | `BlankImage::create()`, the image NEW DISK writes: a formatted D64, D71 or D81, or zeros |
-| `d64.h`, `d71.h`, `d80.h`, `d81.h`, `d82.h`, `d8b.h`, `t64.h`, `tcrt.h` | empty placeholder headers |
-
 ## How it fits
 - No `MediaType` subclass exists here. The IEC drive in [lib/device/iec/](../../device/iec/) opens
   and decodes images through [lib/meatloaf/](../../meatloaf/), whose [disk/](../../meatloaf/disk/),
@@ -27,3 +20,6 @@ Commodore media type identifiers and blank disk images for `BUILD_IEC`, on ESP32
 ESP: globbed by `src/CMakeLists.txt`, compiled only under `BUILD_IEC`. PC: `FUJINET_TARGET=IEC` lists
 the files in `fujinet_pc.cmake`; `tests/BlankImageTests.cpp` builds `BlankImage.cpp` and `mediaType.cpp`
 on every target.
+
+## Notes
+- `d64.h`, `d71.h`, `d80.h`, `d81.h`, `d82.h`, `d8b.h`, `t64.h` and `tcrt.h` are empty placeholders.

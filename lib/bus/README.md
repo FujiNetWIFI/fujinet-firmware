@@ -30,16 +30,6 @@ Each bus header also defines three things the rest of the tree relies on: a clas
 `systemBus`, a `virtualDevice` base for devices on that bus, and the `FUJI_COMMAND_PACKET` type
 that the shared device bases are written against.
 
-## Layout
-
-| File | Defines |
-|---|---|
-| `bus.h`, `bus.cpp` | `SystemBusBase`, `transState_t`, the `BUILD_*` switchboard that includes the active bus header |
-| `DaisyChain.h`, `DaisyChain.cpp` | `DaisyChain`: the device list. `addDevice` pushes to the front, so the newest registration wins a duplicate ID |
-| `PacketParam.h`, `PacketParamProxy.h` | typed access to packet parameters, used by the packet classes |
-| `FujiBusPacket.h`, `FujiBusPacket.cpp` | `FujiBusPacket`: SLIP encode and decode, device ID, command, `PacketParam` list and optional data; the `FUJI_COMMAND_PACKET` of rs232 and mac, and the cartridge link of fujiversal drivewire |
-| `cmdFrame.h` | the legacy fixed command frame, still used by the buses that predate `FUJI_COMMAND_PACKET` |
-
 ## Buses
 
 | Directory | Platform | Packet type | ESP | PC | Status |
@@ -73,3 +63,8 @@ The legacy buses keep their own device lists instead of `SystemBusBase` and defi
 ESP: `src/CMakeLists.txt` globs every bus directory into every target, so each file guards itself
 with `#ifdef BUILD_*`. `FujiBusPacket.cpp` and `iwm/IWMBusIDMap.cpp` are unguarded and
 compile everywhere. PC: `fujinet_pc.cmake` adds one bus per `FUJINET_TARGET`.
+
+## Notes
+- `cmdFrame.h` is the legacy fixed command frame, still used by the buses that predate
+  `FUJI_COMMAND_PACKET`.
+- `DaisyChain::addDevice()` pushes to the front, so the newest registration wins a duplicate ID.

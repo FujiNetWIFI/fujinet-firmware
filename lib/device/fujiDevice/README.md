@@ -4,17 +4,6 @@ The shared FujiNet CONFIG device: the one every platform's `<bus>Fuji` class der
 `SYSTEM_BUS.theFuji` points at. It owns the host and disk slots, WiFi configuration, directory
 browsing and image mounting, and it is the model for how device code should be structured.
 
-## Layout
-
-| File | Defines |
-|---|---|
-| `fujiDevice.h`, `fujiDevice.cpp` | `fujiDevice`, `FujiDeviceChain`, the `FujiPacketLike` concept, `disk_slot`, `dirEntryDetails`, the `fujiDirFlags_t` READ DIRECTORY ENTRY bits, and the `handlers` table of `FUJI_*` commands |
-| `FujiDeviceMixin.h` | `FujiDeviceMixin`: a base whose `processCommand()` looks the command up in the map returned by `commandHandlers()`; `FM_CMD_HANDLER` builds a map entry |
-| `Base64Mixin.h`, `.cpp` | `FUJI_BASE64_ENCODE_*` and `FUJI_BASE64_DECODE_*` over `Base64` from [lib/encoding/](../../encoding/) |
-| `HashMixin.h`, `.cpp` | `FUJI_HASH_*` over `Hash` from [lib/encoding/](../../encoding/) |
-| `QRMixin.h`, `.cpp` | `FUJI_QRCODE_*` over `QRManager` from [lib/qrcode/](../../qrcode/); `qr_encode()` is virtual so a platform can unpack its parameters differently |
-| `AppKeyMixin.h`, `.cpp` | `FUJI_OPEN_APPKEY`, `FUJI_CLOSE_APPKEY`, `FUJI_READ_APPKEY`, `FUJI_WRITE_APPKEY`; `appkey_read()` and `appkey_write()` are the platform hooks |
-
 ## How it works
 
 - `fujiDevice` is `FujiDeviceChain<Base64Mixin, HashMixin, QRMixin, AppKeyMixin>` plus a
@@ -47,7 +36,7 @@ Subclasses: `sioFuji`, `iwmFuji`, `drivewireFuji`, `rs232Fuji`, `adamFuji`, `lyn
 ## How it fits
 
 - The per-bus `virtualDevice` entry point calls `processCommand()` here first; commands it does
-  not recognise fall through to the subclass.
+  not recognize fall through to the subclass.
 - Depends on [lib/fuji/](../../fuji/), [lib/config/](../../config/), [lib/FileSystem/](../../FileSystem/)
   and [lib/hardware/](../../hardware/) for WiFi scanning.
 - The `no_build_ifdefs_in_fujidevice` ctest rejects any `BUILD_*` conditional in this directory.

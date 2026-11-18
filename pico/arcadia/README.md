@@ -90,27 +90,6 @@ Images live in two slots: a push always lands in the one core1 is not
 serving, and staging a claiming image copies the live status page into it,
 so the client it boots finds `F`, `N`, the version and ACKSEQ in place.
 
-## Layout
-
-```
-firmware/            RP2040 cartridge firmware (pico-sdk)
-  include/fuji_mailbox.h   THE SPEC
-  src/arcadia_cart.c       core1: serve the bus (the one hardware-specific bit)
-  src/fuji_cart.c          the two image slots + the boot swap
-  src/arcmap.c             image gate/plan/apply + the connector decode
-  include/arcapp.h         protocol 2 serving: the window, bank selects, cart RAM
-  src/fuji_cart.c          also `fuji_tick_target()`, where the common tick paints
-                           (fujimail.c, fuji_tick.c, the FujiBus codec and USB are pico/common's)
-  baked/fujiconfigrom.h    the client served at power-on when there is no fresh build/gen
-  host_test/               desktop tests (no hardware, no SDK)
-emu/                 MAME cart device + graft script + lua harnesses (bankprobe.lua)
-testrom/             fujitest / fujiboot / fujicfg / fujibank + fujilib.inc + fujidisp.inc
-tools/               checkrom, mkimage, checkdepth, soak.sh
-build.sh             assemble a client (Macroassembler AS)
-build-cart.sh        build the RP2040 firmware, baking the client in
-run.sh               run a client in MAME against a live fujinet-pc
-```
-
 ## Running it
 
 Prerequisites: a MAME tree with the device grafted in (`./emu/apply.sh
@@ -169,9 +148,9 @@ copied here, else the `fujicfg` stand-in) and builds
   There are no interrupts.
 - **The fire button is keypad '2'.** Both are `controller1_col2` bit 3
   (`$1901` bit 3) — electrically one wire — so the client treats that bit as
-  *select*, not as the digit. **The disc is an analog pot** digitised by the
+  *select*, not as the digit. **The disc is an analog pot** digitized by the
   2637 and valid only during vblank: P1 vertical is `$19FF` with the mux
-  (`$19F9` bit 6) clear — up `0x00`, down `0xFF`, centre `~0x6F`; read
+  (`$19F9` bit 6) clear — up `0x00`, down `0xFF`, center `~0x6F`; read
   outside vblank it returns `0xFF`, which reads as "down", so `SCAN` syncs to
   vblank before reading it. In MAME the keypad maps to the PC numeric keypad
   (`Clear` = numpad `-`, `Enter` = numpad `+`).
@@ -188,6 +167,8 @@ copied here, else the `fujicfg` stand-in) and builds
   `$0000-$0FFF` or `$2000-$2FFF` (cart RAM included) does nothing under MAME
   but collides on a real console. Cart RAM is written only through the
   mailbox.
+- `firmware/baked/fujiconfigrom.h` is the client served at power-on when there
+  is no fresh `build/gen`.
 
 ## Hardware status
 

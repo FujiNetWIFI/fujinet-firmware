@@ -2,11 +2,6 @@
 
 RC2014 bus over a 115200 baud serial link for `BUILD_RC2014` with `RC2014_BUS_SIO`.
 
-## Layout
-| File | Defines |
-|---|---|
-| `rc2014sio.h`, `rc2014sio.cpp` | its own `virtualDevice` (legacy `rc2014_process(commanddata, checksum)`) and a `systemBus` that does not derive `SystemBusBase` |
-
 ## How it fits
 - Unreachable: [lib/bus/bus.h](../bus.h) only includes [lib/bus/rc2014bus/](../rc2014bus/) for
   `BUILD_RC2014`, and no board ini defines `RC2014_BUS_SIO`. Devices live in

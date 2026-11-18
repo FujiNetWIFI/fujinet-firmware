@@ -3,11 +3,6 @@
 RC2014 bus over SPI for `BUILD_RC2014` with `RC2014_BUS_SPI`: a FIFO-buffered, interrupt-polled
 transport.
 
-## Layout
-| File | Defines |
-|---|---|
-| `rc2014bus.h`, `rc2014bus.cpp` | `rc2014Fifo`, its own `virtualDevice` (legacy `rc2014_process(commanddata, checksum)`) and a `systemBus` that does not derive `SystemBusBase` |
-
 ## How it fits
 - [lib/bus/bus.h](../bus.h) includes this header for `BUILD_RC2014`; the serial alternative is
   [lib/bus/rc2014sio/](../rc2014sio/). Devices live in [lib/device/rc2014/](../../device/rc2014/).

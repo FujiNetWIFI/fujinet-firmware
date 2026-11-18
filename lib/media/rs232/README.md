@@ -2,14 +2,6 @@
 
 Disk image formats for `BUILD_RS232`, shared by the RS-232 and `fujiversal-*` boards.
 
-## Layout
-| File | Defines |
-|---|---|
-| `diskType.h`, `diskType.cpp` | this platform's `MediaType` base with 32-bit sector numbers, and `discover_mediatype()` |
-| `diskTypeImg.h`, `diskTypeImg.cpp` | `MediaTypeImg`, flat sector images |
-| `diskTypeAltair.h`, `diskTypeAltair.cpp` | `MediaTypeAltair`, Altair 88-DCDD / FDC+ `.dsk` images (8", minidisk, 8 MB) served as 137-byte sectors by track and sector |
-| `diskTypeIMD.h`, `diskTypeIMD.cpp` | `MediaTypeIMD`, an adapter that serves an ImageDisk image through the shared [IMDImage.h](../IMDImage.h) reader with its native per-track geometry, and creates a blank IBM-3740 one |
-
 ## How it fits
 - `discover_mediatype()` checks for an IMD extension first, then a `.DSK` of an exact FDC+ image
   size (`MEDIATYPE_ALTAIR`), then maps XEX to `MEDIATYPE_IMG` and ROM, BIN, INT, ITV, CHF, NES,

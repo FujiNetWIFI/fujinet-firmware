@@ -4,14 +4,6 @@ Disk, tape and ROM image formats, one directory per platform. A media class know
 write sectors or blocks of one file format; it knows nothing about the bus (a ctest fails any
 `SYSTEM_BUS` reference under this directory) and reaches files only through `fnio` or `FILE`.
 
-## Layout
-
-| File | Defines |
-|---|---|
-| `media.h`, `media.cpp` | `Media`, the root of the new media hierarchy: `open()` constructs a format and `attach()`es it, `matchExtension()` checks a path's extension; then the `BUILD_*` switchboard that includes the active platform's `MediaType` headers |
-| [rom/](rom/) | `ROMMedia`, the cartridge image family, with `ROMFactory` and one class per ROM image format |
-| `IMDImage.h`, `IMDImage.cpp` | `IMDImage`, an ImageDisk reader, writer and builder that uses only the standard library, so a host tool can copy it. It takes a `std::fstream`, a `std::FILE` or any handle with `fnFile`'s methods, and an optional `std::pmr::memory_resource` for its tables. `probe()` recognizes an image by its contents. It is deliberately not a `MediaType`; a platform wraps it in an adapter (`rs232/diskTypeIMD.h`) |
-
 ## Platforms
 
 There is no shared `MediaType` base class. Each directory declares its own `MediaType` and
@@ -50,3 +42,8 @@ each platform file guards itself with `#ifdef BUILD_*`. `IMDImage.cpp` and `mac/
 unguarded. PC: `fujinet_pc.cmake` compiles `IMDImage` for every target and one platform
 directory per `FUJINET_TARGET`. `tests/` covers `IMDImage`, the rs232 IMD adapter, `macGCR` and
 the Atari cassette helpers.
+
+## Notes
+
+- `IMDImage` uses only the standard library so a host tool can copy it, and is deliberately not a
+  `MediaType`; `rs232/diskTypeIMD.h` adapts it.
