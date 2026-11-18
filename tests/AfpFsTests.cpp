@@ -341,18 +341,21 @@ TEST_CASE("fs: entries carry size and kind; seek and tell walk the listing")
     REQUIRE(fs.dir_open("/", nullptr, 0).is_success());
 
     uint16_t start = fs.dir_tell();
-    fsdir_entry *first = fs.dir_read();
-    REQUIRE(first != nullptr);
-    std::string first_name = first->filename;
-    fsdir_entry *second = fs.dir_read();
-    REQUIRE(second != nullptr);
-    fsdir_entry *file = first->isDir ? second : first;
-    fsdir_entry *dir = first->isDir ? first : second;
-    CHECK(std::string(file->filename) == "one.bin");
-    CHECK(file->size == 5);
-    CHECK_FALSE(file->isDir);
-    CHECK(std::string(dir->filename) == "two");
-    CHECK(dir->isDir);
+    // dir_read() reuses one entry, so copy each before reading the next.
+    fsdir_entry *entry = fs.dir_read();
+    REQUIRE(entry != nullptr);
+    fsdir_entry first = *entry;
+    entry = fs.dir_read();
+    REQUIRE(entry != nullptr);
+    fsdir_entry second = *entry;
+    std::string first_name = first.filename;
+    const fsdir_entry &file = first.isDir ? second : first;
+    const fsdir_entry &dir = first.isDir ? first : second;
+    CHECK(std::string(file.filename) == "one.bin");
+    CHECK(file.size == 5);
+    CHECK_FALSE(file.isDir);
+    CHECK(std::string(dir.filename) == "two");
+    CHECK(dir.isDir);
 
     CHECK(fs.dir_seek(start).is_success());
     fsdir_entry *again = fs.dir_read();

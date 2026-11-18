@@ -17,12 +17,15 @@ private:
     // The mounted directory below the volume: empty, or "/dir" with no trailing slash.
     std::string _root;
 
-    // The volume path last listed into _dircache; empty when it holds nothing.
-    std::string _last_dir;
-    DirCache _dircache;
-
     // path as lib/afp wants it: below _root, leading slash, no trailing one.
     std::string full_path(const char *path) const;
+
+    // The kept listing would no longer match the volume.
+    void drop_listing()
+    {
+        if (_dircache)
+            _dircache->clear();
+    }
 
 public:
     FileSystemAFP();
@@ -49,11 +52,8 @@ public:
     success_is_true rmdir(const char *path) override;
     bool dir_exists(const char *path) override { return is_dir(path); };
 
-    success_is_true dir_open(const char *path, const char *pattern, uint16_t diropts) override;
-    fsdir_entry *dir_read() override;
-    void dir_close() override;
-    uint16_t dir_tell() override;
-    success_is_true dir_seek(uint16_t pos) override;
+protected:
+    success_is_true fill_dircache(const char *path) override;
 };
 
 #endif // FN_FSAFP_H
