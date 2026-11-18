@@ -255,7 +255,7 @@ RUNCPM_DECL uint8_t _sys_readrand(uint8_t *name, long fpos)
             }
             else
             {
-                long extSize = _sys_filesize((uint8_t *)full_path((char *)name));
+                long extSize = _sys_filesize(name);
 
                 // round file size up to next full logical extent
                 extSize = ExtSZ * ((extSize / ExtSZ) + ((extSize % ExtSZ) ? 1 : 0));
