@@ -2,15 +2,6 @@
 
 Logs in to AFP servers, attaches volumes and reads and writes files on them through afpfs-ng, sharing each login and attachment between every part of FujiNet that uses it.
 
-## Layout
-| File | Defines |
-|---|---|
-| `afpBridge.h`, `afpBridge.c` | the C face of afpfs-ng: start the library, log in, find and attach a volume, detach, release; then stat, open, read, write, close, list, remove, rename, mkdir and rmdir on a volume; `afp_server`, `afp_volume` and `afp_file_info` stay opaque |
-| `afpSession.h`, `afpSession.cpp` | `AfpSession`: one holder of one volume; `open`, `close`, `volume`, `volume_names`, `error` |
-| `afpFile.h`, `afpFile.cpp` | `AfpFile`: one open file on a session's volume with its own position; `afp_stat`, `afp_list`, `afp_remove`, `afp_rename`, `afp_mkdir`, `afp_rmdir`; `AfpOpenMode`, `AfpDirEntry` |
-| `afpPath.h`, `afpPath.cpp` | `afp_split_path`: a URL path into volume name and volume-relative path |
-| `afpStatus.h`, `afpStatus.cpp` | `afp_errno_to_status`: a negative errno as the `NDEV_STATUS` an `N:` device reports |
-
 ## How it fits
 - Uses the afpfs-ng library in [components/afpfs-ng/](../../components/afpfs-ng/).
 - Used by `NetworkProtocolAFP` in [lib/network-protocol/](../network-protocol/) and by `FileSystemAFP` and `FileHandlerAFP` in [lib/FileSystem/](../FileSystem/).
