@@ -48,7 +48,7 @@ void NetworkProtocolAFP::fserror_to_error()
 
 fujiError_t NetworkProtocolAFP::mount(PeoplesUrlParser *url)
 {
-    std::string volume = afp_split_path(url->path).volume;
+    std::string volume = afp_split_path(file_path(url)).volume;
 
     // AFP://host/*.* is a listing of the server, not a volume named "*.*".
     if (volume.find_first_of("*?") != std::string::npos || volume == "-")
@@ -102,8 +102,8 @@ fujiError_t NetworkProtocolAFP::open_file_handle()
         return result(-EINVAL);
     }
 
-    // opened_url->path: resolve() may have swapped in the real name.
-    if (_file.open(volume_path(opened_url->path), mode).is_error())
+    // opened_path: resolve() may have swapped in the real name.
+    if (_file.open(volume_path(opened_path), mode).is_error())
         return result(_file.error());
 
     return result(0);
@@ -202,7 +202,7 @@ fujiError_t NetworkProtocolAFP::close_file_handle()
 fujiError_t NetworkProtocolAFP::stat()
 {
     AfpDirEntry e;
-    int err = afp_stat(_session, volume_path(opened_url->path), e);
+    int err = afp_stat(_session, volume_path(opened_path), e);
     if (err != 0)
     {
         // resolve() probes with this and expects misses, so error is left alone.
@@ -259,15 +259,15 @@ fujiError_t NetworkProtocolAFP::rename(PeoplesUrlParser *url)
 
 fujiError_t NetworkProtocolAFP::del(PeoplesUrlParser *url)
 {
-    return one_shot(url, [&] { return afp_remove(_session, volume_path(url->path)); });
+    return one_shot(url, [&] { return afp_remove(_session, volume_path(file_path(url))); });
 }
 
 fujiError_t NetworkProtocolAFP::mkdir(PeoplesUrlParser *url)
 {
-    return one_shot(url, [&] { return afp_mkdir(_session, volume_path(url->path)); });
+    return one_shot(url, [&] { return afp_mkdir(_session, volume_path(file_path(url))); });
 }
 
 fujiError_t NetworkProtocolAFP::rmdir(PeoplesUrlParser *url)
 {
-    return one_shot(url, [&] { return afp_rmdir(_session, volume_path(url->path)); });
+    return one_shot(url, [&] { return afp_rmdir(_session, volume_path(file_path(url))); });
 }

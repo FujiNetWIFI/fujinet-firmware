@@ -59,7 +59,7 @@ struct Unit
 
     PeoplesUrlParser *parse(const std::string &path)
     {
-        url = PeoplesUrlParser::parseURL("AFP://" + host + path);
+        url = std::make_unique<PeoplesUrlParser>("AFP://" + host + path);
         return url.get();
     }
 
@@ -236,6 +236,20 @@ TEST_CASE("a file is found by its crunched name")
     CHECK(n.p.del(n.parse(dir + "/A Long File Name.text")) == FUJI_ERROR::NONE);
 }
 
+TEST_CASE("a '#' in a name is part of the name, not a URL fragment")
+{
+    Unit n;
+    const std::string name = "take#2.txt";
+    REQUIRE(n.open(dir + "/" + name, ACCESS_MODE::WRITE) == FUJI_ERROR::NONE);
+    CHECK(n.write("second") == FUJI_ERROR::NONE);
+    n.p.close();
+
+    CHECK(has_line(n.list(dir + "/"), name));
+    CHECK(n.contents(dir + "/" + name) == "second");
+    CHECK(n.p.del(n.parse(dir + "/" + name)) == FUJI_ERROR::NONE);
+    CHECK_FALSE(has_line(n.list(dir + "/"), name));
+}
+
 TEST_CASE("rename moves the name; the old one is then not found")
 {
     Unit n;
@@ -263,7 +277,7 @@ TEST_CASE("credentials in the URL are used before the device's login")
 {
     std::string wrong_user = "nobody-here", wrong_password = "wrong";
     Unit n(&wrong_user, &wrong_password);
-    n.url = PeoplesUrlParser::parseURL("AFP://" + user + ":" + password + "@" + host + dir + "/data.txt");
+    n.url = std::make_unique<PeoplesUrlParser>("AFP://" + user + ":" + password + "@" + host + dir + "/data.txt");
     REQUIRE(n.p.open(n.url.get(), ACCESS_MODE::READ, NETPROTO_TRANS::NONE) == FUJI_ERROR::NONE);
     n.p.close();
 }
@@ -292,7 +306,7 @@ TEST_CASE("an unknown volume is file not found")
 TEST_CASE("a host that does not resolve is network unreachable")
 {
     Unit n;
-    n.url = PeoplesUrlParser::parseURL("AFP://no-such-host.invalid/" + volume + "/x.txt");
+    n.url = std::make_unique<PeoplesUrlParser>("AFP://no-such-host.invalid/" + volume + "/x.txt");
     CHECK(n.p.open(n.url.get(), ACCESS_MODE::READ, NETPROTO_TRANS::NONE) != FUJI_ERROR::NONE);
     CHECK(n.p.error == NDEV_STATUS::NETWORK_UNREACHABLE);
 }
@@ -304,6 +318,7 @@ TEST_CASE("delete and rmdir leave nothing behind")
 
     // Present only when an earlier case failed part way.
     n.p.del(n.parse(dir + "/grow.txt"));
+    n.p.del(n.parse(dir + "/take#2.txt"));
     n.p.del(n.parse(dir + "/A Long File Name.text"));
 
     CHECK(n.p.del(n.parse(dir + "/data.txt")) == FUJI_ERROR::NONE);
