@@ -102,13 +102,12 @@ void sioPrinter::sio_write(uint8_t aux1, uint8_t aux2)
 }
 
 /**
- * Print from CP/M, which is one character...at...a...time...
+ * Print from CP/M, collected into records by the printer emulator.
  */
 void sioPrinter::print_from_cpm(uint8_t c)
 {
     _last_ms = fnSystem.millis();
-    _pptr->provideBuffer()[0] = c;
-    _pptr->process(1, 0, 0);
+    _pptr->cpm_putc(c);
 }
 
 // Status

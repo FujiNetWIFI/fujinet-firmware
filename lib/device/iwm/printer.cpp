@@ -83,18 +83,12 @@ void iwmPrinter::iwm_write(const iwm_decoded_cmd_t &cmd)
 }
 
 /**
- * Print from CP/M, which is one character...at...a...time...
+ * Print from CP/M, collected into records by the printer emulator.
  */
 void iwmPrinter::print_from_cpm(uint8_t c)
 {
-    _pptr->provideBuffer()[_llen++]=c;
-
-    if (c == 0x0D || c == 0x0a || _llen == 80)
-    {
-        _last_ms = fnSystem.millis();
-        _pptr->process(_llen, 0, 0);
-        _llen = 0;
-    }
+    _last_ms = fnSystem.millis();
+    _pptr->cpm_putc(c);
 }
 
 void iwmPrinter::set_printer_type(iwmPrinter::printer_type printer_type)

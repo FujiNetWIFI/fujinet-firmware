@@ -66,7 +66,6 @@ public:
 
 private:
     printer_type _ptype;
-    int _llen = 0;
 };
 
 

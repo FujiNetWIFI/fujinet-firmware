@@ -26,11 +26,12 @@ iecPrinter::~iecPrinter()
 }
 
 /**
- * Print from CP/M, which is one character...at...a...time...
+ * Print from CP/M, collected into records by the printer emulator.
  */
 void iecPrinter::print_from_cpm(uint8_t c)
 {
-    // TODO IMPLEMENT
+    _last_ms = fnSystem.millis();
+    _pptr->cpm_putc(c);
 }
 
 // Status
