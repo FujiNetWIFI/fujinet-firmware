@@ -29,7 +29,7 @@ void systemBus::transaction_accept(transState_t) {}
 void systemBus::transaction_success() { bus.outcome = Outcome::Success; }
 void systemBus::transaction_error() { bus.outcome = Outcome::Error; }
 
-size_result_t systemBus::transaction_get_length(void *data, size_t len)
+size_result_t systemBus::transaction_get(void *data, size_t len)
 {
     if (bus.incoming.size() < len)
         RETURN_SIZE_ERROR();

@@ -308,7 +308,7 @@ void modem::sio_write(const FujiSIOPacket &packet)
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
     memset(txBuf, 0, sizeof(txBuf));
 
-    if (!SYSTEM_BUS.transaction_get(txBuf, 64))
+    if (SYSTEM_BUS.transaction_get(txBuf, 64).is_error())
     {
         SYSTEM_BUS.transaction_error();
         return;

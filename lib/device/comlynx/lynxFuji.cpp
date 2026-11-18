@@ -189,7 +189,7 @@ void lynxFuji::fujicmd_enable_netstream(int port, size_t host_payload_len)
     char host[64] = {};
 
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
-    if (!SYSTEM_BUS.transaction_get(&host, sizeof(host)))
+    if (SYSTEM_BUS.transaction_get(&host, sizeof(host)).is_error())
     {
         SYSTEM_BUS.transaction_error();
         return;

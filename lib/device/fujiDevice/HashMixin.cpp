@@ -20,7 +20,12 @@ void HashMixin::hash_input(const FUJI_COMMAND_PACKET &packet)
     }
 
     std::vector<unsigned char> p(len);
-    SYSTEM_BUS.transaction_get(p.data(), len);
+    if (SYSTEM_BUS.transaction_get(p.data(), len).is_error())
+    {
+        SYSTEM_BUS.transaction_error();
+        return;
+    }
+
     hasher.add_data(p);
     SYSTEM_BUS.transaction_success();
 }

@@ -125,7 +125,7 @@ void systemBus::transaction_error()
     _transaction_state = TRANS_STATE::INVALID;
 }
 
-size_result_t systemBus::transaction_get_length(void *data, size_t len)
+size_result_t systemBus::transaction_get(void *data, size_t len)
 {
     assert(_transaction_state == TRANS_STATE::WILL_GET);
     _transaction_state = TRANS_STATE::DID_GET;

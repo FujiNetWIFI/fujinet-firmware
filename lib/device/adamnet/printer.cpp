@@ -128,7 +128,12 @@ void adamPrinter::adamnet_control_send(const FujiAdamPacket &packet)
 
     pi.len = std::min(packet.data()->size(), sizeof(pi.buf));
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
-    SYSTEM_BUS.transaction_get(pi.buf, pi.len);
+    if (SYSTEM_BUS.transaction_get(pi.buf, pi.len).is_error())
+    {
+        SYSTEM_BUS.transaction_error();
+        return;
+    }
+
     if (pxq != nullptr)
         xQueueSend(pxq, &pi, portMAX_DELAY);
 
@@ -142,7 +147,12 @@ void adamPrinter::adamnet_control_send(const FujiAdamPacket &packet)
     uint8_t *pbuf = _pptr->provideBuffer();
 
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
-    SYSTEM_BUS.transaction_get(pbuf, len);
+    if (SYSTEM_BUS.transaction_get(pbuf, len).is_error())
+    {
+        SYSTEM_BUS.transaction_error();
+        return;
+    }
+
     if (len)
         _pptr->process(len,0,0);
 

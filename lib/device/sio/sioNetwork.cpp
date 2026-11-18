@@ -117,7 +117,12 @@ void sioNetwork::fujidev_set_prefix(const FUJI_COMMAND_PACKET &packet)
     std::string prefix(256, 0);
 
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
-    SYSTEM_BUS.transaction_get(prefix);
+    if (SYSTEM_BUS.transaction_get(prefix).is_error())
+    {
+        SYSTEM_BUS.transaction_error();
+        return;
+    }
+
     util_devicespec_fix_9b((uint8_t *) prefix.data(), prefix.size());
     prefix.resize(strlen(prefix.c_str()));
 

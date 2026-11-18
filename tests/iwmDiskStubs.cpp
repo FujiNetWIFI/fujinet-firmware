@@ -40,7 +40,7 @@ void systemBus::transaction_error(spError_t err)
     last_sp_error = err;
 }
 
-size_result_t systemBus::transaction_get_length(void *data, size_t len)
+size_result_t systemBus::transaction_get(void *data, size_t len)
 {
     if (bus.incoming.size() < len)
         RETURN_SIZE_ERROR();

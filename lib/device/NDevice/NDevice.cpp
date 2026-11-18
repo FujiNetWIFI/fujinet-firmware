@@ -409,7 +409,12 @@ void NDevice::fujidev_set_prefix(const FUJI_COMMAND_PACKET &packet)
     std::string prefix(256, 0);
 
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
-    SYSTEM_BUS.transaction_get(prefix);
+    if (SYSTEM_BUS.transaction_get(prefix).is_error())
+    {
+        SYSTEM_BUS.transaction_error();
+        return;
+    }
+
     prefix.resize(strlen(prefix.c_str()));
     if (fujicore_set_prefix(prefix).is_error())
     {
@@ -505,7 +510,12 @@ void NDevice::fujidev_set_login(const FUJI_COMMAND_PACKET &packet)
 {
     login.assign(256, 0);
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
-    SYSTEM_BUS.transaction_get(login);
+    if (SYSTEM_BUS.transaction_get(login).is_error())
+    {
+        SYSTEM_BUS.transaction_error();
+        return;
+    }
+
     login.resize(strlen(login.c_str()));
     SYSTEM_BUS.transaction_success();
 }
@@ -514,7 +524,12 @@ void NDevice::fujidev_set_password(const FUJI_COMMAND_PACKET &packet)
 {
     password.assign(256, 0);
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
-    SYSTEM_BUS.transaction_get(password);
+    if (SYSTEM_BUS.transaction_get(password).is_error())
+    {
+        SYSTEM_BUS.transaction_error();
+        return;
+    }
+
     password.resize(strlen(password.c_str()));
     SYSTEM_BUS.transaction_success();
 }
@@ -703,7 +718,12 @@ void NDevice::fs_op(const FUJI_COMMAND_PACKET &packet, fujiError_t (NetworkProto
 
     std::string spec(256, 0);
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
-    SYSTEM_BUS.transaction_get(spec);
+    if (SYSTEM_BUS.transaction_get(spec).is_error())
+    {
+        SYSTEM_BUS.transaction_error();
+        return;
+    }
+
     resize_spec(spec);
 
     std::unique_ptr<PeoplesUrlParser> url;

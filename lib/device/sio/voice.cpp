@@ -200,7 +200,7 @@ void sioVoice::sio_write()
 
     memset(sioBuffer, 0, n); // clear buffer
 
-    if (SYSTEM_BUS.transaction_get(sioBuffer, n))
+    if (SYSTEM_BUS.transaction_get(sioBuffer, n).is_success())
     {
         // append sioBuffer onto lineBuffer until EOL is reached
         // move this logic to append \0 into sio_write
