@@ -10,7 +10,7 @@
 
 #define DISK_CTRL_STATUS_CLEAR 0x00
 
-enum mediatype_t 
+enum mediatype_t : uint8_t
 {
     MEDIATYPE_UNKNOWN = 0,
     MEDIATYPE_DSK,
@@ -69,7 +69,7 @@ public:
     virtual error_is_true write(uint32_t blockNum, bool verify);
 
     virtual void get_block_buffer(uint8_t **p_buffer, uint16_t *p_blk_size);
-    
+
     virtual uint8_t status() = 0;
 
     static mediatype_t discover_mediatype(const char *filename);

@@ -9,9 +9,6 @@
 #include "fnFS.h"  // for fsdir_entry_t
 #include "../../../include/debug.h"  // for Debug_printf
 
-// Include platform-specific media type definitions
-#include "mediaTypeProxy.h"
-
 // Helper class to manage directory entry page groups
 class DirectoryPageGroup {
 public:
@@ -28,7 +25,7 @@ public:
         data.resize(HEADER_SIZE, 0);
     }
 
-    bool add_entry(fsdir_entry_t* f) {
+    bool add_entry(fsdir_entry_t* f, uint8_t media_type) {
         if (f == nullptr) {
             return false;
         }
@@ -43,7 +40,7 @@ public:
         // Get pointer to where we'll write the entry
         size_t current_pos = data.size() - entry_size;
 
-        set_block_entry_details(f, &data[current_pos]);
+        set_block_entry_details(f, media_type, &data[current_pos]);
         // WE DO ***NOT*** NEED TO ADD A TRAILING "/" TO THE FILENAME FOR DIRS!
         // we're already indicating this through flags.
         // so please do not add one here if you read this, as it will break client code.
@@ -73,7 +70,8 @@ public:
 
 private:
     // Helper function to set file details in block format
-    static size_t set_block_entry_details(fsdir_entry_t *f, uint8_t *dest) {
+    static size_t set_block_entry_details(fsdir_entry_t *f, uint8_t media_type,
+                                          uint8_t *dest) {
         size_t bytes_written = 0;
 
         // Pack timestamp
@@ -105,7 +103,6 @@ private:
         }
 
         // Media type (full byte)
-        uint8_t media_type = MediaType::discover_mediatype(f->filename);
         dest[bytes_written++] = media_type;
 
         // Debug_printf("Entry: %s\n", f->filename);

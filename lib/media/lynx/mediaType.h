@@ -10,7 +10,7 @@
 
 #define DISK_CTRL_STATUS_CLEAR 0x00
 
-enum mediatype_t 
+enum mediatype_t : uint8_t
 {
     MEDIATYPE_UNKNOWN = 0,
     MEDIATYPE_DDP,
@@ -44,7 +44,7 @@ public:
     virtual error_is_true read(uint32_t blockNum, uint16_t *readcount) = 0;
     // Returns TRUE if an error condition occurred
     virtual error_is_true write(uint32_t blockNum, bool verify);
-    
+
     virtual uint8_t status() = 0;
 
     static mediatype_t discover_mediatype(const char *filename);

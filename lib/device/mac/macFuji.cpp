@@ -114,8 +114,9 @@ size_t macFuji::set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
         uint32_t size;
         uint8_t is_dir;
         uint8_t is_trunc;
-        uint8_t mediatype;
+        mediatype_t mediatype;
     } __attribute__((packed)) custom_details;
+    static_assert(sizeof(custom_details) == 13, "custom_details must be 13 bytes");
     dirEntryDetails details;
 
     details = _additional_direntry_details(f);

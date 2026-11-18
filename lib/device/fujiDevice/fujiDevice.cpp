@@ -905,7 +905,7 @@ void fujiDevice::fujicmd_read_directory_block(uint8_t num_pages, uint8_t group_s
                 break;
             }
 
-            if (!group.add_entry(f)) {
+            if (!group.add_entry(f, directoryMediaType(f->filename))) {
                 break;
             }
         }
@@ -1065,7 +1065,7 @@ dirEntryDetails fujiDevice::_additional_direntry_details(fsdir_entry_t *f)
     if (f->isDir)
         details.flags |= DET_FF_DIR;
 
-    details.mediatype = MediaType::discover_mediatype(f->filename);
+    details.mediatype = directoryMediaType(f->filename);
 
     return details;
 }
