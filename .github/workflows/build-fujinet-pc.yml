@@ -52,6 +52,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# Keeps tzdata's install prompt from waiting forever on a container step's stdin
+env:
+  DEBIAN_FRONTEND: noninteractive
+
 jobs:
   build:
     strategy:
