@@ -585,15 +585,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
 #endif
     case FN_PRINTER1_MODEL:
         {
-#ifdef BUILD_ADAM
-            adamPrinter *ap = fnPrinters.get_ptr(0);
-            if (ap != nullptr)
-                resultstream << fnPrinters.get_ptr(0)->getPrinterPtr()->modelname();
-            else
-                resultstream << "No Virtual Printer";
-#elif defined(BUILD_ATARI) || defined(BUILD_APPLE) || defined(BUILD_RS232)
-            resultstream << fnPrinters.get_ptr(0)->getPrinterPtr()->modelname();
-#endif
+            PRINTER_CLASS::printer_type ptype = fnPrinters.get_type(0);
+            if (ptype < PRINTER_CLASS::PRINTER_INVALID)
+                resultstream << PRINTER_CLASS::printer_model_str[ptype];
         }
         break;
     case FN_PRINTER1_PORT:
