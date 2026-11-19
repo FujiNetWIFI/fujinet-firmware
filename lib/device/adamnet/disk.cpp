@@ -154,7 +154,11 @@ void adamDisk::adamnet_control_send_block_data()
         return;
 
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
-    SYSTEM_BUS.transaction_get(_media->_media_blockbuff, DDP_BLOCK_SIZE);
+    if (SYSTEM_BUS.transaction_get(_media->_media_blockbuff, DDP_BLOCK_SIZE).is_error())
+    {
+        SYSTEM_BUS.transaction_error();
+        return;
+    }
 
     if (is_config_device)
     {

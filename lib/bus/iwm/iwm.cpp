@@ -139,7 +139,7 @@ void systemBus::transaction_error(spError_t err)
   iwm_send_packet(_activeDev->id(), iwm_packet_type_t::status, err, nullptr, 0);
 }
 
-size_result_t systemBus::transaction_get_length(void *data, size_t len)
+size_result_t systemBus::transaction_get(void *data, size_t len)
 {
   assert(_transaction_state == TRANS_STATE::WILL_GET);
   _transaction_state = TRANS_STATE::DID_GET;

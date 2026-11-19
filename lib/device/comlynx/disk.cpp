@@ -148,10 +148,13 @@ void lynxDisk::write_block(uint32_t block)
     }
 
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
-    SYSTEM_BUS.transaction_get(_media->_media_blockbuff, MEDIA_BLOCK_SIZE);
-    //memcpy(_media->_media_blockbuff, data, MEDIA_BLOCK_SIZE);
-    _media->write(block, false);
+    if (SYSTEM_BUS.transaction_get(_media->_media_blockbuff, MEDIA_BLOCK_SIZE).is_error())
+    {
+        SYSTEM_BUS.transaction_error();
+        return;
+    }
 
+    _media->write(block, false);
     Debug_printf("lynxdisk::write_block - block:%ld written\n", block);
 
     blockNum = 0xFFFFFFFF;

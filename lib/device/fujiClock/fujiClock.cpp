@@ -225,7 +225,7 @@ std::optional<std::string> fujiClock::read_tz_by_length(size_t len)
     }
 
     std::string tz(len, '\0');
-    if (!SYSTEM_BUS.transaction_get(&tz[0], len))
+    if (SYSTEM_BUS.transaction_get(&tz[0], len).is_error())
     {
         SYSTEM_BUS.transaction_error();
         return std::nullopt;

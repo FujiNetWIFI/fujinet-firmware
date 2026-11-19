@@ -19,7 +19,12 @@ void QRMixin::qr_input(const FUJI_COMMAND_PACKET &packet)
     }
 
     std::vector<unsigned char> p(len);
-    SYSTEM_BUS.transaction_get(p.data(), len);
+    if (SYSTEM_BUS.transaction_get(p.data(), len).is_error())
+    {
+        SYSTEM_BUS.transaction_error();
+        return;
+    }
+
     qrManager.data += std::string((const char *)p.data(), len);
     SYSTEM_BUS.transaction_success();
 }

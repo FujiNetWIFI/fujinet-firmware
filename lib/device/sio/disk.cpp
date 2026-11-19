@@ -69,7 +69,7 @@ void sioDisk::sio_write(const FujiSIOPacket &packet)
     {
         uint16_t sectorSize = _media->sector_size(sectorNum);
 
-        if (SYSTEM_BUS.transaction_get(_media->_disk_sectorbuff, sectorSize)
+        if (SYSTEM_BUS.transaction_get(_media->_disk_sectorbuff, sectorSize).is_success()
             && _media->write(sectorNum, verify).is_success())
         {
             SYSTEM_BUS.transaction_success();
@@ -200,13 +200,14 @@ void sioDisk::sio_write_percom_block()
 
     Debug_print("disk WRITE PERCOM BLOCK\n");
 
-    if (_media == nullptr)
+    if (_media == nullptr
+        || SYSTEM_BUS.transaction_get(&_media->_percomBlock,
+                                      sizeof(_media->_percomBlock)).is_error())
     {
         SYSTEM_BUS.transaction_error();
         return;
     }
 
-    SYSTEM_BUS.transaction_get(&_media->_percomBlock, sizeof(_media->_percomBlock));
 #ifdef VERBOSE_DISK
     _media->dump_percom_block();
 #endif

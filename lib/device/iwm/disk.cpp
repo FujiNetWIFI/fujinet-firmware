@@ -205,7 +205,10 @@ void iwmDisk::iwm_writeblock(const iwm_decoded_cmd_t &cmd)
   uint16_t sdstato = BLOCK_DATA_LEN;
   ByteBuffer buffer(sdstato, 0);
   SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
-  SYSTEM_BUS.transaction_get(buffer.data(), buffer.size());
+  if (SYSTEM_BUS.transaction_get(buffer.data(), buffer.size()).is_error()) {
+    SYSTEM_BUS.transaction_error(SP_ERR::NOWRITE);
+    return;
+  }
   _media->write(cmd.frame.block_rw.num, &sdstato, buffer.data());
 
   if (sdstato != BLOCK_DATA_LEN)

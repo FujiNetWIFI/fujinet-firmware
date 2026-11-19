@@ -24,7 +24,7 @@ void virtualDevice::adamnet_idle() {}
 void systemBus::transaction_accept(transState_t expectMoreData) {}
 void systemBus::transaction_success() { bus.success++; }
 void systemBus::transaction_error() { bus.error++; }
-size_result_t systemBus::transaction_get_length(void *data, size_t len) { RETURN_SIZE_ERROR(); }
+size_result_t systemBus::transaction_get(void *data, size_t len) { RETURN_SIZE_ERROR(); }
 void systemBus::transaction_send(const void *data, size_t len, bool is_error)
 {
     bus.sent.assign((const char *)data, len);

@@ -18,7 +18,12 @@ void Base64Mixin::encode_input(const FUJI_COMMAND_PACKET &packet)
     }
 
     std::string p(len, 0);
-    SYSTEM_BUS.transaction_get(p.data(), len);
+    if (SYSTEM_BUS.transaction_get(p.data(), len).is_error())
+    {
+        SYSTEM_BUS.transaction_error();
+        return;
+    }
+
     base64.base64_buffer += p;
     SYSTEM_BUS.transaction_success();
 }
@@ -106,7 +111,12 @@ void Base64Mixin::decode_input(const FUJI_COMMAND_PACKET &packet)
     }
 
     std::string p(len, 0);
-    SYSTEM_BUS.transaction_get(p.data(), p.size());
+    if (SYSTEM_BUS.transaction_get(p.data(), p.size()).is_error())
+    {
+        SYSTEM_BUS.transaction_error();
+        return;
+    }
+
     p = SYSTEM_BUS.nativeTextToUnicode(p);
     base64.base64_buffer += p;
     SYSTEM_BUS.transaction_success();

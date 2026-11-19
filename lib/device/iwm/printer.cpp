@@ -65,7 +65,11 @@ void iwmPrinter::iwm_write(const iwm_decoded_cmd_t &cmd)
 
     ByteBuffer buffer(cmd.frame.char_rw.length, 0);
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
-    SYSTEM_BUS.transaction_get(buffer.data(), buffer.size());
+    if (SYSTEM_BUS.transaction_get(buffer.data(), buffer.size()).is_error())
+    {
+      SYSTEM_BUS.transaction_error();
+      return;
+    }
 
     size_t offset = 0;
     while (offset < buffer.size())

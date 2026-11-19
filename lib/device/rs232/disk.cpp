@@ -207,7 +207,7 @@ void rs232Disk::rs232_write(uint32_t sector, bool verify)
 
         memset(_media->_disk_sectorbuff, 0, DISK_SECTORBUF_SIZE);
 
-        if (SYSTEM_BUS.transaction_get(_media->_disk_sectorbuff, sectorSize))
+        if (SYSTEM_BUS.transaction_get(_media->_disk_sectorbuff, sectorSize).is_success())
         {
             if (_media->write(sector, verify) == false)
             {
@@ -317,13 +317,14 @@ void rs232Disk::rs232_write_percom_block()
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
     Debug_print("disk WRITE PERCOM BLOCK\n");
 
-    if (_media == nullptr)
+    if (_media == nullptr
+        || SYSTEM_BUS.transaction_get((uint8_t *)&_media->_percomBlock,
+                                       sizeof(_media->_percomBlock)).is_error())
     {
         SYSTEM_BUS.transaction_error();
         return;
     }
 
-    SYSTEM_BUS.transaction_get((uint8_t *)&_media->_percomBlock, sizeof(_media->_percomBlock));
 #ifdef VERBOSE_DISK
     _media->dump_percom_block();
 #endif

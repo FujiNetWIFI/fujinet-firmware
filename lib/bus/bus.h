@@ -92,17 +92,12 @@ public:
 
     // Receive up to len bytes of the current transaction's payload
     // into data. Returns the length copied or -1 on error.
-    virtual size_result_t transaction_get_length(void *data, size_t len) = 0;
+    virtual size_result_t transaction_get(void *data, size_t len) = 0;
 
-    inline success_is_true transaction_get(void *data, size_t len) {
-        auto got = transaction_get_length(data, len);
-        RETURN_SUCCESS_IF(got.is_success());
-    }
-
-    inline success_is_true transaction_get(ByteBuffer &buffer) {
+    inline size_result_t transaction_get(ByteBuffer &buffer) {
         return transaction_get(buffer.data(), buffer.size());
     }
-    inline success_is_true transaction_get(std::string &buffer) {
+    inline size_result_t transaction_get(std::string &buffer) {
         return transaction_get(buffer.data(), buffer.size());
     }
 

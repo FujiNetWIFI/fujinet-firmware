@@ -261,7 +261,7 @@ void drivewireFuji::appkey_write(const FUJI_COMMAND_PACKET &packet)
     // length in the params. Draining fewer bytes leaves the rest in the stream
     // and desyncs the bus, so always read the full block and keep only keylen.
     ByteBuffer keydata(MAX_APPKEY_LEN);
-    if (!SYSTEM_BUS.transaction_get(keydata.data(), keydata.size()))
+    if (SYSTEM_BUS.transaction_get(keydata.data(), keydata.size()).is_error())
     {
         SYSTEM_BUS.transaction_error();
         return;

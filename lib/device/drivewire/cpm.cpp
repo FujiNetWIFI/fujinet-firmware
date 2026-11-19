@@ -125,7 +125,11 @@ void drivewireCPM::write(uint16_t len)
 
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
     ByteBuffer data(len, 0);
-    SYSTEM_BUS.transaction_get(data.data(), data.size());
+    if (SYSTEM_BUS.transaction_get(data.data(), data.size()).is_error())
+    {
+        SYSTEM_BUS.transaction_error();
+        return;
+    }
 #ifdef ESP_PLATFORM
     if (txq != nullptr)
         for (uint16_t i=0;i<data.size();i++)

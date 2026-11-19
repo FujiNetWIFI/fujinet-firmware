@@ -564,7 +564,7 @@ success_is_true fujiDevice::fujicmd_net_set_ssid_success()
     Debug_println("Fuji cmd: SET SSID");
 
     SSIDConfig cfg;
-    auto len = SYSTEM_BUS.transaction_get_length(&cfg, sizeof(cfg));
+    auto len = SYSTEM_BUS.transaction_get(&cfg, sizeof(cfg));
     if (len.is_error() || len != sizeof(cfg))
     {
         SYSTEM_BUS.transaction_error();
@@ -801,7 +801,7 @@ success_is_true fujiDevice::fujicmd_open_directory_success(uint8_t hostSlot)
     }
 
     std::string dirpath(256, 0);
-    if (!SYSTEM_BUS.transaction_get(dirpath.data(), dirpath.size())) {
+    if (SYSTEM_BUS.transaction_get(dirpath.data(), dirpath.size()).is_error()) {
         SYSTEM_BUS.transaction_error();
         RETURN_ERROR_AS_FALSE();
     }
@@ -1211,7 +1211,7 @@ void fujiDevice::fujicmd_new_disk()
 
     Debug_println("Fuji cmd: NEW DISK");
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
-    auto len = SYSTEM_BUS.transaction_get_length(&req, sizeof(req));
+    auto len = SYSTEM_BUS.transaction_get(&req, sizeof(req));
     if (len.is_error() || len != sizeof(req))
     {
         SYSTEM_BUS.transaction_error();
@@ -1501,7 +1501,7 @@ void fujiDevice::fujicmd_write_host_slots()
     Debug_println("Fuji cmd: WRITE HOST SLOTS");
 
     char hostSlots[MAX_HOSTS][MAX_HOSTNAME_LEN];
-    auto len = SYSTEM_BUS.transaction_get_length(hostSlots, sizeof(hostSlots));
+    auto len = SYSTEM_BUS.transaction_get(hostSlots, sizeof(hostSlots));
 
     if (len.is_error() || len != sizeof(hostSlots))
     {
@@ -1577,7 +1577,7 @@ void fujiDevice::fujicmd_set_host_prefix(uint8_t hostSlot, const char *prefix)
     if (!prefix)
     {
         SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
-        if (!SYSTEM_BUS.transaction_get(buffer, MAX_FILENAME_LEN))
+        if (SYSTEM_BUS.transaction_get(buffer, MAX_FILENAME_LEN).is_error())
         {
             SYSTEM_BUS.transaction_error();
             return;
@@ -1685,7 +1685,7 @@ void fujiDevice::fujicmd_write_device_slots()
 
     disk_slot diskSlots[MAX_DISK_DEVICES];
     const size_t buflen = sizeof(disk_slot) * _totalDiskDevices;
-    auto len = SYSTEM_BUS.transaction_get_length(diskSlots, buflen);
+    auto len = SYSTEM_BUS.transaction_get(diskSlots, buflen);
 
     if (len.is_error() || len != buflen)
     {

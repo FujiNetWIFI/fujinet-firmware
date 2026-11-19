@@ -214,7 +214,7 @@ void systemBus::setFuji(fujiDevice *) {}
 void systemBus::transaction_accept(transState_t expectMoreData) {}
 void systemBus::transaction_success() {}
 void systemBus::transaction_error() {}
-size_result_t systemBus::transaction_get_length(void *data, size_t len) { RETURN_SIZE_ERROR(); }
+size_result_t systemBus::transaction_get(void *data, size_t len) { RETURN_SIZE_ERROR(); }
 void systemBus::transaction_send(const void *data, size_t len, bool is_error) {}
 void systemBus::addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id) {}
 

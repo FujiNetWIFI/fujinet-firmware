@@ -71,7 +71,7 @@ void sioPrinter::sio_write(uint8_t aux1, uint8_t aux2)
     }
 
     memset(_buffer, 0, sizeof(_buffer)); // clear _buffer
-    if (SYSTEM_BUS.transaction_get(_buffer, linelen))
+    if (SYSTEM_BUS.transaction_get(_buffer, linelen).is_success())
     {
         if (linelen == 29)
         {
