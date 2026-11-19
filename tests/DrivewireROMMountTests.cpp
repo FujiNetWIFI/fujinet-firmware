@@ -20,7 +20,7 @@ std::string written_bytes()
 {
     std::string bytes;
     for (const auto &packet : bus.sent)
-        if (packet.command == CMD::NET_WRITE)
+        if (packet.command == CMD::DBC_SEGMENT_WRITE)
             bytes += packet.payload;
     return bytes;
 }
@@ -44,7 +44,7 @@ void check_nothing_mounted(drivewireDisk &disk, const MemFile &file)
 
 } // namespace
 
-TEST_CASE("a ROM image goes to the DBC in 256-byte blocks between OPEN and CLOSE")
+TEST_CASE("a ROM image goes to the DBC in 256-byte blocks between OPEN and CLOSE, with the ROM type sent last")
 {
     bus.reset();
     auto image = make_image(CART_8K);
@@ -55,17 +55,20 @@ TEST_CASE("a ROM image goes to the DBC in 256-byte blocks between OPEN and CLOSE
          .is_success());
     check_closed_once(disk, file);
 
-    REQUIRE(bus.sent.size() == 2 + CART_8K / MEDIA_BLOCK_SIZE);
+    REQUIRE(bus.sent.size() == 3 + CART_8K / MEDIA_BLOCK_SIZE);
     for (const auto &packet : bus.sent)
         CHECK(packet.device == FUJI_DEVICEID::DBC);
-    CHECK(bus.sent.front().command == CMD::NET_OPEN);
+    CHECK(bus.sent.front().command == CMD::DBC_SEGMENT_OPEN);
     CHECK(bus.sent.front().params == std::vector<uint32_t>{0});
-    for (size_t idx = 1; idx + 1 < bus.sent.size(); idx++)
+    for (size_t idx = 1; idx + 2 < bus.sent.size(); idx++)
     {
-        CHECK(bus.sent[idx].command == CMD::NET_WRITE);
+        CHECK(bus.sent[idx].command == CMD::DBC_SEGMENT_WRITE);
         CHECK(bus.sent[idx].payload.size() == MEDIA_BLOCK_SIZE);
     }
-    CHECK(bus.sent.back().command == CMD::NET_CLOSE);
+    const auto &info = bus.sent[bus.sent.size() - 2];
+    CHECK(info.command == CMD::DBC_MAPPER_SET_INFO);
+    CHECK(info.payload.size() == 1);
+    CHECK(bus.sent.back().command == CMD::DBC_SEGMENT_CLOSE);
     CHECK(written_bytes() == std::string(image.begin(), image.end()));
 }
 
@@ -108,7 +111,7 @@ TEST_CASE("no reply to OPEN fails the mount and sends nothing more")
     check_nothing_mounted(disk, file);
     check_closed_once(disk, file);
     REQUIRE(bus.sent.size() == 1);
-    CHECK(bus.sent[0].command == CMD::NET_OPEN);
+    CHECK(bus.sent[0].command == CMD::DBC_SEGMENT_OPEN);
 }
 
 TEST_CASE("no reply to a block fails the mount but still sends CLOSE")
@@ -121,8 +124,9 @@ TEST_CASE("no reply to a block fails the mount but still sends CLOSE")
     CHECK(disk.mount(&file, ROM_TEST_FILE, CART_8K, DISK_ACCESS_MODE_READ).is_error());
     check_nothing_mounted(disk, file);
     check_closed_once(disk, file);
-    REQUIRE(bus.sent.size() == 4);
-    CHECK(bus.sent[3].command == CMD::NET_CLOSE);
+    REQUIRE(bus.sent.size() == 5);
+    CHECK(bus.sent[3].command == CMD::DBC_MAPPER_SET_INFO);
+    CHECK(bus.sent[4].command == CMD::DBC_SEGMENT_CLOSE);
 }
 
 TEST_CASE("a second ROM mount sends the new image and closes each handle once")

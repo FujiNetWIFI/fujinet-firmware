@@ -177,7 +177,7 @@ typedef enum class CMD : uint8_t {
     APETIME_SETTZ_ALT2              = 0x54, // T
     APETIME_GET_SOS                 = 0x53, // S
     APETIME_GET_PRODOS              = 0x50, // P
-    APETIME_GET_SIMPLE_HUNDREDTHS   = 0x4D, // M - simple binary + 1-byte hundredths (0-99)
+    APETIME_GET_SIMPLE_HUNDREDTHS   = 0x4D, // M
     APETIME_GETTZ_LEN               = 0x4C, // L
     APETIME_GET_ISO_LOCAL           = 0x49, // I
     APETIME_GET_GENERAL             = 0x47, // G
@@ -197,6 +197,12 @@ typedef enum class CMD : uint8_t {
     PCLINK_EXEC                     = 0x52, // R
     PCLINK_PARBLK                   = 0x50, // P
     PCLINK_HSI                      = 0x3F, // ?
+
+    DBC_SEGMENT_WRITE               = 0x57, // W
+    DBC_SEGMENT_OPEN                = 0x4F, // O
+    DBC_MAPPER_SET_INFO             = 0x49, // I
+    DBC_SEGMENT_CLOSE               = 0x43, // C
+    DBC_MAPPER_ADD_WINDOW           = 0x41, // A
 } fujiCommandID_t;
 
 #endif /* FUJI_COMMANDS_H */

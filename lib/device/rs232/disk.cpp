@@ -51,7 +51,7 @@ static error_is_true push_image(ROMMedia &rom)
         RETURN_ERROR_AS_TRUE();
     }
 
-    auto reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_OPEN,
+    auto reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::DBC_SEGMENT_OPEN,
                                         (uint16_t)ROM_IMAGE_SEGMENT,
                                         console_cart_open_data(false, expected_size));
     if (!reply || reply->command() != CMD::FUJI_ACK)
@@ -70,7 +70,7 @@ static error_is_true push_image(ROMMedia &rom)
         if (got.is_error() || buffer.empty())
             break; // the size check below reports it
 
-        reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_WRITE, buffer);
+        reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::DBC_SEGMENT_WRITE, buffer);
         if (!reply || reply->command() != CMD::FUJI_ACK)
         {
             Debug_printv("ROM push: failed to send image block\n");
@@ -88,9 +88,10 @@ static error_is_true push_image(ROMMedia &rom)
     }
 
     if (result.is_success())
-        reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_CLOSE);
+        reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::DBC_SEGMENT_CLOSE);
     else
-        reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_CLOSE, ByteBuffer{0x01});
+        reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::DBC_SEGMENT_CLOSE,
+                                       ByteBuffer{0x01});
     if (!reply || reply->command() != CMD::FUJI_ACK)
     {
         Debug_printv("ROM push: image close failed/rejected\n");
@@ -110,7 +111,7 @@ static error_is_true push_mapper(const std::pmr::vector<uint8_t> &mapper)
         RETURN_ERROR_AS_TRUE();
     }
 
-    auto reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_OPEN,
+    auto reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::DBC_SEGMENT_OPEN,
                                         console_cart_open_data(true, mapper.size()));
     if (!reply || reply->command() != CMD::FUJI_ACK)
     {
@@ -123,7 +124,7 @@ static error_is_true push_mapper(const std::pmr::vector<uint8_t> &mapper)
     for (size_t offset = 0; offset < mapper.size(); offset += DISK_SECTORBUF_SIZE)
     {
         size_t count = std::min((size_t)DISK_SECTORBUF_SIZE, mapper.size() - offset);
-        reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_WRITE,
+        reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::DBC_SEGMENT_WRITE,
                                        ByteBuffer(mapper.begin() + offset,
                                                   mapper.begin() + offset + count));
         if (!reply || reply->command() != CMD::FUJI_ACK)
@@ -135,9 +136,10 @@ static error_is_true push_mapper(const std::pmr::vector<uint8_t> &mapper)
     }
 
     if (result.is_success())
-        reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_CLOSE);
+        reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::DBC_SEGMENT_CLOSE);
     else
-        reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_CLOSE, ByteBuffer{0x01});
+        reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::DBC_SEGMENT_CLOSE,
+                                       ByteBuffer{0x01});
     if (!reply || reply->command() != CMD::FUJI_ACK)
     {
         Debug_printv("ROM push: mapper info close failed/rejected\n");
