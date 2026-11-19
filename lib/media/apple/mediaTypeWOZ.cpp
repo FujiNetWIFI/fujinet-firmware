@@ -21,25 +21,25 @@ mediatype_t MediaTypeWOZ::mount(fnFile *f, uint32_t disksize)
     _media_fileh = f;
     diskiiemulation = true;
     // check WOZ header
-    if (wozX_check_header())
+    if (wozX_check_header().is_error())
         return MEDIATYPE_UNKNOWN;
 
     // work through INFO chunk
-    if (wozX_read_info())
+    if (wozX_read_info().is_error())
         return MEDIATYPE_UNKNOWN;
 
-    if (wozX_read_tmap())
+    if (wozX_read_tmap().is_error())
         return MEDIATYPE_UNKNOWN;
-        
+
     // read TRKS table
     switch (woz_version)
     {
     case WOZ1:
-        if (woz1_read_tracks())
+        if (woz1_read_tracks().is_error())
             return MEDIATYPE_UNKNOWN;
         break;
     case WOZ2:
-        if (woz2_read_tracks())
+        if (woz2_read_tracks().is_error())
             return MEDIATYPE_UNKNOWN;
         break;
     default:
@@ -85,8 +85,8 @@ error_is_true MediaTypeWOZ::wozX_check_header()
     }
 
     // could check CRC if one wanted
-    
-    RETURN_SUCCESS_AS_FALSE();  
+
+    RETURN_SUCCESS_AS_FALSE();
 }
 
 error_is_true MediaTypeWOZ::wozX_read_info()
@@ -164,7 +164,7 @@ error_is_true MediaTypeWOZ::woz1_read_tracks()
     fnio::fseek(_media_fileh, 256, SEEK_SET);
 
     Debug_printf("\nStart Block, Block Count, Bit Count");
-    
+
     uint16_t bytes_used;
     uint16_t bit_count;
     uint8_t skip[6]; // trailing per-track bytes we read through and discard

@@ -296,7 +296,7 @@ void FNPassword::apply_sd_file()
 
     // Whatever the outcome, do not leave the credential on removable media,
     // and do not re-apply it on the next boot.
-    if (fnSDFAT.remove(SD_FILENAME))
+    if (fnSDFAT.remove(SD_FILENAME).is_success())
         Debug_printf("Deleted %s from the SD card\r\n", SD_FILENAME);
     else
         Debug_printf("fnPassword: could not delete %s - DELETE IT MANUALLY\r\n", SD_FILENAME);

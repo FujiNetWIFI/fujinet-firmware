@@ -242,7 +242,7 @@ fnHttpApi::response h_drive_mount(const request &r)
 
     // Recording the mount is not mounting it: the host has to be up and the
     // image opened before the slot is live. Same sequence the web UI runs.
-    if (!SYSTEM_BUS.theFuji->get_host(host_slot)->mount())
+    if (SYSTEM_BUS.theFuji->get_host(host_slot)->mount().is_error())
     {
         cJSON_Delete(body);
         return json_error("could not mount host slot", 500);
@@ -264,7 +264,7 @@ fnHttpApi::response h_drive_mount(const request &r)
         ? DISK_ACCESS_MODE_WRITE
         : DISK_ACCESS_MODE_READ;
 
-    if (!SYSTEM_BUS.theFuji->fujicore_mount_disk_image_success(slot, access_mode))
+    if (SYSTEM_BUS.theFuji->fujicore_mount_disk_image_success(slot, access_mode).is_error())
     {
         disk->host_slot = prev_host_slot;
         disk->access_mode = prev_access_mode;

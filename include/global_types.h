@@ -28,7 +28,7 @@ typedef enum class FUJI_ERROR {
 struct success_is_true {
     bool value;
     explicit success_is_true(bool v) : value(v) {}
-    operator bool() const { return value; }
+    explicit operator bool() const = delete;
     bool is_success() const { return value; }
     bool is_error()   const { return !value; }
 };
@@ -39,7 +39,7 @@ struct success_is_true {
 struct error_is_true {
     bool value;
     explicit error_is_true(bool v) : value(v) {}
-    operator bool() const { return value; }
+    explicit operator bool() const = delete;
     bool is_success() const { return !value; }
     bool is_error()   const { return value; }
 };

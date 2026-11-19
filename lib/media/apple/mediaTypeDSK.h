@@ -23,7 +23,7 @@ private:
 
     void dsk2woz_info();
     void dsk2woz_tmap();
-    bool dsk2woz_tracks(uint8_t *dsk); 
+    error_is_true dsk2woz_tracks(uint8_t *dsk); 
 
 public:
 

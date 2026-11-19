@@ -188,9 +188,8 @@ void rs232Disk::rs232_read(uint32_t sector)
 
     uint32_t readcount;
 
-    bool err = _media->read(sector, &readcount);
+    bool err = _media->read(sector, &readcount).is_error();
 
-    // Send result to Atari
     SYSTEM_BUS.transaction_send(_media->_disk_sectorbuff, readcount, err);
 }
 
@@ -207,13 +206,11 @@ void rs232Disk::rs232_write(uint32_t sector, bool verify)
 
         memset(_media->_disk_sectorbuff, 0, DISK_SECTORBUF_SIZE);
 
-        if (SYSTEM_BUS.transaction_get(_media->_disk_sectorbuff, sectorSize).is_success())
+        if (SYSTEM_BUS.transaction_get(_media->_disk_sectorbuff, sectorSize).is_success()
+            && _media->write(sector, verify).is_success())
         {
-            if (_media->write(sector, verify) == false)
-            {
-                SYSTEM_BUS.transaction_success();
-                return;
-            }
+            SYSTEM_BUS.transaction_success();
+            return;
         }
     }
 
@@ -287,7 +284,7 @@ void rs232Disk::rs232_format()
     }
 
     uint32_t responsesize;
-    bool err = _media->format(&responsesize);
+    bool err = _media->format(&responsesize).is_error();
 
     // Send to computer
     SYSTEM_BUS.transaction_send(_media->_disk_sectorbuff, responsesize, err);

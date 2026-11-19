@@ -115,7 +115,7 @@ void lynxDisk::read_block(uint32_t block)
 
     // Read the block
     Debug_printf("lynxdisk::read_block - block: %lu\n", block);
-    if (_media->read(block, nullptr)) {         // returns TRUE if error occurred
+    if (_media->read(block, nullptr).is_error()) {
         Debug_println("lynxdisk::read_block - media->read returned false");
         SYSTEM_BUS.transaction_error();
     }

@@ -129,7 +129,7 @@ success_is_true fujiHost::dir_seek(uint16_t pos)
     if (_fs == nullptr)
         RETURN_ERROR_AS_FALSE();
 
-    bool result = false;
+    success_is_true result(false);
     switch (_type)
     {
     case HOSTTYPE_LOCAL:
@@ -162,7 +162,7 @@ success_is_true fujiHost::dir_open(const char *path, const char *pattern, uint16
 
     Debug_printf("::dir_open actual path = \"%s\"\n", realpath);
 
-    int result = false;
+    success_is_true result(false);
     switch (_type)
     {
     case HOSTTYPE_LOCAL:

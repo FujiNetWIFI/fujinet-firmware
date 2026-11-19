@@ -17,6 +17,7 @@ mgHttpService.cpp; everything else is shared from here.
 #include <map>
 #include <string>
 #include <vector>
+#include "global_types.h"
 
 #define APPKEY_DIR "/FujiNet"
 
@@ -63,17 +64,17 @@ private:
 
     static std::string handle_add(const std::map<std::string, std::string> &postvals);
 
-    static bool read_value(const std::string &id, std::vector<uint8_t> &value);
-    static bool write_value(const std::string &id, const std::vector<uint8_t> &value, std::string &error);
-    static bool delete_key(const std::string &id);
+    static error_is_true read_value(const std::string &id, std::vector<uint8_t> &value);
+    static error_is_true write_value(const std::string &id, const std::vector<uint8_t> &value, std::string &error);
+    static error_is_true delete_key(const std::string &id);
 
     // Values are usually text but may be arbitrary bytes. Printable values are
     // shown and accepted as-is; anything else round-trips as "hex:<digits>".
     static std::string value_to_field(const std::vector<uint8_t> &value);
-    static bool field_to_value(const std::string &field, std::vector<uint8_t> &value, std::string &error);
+    static error_is_true field_to_value(const std::string &field, std::vector<uint8_t> &value, std::string &error);
 
     static std::string path_for(const std::string &id);
-    static bool parse_id(const std::string &id, AppKeyEntry &entry);
+    static error_is_true parse_id(const std::string &id, AppKeyEntry &entry);
 };
 
 #endif // APPKEYMANAGER_H

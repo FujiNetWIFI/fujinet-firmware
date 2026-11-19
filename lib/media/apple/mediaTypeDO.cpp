@@ -20,16 +20,16 @@ static const int prodos2dos[8][2] = { {0, 14}, {13, 12}, {11, 10}, {9, 8}, {7, 6
 
 error_is_true MediaTypeDO::read(uint32_t blockNum, uint16_t *count, uint8_t* buffer)
 {
-    bool err = false;
+    error_is_true err(false);
     uint32_t track = blockNum / BLOCKS_PER_TRACK;
     const int* sectors = prodos2dos[blockNum % BLOCKS_PER_TRACK];
 
     err = read_sector(track, sectors[0], buffer);
 
-    if (!err)
+    if (err.is_success())
         err = read_sector(track, sectors[1], &buffer[BYTES_PER_SECTOR]);
 
-    RETURN_ERROR_IF(err);
+    return err;
 }
 
 error_is_true MediaTypeDO::read_sector(int track, int sector, uint8_t* buffer)
@@ -56,16 +56,16 @@ error_is_true MediaTypeDO::write(uint32_t blockNum, uint16_t *count, uint8_t* bu
         RETURN_ERROR_AS_TRUE();
     }
 
-    bool err = false;
+    error_is_true err(false);
     uint32_t track = blockNum / BLOCKS_PER_TRACK;
     const int* sectors = prodos2dos[blockNum % BLOCKS_PER_TRACK];
 
     err = write_sector(track, sectors[0], buffer);
 
-    if (!err)
+    if (err.is_success())
         err = write_sector(track, sectors[1], &buffer[BYTES_PER_SECTOR]);
 
-    RETURN_ERROR_IF(err);
+    return err;
 }
 
 error_is_true MediaTypeDO::write_sector(int track, int sector, uint8_t* buffer)

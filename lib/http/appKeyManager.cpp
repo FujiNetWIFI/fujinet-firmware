@@ -57,14 +57,14 @@ std::string AppKeyManager::path_for(const std::string &id)
     return std::string(APPKEY_DIR) + "/" + id + APPKEY_EXT;
 }
 
-bool AppKeyManager::parse_id(const std::string &id, AppKeyEntry &entry)
+error_is_true AppKeyManager::parse_id(const std::string &id, AppKeyEntry &entry)
 {
     if (!is_hex_digits(id, APPKEY_ID_LEN))
-        return false;
+        RETURN_ERROR_AS_TRUE();
 
     unsigned int creator = 0, app = 0, key = 0;
     if (sscanf(id.c_str(), "%4x%2x%2x", &creator, &app, &key) != 3)
-        return false;
+        RETURN_ERROR_AS_TRUE();
 
     entry.creator = (uint16_t)creator;
     entry.app = (uint8_t)app;
@@ -72,23 +72,23 @@ bool AppKeyManager::parse_id(const std::string &id, AppKeyEntry &entry)
     // The firmware always writes these filenames in lower case, so normalise to
     // match - see _generate_appkey_filename().
     entry.id = to_lower(id);
-    return true;
+    RETURN_SUCCESS_AS_FALSE();
 }
 
-bool AppKeyManager::read_value(const std::string &id, std::vector<uint8_t> &value)
+error_is_true AppKeyManager::read_value(const std::string &id, std::vector<uint8_t> &value)
 {
     FILE *fin = fnSDFAT.file_open(path_for(id).c_str(), FILE_READ);
     if (fin == nullptr)
-        return false;
+        RETURN_ERROR_AS_TRUE();
 
     value.resize(MAX_APPKEY_LEN);
     size_t count = fread(value.data(), 1, MAX_APPKEY_LEN, fin);
     value.resize(count);
     fclose(fin);
-    return true;
+    RETURN_SUCCESS_AS_FALSE();
 }
 
-bool AppKeyManager::write_value(const std::string &id, const std::vector<uint8_t> &value, std::string &error)
+error_is_true AppKeyManager::write_value(const std::string &id, const std::vector<uint8_t> &value, std::string &error)
 {
     fnSDFAT.create_path(APPKEY_DIR);
 
@@ -96,7 +96,7 @@ bool AppKeyManager::write_value(const std::string &id, const std::vector<uint8_t
     if (fout == nullptr)
     {
         error = "could not open " + path_for(id) + " for writing";
-        return false;
+        RETURN_ERROR_AS_TRUE();
     }
 
     size_t written = value.empty() ? 0 : fwrite(value.data(), 1, value.size(), fout);
@@ -105,14 +105,14 @@ bool AppKeyManager::write_value(const std::string &id, const std::vector<uint8_t
     if (written != value.size())
     {
         error = "only wrote " + std::to_string(written) + " of " + std::to_string(value.size()) + " bytes";
-        return false;
+        RETURN_ERROR_AS_TRUE();
     }
-    return true;
+    RETURN_SUCCESS_AS_FALSE();
 }
 
-bool AppKeyManager::delete_key(const std::string &id)
+error_is_true AppKeyManager::delete_key(const std::string &id)
 {
-    return fnSDFAT.remove(path_for(id).c_str());
+    RETURN_ERROR_IF(fnSDFAT.remove(path_for(id).c_str()).is_error());
 }
 
 std::string AppKeyManager::value_to_field(const std::vector<uint8_t> &value)
@@ -141,7 +141,7 @@ std::string AppKeyManager::value_to_field(const std::vector<uint8_t> &value)
     return out;
 }
 
-bool AppKeyManager::field_to_value(const std::string &field, std::vector<uint8_t> &value, std::string &error)
+error_is_true AppKeyManager::field_to_value(const std::string &field, std::vector<uint8_t> &value, std::string &error)
 {
     value.clear();
 
@@ -151,7 +151,7 @@ bool AppKeyManager::field_to_value(const std::string &field, std::vector<uint8_t
         if (hex.size() % 2 != 0 || !is_hex_digits(hex, hex.size()))
         {
             error = "hex: value must be an even number of hex digits";
-            return false;
+            RETURN_ERROR_AS_TRUE();
         }
         for (size_t i = 0; i < hex.size(); i += 2)
         {
@@ -169,9 +169,9 @@ bool AppKeyManager::field_to_value(const std::string &field, std::vector<uint8_t
     {
         error = "value is " + std::to_string(value.size()) + " bytes, the maximum is " +
                 std::to_string(MAX_APPKEY_LEN);
-        return false;
+        RETURN_ERROR_AS_TRUE();
     }
-    return true;
+    RETURN_SUCCESS_AS_FALSE();
 }
 
 std::vector<AppKeyEntry> AppKeyManager::scan()
@@ -202,7 +202,7 @@ std::vector<AppKeyEntry> AppKeyManager::scan()
             continue;
 
         AppKeyEntry entry;
-        if (!parse_id(name.substr(0, APPKEY_ID_LEN), entry))
+        if (parse_id(name.substr(0, APPKEY_ID_LEN), entry).is_error())
             continue;
 
         entries.push_back(entry);
@@ -261,16 +261,16 @@ std::string AppKeyManager::handle_add(const std::map<std::string, std::string> &
 
     std::string id = creator + app + key;
     AppKeyEntry entry;
-    if (!parse_id(id, entry))
+    if (parse_id(id, entry).is_error())
         return "Not a valid app key id.";
 
     std::vector<uint8_t> value;
     std::string error;
-    if (!field_to_value(field("newval"), value, error))
+    if (field_to_value(field("newval"), value, error).is_error())
         return html_escape(error) + ".";
 
     bool existed = fnSDFAT.exists(path_for(id).c_str());
-    if (!write_value(id, value, error))
+    if (write_value(id, value, error).is_error())
         return "Could not add app key " + id + ": " + html_escape(error) + ".";
 
     return (existed ? "Overwrote existing app key " : "Added app key ") + id + ".";
@@ -292,7 +292,7 @@ std::string AppKeyManager::handle_post(const std::map<std::string, std::string> 
         int deleted = 0, failed = 0;
         for (const AppKeyEntry &entry : list())
         {
-            if (delete_key(entry.id))
+            if (delete_key(entry.id).is_success())
                 deleted++;
             else
                 failed++;
@@ -307,9 +307,9 @@ std::string AppKeyManager::handle_post(const std::map<std::string, std::string> 
     {
         std::string id = action.substr(7);
         AppKeyEntry entry;
-        if (!parse_id(id, entry))
+        if (parse_id(id, entry).is_error())
             return "Not a valid app key id.";
-        if (!delete_key(id))
+        if (delete_key(id).is_error())
             return "Could not delete app key " + html_escape(id) + ".";
         return "Deleted app key " + html_escape(id) + ".";
     }
@@ -332,7 +332,7 @@ std::string AppKeyManager::handle_post(const std::map<std::string, std::string> 
             continue;
 
         AppKeyEntry entry;
-        if (!parse_id(id_it->second, entry))
+        if (parse_id(id_it->second, entry).is_error())
         {
             errors += " " + html_escape(id_it->second) + ": not a valid app key id.";
             continue;
@@ -340,7 +340,7 @@ std::string AppKeyManager::handle_post(const std::map<std::string, std::string> 
 
         std::vector<uint8_t> value;
         std::string error;
-        if (!field_to_value(val_it->second, value, error))
+        if (field_to_value(val_it->second, value, error).is_error())
         {
             errors += " " + html_escape(entry.id) + ": " + html_escape(error) + ".";
             continue;
@@ -348,10 +348,10 @@ std::string AppKeyManager::handle_post(const std::map<std::string, std::string> 
 
         // Skip rows that haven't changed so untouched keys keep their timestamps
         std::vector<uint8_t> existing;
-        if (read_value(entry.id, existing) && existing == value)
+        if (read_value(entry.id, existing).is_success() && existing == value)
             continue;
 
-        if (!write_value(entry.id, value, error))
+        if (write_value(entry.id, value, error).is_error())
         {
             errors += " " + html_escape(entry.id) + ": " + html_escape(error) + ".";
             continue;
