@@ -184,7 +184,7 @@ bool FileSystemSMB::is_dir(const char *path)
 {
     smb2_stat_64 st;
     if (smb2_stat(_smb, path, &st) != 0)
-        RETURN_ERROR_AS_FALSE();
+        return false;
     return st.smb2_type == SMB2_TYPE_DIRECTORY;
 }
 

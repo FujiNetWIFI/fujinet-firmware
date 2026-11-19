@@ -135,13 +135,12 @@ void IRAM_ATTR phi_isr_handler(void *arg)
   // add extra condition here to stop edge case where on softsp, the disk is stepping inadvertantly when SP bus is
   // disabled. PH1 gets set low first, then PH3 follows a very short time after. We look for the interrupt on PH1 (33)
   // and then PH1 = 0 (going low) and PH3 = 1 (still high)
-  else if (diskii_xface.iwm_active_drive() && !((int_gpio_num == SP_PHI1 && _phases == 0b1000)))
+  else if (diskii_xface.iwm_active_drive()
+           && !((int_gpio_num == SP_PHI1 && _phases == 0b1000))
+           && IWM_ACTIVE_DISK2->move_head().is_success())
   {
-    if (IWM_ACTIVE_DISK2->move_head())
-    {
-      isrctr = isrctr + 1;
-      IWM_ACTIVE_DISK2->change_track(isrctr);
-    }
+    isrctr = isrctr + 1;
+    IWM_ACTIVE_DISK2->change_track(isrctr);
   }
 }
 

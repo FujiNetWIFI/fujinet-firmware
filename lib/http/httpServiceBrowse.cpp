@@ -104,7 +104,7 @@ bool fnHttpBrowse::render_hostdir(int host_slot, const string &path, const strin
 
     // Open the directory before emitting anything, so a failure can still be
     // answered with the error page rather than a half-rendered listing.
-    if (!host->mount() || !host->dir_open(path.c_str(), pattern.c_str()))
+    if (host->mount().is_error() || host->dir_open(path.c_str(), pattern.c_str()).is_error())
     {
         Debug_printf("render_hostdir couldn't open host %d path \"%s\"\n", host_slot, path.c_str());
         return false;
@@ -269,7 +269,7 @@ bool fnHttpBrowse::mount_file(const mount_params &params)
     if (!fnHTTPD.errMsgEmpty())
         return false;
 
-    if (!SYSTEM_BUS.theFuji->get_host(params.host_slot)->mount())
+    if (SYSTEM_BUS.theFuji->get_host(params.host_slot)->mount().is_error())
     {
         fnHTTPD.addToErrMsg("<li>Could not mount host slot " + to_string(params.host_slot) + "</li>");
         return false;
@@ -281,7 +281,8 @@ bool fnHttpBrowse::mount_file(const mount_params &params)
     disk->host_slot = params.host_slot;
     strlcpy(disk->filename, params.filename.c_str(), sizeof(disk->filename));
 
-    if (!SYSTEM_BUS.theFuji->fujicore_mount_disk_image_success(params.device_slot, mode))
+    if (SYSTEM_BUS.theFuji->fujicore_mount_disk_image_success(params.device_slot,
+                                                              mode).is_error())
     {
         fnHTTPD.addToErrMsg("<li>Could not mount disk: " + util_html_escape(params.filename) + "</li>");
         return false;

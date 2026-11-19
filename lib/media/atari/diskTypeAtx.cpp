@@ -428,11 +428,7 @@ error_is_true MediaTypeATX::read(uint16_t sectornum, uint16_t *readcount)
 
     *readcount = sectorSize;
 
-    bool result = _copy_track_sector_data((uint8_t)tracknumber, (uint8_t)tracksector, sectorSize);
-
-    //util_dump_bytes(_disk_sectorbuff, sectorSize);
-
-    RETURN_ERROR_IF(result);
+    return _copy_track_sector_data((uint8_t)tracknumber, (uint8_t)tracksector, sectorSize);
 }
 
 void MediaTypeATX::status(uint8_t statusbuff[4])
@@ -667,23 +663,23 @@ int MediaTypeATX::_load_atx_track_chunk(track_header_t &trk_hdr, AtxTrack &track
     switch (chunk_hdr.type)
     {
     case ATX_CHUNKTYPE_SECTOR_LIST:
-        if (false == _load_atx_chunk_sector_list(chunk_hdr, track))
+        if (_load_atx_chunk_sector_list(chunk_hdr, track).is_error())
             return -1;
         break;
     case ATX_CHUNKTYPE_SECTOR_DATA:
-        if (false == _load_atx_chunk_sector_data(chunk_hdr, track))
+        if (_load_atx_chunk_sector_data(chunk_hdr, track).is_error())
             return -1;
         break;
     case ATX_CHUNKTYPE_WEAK_SECTOR:
-        if (false == _load_atx_chunk_weak_sector(chunk_hdr, track))
+        if (_load_atx_chunk_weak_sector(chunk_hdr, track).is_error())
             return -1;
         break;
     case ATX_CHUNKTYPE_EXTENDED_HEADER:
-        if (false == _load_atx_chunk_extended_sector(chunk_hdr, track))
+        if (_load_atx_chunk_extended_sector(chunk_hdr, track).is_error())
             return -1;
         break;
     default:
-        if (false == _load_atx_chunk_unknown(chunk_hdr, track))
+        if (_load_atx_chunk_unknown(chunk_hdr, track).is_error())
             return -1;
         break;
     }
@@ -828,7 +824,7 @@ success_is_true MediaTypeATX::_load_atx_data(atx_header_t &atx_hdr)
         RETURN_ERROR_AS_FALSE();
     }
 
-    while (_load_atx_record())
+    while (_load_atx_record().is_success())
         ;
 
     if (_atx_num_tracks != ATX_DEFAULT_NUMTRACKS)
@@ -904,7 +900,7 @@ mediatype_t MediaTypeATX::mount(fnFile *f, uint32_t disksize)
     _disk_fileh = f;
 
     // Load all the actual ATX records into memory (return immediately if we fail)
-    if (_load_atx_data(hdr) == false)
+    if (_load_atx_data(hdr).is_error())
     {
         _disk_fileh = nullptr;
         _tracks.clear();

@@ -43,7 +43,7 @@ void sioDisk::sio_read(const FujiSIOPacket &packet)
 
     uint16_t readcount;
 
-    bool err = _media->read(sectorNum, &readcount);
+    bool err = _media->read(sectorNum, &readcount).is_error();
 
     // Send result to Atari
     SYSTEM_BUS.transaction_send(_media->_disk_sectorbuff, readcount, err);
@@ -168,7 +168,7 @@ void sioDisk::sio_format()
     }
 
     uint16_t responsesize;
-    bool err = _media->format(&responsesize);
+    bool err = _media->format(&responsesize).is_error();
 
     // Send to computer
     SYSTEM_BUS.transaction_send(_media->_disk_sectorbuff, responsesize, err);

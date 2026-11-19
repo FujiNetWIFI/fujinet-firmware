@@ -252,13 +252,13 @@ success_is_true fujiDevice::fujicore_mount_all_success()
         {
             nodisks = false; // We have a disk in a slot
 
-            if (host.mount() == false)
+            if (host.mount().is_error())
             {
                 RETURN_ERROR_AS_FALSE();
             }
 
             Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n", disk.filename, disk.host_slot, flag, i + 1);
-            if (!fujicore_mount_disk_image_success(i, disk.access_mode))
+            if (fujicore_mount_disk_image_success(i, disk.access_mode).is_error())
             {
                 RETURN_ERROR_AS_FALSE();
             }
@@ -277,7 +277,7 @@ success_is_true fujiDevice::fujicore_mount_all_success()
 success_is_true fujiDevice::fujicmd_mount_all_success()
 {
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-    if (!fujicore_mount_all_success()) {
+    if (fujicore_mount_all_success().is_error()) {
         SYSTEM_BUS.transaction_error();
         RETURN_ERROR_AS_FALSE();
     }
@@ -296,7 +296,7 @@ success_is_true fujiDevice::fujicore_mount_all_at_startup()
     }
 
     success_is_true result = fujicore_mount_all_success();
-    if (!result) {
+    if (result.is_error()) {
         // Release the lock so a later startup caller (typically the
         // IP_EVENT_STA_GOT_IP handler) can retry.  On success we
         // intentionally keep the lock held forever.
@@ -457,12 +457,12 @@ success_is_true fujiDevice::fujicore_mount_host_success(uint8_t hostSlot)
     Debug_println("Fuji cmd: MOUNT HOST");
 
     // Make sure we weren't given a bad hostSlot
-    if (!validate_host_slot(hostSlot, "mount_hosts")) {
+    if (validate_host_slot(hostSlot, "mount_hosts").is_error()) {
         Debug_println("fujicore_mount_host: BAD SLOT");
         RETURN_ERROR_AS_FALSE();
     }
 
-    if (!hostMounted[hostSlot] && !_fnHosts[hostSlot].mount()) {
+    if (!hostMounted[hostSlot] && _fnHosts[hostSlot].mount().is_error()) {
         Debug_println("fujicore_mount_host: not host mounted and not _fnHosts[hostSlot].mount");
         RETURN_ERROR_AS_FALSE();
     }
@@ -474,13 +474,13 @@ success_is_true fujiDevice::fujicore_mount_host_success(uint8_t hostSlot)
 success_is_true fujiDevice::fujicmd_mount_host_success(uint8_t hostSlot)
 {
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-    if (!validate_host_slot(hostSlot))
+    if (validate_host_slot(hostSlot).is_error())
     {
         SYSTEM_BUS.transaction_error();
         RETURN_ERROR_AS_FALSE();
     }
 
-    if (!fujicore_mount_host_success(hostSlot))
+    if (fujicore_mount_host_success(hostSlot).is_error())
     {
         Debug_println("fujicore_mount_host_success returned false");
         SYSTEM_BUS.transaction_error();
@@ -605,10 +605,10 @@ success_is_true fujiDevice::fujicore_mount_disk_image_success(uint8_t deviceSlot
         mode[2] = '+';
 
     // Make sure we weren't given a bad device or host slot
-    if (!validate_device_slot(deviceSlot))
+    if (validate_device_slot(deviceSlot).is_error())
         RETURN_ERROR_AS_FALSE();
 
-    if (!validate_host_slot(_fnDisks[deviceSlot].host_slot))
+    if (validate_host_slot(_fnDisks[deviceSlot].host_slot).is_error())
         RETURN_ERROR_AS_FALSE();
 
     // A couple of reference variables to make things much easier to read...
@@ -650,7 +650,7 @@ success_is_true fujiDevice::fujicmd_mount_disk_image_success(uint8_t deviceSlot,
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     Debug_println("Fuji cmd: MOUNT IMAGE");
 
-    if (!fujicore_mount_disk_image_success(deviceSlot, access_mode))
+    if (fujicore_mount_disk_image_success(deviceSlot, access_mode).is_error())
     {
         SYSTEM_BUS.transaction_error();
         RETURN_ERROR_AS_FALSE();
@@ -768,7 +768,7 @@ success_is_true fujiDevice::fujicore_open_directory_success(uint8_t hostSlot,
                                                             const std::string &dirpath,
                                                             const std::optional<std::string> &pattern)
 {
-    if (!validate_host_slot(hostSlot))
+    if (validate_host_slot(hostSlot).is_error())
         RETURN_ERROR_AS_FALSE();
 
     // If we already have a directory open, close it first
@@ -782,7 +782,8 @@ success_is_true fujiDevice::fujicore_open_directory_success(uint8_t hostSlot,
     Debug_printf("Opening directory: \"%s\", pattern: \"%s\"\r\n",
                  dirpath.c_str(), pattern.value_or("").c_str());
 
-    if (!_fnHosts[hostSlot].dir_open(dirpath.c_str(), pattern ? pattern->c_str() : nullptr, 0))
+    if (_fnHosts[hostSlot].dir_open(dirpath.c_str(),
+                                    pattern ? pattern->c_str() : nullptr, 0).is_error())
         RETURN_ERROR_AS_FALSE();
 
     _current_open_directory_slot = hostSlot;
@@ -794,7 +795,7 @@ success_is_true fujiDevice::fujicmd_open_directory_success(uint8_t hostSlot)
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
     Debug_println("Fuji cmd: OPEN DIRECTORY");
 
-    if (!validate_host_slot(hostSlot))
+    if (validate_host_slot(hostSlot).is_error())
     {
         SYSTEM_BUS.transaction_error();
         RETURN_ERROR_AS_FALSE();
@@ -813,7 +814,7 @@ success_is_true fujiDevice::fujicmd_open_directory_success(uint8_t hostSlot)
         _current_open_directory_slot = -1;
     }
 
-    if (!fujicore_open_directory_success(hostSlot, dirpath))
+    if (fujicore_open_directory_success(hostSlot, dirpath).is_error())
     {
         SYSTEM_BUS.transaction_error();
         RETURN_ERROR_AS_FALSE();
@@ -1090,8 +1091,8 @@ success_is_true fujiDevice::fujicore_copy_file_success(uint8_t sourceSlot, uint8
     sourceSlot--;
     destSlot--;
 
-    if (!validate_host_slot(sourceSlot, "copy_file_source")
-        || !validate_host_slot(destSlot, "copy_file_dest"))
+    if (validate_host_slot(sourceSlot, "copy_file_source").is_error()
+        || validate_host_slot(destSlot, "copy_file_dest").is_error())
         RETURN_ERROR_AS_FALSE();
 
     // Chop up copyspec.
@@ -1230,7 +1231,7 @@ success_is_true fujiDevice::fujicmd_copy_file_success(uint8_t sourceSlot, uint8_
 {
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
-    if (!fujicore_copy_file_success(sourceSlot, destSlot, copySpec)) {
+    if (fujicore_copy_file_success(sourceSlot, destSlot, copySpec).is_error()) {
         SYSTEM_BUS.transaction_error();
         RETURN_ERROR_AS_FALSE();
     }
@@ -1259,7 +1260,7 @@ success_is_true fujiDevice::fujicore_unmount_disk_image_success(uint8_t deviceSl
 success_is_true fujiDevice::fujicmd_unmount_disk_image_success(uint8_t deviceSlot)
 {
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-    if (!fujicore_unmount_disk_image_success(deviceSlot))
+    if (fujicore_unmount_disk_image_success(deviceSlot).is_error())
     {
         SYSTEM_BUS.transaction_error();
         RETURN_ERROR_AS_FALSE();
@@ -1361,13 +1362,13 @@ success_is_true fujiDevice::fujicore_set_device_filename_success(uint8_t deviceS
                                                                  std::string filename)
 {
     // Handle DISK slots
-    if (!validate_device_slot(deviceSlot))
+    if (validate_device_slot(deviceSlot).is_error())
     {
         Debug_println("BAD DEVICE SLOT");
         RETURN_ERROR_AS_FALSE();
     }
 
-    if (!validate_host_slot(host))
+    if (validate_host_slot(host).is_error())
     {
         Debug_println("BAD HOST SLOT");
         RETURN_ERROR_AS_FALSE();
@@ -1457,7 +1458,7 @@ void fujiDevice::fujicmd_get_host_prefix(uint8_t hostSlot)
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     Debug_printf("Fuji cmd: GET HOST PREFIX %uh\n", hostSlot);
 
-    if (!validate_host_slot(hostSlot))
+    if (validate_host_slot(hostSlot).is_error())
     {
         SYSTEM_BUS.transaction_error();
         return;
@@ -1560,8 +1561,7 @@ void fujiDevice::fujicmd_set_directory_position(uint16_t pos)
         return;
     }
 
-    bool success = _fnHosts[_current_open_directory_slot].dir_seek(pos);
-    if (success == false)
+    if (_fnHosts[_current_open_directory_slot].dir_seek(pos).is_error())
     {
         SYSTEM_BUS.transaction_error();
         return;
@@ -1589,7 +1589,7 @@ void fujiDevice::fujicmd_set_host_prefix(uint8_t hostSlot, const char *prefix)
 
     Debug_printf("Fuji cmd: SET HOST PREFIX %uh \"%s\"\n", hostSlot, prefix);
 
-    if (!validate_host_slot(hostSlot))
+    if (validate_host_slot(hostSlot).is_error())
     {
         SYSTEM_BUS.transaction_error();
         return;
@@ -1618,8 +1618,8 @@ success_is_true fujiDevice::fujicmd_unmount_host_success(uint8_t hostSlot)
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     Debug_printf("\r\nFuji cmd: UNMOUNT HOST no. %d\n", hostSlot);
 
-    if (!validate_host_slot(hostSlot, "sio_tnfs_mount_hosts")
-        || (hostMounted[hostSlot] == false))
+    if (validate_host_slot(hostSlot, "sio_tnfs_mount_hosts").is_error()
+        || hostMounted[hostSlot] == false)
     {
         SYSTEM_BUS.transaction_error();
         RETURN_ERROR_AS_FALSE();
@@ -1628,7 +1628,7 @@ success_is_true fujiDevice::fujicmd_unmount_host_success(uint8_t hostSlot)
     unmount_disks_on_host(hostSlot);
 
     // Unmount the host
-    if (!_fnHosts[hostSlot].unmount_success())
+    if (_fnHosts[hostSlot].unmount_success().is_error())
     {
         SYSTEM_BUS.transaction_error();
         RETURN_ERROR_AS_FALSE();

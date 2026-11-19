@@ -416,7 +416,7 @@ RUNCPM_DECL uint8 _DeleteFile(uint16 fcbaddr) {
 				}
 #endif
 				_FCBtoHostname(tmpFCB, &filename[0]);
-				if (_sys_deletefile(&filename[0]))
+				if (_sys_deletefile(&filename[0]).is_success())
 					deleted = 0x00;
 				result = _SearchFirst(fcbaddr, FALSE);	// FALSE = Does not create a fake dir entry when finding the file
 			}
@@ -437,7 +437,7 @@ RUNCPM_DECL uint8 _RenameFile(uint16 fcbaddr) {
 			_RamWrite(fcbaddr + 16, _RamRead(fcbaddr));	// Prevents rename from moving files among folders
 			_FCBtoHostname(fcbaddr + 16, &newname[0]);
 			_FCBtoHostname(fcbaddr, &filename[0]);
-			if (_sys_renamefile(&filename[0], &newname[0]))
+			if (_sys_renamefile(&filename[0], &newname[0]).is_success())
 				result = 0x00;
 		} else {
 			_error(errWRITEPROT);

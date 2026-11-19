@@ -195,13 +195,15 @@ error_is_true drivewireDisk::read(uint32_t lsn, uint8_t *buf)
     if (_media == nullptr)
         RETURN_ERROR_AS_TRUE();
 
-    bool r = _media->read(lsn,0);
+    if (_media->read(lsn,0).is_error())
+        RETURN_ERROR_AS_TRUE();
+
     // copy data to destination buffer, if provided
     if (buf)
     {
         memcpy(buf, _media->_media_blockbuff, MEDIA_BLOCK_SIZE);
     }
-    RETURN_ERROR_IF(r);
+    RETURN_SUCCESS_AS_FALSE();
 }
 
 error_is_true drivewireDisk::write(uint32_t lsn, uint8_t *buf)
@@ -213,9 +215,7 @@ error_is_true drivewireDisk::write(uint32_t lsn, uint8_t *buf)
     }
 
     memcpy(_media->_media_blockbuff,buf,MEDIA_BLOCK_SIZE);
-    bool r = _media->write(lsn,0);
-
-    RETURN_ERROR_IF(r);
+    return _media->write(lsn,0);
 }
 
 void drivewireDisk::get_media_buffer(uint8_t **p_buffer, uint16_t *p_blk_size)

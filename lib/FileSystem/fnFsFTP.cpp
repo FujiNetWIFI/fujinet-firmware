@@ -86,8 +86,8 @@ success_is_true FileSystemFTP::start(const char *url, const char *user, const ch
 
 bool FileSystemFTP::exists(const char *path)
 {
-    if (!ensure_connected() || path == nullptr)
-        RETURN_ERROR_AS_FALSE();
+    if (ensure_connected().is_error() || path == nullptr)
+        return false;
     // TODO
     Debug_printf("FileSystemFTP::exists(\"%s\")\n", path);
 
@@ -97,7 +97,7 @@ bool FileSystemFTP::exists(const char *path)
     if (res != FUJI_ERROR::NONE)  // open_directory returns FUJI_ERROR::NONE on success
     {
         Debug_printf("Path does not exist\n");
-        RETURN_ERROR_AS_FALSE();
+        return false;
     }
 
     // Read at least one entry to confirm it exists
@@ -281,7 +281,7 @@ FileHandler *FileSystemFTP::cache_file(const char *path, const char *mode)
 
 bool FileSystemFTP::is_dir(const char *path)
 {
-    if (!ensure_connected() || path == nullptr)
+    if (ensure_connected().is_error() || path == nullptr)
         return false;
 
     Debug_printf("FileSystemFTP::is_dir(\"%s\")\n", path);

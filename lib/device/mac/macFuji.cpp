@@ -33,7 +33,7 @@ static int split_archive_entry(char *filename)
 success_is_true macFuji::fujicore_mount_disk_image_success(uint8_t deviceSlot,
                                                            disk_access_flags_t access_mode)
 {
-    if (!validate_device_slot(deviceSlot))
+    if (validate_device_slot(deviceSlot).is_error())
         RETURN_ERROR_AS_FALSE();
 
     fujiDisk &disk = _fnDisks[deviceSlot];

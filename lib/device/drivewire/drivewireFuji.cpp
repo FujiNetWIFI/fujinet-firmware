@@ -175,7 +175,7 @@ bool drivewireFuji::processCommand(const FujiDWPacket &packet)
 success_is_true drivewireFuji::fujicore_mount_disk_image_success(uint8_t deviceSlot,
                                                                    disk_access_flags_t access_mode)
 {
-    if (!fujiDevice::fujicore_mount_disk_image_success(deviceSlot, access_mode))
+    if (fujiDevice::fujicore_mount_disk_image_success(deviceSlot, access_mode).is_error())
         RETURN_ERROR_AS_FALSE();
 
     fujiDisk &disk = *get_disk(deviceSlot);

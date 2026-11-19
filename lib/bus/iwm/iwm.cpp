@@ -259,7 +259,7 @@ error_is_true systemBus::iwm_send_packet(uint8_t source, iwm_packet_type_t packe
   {
     r = smartport.iwm_send_packet_spi();
     retry--;
-  } while (r && retry); // retry if we get an error and haven't tried too many times
+  } while (r.is_error() && retry); // retry if we get an error and haven't tried too many times
 
   return r;
 }

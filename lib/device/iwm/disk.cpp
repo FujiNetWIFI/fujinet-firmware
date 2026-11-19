@@ -160,7 +160,7 @@ void iwmDisk::iwm_readblock(const iwm_decoded_cmd_t &cmd)
 
   sdstato = BLOCK_DATA_LEN;
   ByteBuffer buffer(sdstato);
-  if (_media->read(cmd.frame.block_rw.num, &sdstato, buffer.data()))
+  if (_media->read(cmd.frame.block_rw.num, &sdstato, buffer.data()).is_error())
   {
     Debug_printf("\r\nFile Seek or Read err: %d bytes", sdstato);
     SYSTEM_BUS.transaction_error(SP_ERR::IOERROR);
@@ -664,15 +664,15 @@ error_is_true iwmDisk::write_blank(fnFile *f, const NewDiskRequest &req)
   }
 
   long volume_start = fnio::ftell(f); // past any 2MG header
-  if (prodos_write_boot_block(f))
+  if (prodos_write_boot_block(f).is_error())
     RETURN_ERROR_AS_TRUE();
-  if (prodos_write_sos_block(f))
+  if (prodos_write_sos_block(f).is_error())
     RETURN_ERROR_AS_TRUE();
-  if (prodos_write_directory_sectors(f, numBlocks, prodos_generate_temp_name()))
+  if (prodos_write_directory_sectors(f, numBlocks, prodos_generate_temp_name()).is_error())
     RETURN_ERROR_AS_TRUE();
-  if (prodos_write_bitmap(f, numBlocks))
+  if (prodos_write_bitmap(f, numBlocks).is_error())
     RETURN_ERROR_AS_TRUE();
-  if (prodos_write_data_blocks(f, numBlocks, volume_start))
+  if (prodos_write_data_blocks(f, numBlocks, volume_start).is_error())
     RETURN_ERROR_AS_TRUE();
 
   Debug_printf("Creation of new ProDOS disk successful.\n");

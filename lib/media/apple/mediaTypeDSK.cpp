@@ -149,7 +149,7 @@ void MediaTypeDSK::dsk2woz_tmap()
 #endif
 }
 
-bool MediaTypeDSK::dsk2woz_tracks(uint8_t *dsk)
+error_is_true MediaTypeDSK::dsk2woz_tracks(uint8_t *dsk)
 {    // depend upon little endian-ness
 
     // woz1 track data organized as:

@@ -344,13 +344,13 @@ RUNCPM_DECL int _sys_makefile(uint8_t *name)
     return 0;
 }
 
-RUNCPM_DECL int _sys_deletefile(uint8_t *name)
+RUNCPM_DECL success_is_true _sys_deletefile(uint8_t *name)
 {
     _sys_closefile(name);
     return fnSDFAT.remove(full_path((char *)name));
 }
 
-RUNCPM_DECL int _sys_renamefile(uint8_t *name, uint8_t *newname)
+RUNCPM_DECL success_is_true _sys_renamefile(uint8_t *name, uint8_t *newname)
 {
     _sys_closefile(name);
     _sys_closefile(newname);
@@ -500,7 +500,7 @@ RUNCPM_DECL uint8_t _sys_makedisk(uint8_t drive)
     if (fnSDFAT.exists(full_path((char *)disk)))
         return 0;
 
-    if (!fnSDFAT.create_path(full_path((char *)disk)))
+    if (fnSDFAT.create_path(full_path((char *)disk)).is_error())
         return 0xfe;
 
     uint8_t path[4] = {dFolder, FOLDERCHAR, '0', 0};

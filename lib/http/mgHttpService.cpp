@@ -1014,7 +1014,7 @@ int fnHttpService::get_handler_download(mg_connection *c, mg_http_message *hm)
     fujiHost *host = SYSTEM_BUS.theFuji->get_host(hs);
 
     char fullpath[MAX_FILENAME_LEN];
-    fnFile *fh = host->mount()
+    fnFile *fh = host->mount().is_success()
         ? host->fnfile_open(filename.c_str(), fullpath, sizeof(fullpath), FILE_READ)
         : nullptr;
 

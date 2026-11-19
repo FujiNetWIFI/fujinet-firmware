@@ -165,11 +165,11 @@ std::string FileManager::handle_action(const std::map<std::string, std::string> 
     {
         if (fnSDFAT.is_dir(full.c_str()))
         {
-            if (!fnSDFAT.rmdir(full.c_str()))
+            if (fnSDFAT.rmdir(full.c_str()).is_error())
                 return "Could not delete folder " + html_escape(name) + " - it may not be empty.";
             return "Deleted folder " + html_escape(name) + ".";
         }
-        if (!fnSDFAT.remove(full.c_str()))
+        if (fnSDFAT.remove(full.c_str()).is_error())
             return "Could not delete " + html_escape(name) + ".";
         return "Deleted " + html_escape(name) + ".";
     }
@@ -178,7 +178,7 @@ std::string FileManager::handle_action(const std::map<std::string, std::string> 
     {
         if (fnSDFAT.exists(full.c_str()))
             return html_escape(name) + " already exists.";
-        if (!fnSDFAT.mkdir(full.c_str()))
+        if (fnSDFAT.mkdir(full.c_str()).is_error())
             return "Could not create folder " + html_escape(name) + ".";
         return "Created folder " + html_escape(name) + ".";
     }
@@ -193,7 +193,7 @@ std::string FileManager::handle_action(const std::map<std::string, std::string> 
             return "";
         if (fnSDFAT.exists(newfull.c_str()))
             return html_escape(newname) + " already exists.";
-        if (!fnSDFAT.rename(full.c_str(), newfull.c_str()))
+        if (fnSDFAT.rename(full.c_str(), newfull.c_str()).is_error())
             return "Could not rename " + html_escape(name) + ".";
         return "Renamed " + html_escape(name) + " to " + html_escape(newname) + ".";
     }
