@@ -7,6 +7,8 @@ on:
 
 env:
   KEEP_NIGHTLIES: 3
+  # Keeps tzdata's install prompt from waiting forever on a container step's stdin
+  DEBIAN_FRONTEND: noninteractive
 
 jobs:
   cleanup-nightly:

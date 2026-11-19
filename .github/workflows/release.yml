@@ -11,6 +11,10 @@ on:
         required: true
         type: string
 
+# Keeps tzdata's install prompt from waiting forever on a container step's stdin
+env:
+  DEBIAN_FRONTEND: noninteractive
+
 jobs:
   tagged-release:
     name: "Tagged Release"
