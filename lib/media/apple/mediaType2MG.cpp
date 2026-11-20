@@ -30,6 +30,7 @@ mediatype_t MediaType2MG::mount(fnFile *f, uint32_t disksize)
 {
     char hdr[64];
 
+    _media_fileh = f;
     diskiiemulation = false;
     fnio::fseek(f, 0, SEEK_SET);
     if (fnio::fread(hdr, 1, sizeof(hdr), f) != sizeof(hdr) || memcmp(hdr, "2IMG", 4) != 0)
@@ -52,7 +53,6 @@ mediatype_t MediaType2MG::mount(fnFile *f, uint32_t disksize)
     }
 
     offset = sizeof(hdr);
-    _media_fileh = f;
     num_blocks = (disksize - offset) / 512;
     return MEDIATYPE_2MG;
 }

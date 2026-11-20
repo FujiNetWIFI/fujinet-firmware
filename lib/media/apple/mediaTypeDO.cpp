@@ -90,6 +90,7 @@ error_is_true MediaTypeDO::format(uint16_t *responsesize)
 
 mediatype_t MediaTypeDO::mount(fnFile *f, uint32_t disksize)
 {
+    _media_fileh = f;
     switch (disksize) {
         case 35 * BYTES_PER_TRACK:
         case 36 * BYTES_PER_TRACK:
@@ -102,7 +103,6 @@ mediatype_t MediaTypeDO::mount(fnFile *f, uint32_t disksize)
     }
 
     diskiiemulation = false;
-    _media_fileh = f;
     num_blocks = disksize / BYTES_PER_BLOCK;
     return MEDIATYPE_DO;
 }
