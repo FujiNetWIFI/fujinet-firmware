@@ -287,6 +287,7 @@ mediatype_t iwmDisk::mount_file(fnFile *f, uint32_t disksize, mediatype_t disk_t
     default:
       Debug_printf("\r\nUnsupported Media Type for SmartPort");
       disk_type = MEDIATYPE_UNKNOWN;
+      fnio::fclose(f);
       break;
     }
 

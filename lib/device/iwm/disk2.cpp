@@ -71,6 +71,7 @@ mediatype_t iwmDisk2::mount_file(fnFile *f, uint32_t disksize, mediatype_t disk_
     default:
         Debug_printf("\r\nUnsupported Media Type for DiskII");
         mt = MEDIATYPE_UNKNOWN;
+        fnio::fclose(f);
         break;
     }
 
