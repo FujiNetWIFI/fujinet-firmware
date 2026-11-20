@@ -6,6 +6,7 @@
 #include "mediaTypeDSK.h"
 #include "../../include/debug.h"
 #include <string.h>
+#include <memory>
 
 
 // #include <assert.h>
@@ -79,6 +80,8 @@ error_is_true MediaTypeDSK::write_sector(int qtrack, int sector, uint8_t *buffer
 
 mediatype_t MediaTypeDSK::mount(fnFile *f, uint32_t disksize)
 {
+    _media_fileh = f;
+
     switch (disksize) {
         case 35 * BYTES_PER_TRACK:
         case 36 * BYTES_PER_TRACK:
@@ -90,28 +93,30 @@ mediatype_t MediaTypeDSK::mount(fnFile *f, uint32_t disksize)
             return MEDIATYPE_UNKNOWN;
     }
 
-    _media_fileh = f;
     diskiiemulation = true;
     num_tracks = disksize / BYTES_PER_TRACK;
 
     // allocated SPRAM
     const size_t dsk_image_size = num_tracks * BYTES_PER_TRACK;
 #ifdef ESP_PLATFORM
-    uint8_t *dsk = (uint8_t*)heap_caps_malloc(dsk_image_size, MALLOC_CAP_SPIRAM);
+    std::unique_ptr<uint8_t, decltype(&free)> dsk(
+        static_cast<uint8_t *>(heap_caps_malloc(dsk_image_size, MALLOC_CAP_SPIRAM)), free);
 #else
-	uint8_t *dsk = (uint8_t*)malloc(dsk_image_size);
+    std::unique_ptr<uint8_t, decltype(&free)> dsk(
+        static_cast<uint8_t *>(malloc(dsk_image_size)), free);
 #endif
+    if (dsk == nullptr)
+        return MEDIATYPE_UNKNOWN;
     if (fnio::fseek(f, 0, SEEK_SET) != 0)
         return MEDIATYPE_UNKNOWN;
-    size_t bytes_read = fnio::fread(dsk, 1, dsk_image_size, f);
+    size_t bytes_read = fnio::fread(dsk.get(), 1, dsk_image_size, f);
     if (bytes_read != dsk_image_size)
         return MEDIATYPE_UNKNOWN;
 
     dsk2woz_info();
     dsk2woz_tmap();
-	dsk2woz_tracks(dsk);
+	dsk2woz_tracks(dsk.get());
 
-    free(dsk);
     return MEDIATYPE_WOZ;
 }
 
