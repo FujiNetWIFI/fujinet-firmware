@@ -248,7 +248,9 @@ TEST_CASE("renaming an open file keeps its records")
 TEST_CASE("closing gives the handles back with every record on disk")
 {
     CpmDisk disk;
+#ifndef _WIN32
     size_t baseline = open_fds();
+#endif
 
     set_fcb("ONE", "DAT");
     REQUIRE(_MakeFile(fcb_addr) == 0);
@@ -256,12 +258,18 @@ TEST_CASE("closing gives the handles back with every record on disk")
     set_fcb("TWO", "DAT");
     REQUIRE(_MakeFile(fcb_addr) == 0);
     write_seq_records(3, 1);
+#ifndef _WIN32
     CHECK(open_fds() == baseline + 2);
+#endif
 
     REQUIRE(_CloseFile(fcb_addr) == 0);
+#ifndef _WIN32
     CHECK(open_fds() == baseline + 1);
+#endif
     _sys_closeall();
+#ifndef _WIN32
     CHECK(open_fds() == baseline);
+#endif
 
     CHECK(host_bytes("ONE.DAT").size() == 2 * BlkSZ);
     CHECK(host_bytes("TWO.DAT").size() == 3 * BlkSZ);
