@@ -2,6 +2,7 @@
 #define CPM_H
 
 #include "printer.h"
+#include "../../include/atascii.h"
 
 #ifndef RUNCPM_DECL
 #define RUNCPM_DECL
@@ -567,9 +568,6 @@ RUNCPM_DECL void _Bios(void) {
 RUNCPM_DECL void _Bdos(void) {
 	uint16 i;
 	uint8 j, chr, ch = LOW_REGISTER(BC);
-	uint8 trans_ch = 0x9b;
-
-	(void)trans_ch;
 
 #ifdef DEBUGLOG
 	_logBdosIn(ch);
@@ -645,8 +643,8 @@ RUNCPM_DECL void _Bdos(void) {
 #ifdef BUILD_ATARI
 			if (LOW_REGISTER(DE) != 0x0A)
 			{
-				trans_ch = LOW_REGISTER(DE) == 0x0D ? 0x9B : LOW_REGISTER(DE);
-				SYSTEM_BUS.getPrinter()->print_from_cpm(LOW_REGISTER(DE));
+				SYSTEM_BUS.getPrinter()->print_from_cpm(
+					LOW_REGISTER(DE) == 0x0D ? ATASCII_EOL : LOW_REGISTER(DE));
 			}
 #endif /* BUILD_ATARI */
 #ifdef BUILD_APPLE
