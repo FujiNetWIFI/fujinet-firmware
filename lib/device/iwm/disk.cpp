@@ -101,7 +101,7 @@ iwm_device_info_block_t iwmDisk::create_dib_reply_packet()
   iwm_device_info_block_t dib;
 
   dib.dev_status = create_status_reply_packet();
-  std::string name = "FUJINET_DISK_" + std::to_string(disk_num);
+  std::string name = "FUJINET_DISK_" + std::string(1, disk_num);
   dib.name_len = std::min(name.size(), sizeof(dib.name));
   std::memcpy(dib.name, name.data(), dib.name_len);
 
