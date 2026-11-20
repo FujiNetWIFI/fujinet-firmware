@@ -317,8 +317,6 @@ void iwmDisk::unmount()
 {
     if (_media != nullptr)
     {
-        // Clear _media first so the Disk II head-step ISR stops finding the media. An ISR
-        // already inside change_track() on the other core can still race the delete.
         MediaType *media = _media;
         _media = nullptr;
         if (device_active)
