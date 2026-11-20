@@ -17,7 +17,9 @@ static bool is_cart_header(const uint8_t header[2])
 // its last 16K bank, which is what the console sees at power-up.
 error_is_true ColecoROM::attach()
 {
-    if (!matchExtension(_path, {".col"}).has_value())
+    // .rom and .bin are shared with other consoles, which come first in the
+    // factory's list; the cart header below is what makes one ColecoVision's.
+    if (!matchExtension(_path, {".col", ".rom", ".bin"}).has_value())
         RETURN_ERROR_AS_TRUE();
 
     if (readSize().is_error() || _size < 2)
