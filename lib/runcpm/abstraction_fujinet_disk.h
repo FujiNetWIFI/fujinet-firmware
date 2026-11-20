@@ -14,6 +14,7 @@
 #include <sys/stat.h>
 #include <algorithm>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "globals.h"
@@ -418,8 +419,9 @@ RUNCPM_DECL uint8_t _findnext(uint8_t isdir)
     {
         if (entry->isDir || !_is_cpm_name(entry->filename))
             continue;
-        snprintf(reinterpret_cast<char *>(findNextDirName), sizeof(findNextDirName), "%s",
-                 entry->filename);
+        size_t name_len = std::string_view(entry->filename).copy(
+            reinterpret_cast<char *>(findNextDirName), sizeof(findNextDirName) - 1);
+        findNextDirName[name_len] = 0;
         uint32_t bytes = entry->size;
         _HostnameToFCBname(findNextDirName, fcbname);
         if (match(fcbname, pattern))
