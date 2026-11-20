@@ -60,7 +60,14 @@ struct CpmDisk
         _cpm_stop_requested = true;
     }
 
-    ~CpmDisk() { _sys_closeall(); }
+    ~CpmDisk()
+    {
+        _sys_closeall();
+        // Windows won't delete a read-only file
+        std::error_code ignored;
+        for (const auto &entry : fsys::directory_iterator(drive_dir, ignored))
+            fsys::permissions(entry.path(), fsys::perms::owner_write, fsys::perm_options::add, ignored);
+    }
 };
 
 void set_name(uint16_t addr, const std::string &name, const std::string &ext)
