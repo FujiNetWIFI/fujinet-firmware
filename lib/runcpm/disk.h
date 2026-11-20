@@ -420,8 +420,12 @@ RUNCPM_DECL uint8 _DeleteFile(uint16 fcbaddr) {
 				}
 #endif
 				_FCBtoHostname(tmpFCB, &filename[0]);
-				if (_sys_deletefile(&filename[0]).is_success())
+				if (_sys_deletefile(&filename[0]).is_success()) {
 					deleted = 0x00;
+				} else {
+					_error(errWRITEPROT);
+					break;
+				}
 				result = _SearchFirst(fcbaddr, FALSE);	// FALSE = Does not create a fake dir entry when finding the file
 			}
 		} else {
