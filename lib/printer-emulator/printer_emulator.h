@@ -73,7 +73,7 @@ public:
 
     uint8_t *provideBuffer() { return buffer; };
 
-    // Collect CP/M printer bytes into a record, written at CR, LF or a full record
+    // Collect CP/M printer bytes into a record, written at CR, LF, ATASCII EOL or a full record
     void cpm_putc(uint8_t character);
     void flush_cpm();
 

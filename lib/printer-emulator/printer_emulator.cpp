@@ -1,6 +1,7 @@
 #include "printer_emulator.h"
 
 #include "../../include/debug.h"
+#include "../../include/atascii.h"
 
 #include "fsFlash.h"
 
@@ -91,7 +92,7 @@ void printer_emu::cpm_putc(uint8_t character)
 {
     buffer[_cpm_len++] = character;
 
-    if (character == 0x0D || character == 0x0A || _cpm_len == CPM_RECORD_LEN)
+    if (character == 0x0D || character == 0x0A || character == ATASCII_EOL || _cpm_len == CPM_RECORD_LEN)
         flush_cpm();
 }
 
