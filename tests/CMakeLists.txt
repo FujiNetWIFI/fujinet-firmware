@@ -1803,33 +1803,30 @@ endif()
 
 # ------------------------------------------------------------------------------
 # RunCPM's FujiNet disk layer (lib/runcpm/abstraction_fujinet_disk.h) over a
-# local directory through FileSystemSDFAT. See fssd_listing_tests above. Not on
-# Windows: fnSDFAT opens files in text mode there (#2431).
+# local directory through FileSystemSDFAT. See fssd_listing_tests above.
 # ------------------------------------------------------------------------------
-if(NOT WIN32)
-  add_executable(runcpm_disk_tests
-      RunCPMDiskTests.cpp
-      ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFS.cpp
-      ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFsSD.cpp
-      ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnDirCache.cpp
+add_executable(runcpm_disk_tests
+    RunCPMDiskTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFS.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFsSD.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnDirCache.cpp
+)
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+  target_sources(runcpm_disk_tests PRIVATE
+      ${CMAKE_SOURCE_DIR}/lib/compat/strlcpy.c
+      ${CMAKE_SOURCE_DIR}/lib/compat/strlcat.c
   )
-  if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-    target_sources(runcpm_disk_tests PRIVATE
-        ${CMAKE_SOURCE_DIR}/lib/compat/strlcpy.c
-        ${CMAKE_SOURCE_DIR}/lib/compat/strlcat.c
-    )
-  endif()
-
-  target_compile_definitions(runcpm_disk_tests PRIVATE UNIT_TESTS FNIO_IS_STDIO)
-
-  target_include_directories(runcpm_disk_tests PRIVATE
-      ${CMAKE_SOURCE_DIR}/include/      # debug.h, global_types.h
-      ${CMAKE_SOURCE_DIR}/lib/runcpm/
-      ${CMAKE_SOURCE_DIR}/lib/FileSystem/
-      ${CMAKE_SOURCE_DIR}/lib/compat/
-      ${CMAKE_SOURCE_DIR}/lib/utils/
-      ${CMAKE_SOURCE_DIR}/components_pc/
-  )
-
-  add_test(NAME runcpm_disk_tests COMMAND runcpm_disk_tests)
 endif()
+
+target_compile_definitions(runcpm_disk_tests PRIVATE UNIT_TESTS FNIO_IS_STDIO)
+
+target_include_directories(runcpm_disk_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/include/      # debug.h, global_types.h
+    ${CMAKE_SOURCE_DIR}/lib/runcpm/
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/
+    ${CMAKE_SOURCE_DIR}/lib/compat/
+    ${CMAKE_SOURCE_DIR}/lib/utils/
+    ${CMAKE_SOURCE_DIR}/components_pc/
+)
+
+add_test(NAME runcpm_disk_tests COMMAND runcpm_disk_tests)

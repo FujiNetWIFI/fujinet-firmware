@@ -55,7 +55,7 @@ RUNCPM_DECL char *full_path(const char *name)
 /*===============================================================================*/
 RUNCPM_DECL success_is_true _RamLoad(char *name, uint16_t address)
 {
-    FILE *file = fnSDFAT.file_open(full_path(name), "r");
+    FILE *file = fnSDFAT.file_open(full_path(name), "rb");
     success_is_true result(false);
     uint8_t value;
 
@@ -202,7 +202,7 @@ static cpm_open_file *_cpm_file_for_read(const char *name)
     if (entry)
         return entry;
 
-    FILE *file = _cpm_file_open(name, "r");
+    FILE *file = _cpm_file_open(name, "rb");
     return file ? _cpm_file_keep(name, file) : nullptr;
 }
 
@@ -215,7 +215,7 @@ static cpm_open_file *_cpm_file_for_write(const char *name)
         _cpm_file_close(*entry);
 
     // A write creates a file that isn't there
-    const char *mode = fnSDFAT.exists(full_path(name)) ? "r+" : "w+";
+    const char *mode = fnSDFAT.exists(full_path(name)) ? "r+b" : "w+b";
     FILE *file = _cpm_file_open(name, mode);
     if (!file)
         return nullptr;
@@ -335,7 +335,7 @@ RUNCPM_DECL int _sys_openfile(uint8_t *name)
 RUNCPM_DECL int _sys_makefile(uint8_t *name)
 {
     _sys_closefile(name);
-    FILE *file = fnSDFAT.file_open(full_path((char *)name), "w");
+    FILE *file = fnSDFAT.file_open(full_path((char *)name), "wb");
     if (file)
     {
         fclose(file);

@@ -60,7 +60,14 @@ struct CpmDisk
         _cpm_stop_requested = true;
     }
 
-    ~CpmDisk() { _sys_closeall(); }
+    ~CpmDisk()
+    {
+        _sys_closeall();
+        // Windows won't delete a read-only file
+        std::error_code ignored;
+        for (const auto &entry : fsys::directory_iterator(drive_dir, ignored))
+            fsys::permissions(entry.path(), fsys::perms::owner_write, fsys::perm_options::add, ignored);
+    }
 };
 
 void set_name(uint16_t addr, const std::string &name, const std::string &ext)
@@ -111,6 +118,7 @@ void write_host(const std::string &name, const std::vector<uint8_t> &bytes)
     out.write(reinterpret_cast<const char *>(bytes.data()), bytes.size());
 }
 
+#ifndef _WIN32
 size_t open_fds()
 {
     size_t count = 0;
@@ -118,6 +126,7 @@ size_t open_fds()
         ++count;
     return count;
 }
+#endif
 
 void write_seq_records(int count, uint8_t first)
 {
@@ -185,6 +194,29 @@ TEST_CASE("a record reads back from the file it was just written to")
     CHECK(dma_is(0x11));
 }
 
+TEST_CASE("bytes that text mode would change come back as written")
+{
+    CpmDisk disk;
+    std::vector<uint8_t> bytes(BlkSZ, 0x55);
+    bytes[0] = 0x0D;
+    bytes[1] = 0x0A;
+    bytes[2] = 0x0A;
+    bytes[3] = 0x1A;
+    bytes[4] = 0x0D;
+    set_fcb("BIN", "DAT");
+    REQUIRE(_MakeFile(fcb_addr) == 0);
+    memcpy(&RAM[dma_addr], bytes.data(), BlkSZ);
+    REQUIRE(_WriteSeq(fcb_addr) == 0);
+    _sys_closeall();
+    CHECK(host_bytes("BIN.DAT") == bytes);
+
+    set_fcb("BIN", "DAT");
+    REQUIRE(_OpenFile(fcb_addr) == 0);
+    fill_dma(0);
+    REQUIRE(_ReadSeq(fcb_addr) == 0);
+    CHECK(memcmp(&RAM[dma_addr], bytes.data(), BlkSZ) == 0);
+}
+
 TEST_CASE("a file made again after a delete starts empty")
 {
     CpmDisk disk;
@@ -223,7 +255,9 @@ TEST_CASE("renaming an open file keeps its records")
 TEST_CASE("closing gives the handles back with every record on disk")
 {
     CpmDisk disk;
+#ifndef _WIN32
     size_t baseline = open_fds();
+#endif
 
     set_fcb("ONE", "DAT");
     REQUIRE(_MakeFile(fcb_addr) == 0);
@@ -231,17 +265,24 @@ TEST_CASE("closing gives the handles back with every record on disk")
     set_fcb("TWO", "DAT");
     REQUIRE(_MakeFile(fcb_addr) == 0);
     write_seq_records(3, 1);
+#ifndef _WIN32
     CHECK(open_fds() == baseline + 2);
+#endif
 
     REQUIRE(_CloseFile(fcb_addr) == 0);
+#ifndef _WIN32
     CHECK(open_fds() == baseline + 1);
+#endif
     _sys_closeall();
+#ifndef _WIN32
     CHECK(open_fds() == baseline);
+#endif
 
     CHECK(host_bytes("ONE.DAT").size() == 2 * BlkSZ);
     CHECK(host_bytes("TWO.DAT").size() == 3 * BlkSZ);
 }
 
+#ifndef _WIN32
 TEST_CASE("no more than four files stay open")
 {
     CpmDisk disk;
@@ -258,6 +299,7 @@ TEST_CASE("no more than four files stay open")
     }
     CHECK(open_fds() == baseline + CPM_OPEN_FILES);
 }
+#endif
 
 TEST_CASE("a read-only file reads, sequentially and at random")
 {
