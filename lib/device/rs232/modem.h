@@ -31,7 +31,6 @@
 #define HELPL20 "ATTERMVT100       | Set TERM to VT100"
 #define HELPL21 "ATTERMDUMB        | Set TERM to DUMB"
 #define HELPL22 "ATTERMANSI        | Set TERM to ANSI"
-#define HELPL23 "ATCPM             | Go into CP/M"
 #define HELPL24 "ATPHONEBOOKLIST   | List Phonebook"
 #define HELPL25 "ATPHONEBOOKCLR    | Clear Phonebook"
 #define HELPL26 "ATPB<num>=<host>  | Add to Phonebook"
@@ -129,7 +128,6 @@ private:
         AT_TERMVT100,
         AT_TERMDUMB,
         AT_TERMANSI,
-        AT_CPM,
         AT_PHONEBOOKLIST,
         AT_PHONEBOOKCLR,
         AT_PHONEBOOK,

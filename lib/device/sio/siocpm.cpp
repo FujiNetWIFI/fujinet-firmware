@@ -1,7 +1,6 @@
 #ifdef BUILD_ATARI
 
 #define CCP_INTERNAL
-#define BYPASS_BUS 1
 
 #include "siocpm.h"
 

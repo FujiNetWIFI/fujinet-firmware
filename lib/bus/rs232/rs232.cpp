@@ -139,7 +139,6 @@ void systemBus::_rs232_process_cmd()
 
 /*
  Primary RS232 service loop:
- * If CP/M is active, hand the port to it
  * If input is waiting, read a command frame and dispatch it
  * Otherwise give the modem a chance to read incoming data
  * Signal pending network data on RI (ESP) or the configured proceed line (PC)
@@ -154,12 +153,6 @@ void systemBus::service()
         _usb_boot_priority = false;
     }
 #endif
-
-    if (_cpmDev != nullptr && _cpmDev->cpmActive)
-    {
-        _cpmDev->rs232_handle_cpm();
-        return; // break!
-    }
 
     if (_port->available())
     {
@@ -287,10 +280,6 @@ void systemBus::addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id)
     else if (device_id == FUJI_DEVICEID::MIDI)
     {
         _streamDev = (rs232NetStream *)pDevice;
-    }
-    else if (device_id == FUJI_DEVICEID::CPM)
-    {
-        _cpmDev = (rs232CPM *)pDevice;
     }
     else if (device_id == FUJI_DEVICEID::PRINTER)
     {

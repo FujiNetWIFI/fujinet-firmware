@@ -714,7 +714,6 @@ void rs232Modem::at_handle_help()
     at_cmd_println(HELPL20);
     at_cmd_println(HELPL21);
     at_cmd_println(HELPL22);
-    at_cmd_println(HELPL23);
     at_cmd_println(HELPL24);
     at_cmd_println(HELPL25);
     at_cmd_println(HELPL26);
@@ -1022,7 +1021,6 @@ void rs232Modem::modemCommand()
             "AT+TERM=VT100",
             "AT+TERM=ANSI",
             "AT+TERM=DUMB",
-            "ATCPM",
             "ATPBLIST",
             "ATPBCLEAR",
             "ATPB",
@@ -1250,11 +1248,6 @@ void rs232Modem::modemCommand()
             at_cmd_resultCode(RESULT_CODE_OK);
         else
             at_cmd_println("OK");
-        break;
-    case AT_CPM:
-        modemActive = false;
-        SYSTEM_BUS.getCPM()->init_cpm(modemBaud);
-        SYSTEM_BUS.getCPM()->cpmActive = true;
         break;
     case AT_PHONEBOOKLIST:
         at_handle_pblist();

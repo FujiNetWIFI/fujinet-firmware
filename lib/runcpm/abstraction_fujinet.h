@@ -52,7 +52,11 @@ uint32 _HardwareIn(const uint32 Port)
 /* Console abstraction functions */
 /*===============================================================================*/
 
-// A bus's CP/M device defines BYPASS_BUS before including this to use the bus as the console
+#ifdef BUILD_ATARI
+#define BYPASS_BUS 1
+#endif
+
+
 #ifdef BYPASS_BUS
 #define _kbhit() SYSTEM_BUS.available()
 #define _cread() SYSTEM_BUS.read()
