@@ -80,6 +80,8 @@ error_is_true MediaTypeDSK::write_sector(int qtrack, int sector, uint8_t *buffer
 
 mediatype_t MediaTypeDSK::mount(fnFile *f, uint32_t disksize)
 {
+    _media_fileh = f;
+
     switch (disksize) {
         case 35 * BYTES_PER_TRACK:
         case 36 * BYTES_PER_TRACK:
@@ -91,7 +93,6 @@ mediatype_t MediaTypeDSK::mount(fnFile *f, uint32_t disksize)
             return MEDIATYPE_UNKNOWN;
     }
 
-    _media_fileh = f;
     diskiiemulation = true;
     num_tracks = disksize / BYTES_PER_TRACK;
 
