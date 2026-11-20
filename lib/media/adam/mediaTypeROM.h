@@ -40,7 +40,7 @@ public:
 
     uint8_t status() override;
 
-    static success_is_true create(fnFile *f, uint32_t numBlock);
+    success_is_true create(fnFile *f, uint32_t numBlocks) override;
 };
 
 

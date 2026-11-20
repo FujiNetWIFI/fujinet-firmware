@@ -31,6 +31,9 @@ protected:
     fnFile *oldFileh = nullptr;
     fnFile *hsFileh = nullptr;
 
+    // Returns TRUE if an error condition occurred
+    virtual error_is_true _write_block_at(fnFile *f, uint32_t blockNum, const uint8_t *data);
+
     uint32_t _media_image_size = 0;
     uint32_t _media_num_blocks = 256;
     uint16_t _media_sector_size = DISK_BYTES_PER_SECTOR_SINGLE;
@@ -76,6 +79,9 @@ public:
     virtual error_is_true write(uint32_t blockNum, bool verify);
 
     virtual uint8_t status() = 0;
+
+    // Writes an empty EOS volume of numBlocks blocks into a new image file
+    virtual success_is_true create(fnFile *f, uint32_t numBlocks);
 
     static mediatype_t discover_mediatype(const char *filename);
 

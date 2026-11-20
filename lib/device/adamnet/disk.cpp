@@ -3,6 +3,8 @@
 #include "disk.h"
 #include "debug.h"
 
+#include <memory>
+
 #define DDP_BLOCK_SIZE 1024
 
 adamDisk::adamDisk()
@@ -96,23 +98,17 @@ void adamDisk::unmount()
 
 error_is_true adamDisk::write_blank(fnFile *fileh, const NewDiskRequest &req)
 {
-    uint8_t buf[256];
-
     // mount() takes the image size in 32 bits.
     if (req.numBlocks == 0 || req.numBlocks > UINT32_MAX / 1024)
         RETURN_ERROR_AS_TRUE();
 
-    for (uint32_t b = 0; b < req.numBlocks; b++)
-    {
-        memset(buf, 0xE5, 256);
+    std::unique_ptr<MediaType> media;
+    if (MediaType::discover_mediatype(req.filename) == MEDIATYPE_DSK)
+        media = std::make_unique<MediaTypeDSK>();
+    else
+        media = std::make_unique<MediaTypeDDP>();
 
-        fnio::fwrite(buf, 1, 256, fileh);
-        fnio::fwrite(buf, 1, 256, fileh);
-        fnio::fwrite(buf, 1, 256, fileh);
-        fnio::fwrite(buf, 1, 256, fileh);
-    }
-
-    RETURN_SUCCESS_AS_FALSE();
+    RETURN_ERROR_IF(media->create(fileh, req.numBlocks).is_error());
 }
 
 void adamDisk::adamnet_control_send_block_num(const FujiAdamPacket &packet)

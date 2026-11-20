@@ -10,6 +10,9 @@ class MediaTypeDDP : public MediaType
 private:
     uint32_t _block_to_offset(uint32_t blockNum);
 
+protected:
+    error_is_true _write_block_at(fnFile *f, uint32_t blockNum, const uint8_t *data) override;
+
 public:
     error_is_true read(uint32_t blockNum, uint16_t *readcount) override;
     error_is_true write(uint32_t blockNum, bool verify) override;
@@ -19,8 +22,6 @@ public:
     mediatype_t mount(fnFile *f, uint32_t disksize) override;
 
     uint8_t status() override;
-
-    static success_is_true create(fnFile *f, uint32_t numBlock);
 };
 
 

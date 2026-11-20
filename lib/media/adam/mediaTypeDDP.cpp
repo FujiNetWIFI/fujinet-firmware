@@ -181,10 +181,9 @@ mediatype_t MediaTypeDDP::mount(fnFile *f, uint32_t disksize)
     return _mediatype;
 }
 
-success_is_true MediaTypeDDP::create(fnFile *f, uint32_t numBlocks)
+error_is_true MediaTypeDDP::_write_block_at(fnFile *f, uint32_t blockNum, const uint8_t *data)
 {
-    Debug_print("DDP CREATE\r\n");
-
-    RETURN_ERROR_AS_FALSE();
+    RETURN_ERROR_IF(fnio::fseek(f, _block_to_offset(blockNum), SEEK_SET) != 0
+                    || fnio::fwrite(data, 1, MEDIA_BLOCK_SIZE, f) != MEDIA_BLOCK_SIZE);
 }
 #endif /* BUILD_ADAM */

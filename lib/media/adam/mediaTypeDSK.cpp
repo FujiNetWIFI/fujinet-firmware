@@ -177,18 +177,13 @@ mediatype_t MediaTypeDSK::mount(fnFile *f, uint32_t disksize)
     return _mediatype;
 }
 
-success_is_true MediaTypeDSK::create(fnFile *f, uint32_t numBlocks)
+error_is_true MediaTypeDSK::_write_block_at(fnFile *f, uint32_t blockNum, const uint8_t *data)
 {
-    Debug_print("DSK CREATE\r\n");
-    uint8_t buf[1024];
-    
-    memset(buf,0xE5,1024);
-    
-    for (uint32_t b = 0; b < numBlocks; b++)
-    {
-        fnio::fwrite(buf, 1024, 1, f);
-    }
+    std::pair<uint32_t, uint32_t> offsets = _block_to_offsets(blockNum);
 
-    RETURN_SUCCESS_AS_TRUE();
+    RETURN_ERROR_IF(fnio::fseek(f, offsets.first, SEEK_SET) != 0
+                    || fnio::fwrite(data, 1, 512, f) != 512
+                    || fnio::fseek(f, offsets.second, SEEK_SET) != 0
+                    || fnio::fwrite(data + 512, 1, 512, f) != 512);
 }
 #endif /* BUILD_ADAM */
