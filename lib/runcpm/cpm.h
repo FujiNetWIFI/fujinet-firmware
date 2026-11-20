@@ -1196,6 +1196,7 @@ RUNCPM_DECL void _Bdos(void) {
 		 */
 		case DRV_RESET: {
 			roVector = roVector & ~DE;
+			loginVector = loginVector & ~DE;
 			break;
 		}
 
