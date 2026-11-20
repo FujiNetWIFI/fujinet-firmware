@@ -174,7 +174,23 @@ TEST_CASE("a file not on the D64 isn't found")
             .is_success());
 
     CHECK_FALSE(drive.open(LOAD_CHANNEL, "MISSING"));
-    CHECK(drive.getStatusCode() != ST_OK);
+    CHECK(drive.getStatusCode() == ST_FILE_NOT_FOUND);
+    check_closed_once(drive, file);
+}
+
+TEST_CASE("a wildcard name opens the first matching file on the D64")
+{
+    auto hello = make_image(600);
+    auto image = d64_with_files({{"HELLO", hello}, {"WORLD", make_image(100)}});
+    MemFile file(image);
+    TestDrive drive;
+    REQUIRE(drive.mount(&file, D64_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
+            .is_success());
+
+    REQUIRE(drive.open(LOAD_CHANNEL, "HEL*"));
+    CHECK(drive.getStatusCode() == ST_OK);
+    CHECK(read_all(drive, LOAD_CHANNEL) == hello);
+    drive.close(LOAD_CHANNEL);
     check_closed_once(drive, file);
 }
 

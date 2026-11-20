@@ -621,8 +621,11 @@ time_t D64MFile::getCreationTime()
 
 bool D64MFile::exists()
 {
-    // here I'd rather use D64 logic to see if such file name exists in the image!
-    // Debug_printv("here");
-    return true;
+    // The image itself and the "#" direct-access buffer are always there.
+    if (pathInStream.empty() || mstr::endsWith(pathInStream, "#"))
+        return true;
+
+    auto image = ImageBroker::obtain<D64MStream>(streamFile->url);
+    return image != nullptr && image->seekEntry(pathInStream);
 }
 
