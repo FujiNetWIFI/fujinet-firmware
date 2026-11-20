@@ -111,6 +111,7 @@ void write_host(const std::string &name, const std::vector<uint8_t> &bytes)
     out.write(reinterpret_cast<const char *>(bytes.data()), bytes.size());
 }
 
+#ifndef _WIN32
 size_t open_fds()
 {
     size_t count = 0;
@@ -118,6 +119,7 @@ size_t open_fds()
         ++count;
     return count;
 }
+#endif
 
 void write_seq_records(int count, uint8_t first)
 {
@@ -185,6 +187,29 @@ TEST_CASE("a record reads back from the file it was just written to")
     CHECK(dma_is(0x11));
 }
 
+TEST_CASE("bytes that text mode would change come back as written")
+{
+    CpmDisk disk;
+    std::vector<uint8_t> bytes(BlkSZ, 0x55);
+    bytes[0] = 0x0D;
+    bytes[1] = 0x0A;
+    bytes[2] = 0x0A;
+    bytes[3] = 0x1A;
+    bytes[4] = 0x0D;
+    set_fcb("BIN", "DAT");
+    REQUIRE(_MakeFile(fcb_addr) == 0);
+    memcpy(&RAM[dma_addr], bytes.data(), BlkSZ);
+    REQUIRE(_WriteSeq(fcb_addr) == 0);
+    _sys_closeall();
+    CHECK(host_bytes("BIN.DAT") == bytes);
+
+    set_fcb("BIN", "DAT");
+    REQUIRE(_OpenFile(fcb_addr) == 0);
+    fill_dma(0);
+    REQUIRE(_ReadSeq(fcb_addr) == 0);
+    CHECK(memcmp(&RAM[dma_addr], bytes.data(), BlkSZ) == 0);
+}
+
 TEST_CASE("a file made again after a delete starts empty")
 {
     CpmDisk disk;
@@ -242,6 +267,7 @@ TEST_CASE("closing gives the handles back with every record on disk")
     CHECK(host_bytes("TWO.DAT").size() == 3 * BlkSZ);
 }
 
+#ifndef _WIN32
 TEST_CASE("no more than four files stay open")
 {
     CpmDisk disk;
@@ -258,6 +284,7 @@ TEST_CASE("no more than four files stay open")
     }
     CHECK(open_fds() == baseline + CPM_OPEN_FILES);
 }
+#endif
 
 TEST_CASE("a read-only file reads, sequentially and at random")
 {
