@@ -246,12 +246,12 @@ static uint8_t _cpm_file_read(const char *name, long fpos)
     // set DMA buffer to EOF
     uint8_t dmabuf[BlkSZ];
     memset(dmabuf, 0x1a, BlkSZ);
-    size_t records = fread(dmabuf, BlkSZ, 1, entry->file);
-    if (records)
+    size_t bytes = fread(dmabuf, 1, BlkSZ, entry->file);
+    if (bytes > 0)
         memcpy((uint8_t *)&RAM[dmaAddr], dmabuf, BlkSZ);
     else if (ferror(entry->file))
         _cpm_file_close(*entry);
-    return records ? 0x00 : 0x01;
+    return bytes > 0 ? 0x00 : 0x01;
 }
 
 static uint8_t _cpm_file_write(const char *name, long fpos, uint8_t seekError)

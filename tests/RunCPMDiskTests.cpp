@@ -153,6 +153,32 @@ TEST_CASE("BDOS 35 sees records written before the file is closed")
     CHECK(RAM[fcb_addr + 34] == 0);
 }
 
+TEST_CASE("a short last record reads padded with ^Z")
+{
+    CpmDisk disk;
+    std::vector<uint8_t> bytes(BlkSZ + 5, 'B');
+    std::fill_n(bytes.begin(), BlkSZ, 'A');
+    write_host("TAIL.TXT", bytes);
+
+    set_fcb("TAIL", "TXT");
+    REQUIRE(_OpenFile(fcb_addr) == 0);
+    fill_dma(0);
+    CHECK(_ReadSeq(fcb_addr) == 0);
+    CHECK(dma_is('A'));
+
+    fill_dma(0);
+    CHECK(_ReadSeq(fcb_addr) == 0);
+    for (int idx = 0; idx < BlkSZ; ++idx)
+        CHECK(RAM[dma_addr + idx] == (idx < 5 ? 'B' : 0x1a));
+    CHECK(_ReadSeq(fcb_addr) == 1);
+
+    fill_dma(0);
+    set_record(1);
+    CHECK(_ReadRand(fcb_addr) == 0);
+    CHECK(RAM[dma_addr] == 'B');
+    CHECK(RAM[dma_addr + 5] == 0x1a);
+}
+
 TEST_CASE("a random read past the end returns 1 and leaves the file alone")
 {
     CpmDisk disk;
