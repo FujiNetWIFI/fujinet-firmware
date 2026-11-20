@@ -50,7 +50,6 @@ class systemBus;      // declare early so can be friend
 class rs232Network;  // declare here so can reference it, but define in network.h
 class rs232NetStream; // declare here so can reference it, but define in netstream.h
 class rs232Cassette; // Cassette forward-declaration.
-class rs232CPM;      // CPM device.
 class rs232Printer;  // Printer device
 class fujiDevice;
 
@@ -124,7 +123,6 @@ private:
     rs232Fuji *_fujiDev = nullptr;
     std::map<uint8_t,rs232Network *> _netDev;
     rs232NetStream *_streamDev = nullptr;
-    rs232CPM *_cpmDev = nullptr;
     rs232Printer *_printerdev = nullptr;
 
     int _rs232Baud = RS232_BAUDRATE;
@@ -158,7 +156,6 @@ public:
     void setStreamHost(const char *newhost, int port);             // Set new host/ip & port for NetStream
 
     rs232Printer *getPrinter() { return _printerdev; }
-    rs232CPM *getCPM() { return _cpmDev; }
 
 
 
