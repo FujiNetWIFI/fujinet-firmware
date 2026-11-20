@@ -346,3 +346,23 @@ TEST_CASE("a drive that was selected is not looked up again until it is logged o
     loginVector = 0;
     CHECK(_SelectDisk(1) == 0xFF);
 }
+
+TEST_CASE("a host file without an 8.3 name is left out of a directory search")
+{
+    CpmDisk disk;
+    write_host("GOOD.TXT", {1});
+    write_host("TOOLONGNAME.TXT", {1});
+    write_host("A.LONGEXT", {1});
+    write_host("A.B.C", {1});
+    write_host(std::string(30, 'X') + ".TXT", {1});
+
+    set_fcb("????????", "???");
+    int hits = 0;
+    for (uint8_t result = _SearchFirst(fcb_addr, TRUE); result != 0xFF;
+         result = _SearchNext(fcb_addr, TRUE))
+    {
+        CHECK(std::string(reinterpret_cast<char *>(&RAM[dma_addr + 1]), 11) == "GOOD    TXT");
+        ++hits;
+    }
+    CHECK(hits == 1);
+}
