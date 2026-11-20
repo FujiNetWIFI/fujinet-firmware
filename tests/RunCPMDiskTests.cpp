@@ -55,6 +55,7 @@ struct CpmDisk
         cDrive = 0;
         userCode = 0;
         roVector = 0;
+        loginVector = 0;
         dmaAddr = dma_addr;
         // _error() waits for a key; this makes it return at once
         _cpm_stop_requested = true;
@@ -332,4 +333,16 @@ TEST_CASE("a write to a file opened for reading lands in the file")
     REQUIRE(bytes.size() == 2 * BlkSZ);
     CHECK(bytes[0] == 0x01);
     CHECK(bytes[BlkSZ] == 0x02);
+}
+
+TEST_CASE("a drive that was selected is not looked up again until it is logged out")
+{
+    CpmDisk disk;
+
+    REQUIRE(_SelectDisk(1) == 0x00);
+    fsys::remove_all(SD_ROOT "/CPM/A");
+    CHECK(_SelectDisk(1) == 0x00);
+
+    loginVector = 0;
+    CHECK(_SelectDisk(1) == 0xFF);
 }

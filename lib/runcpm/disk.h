@@ -57,8 +57,12 @@ RUNCPM_DECL int _SelectDisk(uint8 dr) {
 	}
 
 	disk[0] += dr;
+	const uint16 drive_bit = 1 << (disk[0] - 'A');
+	if (loginVector & drive_bit)
+		return(0x00);
+
 	if (_sys_select(&disk[0])) {
-		loginVector = loginVector | (1 << (disk[0] - 'A'));
+		loginVector = loginVector | drive_bit;
 		result = 0x00;
 	} else {
 		_error(errSELECT);
