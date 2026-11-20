@@ -1,6 +1,7 @@
 #ifdef BUILD_RS232
 
 #define CCP_INTERNAL
+#define BYPASS_BUS 1
 
 #include "rs232cpm.h"
 

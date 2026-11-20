@@ -160,6 +160,10 @@ public:
     rs232Printer *getPrinter() { return _printerdev; }
     rs232CPM *getCPM() { return _cpmDev; }
 
+    size_t available() { return _port->available(); }
+    int read() { return _port->read(); }
+    size_t write(uint8_t chr) { return _port->write(chr); }
+
 
 
     std::string busEOL() override { return "\r\n"; }
