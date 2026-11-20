@@ -18,6 +18,7 @@
 #include "../../include/debug.h"
 
 #include "status_error_codes.h"
+#include "utils.h"
 
 #include <fcntl.h>
 
@@ -349,12 +350,23 @@ fujiError_t NetworkProtocolSFTP::read_file_handle(uint8_t *buf, unsigned short l
 
 fujiError_t NetworkProtocolSFTP::read_dir_entry(char *buf, unsigned short len)
 {
-    sftp_attributes attr = sftp_readdir(sftp, dir_handle);
+    sftp_attributes attr;
 
-    if (attr == nullptr)
+    // The server has no pattern filter; directories always list.
+    while (true)
     {
-        error = NDEV_STATUS::END_OF_FILE;
-        return FUJI_ERROR::UNSPECIFIED;
+        attr = sftp_readdir(sftp, dir_handle);
+        if (attr == nullptr)
+        {
+            error = NDEV_STATUS::END_OF_FILE;
+            return FUJI_ERROR::UNSPECIFIED;
+        }
+
+        if (attr->type == SSH_FILEXFER_TYPE_DIRECTORY || filename.empty() ||
+            util_wildcard_match(attr->name, filename.c_str()))
+            break;
+
+        sftp_attributes_free(attr);
     }
 
     strncpy(buf, attr->name, len);
