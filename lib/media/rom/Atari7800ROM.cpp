@@ -13,7 +13,7 @@ constexpr size_t A78_BANK_SIZE = 16_kB;
 // bank comes in, since nothing else says it's a 7800 image.
 error_is_true Atari7800ROM::attach()
 {
-    if (!matchExtension(_path, {".a78"}).has_value())
+    if (!matchExtension(_path, extensions).has_value())
         RETURN_ERROR_AS_TRUE();
 
     char signature[10];

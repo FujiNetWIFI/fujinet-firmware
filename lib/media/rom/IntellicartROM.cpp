@@ -6,7 +6,7 @@ constexpr uint8_t INTELLICART_MAGIC = 0xA8;
 // followed by its complement.
 error_is_true IntellicartROM::attach()
 {
-    if (!matchExtension(_path, {".rom"}).has_value())
+    if (!matchExtension(_path, extensions).has_value())
         RETURN_ERROR_AS_TRUE();
 
     uint8_t header[3];

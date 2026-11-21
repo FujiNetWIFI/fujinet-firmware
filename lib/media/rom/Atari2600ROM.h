@@ -9,6 +9,8 @@ protected:
     error_is_true attach() override;
 
 public:
+    static constexpr const char *extensions[] = {".bin", ".a26"};
+
     Atari2600ROM(const std::string &path, fnFile *handle, fujiHost *host)
         : ROMMedia(path, handle, host) {}
 };

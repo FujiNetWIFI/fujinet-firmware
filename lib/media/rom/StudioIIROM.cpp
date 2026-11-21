@@ -13,7 +13,7 @@ constexpr size_t ST2_RAW_MAX = 1024;
 // to go but the cartridge window, so it must fit in it.
 error_is_true StudioIIROM::attach()
 {
-    if (!matchExtension(_path, {".st2"}).has_value())
+    if (!matchExtension(_path, extensions).has_value())
         RETURN_ERROR_AS_TRUE();
 
     uint8_t header[5];
