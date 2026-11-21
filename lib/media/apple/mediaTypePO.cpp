@@ -47,7 +47,7 @@ error_is_true MediaTypePO::write(uint32_t blockNum, uint16_t *count, uint8_t* bu
 
     error_is_true err(false);
 
-    if (blockNum != last_block_num + 1) // example optimization, only do seek if not writing next block -tschak
+    if (high_score_block || blockNum != last_block_num + 1) // example optimization, only do seek if not writing next block -tschak
     {
         if (fnio::fseek(_media_fileh, (blockNum * writesize) + offset, SEEK_SET))
             err = error_is_true(true);
