@@ -255,4 +255,5 @@ TEST_CASE("an image without the ATR header doesn't mount, and the drive doesn't 
     CHECK(disk.mediatype() == MEDIATYPE_UNKNOWN);
     CHECK_FALSE(read_sector(disk, 1).has_value());
     CHECK(bus.outcome == Outcome::None);
+    check_closed_once(disk, file);
 }

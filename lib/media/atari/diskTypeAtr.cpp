@@ -224,6 +224,7 @@ mediatype_t MediaTypeATR::mount(fnFile *f, uint32_t disksize)
 {
     Debug_print("ATR MOUNT\r\n");
 
+    _disk_fileh = f;
     _disktype = MEDIATYPE_UNKNOWN;
 
     uint16_t num_bytes_sector;
@@ -263,7 +264,6 @@ mediatype_t MediaTypeATR::mount(fnFile *f, uint32_t disksize)
 
     derive_percom_block(_disk_num_sectors);
 
-    _disk_fileh = f;
     _disk_image_size = disksize;
     _disk_last_sector = INVALID_SECTOR_VALUE;
 
