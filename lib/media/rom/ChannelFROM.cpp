@@ -6,7 +6,7 @@ constexpr uint8_t CHANNELF_CART_SIGNATURE = 0x55;
 
 error_is_true ChannelFROM::attach()
 {
-    if (!matchExtension(_path, {".chf"}).has_value())
+    if (!matchExtension(_path, extensions).has_value())
         RETURN_ERROR_AS_TRUE();
 
     uint8_t signature;

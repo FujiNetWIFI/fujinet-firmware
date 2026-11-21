@@ -13,7 +13,7 @@ constexpr size_t A52_SIZE_UNIT = 4_kB;
 // the cart.
 error_is_true Atari5200ROM::attach()
 {
-    if (!matchExtension(_path, {".a52"}).has_value())
+    if (!matchExtension(_path, extensions).has_value())
         RETURN_ERROR_AS_TRUE();
 
     char signature[4];

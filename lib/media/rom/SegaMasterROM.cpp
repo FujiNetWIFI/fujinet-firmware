@@ -12,7 +12,7 @@ constexpr size_t SMS_PAGE = 16_kB;
 // since the cart pads it out; a bigger one is banked, so it must be whole pages.
 error_is_true SegaMasterROM::attach()
 {
-    if (!matchExtension(_path, {".sms"}).has_value())
+    if (!matchExtension(_path, extensions).has_value())
         RETURN_ERROR_AS_TRUE();
 
     if (readSize().is_error() || _size == 0)

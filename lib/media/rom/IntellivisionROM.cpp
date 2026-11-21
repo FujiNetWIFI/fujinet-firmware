@@ -24,8 +24,7 @@ static bool has_default_map(size_t size)
 // is looked for, so only .int and .itv are taken.
 error_is_true IntellivisionROM::attach()
 {
-    std::optional<std::string> extension =
-        matchExtension(_path, {".int", ".itv", ".bin", ".rom"});
+    std::optional<std::string> extension = matchExtension(_path, extensions);
     if (!extension.has_value())
         RETURN_ERROR_AS_TRUE();
 
