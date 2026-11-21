@@ -43,6 +43,7 @@ mediatype_t iwmDisk2::mount_file(fnFile *f, uint32_t disksize, mediatype_t disk_
   mediatype_t mt = MEDIATYPE_UNKNOWN;
 
   // Destroy any existing MediaType
+  retire_media();
   if (_media != nullptr)
   {
     delete _media;
@@ -76,6 +77,7 @@ mediatype_t iwmDisk2::mount_file(fnFile *f, uint32_t disksize, mediatype_t disk_
     }
 
     if (mt == MEDIATYPE_WOZ) {
+        _media_ready = true;
         change_track(0); // initialize spi buffer
     } else {
         Debug_printf("\nMedia Type UNKNOWN - no mount in disk2.cpp");
@@ -119,7 +121,31 @@ success_is_true IRAM_ATTR iwmDisk2::move_head()
   RETURN_SUCCESS_IF(delta != 0);
 }
 
+void iwmDisk2::unmount()
+{
+  retire_media();
+  iwmDisk::unmount();
+}
+
+// Stops new change_track() uses of the media, then waits out the ones in flight (the head-step ISR
+// runs on the other core)
+void iwmDisk2::retire_media()
+{
+  _media_ready = false;
+  while (_media_users != 0)
+  {
+  }
+}
+
 void IRAM_ATTR iwmDisk2::change_track(int indicator)
+{
+  ++_media_users;
+  if (_media_ready)
+    copy_track_from_media(indicator);
+  --_media_users;
+}
+
+void IRAM_ATTR iwmDisk2::copy_track_from_media(int indicator)
 {
   if (!device_active)
     return;

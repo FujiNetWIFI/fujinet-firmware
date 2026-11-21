@@ -39,7 +39,7 @@ public:
                         disk_access_flags_t access_mode,
                         mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     virtual mediatype_t mount_file(fnFile *f, uint32_t disksize, mediatype_t disk_type);
-    void unmount();
+    virtual void unmount();
     struct NewDiskRequest {
         uint8_t hostSlot;
         uint8_t deviceSlot;
