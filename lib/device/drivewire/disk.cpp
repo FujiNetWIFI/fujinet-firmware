@@ -149,6 +149,7 @@ error_is_true drivewireDisk::mount(fnFile *f, const char *filename, uint32_t dis
         break;
     default:
         device_active = false;
+        fnio::fclose(f);
         break;
     }
 
