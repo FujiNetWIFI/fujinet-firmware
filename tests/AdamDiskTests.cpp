@@ -268,3 +268,29 @@ TEST_CASE("mounting over a disk closes the old image once")
     CHECK(read_block(disk, 6) == slice(second_image, 6 * BLOCK_SIZE, BLOCK_SIZE));
     check_closed_once(disk, second);
 }
+
+TEST_CASE("a DDP under one block doesn't mount, and the drive is left inactive")
+{
+    std::vector<uint8_t> image(BLOCK_SIZE - 1, 0);
+    MemFile file(image);
+    TestDisk disk;
+
+    CHECK(disk.mount(&file, DDP_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ).is_error());
+    CHECK_FALSE(disk.device_active);
+    CHECK(disk.mediatype() == MEDIATYPE_UNKNOWN);
+    CHECK(file.closes == 1);
+    CHECK_FALSE(file.usedAfterClose);
+}
+
+TEST_CASE("a DSK under one block doesn't mount, and the drive is left inactive")
+{
+    std::vector<uint8_t> image(BLOCK_SIZE - 1, 0);
+    MemFile file(image);
+    TestDisk disk;
+
+    CHECK(disk.mount(&file, DSK_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ).is_error());
+    CHECK_FALSE(disk.device_active);
+    CHECK(disk.mediatype() == MEDIATYPE_UNKNOWN);
+    CHECK(file.closes == 1);
+    CHECK_FALSE(file.usedAfterClose);
+}
