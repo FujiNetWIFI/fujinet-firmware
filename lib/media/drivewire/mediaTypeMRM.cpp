@@ -31,7 +31,7 @@ error_is_true MediaTypeMRM::read(uint32_t blockNum, uint16_t *readcount)
         RETURN_ERROR_AS_TRUE();
     }
 
-    memset(_media_blockbuff, 0xFF, sizeof(_media_blockbuff));
+    memset(_mrm_blockbuff, 0xFF, sizeof(_mrm_blockbuff));
 
     bool err = false;
     // Perform a seek if we're not reading the sector after the last one we read
@@ -49,7 +49,7 @@ error_is_true MediaTypeMRM::read(uint32_t blockNum, uint16_t *readcount)
         to_read = MRM_BLOCK_SIZE;
 
     if (err == false)
-        err = fnio::fread(_media_blockbuff, 1, to_read, _media_fileh) != to_read;
+        err = fnio::fread(_mrm_blockbuff, 1, to_read, _media_fileh) != to_read;
 
     if (err == false)
         _media_last_block = blockNum;
@@ -71,7 +71,7 @@ error_is_true MediaTypeMRM::write(uint32_t blockNum, bool verify)
 
 void MediaTypeMRM::get_block_buffer(uint8_t **p_buffer, uint16_t *p_blk_size)
 {
-    *p_buffer = &_media_blockbuff[0];
+    *p_buffer = &_mrm_blockbuff[0];
     *p_blk_size = MRM_BLOCK_SIZE;
 }
 

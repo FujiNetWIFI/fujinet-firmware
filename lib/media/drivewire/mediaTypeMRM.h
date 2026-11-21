@@ -10,11 +10,11 @@
 class MediaTypeMRM : public MediaType
 {
 private:
+    uint8_t _mrm_blockbuff[MRM_BLOCK_SIZE];
+
     uint32_t _block_to_offset(uint32_t blockNum);
 
 public:
-    uint8_t _media_blockbuff[MRM_BLOCK_SIZE];
-
     error_is_true read(uint32_t blockNum, uint16_t *readcount) override;
     error_is_true write(uint32_t blockNum, bool verify) override;
 
