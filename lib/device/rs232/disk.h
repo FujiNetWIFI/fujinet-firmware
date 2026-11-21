@@ -24,6 +24,9 @@ private:
 
 protected:
     void rs232_process(const FujiBusPacket &packet) override;
+    error_is_true mount_by_type(fnFile *f, const char *filename, uint32_t disksize,
+                                disk_access_flags_t access_mode, mediatype_t disk_type,
+                                fujiHost *host);
 
 public:
     rs232Disk();

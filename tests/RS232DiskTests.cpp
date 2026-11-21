@@ -329,3 +329,35 @@ TEST_CASE("a .dsk that isn't an Altair size mounts raw")
     CHECK(read_sector(disk, 3) == sector_of(image, 3, IMG_SECTOR_SIZE));
     check_closed_once(disk, file);
 }
+
+TEST_CASE("an IMD with no tracks doesn't mount, and the drive is left inactive")
+{
+    IMD builder;
+    builder.header();
+    MemFile file(builder.out);
+    TestDisk disk;
+
+    CHECK(disk.mount(&file, IMD_TEST_FILE, builder.out.size(), DISK_ACCESS_MODE_READ)
+            .is_error());
+    CHECK_FALSE(disk.device_active);
+    CHECK(disk.mount_time() == 0);
+    CHECK(disk.mediatype() == MEDIATYPE_UNKNOWN);
+    CHECK(file.closes == 1);
+    CHECK_FALSE(file.usedAfterClose);
+}
+
+TEST_CASE("an Altair image of the wrong size doesn't mount, and the drive is left inactive")
+{
+    std::vector<uint8_t> image(1000, 0);
+    MemFile file(image);
+    TestDisk disk;
+
+    CHECK(disk.mount(&file, "rs232_disk_test.dsk", image.size(), DISK_ACCESS_MODE_READ,
+                     MEDIATYPE_ALTAIR)
+              .is_error());
+    CHECK_FALSE(disk.device_active);
+    CHECK(disk.mount_time() == 0);
+    CHECK(disk.mediatype() == MEDIATYPE_UNKNOWN);
+    CHECK(file.closes == 1);
+    CHECK_FALSE(file.usedAfterClose);
+}
