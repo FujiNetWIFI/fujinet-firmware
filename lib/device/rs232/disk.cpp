@@ -337,6 +337,16 @@ error_is_true rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksiz
                                disk_access_flags_t access_mode, mediatype_t disk_type,
                                fujiHost *host)
 {
+    error_is_true mounted = mount_by_type(f, filename, disksize, access_mode, disk_type, host);
+    if (mounted.is_error())
+        unmount();
+    return mounted;
+}
+
+error_is_true rs232Disk::mount_by_type(fnFile *f, const char *filename, uint32_t disksize,
+                                       disk_access_flags_t access_mode,
+                                       mediatype_t disk_type, fujiHost *host)
+{
     Debug_print("disk MOUNT\n");
 
     // Destroy any existing MediaType
