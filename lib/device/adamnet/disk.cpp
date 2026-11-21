@@ -80,7 +80,13 @@ error_is_true adamDisk::mount(fnFile *f, const char *filename, uint32_t disksize
         break;
     }
 
-    RETURN_ERROR_IF(mt == MEDIATYPE_UNKNOWN);
+    if (mt == MEDIATYPE_UNKNOWN)
+    {
+        unmount();
+        RETURN_ERROR_AS_TRUE();
+    }
+
+    RETURN_SUCCESS_AS_FALSE();
 }
 
 void adamDisk::unmount()
