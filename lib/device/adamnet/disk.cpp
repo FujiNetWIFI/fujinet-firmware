@@ -43,6 +43,8 @@ error_is_true adamDisk::mount(fnFile *f, const char *filename, uint32_t disksize
 
     Debug_printf("disk MOUNT %s\n", filename);
 
+    _read_only = !(access_mode & DISK_ACCESS_MODE_WRITE);
+
     // Destroy any existing MediaType
     if (_media != nullptr)
     {
@@ -135,7 +137,7 @@ void adamDisk::adamnet_control_send_block_num(const FujiAdamPacket &packet)
 
     Debug_printf("BLOCK: %lu\n", blockNum);
 
-    if (blockNum == 0xFACE)
+    if (blockNum == 0xFACE && !_read_only)
     {
         _media->format(NULL);
     }
@@ -160,9 +162,9 @@ void adamDisk::adamnet_control_send_block_data()
         return;
     }
 
-    if (is_config_device)
+    if (is_config_device || _read_only)
     {
-        Debug_printf("Refusing spurious write to read-only config device, block %lu\n", blockNum);
+        Debug_printf("Refusing write to read-only disk, block %lu\n", blockNum);
         blockNum = 0xFFFFFFFF;
         _media->_media_last_block = 0xFFFFFFFE;
         SYSTEM_BUS.transaction_error();

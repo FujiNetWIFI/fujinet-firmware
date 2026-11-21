@@ -25,6 +25,7 @@ private:
     // Set once we've ACKed this block's RECEIVE; further RECEIVEs for the same
     // block are stale re-polls to ignore. Cleared on a new block number / reset.
     bool _receive_acked = false;
+    bool _read_only = false;
 
     void adamnet_control_send_block_num(const FujiAdamPacket &packet);
     void adamnet_control_send_block_data();
