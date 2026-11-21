@@ -108,3 +108,23 @@ TEST_CASE("dir_open honors the sort options")
     CHECK(read_all(fnSDFAT) == std::vector<std::string>{"sub", "b.atr", "a.atr"});
     fnSDFAT.dir_close();
 }
+
+TEST_CASE("dir_open reports the size and date of files in a subfolder")
+{
+    make_sd_root();
+
+    REQUIRE(fnSDFAT.dir_open("/a", nullptr, 0).is_success());
+    fsdir_entry *e;
+    bool found = false;
+    while ((e = fnSDFAT.dir_read()) != nullptr)
+    {
+        if (std::string(e->filename) == "a.atr")
+        {
+            found = true;
+            CHECK(e->size == 1);
+            CHECK(e->modified_time != 0);
+        }
+    }
+    CHECK(found);
+    fnSDFAT.dir_close();
+}
