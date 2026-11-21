@@ -70,11 +70,6 @@ error_is_true adamDisk::mount(fnFile *f, const char *filename, uint32_t disksize
         mt = _media->mount(f, disksize);
         device_active = true;
         break;
-    case MEDIATYPE_ROM:
-        _media = new MediaTypeROM();
-        mt = _media->mount(f, disksize);
-        device_active = true;
-        break;
     default:
         device_active = false;
         fnio::fclose(f);

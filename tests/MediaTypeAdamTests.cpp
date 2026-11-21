@@ -6,7 +6,6 @@
 
 #include "mediaTypeDDP.h"
 #include "mediaTypeDSK.h"
-#include "mediaTypeROM.h"
 
 // FileSystem links DirCache, which filters with this; these tests never list a directory.
 bool util_wildcard_match(const char *, const char *) { return true; }
@@ -86,7 +85,6 @@ TEST_CASE("reads stop at the last block")
 {
     reads_stop_at_the_end<MediaTypeDDP>(16 * 1024, 16);
     reads_stop_at_the_end<MediaTypeDSK>(16 * 1024, 16);
-    reads_stop_at_the_end<MediaTypeROM>(8 * 1024, 8 + 2); // two boot blocks ahead of the ROM
 }
 
 TEST_CASE("writes stop at the last block")

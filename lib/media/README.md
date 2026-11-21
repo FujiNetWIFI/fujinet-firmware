@@ -15,7 +15,7 @@ file extension to the enum.
 |---|---|---|---|---|---|
 | [atari/](atari/) | `BUILD_ATARI` | `atari/diskType.h` | ATR, ATX, XEX (COM, BIN); CAS and WAV tape | yes | yes |
 | [apple/](apple/) | `BUILD_APPLE` | `apple/mediaType.h` | PO (HDV, 2MG), DO, WOZ, DSK | yes | yes |
-| [adam/](adam/) | `BUILD_ADAM`, also `BUILD_S100` | `adam/mediaType.h` | DDP, DSK, ROM | yes | yes |
+| [adam/](adam/) | `BUILD_ADAM`, also `BUILD_S100` | `adam/mediaType.h` | DDP, DSK | yes | yes |
 | [drivewire/](drivewire/) | `BUILD_COCO` | `drivewire/mediaType.h` | DSK, MRM, VDK, CAS presented as a disk; cartridges are `CoCoCartROM` in [rom/](rom/) | yes | yes |
 | [rs232/](rs232/) | `BUILD_RS232` | `rs232/diskType.h` | IMG, IMD; cartridges are formats in [rom/](rom/) | yes | yes |
 | [lynx/](lynx/) | `BUILD_LYNX` | `lynx/mediaType.h` | ROM | yes | yes |

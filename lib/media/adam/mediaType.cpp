@@ -50,10 +50,6 @@ mediatype_t MediaType::discover_mediatype(const char *filename)
         {
             return MEDIATYPE_DSK;
         }
-        else if (strcasecmp(ext, "ROM") == 0)
-        {
-            return MEDIATYPE_ROM;
-        }
     }
     return MEDIATYPE_UNKNOWN;
 }
