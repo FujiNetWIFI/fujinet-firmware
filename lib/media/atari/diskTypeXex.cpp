@@ -231,6 +231,7 @@ mediatype_t MediaTypeXEX::mount(fnFile *f, uint32_t disksize)
 {
     Debug_print("XEX MOUNT\r\n");
 
+    _disk_fileh = f;
     _disktype = MEDIATYPE_UNKNOWN;
 
     // Load our bootloader
@@ -242,7 +243,6 @@ mediatype_t MediaTypeXEX::mount(fnFile *f, uint32_t disksize)
     }
 
     _disk_sector_size = SECTOR_SIZE;
-    _disk_fileh = f;
     _disk_image_size = disksize;
     _disk_last_sector = INVALID_SECTOR_VALUE;
     _disktype = MEDIATYPE_XEX;
