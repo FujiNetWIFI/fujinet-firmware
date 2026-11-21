@@ -31,6 +31,9 @@ error_is_true MediaTypePO::write(uint32_t blockNum, uint16_t *count, uint8_t* bu
 {
     size_t writesize = *count;
 
+    if (blockNum >= num_blocks)
+        RETURN_ERROR_AS_TRUE();
+
     if (high_score_enabled && blockNum >= _high_score_block_lb && blockNum <= _high_score_block_ub)
     {
         Debug_printf("high score: Swapping file handles\r\n");
