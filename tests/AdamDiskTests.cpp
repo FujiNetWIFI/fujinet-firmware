@@ -307,3 +307,16 @@ TEST_CASE("a DSK under one block doesn't mount, and the drive is left inactive")
     CHECK(file.closes == 1);
     CHECK_FALSE(file.usedAfterClose);
 }
+
+TEST_CASE("an image of unknown type doesn't mount, and the file is closed")
+{
+    std::vector<uint8_t> image(BLOCK_SIZE, 0);
+    MemFile file(image);
+    TestDisk disk;
+
+    CHECK(disk.mount(&file, "adam_disk_test.txt", image.size(), DISK_ACCESS_MODE_READ)
+            .is_error());
+    CHECK_FALSE(disk.device_active);
+    CHECK(disk.mediatype() == MEDIATYPE_UNKNOWN);
+    check_closed_once(disk, file);
+}

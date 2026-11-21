@@ -76,6 +76,9 @@ error_is_true adamDisk::mount(fnFile *f, const char *filename, uint32_t disksize
         device_active = true;
         break;
     default:
+        // No media takes the handle, so close it here.
+        if (f != nullptr)
+            fnio::fclose(f);
         device_active = false;
         break;
     }
