@@ -249,7 +249,7 @@ error_is_true iwmDisk::mount(fnFile *f, const char *filename, uint32_t disksize,
 
   disk_type = MediaType::discover_mediatype(f, filename, disksize, disk_type);
 
-  mount_file(f, disksize, disk_type);
+  disk_type = mount_file(f, disksize, disk_type);
 
   if (disk_type == MEDIATYPE_UNKNOWN) {
       Debug_printf("\r\nMedia Type UNKNOWN - no mount in disk.cpp");
