@@ -409,7 +409,7 @@ error_is_true rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksiz
     default:
         device_active = true;
         _mount_time = time(NULL);
-        _media = new MediaTypeImg();
+        _media = new MediaTypeImg((access_mode & DISK_ACCESS_MODE_WRITE) != 0);
         RETURN_ERROR_IF(_media->mount(f, disksize) == MEDIATYPE_UNKNOWN);
     }
 }
