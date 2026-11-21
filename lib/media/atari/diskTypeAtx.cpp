@@ -848,6 +848,7 @@ mediatype_t MediaTypeATX::mount(fnFile *f, uint32_t disksize)
 {
     Debug_print("ATX MOUNT\r\n");
 
+    _disk_fileh = f;
     _disktype = MEDIATYPE_UNKNOWN;
     _disk_last_sector = INVALID_SECTOR_VALUE;
 
@@ -897,12 +898,9 @@ mediatype_t MediaTypeATX::mount(fnFile *f, uint32_t disksize)
     Debug_printf("  start: 0x%04lx\r\n", hdr.start);
     Debug_printf("    end: 0x%04lx\r\n", hdr.end);
 
-    _disk_fileh = f;
-
     // Load all the actual ATX records into memory (return immediately if we fail)
     if (_load_atx_data(hdr).is_error())
     {
-        _disk_fileh = nullptr;
         _tracks.clear();
         return MEDIATYPE_UNKNOWN;
     }

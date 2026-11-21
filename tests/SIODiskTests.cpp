@@ -256,3 +256,18 @@ TEST_CASE("an image without the ATR header doesn't mount, and the drive doesn't 
     CHECK_FALSE(read_sector(disk, 1).has_value());
     CHECK(bus.outcome == Outcome::None);
 }
+
+TEST_CASE("an image without the ATX header doesn't mount, and the file is closed")
+{
+    std::vector<uint8_t> shortImage(8, 0);
+    std::vector<uint8_t> badMagic(64, 0);
+    for (auto *image : {&shortImage, &badMagic})
+    {
+        MemFile file(*image);
+        TestDisk disk;
+        CHECK(disk.mount(&file, "sio_disk_test.atx", image->size(), DISK_ACCESS_MODE_READ)
+                .is_error());
+        CHECK(disk.mediatype() == MEDIATYPE_UNKNOWN);
+        check_closed_once(disk, file);
+    }
+}
