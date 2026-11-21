@@ -422,7 +422,7 @@ MStream* MFile::getSourceStream(std::ios_base::openmode mode) {
     //Debug_printv("containerStream isRandomAccess[%d] isBrowsable[%d]", containerStream->isRandomAccess(), containerStream->isBrowsable());
 
     // will be replaced by streamBroker->getDecodedStream(this, mode, containerStream)
-    MStream* decodedStream(getDecodedStream(containerStream)); // wrap this stream into decoded stream, i.e. unpacked zip files
+    std::unique_ptr<MStream> decodedStream(getDecodedStream(containerStream)); // wrap this stream into decoded stream, i.e. unpacked zip files
     decodedStream->url = this->url;
     //Debug_printv("decodedStream isRandomAccess[%d] isBrowsable[%d]", decodedStream->isRandomAccess(), decodedStream->isBrowsable());
 
@@ -451,7 +451,7 @@ MStream* MFile::getSourceStream(std::ios_base::openmode mode) {
             if(mstr::compare(this->pathInStream, pointedFile))
             {
                 //Debug_printv("returning decodedStream 1");
-                return decodedStream;
+                return decodedStream.release();
             }
 
             pointedFile = decodedStream->seekNextEntry();
@@ -462,7 +462,7 @@ MStream* MFile::getSourceStream(std::ios_base::openmode mode) {
     }
 
     //Debug_printv("returning decodedStream 2");
-    return decodedStream;
+    return decodedStream.release();
 };
 
 bool MFile::format(std::string header, std::string id)
