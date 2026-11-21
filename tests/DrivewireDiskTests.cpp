@@ -410,3 +410,19 @@ TEST_CASE("a .cas holding no file doesn't mount, and its image is closed")
     disk.unmount();
     CHECK(file.closes == 1);
 }
+
+TEST_CASE("an image with an unknown extension doesn't mount, and its image is closed")
+{
+    std::vector<uint8_t> image(512, 0);
+    MemFile file(image);
+    drivewireDisk disk;
+
+    CHECK(disk.mount(&file, "drivewire_disk_test.xyz", image.size(), DISK_ACCESS_MODE_READ)
+         .is_error());
+    CHECK_FALSE(disk.device_active);
+    CHECK(disk.mediatype() == MEDIATYPE_UNKNOWN);
+    CHECK(file.closes == 1);
+    CHECK_FALSE(file.usedAfterClose);
+    disk.unmount();
+    CHECK(file.closes == 1);
+}
