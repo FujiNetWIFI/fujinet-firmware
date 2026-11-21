@@ -351,6 +351,28 @@ TEST_CASE("an MRM reads in 32K blocks, padding the last with $FF")
     check_closed_once(disk, file);
 }
 
+TEST_CASE("an MRM mounts only up to 256 pages, in either extension")
+{
+    for (const char *name : {"mod.mrm", "MOD.RMM"})
+    {
+        auto image = make_image(MRM_BLOCK);
+        MemFile file(image);
+        drivewireDisk disk;
+        CHECK(disk.mount(&file, name, image.size(), DISK_ACCESS_MODE_READ).is_success());
+        CHECK(disk.mediatype() == MEDIATYPE_MRM);
+        CHECK(disk.isMounted());
+        check_closed_once(disk, file);
+        CHECK_FALSE(disk.isMounted());
+    }
+
+    std::vector<uint8_t> empty;
+    MemFile none(empty);
+    drivewireDisk disk;
+    CHECK(disk.mount(&none, MRM_TEST_FILE, 0, DISK_ACCESS_MODE_READ).is_error());
+    CHECK_FALSE(disk.device_active);
+    CHECK(none.closes == 1);
+}
+
 TEST_CASE("an MRM refuses writes")
 {
     auto image = make_image(MRM_BLOCK);

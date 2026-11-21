@@ -112,6 +112,7 @@ error_is_true drivewireDisk::mount(fnFile *f, const char *filename, uint32_t dis
         delete _media;
         _media = nullptr;
     }
+    release_module();
 
     // Determine MediaType based on filename extension
     if (disk_type == MEDIATYPE_UNKNOWN && filename != nullptr)
@@ -123,8 +124,15 @@ error_is_true drivewireDisk::mount(fnFile *f, const char *filename, uint32_t dis
         _media = new MediaTypeDSK();
         break;
     case MEDIATYPE_MRM:
-        _media = new MediaTypeMRM();
-        break;
+        _module = Media::open<PMD85ROM>(filename, f, nullptr);
+        if (!_module)
+        {
+            device_active = false;
+            fnio::fclose(f);
+            RETURN_ERROR_AS_TRUE();
+        }
+        device_active = true;
+        RETURN_SUCCESS_AS_FALSE();
     case MEDIATYPE_VDK:
         _media = new MediaTypeVDK();
         break;
@@ -182,7 +190,16 @@ void drivewireDisk::unmount()
         delete _media;
         _media = nullptr;
     }
+    release_module();
     device_active = false;
+}
+
+void drivewireDisk::release_module()
+{
+    if (_module)
+        _module->close();
+    _module.reset();
+    _module_status = DISK_CTRL_STATUS_CLEAR;
 }
 
 void drivewireDisk::set_media_host(fujiHost *host)
@@ -193,6 +210,21 @@ void drivewireDisk::set_media_host(fujiHost *host)
 
 error_is_true drivewireDisk::read(uint32_t lsn, uint8_t *buf)
 {
+    if (_module)
+    {
+        _module_status = DISK_CTRL_STATUS_CLEAR;
+        if (lsn >= _module->pageCount())
+        {
+            _module_status = 2;
+            RETURN_ERROR_AS_TRUE();
+        }
+        if (_module->readPage(lsn).is_error())
+            RETURN_ERROR_AS_TRUE();
+        if (buf)
+            memcpy(buf, _module->pageBuffer(), MEDIA_BLOCK_SIZE);
+        RETURN_SUCCESS_AS_FALSE();
+    }
+
     if (_media == nullptr)
         RETURN_ERROR_AS_TRUE();
 
@@ -227,7 +259,12 @@ error_is_true drivewireDisk::write(uint32_t lsn, uint8_t *buf)
 
 void drivewireDisk::get_media_buffer(uint8_t **p_buffer, uint16_t *p_blk_size)
 {
-    if (_media)
+    if (_module)
+    {
+        *p_buffer = _module->pageBuffer();
+        *p_blk_size = PMD85ROM::PAGE_SIZE;
+    }
+    else if (_media)
     {
         // query media for block buffer and block size
         _media->get_block_buffer(p_buffer, p_blk_size);
@@ -241,6 +278,8 @@ void drivewireDisk::get_media_buffer(uint8_t **p_buffer, uint16_t *p_blk_size)
 
 uint8_t drivewireDisk::get_media_status()
 {
+    if (_module)
+        return _module_status;
     if (!_media)
         return 3; // ? NO MEDIA
     return _media->status();

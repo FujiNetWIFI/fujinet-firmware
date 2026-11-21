@@ -2,6 +2,9 @@
 #define DISK_H
 
 #include "FujiDiskDrive.h"
+#include "rom/PMD85ROM.h"
+
+#include <memory>
 
 class drivewireDisk : public FujiDiskDrive
 {
@@ -14,7 +17,13 @@ public:
     drivewireDisk();
     ~drivewireDisk();
 
-    mediatype_t mediatype() { return _media == nullptr ? MEDIATYPE_UNKNOWN : _media->_mediatype; };
+    mediatype_t mediatype()
+    {
+        if (_module)
+            return MEDIATYPE_MRM;
+        return _media == nullptr ? MEDIATYPE_UNKNOWN : _media->_mediatype;
+    };
+    bool isMounted() const override { return _media != nullptr || _module != nullptr; }
     error_is_true mount(fnFile *f, const char *filename, uint32_t disksize,
                         disk_access_flags_t access_mode,
                         mediatype_t disk_type = MEDIATYPE_UNKNOWN);
@@ -35,6 +44,13 @@ public:
 
     void get_media_buffer(uint8_t **p_buffer, uint16_t *p_blk_size);
     uint8_t get_media_status();
+
+private:
+    // A PMD 85 module is read a page at a time and has no MediaType
+    std::unique_ptr<PMD85ROM> _module;
+    uint8_t _module_status = DISK_CTRL_STATUS_CLEAR;
+
+    void release_module();
 };
 
 #endif
