@@ -45,8 +45,7 @@ static std::optional<std::string> other_case(const std::string &extension)
     return swapped;
 }
 
-std::optional<std::string> Media::matchExtension(
-    const std::string &path, std::initializer_list<const char *> extensions)
+std::optional<std::string> Media::fileExtension(const std::string &path)
 {
     size_t end = path.find_first_of("?#");
     if (end == std::string::npos)
@@ -58,8 +57,20 @@ std::optional<std::string> Media::matchExtension(
         return std::nullopt;
 
     std::string extension = path.substr(dot, end - dot);
+    for (char &letter : extension)
+        letter = std::tolower((unsigned char)letter);
+    return extension;
+}
+
+std::optional<std::string> Media::matchExtension(
+    const std::string &path, std::initializer_list<const char *> extensions)
+{
+    std::optional<std::string> extension = fileExtension(path);
+    if (!extension)
+        return std::nullopt;
+
     for (const char *candidate : extensions)
-        if (strcasecmp(extension.c_str(), candidate) == 0)
+        if (strcasecmp(extension->c_str(), candidate) == 0)
             return candidate;
     return std::nullopt;
 }
