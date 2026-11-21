@@ -6,6 +6,10 @@
 class drivewireDisk : public FujiDiskDrive
 {
 public:
+    // What get_media_status() reports for a read past the end, and with no media.
+    static constexpr uint8_t DISK_STATUS_EOF = 2;
+    static constexpr uint8_t DISK_STATUS_NO_MEDIA = 3;
+
     /**
      * @brief Is this virtualDevice holding the virtual disk drive used to boot CONFIG?
      */

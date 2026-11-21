@@ -117,9 +117,9 @@ void systemBus::op_readex()
     uint16_t c1 = 0, c2 = 0;
 
     uint8_t *blk_buffer = sector_data;
-    uint16_t blk_size = MEDIA_BLOCK_SIZE;
+    uint16_t blk_size = DRIVEWIRE_SECTOR_SIZE;
 
-    uint8_t rc = DISK_CTRL_STATUS_CLEAR;
+    uint8_t rc = DRIVEWIRE_RESULT_OK;
 
     drive_num = _port->read();
 
@@ -153,9 +153,9 @@ void systemBus::op_readex()
             size_t bytesrd;
             Debug_printf("op_readex: open successful %s\r\n", szNamedMount);
 
-            memset(blk_buffer,0,MEDIA_BLOCK_SIZE);
-            bytesrd = fread(blk_buffer,1,MEDIA_BLOCK_SIZE,pNamedObjFp);
-            if (bytesrd!=MEDIA_BLOCK_SIZE || feof(pNamedObjFp))
+            memset(blk_buffer,0,DRIVEWIRE_SECTOR_SIZE);
+            bytesrd = fread(blk_buffer,1,DRIVEWIRE_SECTOR_SIZE,pNamedObjFp);
+            if (bytesrd!=DRIVEWIRE_SECTOR_SIZE || feof(pNamedObjFp))
             {
                 Debug_printf("op_readex: closed named object %s\r\n",szNamedMount);
                 fclose(pNamedObjFp);
@@ -185,13 +185,13 @@ void systemBus::op_readex()
             rc = 0xF6;
         }
 
-        if (rc == DISK_CTRL_STATUS_CLEAR && !d->device_active && !bDragon)
+        if (rc == DRIVEWIRE_RESULT_OK && !d->device_active && !bDragon)
         {
             Debug_printv("Device not active.");
             rc = 0xF6;
         }
 
-        if (rc == DISK_CTRL_STATUS_CLEAR)
+        if (rc == DRIVEWIRE_RESULT_OK)
         {
             bool use_media_buffer = true;
             d->get_media_buffer(&blk_buffer, &blk_size);
@@ -200,7 +200,7 @@ void systemBus::op_readex()
                 Debug_printv("No media buffer, using bus buffer.");
                 // no media buffer, use "bus buffer" with default block size
                 blk_buffer = sector_data;
-                blk_size = MEDIA_BLOCK_SIZE;
+                blk_size = DRIVEWIRE_SECTOR_SIZE;
                 use_media_buffer = false;
             }
 
@@ -220,7 +220,7 @@ void systemBus::op_readex()
             {
                 if (d->read(lsn, use_media_buffer ? nullptr : sector_data).is_error())
                 {
-                    if (d->get_media_status() == 2)
+                    if (d->get_media_status() == drivewireDisk::DISK_STATUS_EOF)
                     {
                         Debug_printf("EOF\n");
                         rc = 211;
@@ -234,10 +234,10 @@ void systemBus::op_readex()
             }
         }
         // Send zeros on error, from our own buffer: the media's holds its cached block
-        if (rc != DISK_CTRL_STATUS_CLEAR)
+        if (rc != DRIVEWIRE_RESULT_OK)
         {
             blk_buffer = sector_data;
-            blk_size = MEDIA_BLOCK_SIZE;
+            blk_size = DRIVEWIRE_SECTOR_SIZE;
             memset(blk_buffer, 0x00, blk_size);
         }
     }
@@ -249,7 +249,7 @@ void systemBus::op_readex()
     c1 |= _port->read();
 
     // test checksum
-    if (rc == DISK_CTRL_STATUS_CLEAR)
+    if (rc == DRIVEWIRE_RESULT_OK)
     {
         c2 = drivewire_checksum(blk_buffer, blk_size);
 
@@ -276,9 +276,9 @@ void systemBus::op_write()
     lsn |= _port->read() << 8;
     lsn |= _port->read();
 
-    size_t s = _port->read(sector_data, MEDIA_BLOCK_SIZE);
+    size_t s = _port->read(sector_data, DRIVEWIRE_SECTOR_SIZE);
 
-    if (s != MEDIA_BLOCK_SIZE)
+    if (s != DRIVEWIRE_SECTOR_SIZE)
     {
         Debug_printv("Insufficient # of bytes for write, total recvd: %u", s);
         _port->discardInput();
@@ -289,7 +289,7 @@ void systemBus::op_write()
     c1 = _port->read();
     c1 |= _port->read() << 8;
 
-    drivewire_checksum(sector_data, MEDIA_BLOCK_SIZE);
+    drivewire_checksum(sector_data, DRIVEWIRE_SECTOR_SIZE);
 
     // if (c1 != c2)
     // {
