@@ -339,11 +339,6 @@ void adamFuji::fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl)
                     dirpath[0] = 0x87;
                     dirpath[1] = 0x88;
                 }
-                else if (ext == "ROM")
-                {
-                    dirpath[0] = 0x89;
-                    dirpath[1] = 0x8a;
-                }
             }
         }
     }

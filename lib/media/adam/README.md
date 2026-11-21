@@ -3,7 +3,7 @@
 Coleco ADAM tape and disk image formats for `BUILD_ADAM`, also handed to `BUILD_S100`.
 
 ## How it fits
-- `discover_mediatype()` maps DDP, DSK and ROM by extension; `adamDisk` in
+- `discover_mediatype()` maps DDP and DSK by extension; `adamDisk` in
   [lib/device/adamnet/](../../device/adamnet/) picks the subclass.
 - Included by [lib/media/media.h](../media.h) under `BUILD_ADAM`, and again (base and DSK only)
   under `BUILD_S100`, so [lib/media/s100spi/](../s100spi/) is never reached.

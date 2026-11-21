@@ -512,7 +512,6 @@ if(FUJINET_TARGET STREQUAL "ADAM")
     lib/media/adam/mediaType.h lib/media/adam/mediaType.cpp
     lib/media/adam/mediaTypeDDP.h lib/media/adam/mediaTypeDDP.cpp
     lib/media/adam/mediaTypeDSK.h lib/media/adam/mediaTypeDSK.cpp
-    lib/media/adam/mediaTypeROM.h lib/media/adam/mediaTypeROM.cpp
 
     lib/device/adamnet/adamFuji.h lib/device/adamnet/adamFuji.cpp
     lib/device/adamnet/adamClock.h lib/device/adamnet/adamClock.cpp
