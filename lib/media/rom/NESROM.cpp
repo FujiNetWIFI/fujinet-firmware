@@ -20,7 +20,7 @@ static uint64_t nes2_rom_size(uint8_t lsb, uint8_t msbNibble, uint32_t unit)
 // trainer, PRG ROM, and CHR ROM the header says it has.
 error_is_true NESROM::attach()
 {
-    if (!matchExtension(_path, {".nes"}).has_value())
+    if (!matchExtension(_path, extensions).has_value())
         RETURN_ERROR_AS_TRUE();
 
     uint8_t header[INES_HEADER_SIZE];

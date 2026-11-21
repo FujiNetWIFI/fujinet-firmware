@@ -19,7 +19,7 @@ error_is_true ColecoROM::attach()
 {
     // .rom and .bin are shared with other consoles, which come first in the
     // factory's list; the cart header below is what makes one ColecoVision's.
-    if (!matchExtension(_path, {".col", ".rom", ".bin"}).has_value())
+    if (!matchExtension(_path, extensions).has_value())
         RETURN_ERROR_AS_TRUE();
 
     if (readSize().is_error() || _size < 2)

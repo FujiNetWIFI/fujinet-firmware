@@ -8,6 +8,7 @@
 #include <memory>
 #include <memory_resource>
 #include <optional>
+#include <span>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -53,8 +54,13 @@ public:
     static std::optional<std::string> fileExtension(const std::string &path);
 
     // The entry of extensions that path ends in, ignoring case; nullopt if none.
+    static std::optional<std::string> matchExtension(const std::string &path,
+                                                     std::span<const char *const> extensions);
     static std::optional<std::string> matchExtension(
-        const std::string &path, std::initializer_list<const char *> extensions);
+        const std::string &path, std::initializer_list<const char *> extensions)
+    {
+        return matchExtension(path, std::span(extensions.begin(), extensions.size()));
+    }
 
     // The same-named file beside path with extension, or in its other case; nullopt if none.
     static std::optional<std::string> findSibling(fujiHost *host, const std::string &path,

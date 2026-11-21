@@ -14,6 +14,8 @@ protected:
     error_is_true attach() override;
 
 public:
+    static constexpr const char *extensions[] = {".int", ".itv", ".bin", ".rom"};
+
     IntellivisionROM(const std::string &path, fnFile *handle, fujiHost *host)
         : ROMMedia(path, handle, host) {}
 

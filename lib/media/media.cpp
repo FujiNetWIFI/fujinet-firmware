@@ -62,8 +62,8 @@ std::optional<std::string> Media::fileExtension(const std::string &path)
     return extension;
 }
 
-std::optional<std::string> Media::matchExtension(
-    const std::string &path, std::initializer_list<const char *> extensions)
+std::optional<std::string> Media::matchExtension(const std::string &path,
+                                                std::span<const char *const> extensions)
 {
     std::optional<std::string> extension = fileExtension(path);
     if (!extension)
