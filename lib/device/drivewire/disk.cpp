@@ -201,7 +201,10 @@ error_is_true drivewireDisk::read(uint32_t lsn, uint8_t *buf)
     // copy data to destination buffer, if provided
     if (buf)
     {
-        memcpy(buf, _media->_media_blockbuff, MEDIA_BLOCK_SIZE);
+        uint8_t *blockbuff;
+        uint16_t blk_size;
+        _media->get_block_buffer(&blockbuff, &blk_size);
+        memcpy(buf, blockbuff, MEDIA_BLOCK_SIZE);
     }
     RETURN_SUCCESS_AS_FALSE();
 }
@@ -214,7 +217,10 @@ error_is_true drivewireDisk::write(uint32_t lsn, uint8_t *buf)
         RETURN_ERROR_AS_TRUE();
     }
 
-    memcpy(_media->_media_blockbuff,buf,MEDIA_BLOCK_SIZE);
+    uint8_t *blockbuff;
+    uint16_t blk_size;
+    _media->get_block_buffer(&blockbuff, &blk_size);
+    memcpy(blockbuff, buf, MEDIA_BLOCK_SIZE);
     return _media->write(lsn,0);
 }
 
