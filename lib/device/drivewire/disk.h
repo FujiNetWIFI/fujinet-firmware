@@ -6,7 +6,6 @@
 #include "MediaFormats.h"
 #include "disk/CoCoDSK.h"
 #include "disk/DragonVDK.h"
-#include "disk/PMD85MRM.h"
 #include "disk/CoCoCAS.h"
 
 #include <memory>
@@ -17,7 +16,6 @@ public:
     using Formats = MediaFormats<MEDIATYPE_UNKNOWN,
                                  MediaFormat<CoCoDSK, MEDIATYPE_DSK>,
                                  MediaFormat<DragonVDK, MEDIATYPE_VDK>,
-                                 MediaFormat<PMD85MRM, MEDIATYPE_MRM>,
                                  MediaFormat<CoCoCAS, MEDIATYPE_CAS>>;
 
 private:

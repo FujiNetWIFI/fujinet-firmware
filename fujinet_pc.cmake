@@ -353,7 +353,6 @@ set(SOURCES src/main.cpp
     lib/media/disk/JV1Disk.h lib/media/disk/JV1Disk.cpp
     lib/media/disk/CoCoDSK.h lib/media/disk/CoCoDSK.cpp
     lib/media/disk/DragonVDK.h lib/media/disk/DragonVDK.cpp
-    lib/media/disk/PMD85MRM.h lib/media/disk/PMD85MRM.cpp
 
     lib/media/disk/CoCoCAS.h lib/media/disk/CoCoCAS.cpp
     lib/media/disk/casSource.h lib/media/disk/casSourceFile.h
@@ -372,6 +371,7 @@ set(SOURCES src/main.cpp
     lib/media/rom/MSXROM.h lib/media/rom/MSXROM.cpp
     lib/media/rom/MSXROMDatabase.h lib/media/rom/MSXROMDatabase.cpp lib/media/rom/MSXROMDatabaseFile.cpp
     lib/media/rom/NESROM.h lib/media/rom/NESROM.cpp
+    lib/media/rom/PMD85ROM.h lib/media/rom/PMD85ROM.cpp
     lib/media/rom/SegaMasterROM.h lib/media/rom/SegaMasterROM.cpp
     lib/media/rom/StudioIIROM.h lib/media/rom/StudioIIROM.cpp
     lib/encoding/base64.h lib/encoding/base64.cpp
@@ -495,6 +495,7 @@ if(FUJINET_TARGET STREQUAL "COCO")
     lib/device/drivewire/drivewireFuji.h lib/device/drivewire/drivewireFuji.cpp
     lib/device/drivewire/CoCoROMFormats.h
     lib/device/drivewire/disk.h lib/device/drivewire/disk.cpp
+    lib/device/drivewire/romModule.h lib/device/drivewire/romModule.cpp
     lib/device/drivewire/printer.h lib/device/drivewire/printer.cpp
     lib/device/drivewire/printerlist.h lib/device/drivewire/printerlist.cpp
     lib/device/drivewire/drivewireClock.h lib/device/drivewire/drivewireClock.cpp

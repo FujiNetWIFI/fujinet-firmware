@@ -999,7 +999,6 @@ if(FUJINET_TARGET STREQUAL "COCO")
     ${CMAKE_SOURCE_DIR}/lib/media/disk/BlockMedia.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/disk/CoCoDSK.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/disk/DragonVDK.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/disk/PMD85MRM.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/disk/CoCoCAS.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/disk/casIndex.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/disk/casReader.cpp
@@ -1034,7 +1033,6 @@ if(FUJINET_TARGET STREQUAL "COCO")
     ${CMAKE_SOURCE_DIR}/lib/media/disk/BlockMedia.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/disk/CoCoDSK.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/disk/DragonVDK.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/disk/PMD85MRM.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/disk/CoCoCAS.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/disk/casIndex.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/disk/casReader.cpp
@@ -1052,6 +1050,32 @@ if(FUJINET_TARGET STREQUAL "COCO")
     target_link_libraries(drivewire_disk_tests PRIVATE ws2_32)
   endif()
   add_test(NAME drivewire_disk_tests COMMAND drivewire_disk_tests)
+
+  # A PMD 85 ROM module in a drive slot, read a page at a time through the in-memory fujiHost.
+  add_executable(drivewire_rom_module_tests
+    DrivewireROMModuleTests.cpp
+    romMountStubs.cpp
+    drivewireBusStubs.cpp
+    channelStubs.cpp
+    ${CMAKE_SOURCE_DIR}/lib/device/drivewire/romModule.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFile.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/media.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rom/ROMMedia.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rom/PMD85ROM.cpp
+    ${CMAKE_SOURCE_DIR}/lib/bus/FujiBusPacket.cpp
+    ${CMAKE_SOURCE_DIR}/lib/bus/DaisyChain.cpp
+  )
+  target_compile_definitions(drivewire_rom_module_tests PRIVATE
+    UNIT_TESTS PINMAP_FUJIVERSAL_DRIVEWIRE)
+  target_include_directories(drivewire_rom_module_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/lib/device/drivewire/
+    ${CMAKE_SOURCE_DIR}/lib/bus/drivewire/
+    ${ROM_MOUNT_TEST_INCLUDES}
+  )
+  if(WIN32)
+    target_link_libraries(drivewire_rom_module_tests PRIVATE ws2_32)
+  endif()
+  add_test(NAME drivewire_rom_module_tests COMMAND drivewire_rom_module_tests)
 
   # The Media root class's helpers, through the same in-memory fujiHost.
   add_executable(media_tests
