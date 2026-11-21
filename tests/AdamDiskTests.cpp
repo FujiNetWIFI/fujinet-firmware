@@ -166,12 +166,26 @@ TEST_CASE("a DDP write lands in its block and reads back")
     check_closed_once(disk, file);
 }
 
-TEST_CASE("the config disk refuses writes")
+TEST_CASE("a disk mounted read-only refuses writes")
 {
     auto image = numbered_sectors(4, BLOCK_SIZE);
     MemFile file(image);
     TestDisk disk;
     REQUIRE(disk.mount(&file, DDP_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
+            .is_success());
+
+    CHECK(write_block(disk, 1, filled(BLOCK_SIZE, 0x77)) == Outcome::Error);
+    CHECK(file.contents() == image);
+    CHECK(read_block(disk, 1) == slice(image, BLOCK_SIZE, BLOCK_SIZE));
+    check_closed_once(disk, file);
+}
+
+TEST_CASE("the config disk refuses writes")
+{
+    auto image = numbered_sectors(4, BLOCK_SIZE);
+    MemFile file(image);
+    TestDisk disk;
+    REQUIRE(disk.mount(&file, DDP_TEST_FILE, image.size(), DISK_ACCESS_MODE_WRITE)
             .is_success());
     disk.is_config_device = true;
 
