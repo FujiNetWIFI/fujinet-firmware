@@ -61,6 +61,14 @@ error_is_true MediaTypeImg::write(uint32_t sectornum, bool verify)
 {
     Debug_printf("IMG WRITE\r\n");
 
+    _disk_controller_status = DISK_CTRL_STATUS_CLEAR;
+
+    if (!_writable)
+    {
+        _disk_controller_status = DISK_CTRL_STATUS_WRITE_PROTECT_ERROR;
+        RETURN_ERROR_AS_TRUE();
+    }
+
     // Return an error if we're trying to write beyond the end of the disk
     // (which would grow the file), or there's no disk
     if (_disk_fileh == nullptr || sectornum >= _disk_num_sectors)
@@ -113,6 +121,9 @@ void MediaTypeImg::status(uint8_t statusbuff[4])
 
     if (_percomBlock.sectors_per_track == 26)
         statusbuff[0] |= DISK_DRIVE_STATUS_ENHANCED_DENSITY;
+
+    if (!_writable)
+        statusbuff[0] |= DISK_DRIVE_STATUS_WRITE_PROTECT_ERROR;
 
     statusbuff[1] = ~_disk_controller_status; // Negate the controller status
 }

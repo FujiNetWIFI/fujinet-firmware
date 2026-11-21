@@ -8,7 +8,13 @@ class MediaTypeImg : public MediaType
 private:
     uint32_t _sector_to_offset(uint32_t sectorNum);
 
+    bool _writable = false;
+
 public:
+    // `writable` comes from the mount slot's access mode, which also decided
+    // whether the file was opened "rb" or "rb+", so the two must agree.
+    explicit MediaTypeImg(bool writable) : _writable(writable) {}
+
     error_is_true read(uint32_t sectornum, uint32_t *readcount) override;
     error_is_true write(uint32_t sectornum, bool verify) override;
 

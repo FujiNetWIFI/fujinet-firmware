@@ -56,7 +56,7 @@ TEST_CASE("an image create() made mounts and reads to its last sector")
     REQUIRE(MediaTypeImg::create(fp, 512, 720).is_success());
     rewind(fp);
 
-    MediaTypeImg media;
+    MediaTypeImg media(true);
     CHECK(media.mount(fp, 512 * 720) == MEDIATYPE_IMG);
     uint32_t n = 0;
     CHECK(media.read(0, &n).is_success());
@@ -75,5 +75,49 @@ TEST_CASE("create() refuses an empty image")
     CHECK(MediaTypeImg::create(fp, 0, 720).is_error());
     CHECK(file_size(fp) == 0);
     fclose(fp);
+    remove(IMG_TEST_FILE);
+}
+
+TEST_CASE("a read-only mount refuses writes and reports write protect")
+{
+    fnFile *fp = fopen(IMG_TEST_FILE, "w+b");
+    REQUIRE(fp != nullptr);
+    REQUIRE(MediaTypeImg::create(fp, 512, 4).is_success());
+    rewind(fp);
+
+    MediaTypeImg media(false);
+    REQUIRE(media.mount(fp, 512 * 4) == MEDIATYPE_IMG);
+    memset(media._disk_sectorbuff, 0xA5, 512);
+    CHECK(media.write(1, false).is_error());
+
+    uint8_t status[4] = {};
+    media.status(status);
+    CHECK((status[0] & DISK_DRIVE_STATUS_WRITE_PROTECT_ERROR) != 0);
+
+    auto bytes = file_bytes(fp);
+    CHECK(std::count(bytes.begin(), bytes.end(), 0) == (long)bytes.size());
+    media.unmount();
+    remove(IMG_TEST_FILE);
+}
+
+TEST_CASE("a writable mount writes")
+{
+    fnFile *fp = fopen(IMG_TEST_FILE, "w+b");
+    REQUIRE(fp != nullptr);
+    REQUIRE(MediaTypeImg::create(fp, 512, 4).is_success());
+    rewind(fp);
+
+    MediaTypeImg media(true);
+    REQUIRE(media.mount(fp, 512 * 4) == MEDIATYPE_IMG);
+    memset(media._disk_sectorbuff, 0xA5, 512);
+    CHECK(media.write(1, false).is_success());
+
+    uint8_t status[4] = {};
+    media.status(status);
+    CHECK((status[0] & DISK_DRIVE_STATUS_WRITE_PROTECT_ERROR) == 0);
+
+    auto bytes = file_bytes(fp);
+    CHECK(bytes[512] == 0xA5);
+    media.unmount();
     remove(IMG_TEST_FILE);
 }
