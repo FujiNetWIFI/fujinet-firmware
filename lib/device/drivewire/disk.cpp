@@ -242,7 +242,7 @@ void drivewireDisk::get_media_buffer(uint8_t **p_buffer, uint16_t *p_blk_size)
 uint8_t drivewireDisk::get_media_status()
 {
     if (!_media)
-        return 3; // ? NO MEDIA
+        return DISK_STATUS_NO_MEDIA;
     return _media->status();
 }
 
