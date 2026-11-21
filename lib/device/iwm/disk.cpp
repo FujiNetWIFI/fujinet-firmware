@@ -209,15 +209,10 @@ void iwmDisk::iwm_writeblock(const iwm_decoded_cmd_t &cmd)
     SYSTEM_BUS.transaction_error(SP_ERR::NOWRITE);
     return;
   }
-  _media->write(cmd.frame.block_rw.num, &sdstato, buffer.data());
-
-  if (sdstato != BLOCK_DATA_LEN)
+  if (_media->write(cmd.frame.block_rw.num, &sdstato, buffer.data()).is_error())
   {
-    Debug_printf("\r\nFile Write err: %d bytes", sdstato);
-    if (sdstato == 0)
-      SYSTEM_BUS.transaction_error(SP_ERR::NOWRITE); // write protected todo: we should probably have a read-only flag that gets set and tested up top
-    else
-      SYSTEM_BUS.transaction_error(SP_ERR::IOERROR);
+    Debug_printf("\r\nFile Write err");
+    SYSTEM_BUS.transaction_error(SP_ERR::IOERROR);
     return;
   }
 
