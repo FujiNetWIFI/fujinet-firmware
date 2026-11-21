@@ -1,7 +1,8 @@
 # lib/media/rom
 
 Cartridge ROM images, which go to the cartridge whole at mount time instead of being read a sector
-at a time like a disk.
+at a time like a disk. The exception is `PMD85ROM`: the PMD 85 reads its module a page at a time, so
+the device keeps it open.
 
 ## How it fits
 

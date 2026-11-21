@@ -11,6 +11,7 @@
 #include "IntellicartROM.h"
 #include "IntellivisionROM.h"
 #include "NESROM.h"
+#include "PMD85ROM.h"
 #include "SegaMasterROM.h"
 #include "StudioIIROM.h"
 

@@ -973,7 +973,7 @@ if(FUJINET_TARGET STREQUAL "COCO")
     ${CMAKE_SOURCE_DIR}/lib/media/rom/ROMMedia.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/rom/CoCoCartROM.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/drivewire/mediaTypeDSK.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/mediaTypeMRM.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rom/PMD85ROM.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/drivewire/mediaTypeVDK.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/drivewire/mediaTypeCASDSK.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/drivewire/casIndex.cpp
@@ -1009,7 +1009,7 @@ if(FUJINET_TARGET STREQUAL "COCO")
     ${CMAKE_SOURCE_DIR}/lib/media/rom/ROMMedia.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/rom/CoCoCartROM.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/drivewire/mediaTypeDSK.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/mediaTypeMRM.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rom/PMD85ROM.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/drivewire/mediaTypeVDK.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/drivewire/mediaTypeCASDSK.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/drivewire/casIndex.cpp

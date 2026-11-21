@@ -132,7 +132,6 @@ protected:
 #ifdef BUILD_COCO
 # include "drivewire/mediaType.h"
 # include "drivewire/mediaTypeDSK.h"
-# include "drivewire/mediaTypeMRM.h"
 # include "drivewire/mediaTypeVDK.h"
 # include "drivewire/mediaTypeCASDSK.h"
 #endif

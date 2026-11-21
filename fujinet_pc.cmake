@@ -353,6 +353,7 @@ set(SOURCES src/main.cpp
     lib/media/rom/IntellicartROM.h lib/media/rom/IntellicartROM.cpp
     lib/media/rom/IntellivisionROM.h lib/media/rom/IntellivisionROM.cpp
     lib/media/rom/NESROM.h lib/media/rom/NESROM.cpp
+    lib/media/rom/PMD85ROM.h lib/media/rom/PMD85ROM.cpp
     lib/media/rom/SegaMasterROM.h lib/media/rom/SegaMasterROM.cpp
     lib/media/rom/StudioIIROM.h lib/media/rom/StudioIIROM.cpp
     lib/encoding/base64.h lib/encoding/base64.cpp
@@ -475,7 +476,6 @@ if(FUJINET_TARGET STREQUAL "COCO")
 
     lib/media/drivewire/mediaType.h lib/media/drivewire/mediaType.cpp
     lib/media/drivewire/mediaTypeDSK.h lib/media/drivewire/mediaTypeDSK.cpp
-    lib/media/drivewire/mediaTypeMRM.h lib/media/drivewire/mediaTypeMRM.cpp
     lib/media/drivewire/mediaTypeVDK.h lib/media/drivewire/mediaTypeVDK.cpp
     lib/media/drivewire/mediaTypeCASDSK.h lib/media/drivewire/mediaTypeCASDSK.cpp
     lib/media/drivewire/casSource.h lib/media/drivewire/casSourceFile.h
