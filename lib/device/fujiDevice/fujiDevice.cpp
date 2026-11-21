@@ -309,7 +309,7 @@ success_is_true fujiDevice::fujicore_mount_all_at_startup()
 void fujiDevice::shutdown()
 {
     for (int i = 0; i < _totalDiskDevices; i++)
-        _fnDisks[i].disk_dev.unmount();
+        unmount_media(i);
 
     // Clean the mounts and mount tracking, so they re-mount after a restart.
     for (int i = 0; i < MAX_HOSTS; i++)
@@ -615,7 +615,7 @@ success_is_true fujiDevice::fujicore_mount_disk_image_success(uint8_t deviceSlot
     fujiDisk &disk = *get_disk(deviceSlot);
     fujiHost &host = _fnHosts[disk.host_slot];
 
-    get_disk_dev(deviceSlot)->unmount();
+    unmount_media(deviceSlot);
 
     Debug_printf("Selecting '%s' from host #%u as %s on D%u:\r\n",
                  disk.filename, disk.host_slot, mode, deviceSlot + 1);
@@ -1242,16 +1242,13 @@ success_is_true fujiDevice::fujicmd_copy_file_success(uint8_t sourceSlot, uint8_
 
 success_is_true fujiDevice::fujicore_unmount_disk_image_success(uint8_t deviceSlot)
 {
-    DISK_DEVICE *disk_dev;
-
     Debug_printf("Fuji cmd: UNMOUNT IMAGE 0x%02X\n", deviceSlot);
 
     // FIXME - handle tape?
     if (deviceSlot >= _totalDiskDevices)
         RETURN_ERROR_AS_FALSE();
 
-    disk_dev = get_disk_dev(deviceSlot);
-    disk_dev->unmount();
+    unmount_media(deviceSlot);
     _fnDisks[deviceSlot].reset();
 
     RETURN_SUCCESS_AS_TRUE();
@@ -1532,7 +1529,7 @@ void fujiDevice::fujicmd_set_boot_config(bool enable)
         fujiDisk &disk = _fnDisks[0];
         if (disk.host_slot == INVALID_HOST_SLOT)
         {
-            get_disk_dev(0)->unmount();
+            unmount_media(0);
             _fnDisks[0].reset();
         }
     }
@@ -1605,7 +1602,7 @@ void fujiDevice::unmount_disks_on_host(uint8_t hostSlot)
     {
         if (_fnDisks[i].host_slot == hostSlot)
         {
-            _fnDisks[i].disk_dev.unmount();
+            unmount_media(i);
             _fnDisks[i].disk_dev.device_active = false;
             _fnDisks[i].reset();
         }

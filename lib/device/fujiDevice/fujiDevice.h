@@ -192,6 +192,9 @@ protected:
         return disk_dev->mount(fileh, disk.filename, disk.disk_size, mode);
     }
 
+    // Platform hook for every unmount: the mirror of mount_media()
+    virtual void unmount_media(uint8_t deviceSlot) { get_disk_dev(deviceSlot)->unmount(); }
+
     // Slot holding the disk that currently answers as drive 1, or -1 when
     // fewer than two disks are mounted and rotation is a no-op.
     virtual int get_rotate_slot();
