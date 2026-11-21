@@ -87,6 +87,13 @@ error_is_true MediaTypeVDK::write(uint32_t blockNum, bool verify)
         RETURN_ERROR_AS_TRUE();
     }
 
+    if (_media_read_only)
+    {
+        Debug_printf("VDK::write block %lu rejected (read-only)\n", blockNum);
+        _media_controller_status = 2;
+        RETURN_ERROR_AS_TRUE();
+    }
+
     uint32_t offset = _block_to_offset(blockNum);
 
     _media_last_block = INVALID_SECTOR_VALUE;
