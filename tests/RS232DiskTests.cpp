@@ -267,14 +267,14 @@ TEST_CASE("a writable IMD stores a sector in place, and a read-only one refuses"
         CHECK(file.contents() == image);
         auto status = drive_status(disk);
         REQUIRE(status.size() == 4);
-        CHECK((status[0] & DISK_DRIVE_STATUS_WRITE_PROTECT_ERROR) != 0);
+        CHECK((status[0] & rs232Disk::DRIVE_STATUS_WRITE_PROTECT) != 0);
         check_closed_once(disk, file);
     }
 }
 
 TEST_CASE("an Altair-sized .dsk mounts as Altair, with 137-byte sectors")
 {
-    auto image = numbered_sectors(ALTAIR_MINIDISK_SECTORS, ALTAIR_SECTOR_SIZE);
+    auto image = numbered_sectors(ALTAIR_MINIDISK_SECTORS, ALTAIR_DSK_SECTOR_SIZE);
     REQUIRE(image.size() == ALTAIR_MINIDISK_SIZE);
     MemFile file(image);
     TestDisk disk;
@@ -284,7 +284,7 @@ TEST_CASE("an Altair-sized .dsk mounts as Altair, with 137-byte sectors")
     for (uint32_t sector : {300u, 0u, 1u, ALTAIR_MINIDISK_SECTORS - 1})
     {
         CAPTURE(sector);
-        CHECK(read_sector(disk, sector) == sector_of(image, sector, ALTAIR_SECTOR_SIZE));
+        CHECK(read_sector(disk, sector) == sector_of(image, sector, ALTAIR_DSK_SECTOR_SIZE));
     }
     CHECK_FALSE(read_sector(disk, ALTAIR_MINIDISK_SECTORS).has_value());
     check_closed_once(disk, file);
@@ -294,7 +294,7 @@ TEST_CASE("an Altair write lands in its sector, and a read-only mount refuses")
 {
     for (auto mode : {DISK_ACCESS_MODE_READ, DISK_ACCESS_MODE_WRITE})
     {
-        auto image = numbered_sectors(ALTAIR_MINIDISK_SECTORS, ALTAIR_SECTOR_SIZE);
+        auto image = numbered_sectors(ALTAIR_MINIDISK_SECTORS, ALTAIR_DSK_SECTOR_SIZE);
         MemFile file(image);
         TestDisk disk;
         REQUIRE(disk.mount(&file, ALTAIR_TEST_FILE, image.size(), mode).is_success());
@@ -302,15 +302,15 @@ TEST_CASE("an Altair write lands in its sector, and a read-only mount refuses")
         std::vector<uint8_t> expected = image;
         if (mode == DISK_ACCESS_MODE_WRITE)
         {
-            CHECK(write_sector(disk, 7, filled(ALTAIR_SECTOR_SIZE, 0x77)) == Outcome::Success);
-            std::fill_n(expected.begin() + 7 * ALTAIR_SECTOR_SIZE, ALTAIR_SECTOR_SIZE, 0x77);
-            CHECK(read_sector(disk, 7) == filled(ALTAIR_SECTOR_SIZE, 0x77));
+            CHECK(write_sector(disk, 7, filled(ALTAIR_DSK_SECTOR_SIZE, 0x77)) == Outcome::Success);
+            std::fill_n(expected.begin() + 7 * ALTAIR_DSK_SECTOR_SIZE, ALTAIR_DSK_SECTOR_SIZE, 0x77);
+            CHECK(read_sector(disk, 7) == filled(ALTAIR_DSK_SECTOR_SIZE, 0x77));
         }
         else
         {
-            CHECK(write_sector(disk, 7, filled(ALTAIR_SECTOR_SIZE, 0x77)) == Outcome::Error);
+            CHECK(write_sector(disk, 7, filled(ALTAIR_DSK_SECTOR_SIZE, 0x77)) == Outcome::Error);
         }
-        CHECK(write_sector(disk, ALTAIR_MINIDISK_SECTORS, filled(ALTAIR_SECTOR_SIZE, 0x77))
+        CHECK(write_sector(disk, ALTAIR_MINIDISK_SECTORS, filled(ALTAIR_DSK_SECTOR_SIZE, 0x77))
               == Outcome::Error);
         CHECK(file.contents() == expected);
         check_closed_once(disk, file);
@@ -328,7 +328,7 @@ TEST_CASE("a .dsk that isn't an Altair size mounts raw")
     check_closed_once(disk, file);
 }
 
-TEST_CASE("an IMD with no tracks doesn't mount, and the drive is left inactive")
+TEST_CASE("an IMD with no tracks mounts raw")
 {
     IMD builder;
     builder.header();
@@ -336,9 +336,8 @@ TEST_CASE("an IMD with no tracks doesn't mount, and the drive is left inactive")
     TestDisk disk;
 
     CHECK(disk.mount(&file, IMD_TEST_FILE, builder.out.size(), DISK_ACCESS_MODE_READ)
-            .is_error());
-    CHECK_FALSE(disk.device_active);
-    CHECK(disk.mount_time() == 0);
-    CHECK(file.closes == 1);
-    CHECK_FALSE(file.usedAfterClose);
+            .is_success());
+    CHECK(disk.device_active);
+    CHECK(disk.mount_time() != 0);
+    check_closed_once(disk, file);
 }

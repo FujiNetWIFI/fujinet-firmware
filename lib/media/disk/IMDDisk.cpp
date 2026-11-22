@@ -1,304 +1,96 @@
-#ifdef BUILD_RS232
+#include "IMDDisk.h"
 
-#include "diskTypeIMD.h"
+#include <algorithm>
+#include <ctime>
 
-#include <string.h>
-
-#include "../../include/debug.h"
-
-// Deliberately no disk.h/bus.h/fnSystem.h: keeping this file to the media layer
-// is what lets tests/MediaTypeIMDTests.cpp link it without a bus.
-
-// Drive sector N is IMD LBA N. The FujiBus client addresses sectors 0-based:
-// data/BUILD_RS232/autorun.img is a raw FAT12 image whose boot sector is at byte
-// 0, and MediaTypeImg maps sector n to offset n * 512.
-static inline uint32_t sector_to_lba(uint32_t sectornum)
+error_is_true IMDDisk::attach()
 {
-    return sectornum;
-}
+    if (!matchExtension(_path, extensions).has_value()
+        && (matchExtension(_path, rawExtensions).has_value()
+            || _image.probe() != IMDStatus::Ok))
+        RETURN_ERROR_AS_TRUE();
 
-static uint8_t imd_ctrl_bits(IMDStatus status)
-{
-    switch (status)
+    if (_image.open(!_readOnly) != IMDStatus::Ok || _image.lbaCount() == 0)
+        RETURN_ERROR_AS_TRUE();
+
+    // Max + 1 rather than a distinct count, so tracks missing from the image
+    // don't shrink the geometry.
+    uint8_t maxCylinder = 0;
+    uint8_t maxHead = 0;
+    IMDTrackInfo info;
+    for (uint32_t track = 0; track < _image.trackCount(); track++)
     {
-    case IMDStatus::NoSuchSector:
-    case IMDStatus::Unavailable: // never readable on the physical disk
-        return DISK_CTRL_STATUS_SECTOR_MISSING;
-    case IMDStatus::ReadOnly:
-    case IMDStatus::WriteRefused: // an unavailable record, or a length that does not match
-        return DISK_CTRL_STATUS_WRITE_PROTECT_ERROR;
-    default:
-        return DISK_CTRL_STATUS_DATA_LOST;
+        if (_image.trackInfo(track, info) != IMDStatus::Ok)
+            continue;
+        maxCylinder = std::max(maxCylinder, info.cyl);
+        maxHead = std::max(maxHead, info.head);
     }
+    _cylinders = maxCylinder + 1;
+    _sides = maxHead + 1;
+    RETURN_SUCCESS_AS_FALSE();
 }
 
-// Max + 1 rather than a distinct count: the PERCOM block describes a geometry
-// rectangle, and this stays right when tracks are missing from the image.
-void MediaTypeIMD::_derive_geometry()
+TrackGeometry IMDDisk::trackGeometry(uint16_t cylinder, uint8_t side) const
 {
     IMDTrackInfo info;
-    uint8_t maxcyl = 0;
-    uint8_t maxhead = 0;
-
-    _spt = 0;
-    _mfm = false;
-
-    uint32_t tracks = _imd->trackCount();
-    for (uint32_t idx = std::min<uint32_t>(1U, tracks - 1); idx < tracks; idx++)
+    for (uint32_t track = 0; track < _image.trackCount(); track++)
     {
-        if (_imd->trackInfo(idx, info) != IMDStatus::Ok)
+        if (_image.trackInfo(track, info) != IMDStatus::Ok || info.cyl != cylinder
+            || info.head != side)
             continue;
-        if (info.cyl > maxcyl)
-            maxcyl = info.cyl;
-        if (info.head > maxhead)
-            maxhead = info.head;
-        if (info.nsec > _spt)
-            _spt = info.nsec;
-        if (IMDImage::modeIsMFM(info.mode))
-            _mfm = true;
+        return {static_cast<uint8_t>(info.nsec), _image.sectorSize(info.first_lba),
+                IMDImage::modeIsMFM(info.mode) ? TrackEncoding::MFM : TrackEncoding::FM};
     }
-
-    _cyls = (uint16_t)maxcyl + 1;
-    _heads = (uint8_t)(maxhead + 1);
+    return {0, 0};
 }
 
-// A mixed-sector-size image has no honest single answer here; report the
-// geometry rectangle and LBA 0's size. sector_size() remains exact.
-void MediaTypeIMD::_fill_percom()
+error_is_true IMDDisk::readBlock(uint32_t block, ByteBuffer &buffer)
 {
-    memset(&_percomBlock, 0, sizeof(_percomBlock));
-
-    _percomBlock.num_tracks = (uint8_t)(_cyls > 255 ? 255 : _cyls);
-    _percomBlock.step_rate = 0x01;
-    _percomBlock.sectors_per_track = _spt;
-    _percomBlock.num_sides = (uint8_t)(_heads - 1); // 0 = SS, 1 = DS
-    _percomBlock.density = _mfm ? DENSITY_MFM : DENSITY_FM;
-    _percomBlock.sector_size = _disk_sector_size;
-    _percomBlock.drive_present = 0xFF;
-}
-
-mediatype_t MediaTypeIMD::mount(fnFile *f, uint32_t disksize)
-{
-    Debug_printf("IMD MOUNT %s (%lu bytes, %s)\r\n", _disk_filename,
-                 (unsigned long)disksize, _writable ? "rw" : "ro");
-
-    // Take the handle first: on a failed mount the caller leaves the file open
-    // and relies on this MediaType being deleted to close it.
-    _disk_fileh = f;
-    _disk_image_size = disksize;
-
-    _imd.reset(new (std::nothrow) IMDImage(f, &_psram));
-    if (!_imd)
-        return MEDIATYPE_UNKNOWN;
-
-    IMDStatus status = _imd->open(_writable);
-    if (status != IMDStatus::Ok)
-    {
-        Debug_printf("IMD MOUNT failed: %s\r\n", IMDImage::statusString(status));
-        return MEDIATYPE_UNKNOWN;
-    }
-
-    // rs232_write() reads sector_size() bytes into the 512-byte _disk_sectorbuff,
-    // so a larger sector would overrun it -- and read() could not fill it either.
-    if (_imd->maxSectorSize() > DISK_SECTORBUF_SIZE)
-    {
-        Debug_printf("IMD MOUNT refused: %u-byte sectors exceed the %u-byte sector buffer\r\n",
-                     _imd->maxSectorSize(), (unsigned)DISK_SECTORBUF_SIZE);
-        _imd->close();
-        return MEDIATYPE_UNKNOWN;
-    }
-
-    if (_imd->lbaCount() == 0)
-    {
-        Debug_print("IMD MOUNT refused: no sectors\r\n");
-        _imd->close();
-        return MEDIATYPE_UNKNOWN;
-    }
-
-    _derive_geometry();
-
-    _disk_num_sectors = _imd->lbaCount();
-    _disk_sector_size = _imd->maxSectorSize();
-    _base_ctrl_status = _writable ? DISK_CTRL_STATUS_CLEAR : DISK_CTRL_STATUS_WRITE_PROTECT_ERROR;
-    _disk_controller_status = _base_ctrl_status;
-    _disktype = MEDIATYPE_IMD;
-
-    _fill_percom();
-
-    Debug_printf("IMD: %lu sectors, %u cyl x %u head, %u spt, %s, %s sector size (max %u)\r\n",
-                 (unsigned long)_imd->lbaCount(), _cyls, _heads, _spt, _mfm ? "MFM" : "FM",
-                 _imd->uniformSectorSize() ? "uniform" : "mixed", _imd->maxSectorSize());
-
-    if (_imd->trailingGarbage() != 0)
-        Debug_printf("IMD: %lu trailing bytes ignored\r\n",
-                     (unsigned long)_imd->trailingGarbage());
-
-    if (_imd->comment()[0] != '\0')
-        Debug_printf("IMD comment: %s\r\n", _imd->comment());
-
-    return _disktype;
-}
-
-// rs232Disk::unmount() calls this before it deletes the media, so the borrowed
-// handle has to be dropped before the base closes it. The destructor path needs
-// nothing: ~IMDImage runs before ~MediaType.
-void MediaTypeIMD::unmount()
-{
-    _imd.reset();
-    MediaType::unmount();
-}
-
-uint32_t MediaTypeIMD::_lba_count() const
-{
-    return _imd ? _imd->lbaCount() : 0;
-}
-
-error_is_true MediaTypeIMD::read(uint32_t sectornum, uint32_t *readcount)
-{
-    // No _disk_last_sector bookkeeping: that only exists to skip an fseek for
-    // sequential reads, and IMDImage always seeks absolutely.
-    *readcount = 0;
-    _disk_controller_status = _base_ctrl_status;
-
-    if (sectornum >= _lba_count())
-    {
-        Debug_printf("IMD::read sector %lu >= %lu\r\n", (unsigned long)sectornum,
-                     (unsigned long)_lba_count());
-        _disk_controller_status |= DISK_CTRL_STATUS_SECTOR_MISSING;
+    uint16_t size = blockSize(block);
+    if (size == 0)
         RETURN_ERROR_AS_TRUE();
-    }
 
-    memset(_disk_sectorbuff, 0, sizeof(_disk_sectorbuff));
-
-    uint16_t len = 0;
-    IMDStatus status = _imd->readSector(sector_to_lba(sectornum), _disk_sectorbuff,
-                                         sizeof(_disk_sectorbuff), &len);
-    if (status != IMDStatus::Ok)
-    {
-        Debug_printf("IMD::read lba %lu: %s\r\n", (unsigned long)sectornum,
-                     IMDImage::statusString(status));
-        _disk_controller_status |= imd_ctrl_bits(status);
+    buffer.resize(size);
+    uint16_t length = 0;
+    if (_image.readSector(block, buffer.data(), size, &length) != IMDStatus::Ok)
         RETURN_ERROR_AS_TRUE();
-    }
-
-    // A data-error record still carries its recovered contents and a deleted
-    // address mark is ordinary CP/M data. Deliver both and flag them in the
-    // controller status: an error reply carries no payload at all.
-    IMDSectorInfo info;
-    if (_imd->sectorInfo(sector_to_lba(sectornum), info) == IMDStatus::Ok)
-    {
-        if (info.had_error)
-            _disk_controller_status |= DISK_CTRL_STATUS_CRC_ERROR;
-        if (info.deleted)
-            _disk_controller_status |= DISK_CTRL_STATUS_SECTOR_DELETED;
-    }
-
-    *readcount = len;
-
+    buffer.resize(length);
     RETURN_SUCCESS_AS_FALSE();
 }
 
-error_is_true MediaTypeIMD::write(uint32_t sectornum, bool verify)
+error_is_true IMDDisk::writeBlock(uint32_t block, const ByteBuffer &buffer)
 {
-    // `verify` is ignored, as it is by every other media type here.
-    _disk_controller_status = _base_ctrl_status;
-
-    if (!_writable)
-    {
-        Debug_print("IMD::write refused: mounted read-only\r\n");
-        _disk_controller_status |= DISK_CTRL_STATUS_WRITE_PROTECT_ERROR;
+    uint16_t size = blockSize(block);
+    if (_readOnly || size == 0 || buffer.size() != size)
         RETURN_ERROR_AS_TRUE();
-    }
-
-    if (sectornum >= _lba_count())
-    {
-        Debug_printf("IMD::write sector %lu >= %lu\r\n", (unsigned long)sectornum,
-                     (unsigned long)_lba_count());
-        _disk_controller_status |= DISK_CTRL_STATUS_SECTOR_MISSING;
-        RETURN_ERROR_AS_TRUE();
-    }
-
-    // Separate an unreadable sector from a record that cannot take the data
-    IMDSectorInfo info;
-    if (_imd->sectorInfo(sector_to_lba(sectornum), info) == IMDStatus::Ok && info.unavailable)
-    {
-        Debug_printf("IMD::write lba %lu is unavailable\r\n", (unsigned long)sectornum);
-        _disk_controller_status |= DISK_CTRL_STATUS_SECTOR_MISSING;
-        RETURN_ERROR_AS_TRUE();
-    }
-
-    IMDStatus status = _imd->writeSector(sector_to_lba(sectornum), _disk_sectorbuff,
-                                          _imd->sectorSize(sector_to_lba(sectornum)));
-    if (status != IMDStatus::Ok)
-    {
-        Debug_printf("IMD::write lba %lu: %s\r\n", (unsigned long)sectornum,
-                     IMDImage::statusString(status));
-        _disk_controller_status |= imd_ctrl_bits(status);
-        RETURN_ERROR_AS_TRUE();
-    }
-
-    // IMDImage::writeSector() already flushed
-    RETURN_SUCCESS_AS_FALSE();
+    RETURN_ERROR_IF(_image.writeSector(block, buffer.data(), size) != IMDStatus::Ok);
 }
 
-error_is_true MediaTypeIMD::format(uint32_t *responsesize)
+error_is_true IMDDisk::close()
 {
-    // IMD records are variable length, so there is no in-place format. Fail rather
-    // than report success without having done it.
-    Debug_print("IMD FORMAT not supported\r\n");
-
-    *responsesize = 0;
-
-    RETURN_ERROR_AS_TRUE();
+    _image.close();
+    return BlockMedia::close();
 }
 
-// 0 when out of range, which rs232_write() turns into a zero-length get that
-// write() then rejects
-uint16_t MediaTypeIMD::sector_size(uint32_t sectornum)
+success_is_true IMDDisk::create(fnFile *f, uint16_t sectorSize, uint32_t numSectors)
 {
-    return _imd ? _imd->sectorSize(sector_to_lba(sectornum)) : 0;
-}
-
-void MediaTypeIMD::status(uint8_t statusbuff[4])
-{
-    statusbuff[0] = DISK_DRIVE_STATUS_CLEAR;
-
-    if (_mfm)
-        statusbuff[0] |= DISK_DRIVE_STATUS_DOUBLE_DENSITY;
-
-    if (_heads > 1)
-        statusbuff[0] |= DISK_DRIVE_STATUS_DOUBLE_SIDED;
-
-    if (_spt == 26)
-        statusbuff[0] |= DISK_DRIVE_STATUS_ENHANCED_DENSITY;
-
-    if (!_writable)
-        statusbuff[0] |= DISK_DRIVE_STATUS_WRITE_PROTECT_ERROR;
-
-    statusbuff[1] = ~_disk_controller_status; // Negate the controller status
-}
-
-success_is_true MediaTypeIMD::create(fnFile *f, uint16_t sectorSize, uint32_t numSectors)
-{
-    const uint8_t cyls = 77, spt = 26;
+    const uint8_t cylinders = 77, sectors = 26;
     // As mkfs.cpm -f ibm-3740 leaves it: E5 through the directory on track 2
-    const uint8_t blank_cyls = 3;
+    const uint8_t blankCylinders = 3;
 
-    Debug_print("IMD CREATE\r\n");
-    if (sectorSize != 128 || numSectors != cyls * spt)
+    if (sectorSize != 128 || numSectors != cylinders * sectors)
         RETURN_ERROR_AS_FALSE();
 
     IMDImage image(f);
     if (image.writeHeader(time(nullptr)) != IMDStatus::Ok)
         RETURN_ERROR_AS_FALSE();
-    for (uint8_t cyl = 0; cyl < cyls; cyl++)
+    for (uint8_t cylinder = 0; cylinder < cylinders; cylinder++)
     {
         // Mode 0 is 500 kbps FM; size code 0 is 128 bytes
-        if (image.writeBlankTrack(0, cyl, 0, spt, 0, cyl < blank_cyls ? 0xE5 : 0x00)
+        if (image.writeBlankTrack(0, cylinder, 0, sectors, 0,
+                                  cylinder < blankCylinders ? 0xE5 : 0x00)
             != IMDStatus::Ok)
             RETURN_ERROR_AS_FALSE();
     }
     RETURN_SUCCESS_AS_TRUE();
 }
-
-#endif /* BUILD_RS232 */

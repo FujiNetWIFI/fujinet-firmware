@@ -181,9 +181,7 @@ protected:
     virtual size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                                    uint8_t maxlen) = 0;
     dirEntryDetails _additional_direntry_details(fsdir_entry_t *f);
-    virtual mediatype_t directoryMediaType(const char *filename) {
-        return MediaType::discover_mediatype(filename);
-    }
+    virtual mediatype_t directoryMediaType(const char *filename) = 0;
 
     // Platform hook for fujicore_mount_disk_image_success()
     virtual error_is_true mount_media(DISK_DEVICE *disk_dev, fnFile *fileh, fujiDisk &disk,

@@ -1,37 +1,43 @@
-#ifndef _MEDIATYPE_ALTAIR
-#define _MEDIATYPE_ALTAIR
+#ifndef ALTAIRDSK_H
+#define ALTAIRDSK_H
 
-#include "diskType.h"
+#include "BlockMedia.h"
 
-#define ALTAIR_SECTOR_SIZE 137
+class fujiHost;
 
-// Serves an Altair 88-DCDD / FDC+ image (.dsk): headerless 137-byte sectors in
-// physical order, so drive sector N is track N / spt, sector N % spt. The FDC+
-// card on the far side runs the drive timing and only ever moves whole sectors.
-class MediaTypeAltair : public MediaType
+constexpr uint16_t ALTAIR_DSK_SECTOR_SIZE = 137;
+
+// An Altair 88-DCDD / FDC+ image: headerless 137-byte FM sectors in physical
+// order on one side. A .dsk is also a plain sector image, so only the exact
+// FDC+ sizes are taken, and those fix the geometry. Padding after the last
+// sector is never addressed.
+class AltairDSK : public BlockMedia
 {
 public:
-    static constexpr std::array<const char *, 1> extensions = { ".dsk" };
+    static constexpr const char *extensions[] = {".dsk"};
 
-    using MediaType::MediaType;
+    AltairDSK(const std::string &path, fnFile *handle, fujiHost * /*host*/, bool readOnly)
+        : BlockMedia(path, handle), _readOnly(readOnly) {}
 
-    // .DSK is also a plain sector image, so only the exact FDC+ sizes qualify.
-    static bool looks_like_altair(const char *filename, uint32_t disksize);
+    uint8_t sideCount() const override { return 1; }
+    uint16_t cylinderCount() const override { return _cylinders; }
+    TrackGeometry trackGeometry(uint16_t cylinder, uint8_t side) const override;
+    uint32_t blockCount() const override { return (uint32_t)_cylinders * _sectorsPerTrack; }
+    uint16_t blockSize(uint32_t block) const override;
 
-    mediatype_t mount(fnFile *f, uint32_t disksize) override;
+    // Flushed straight away, since the computer may be reset at any moment.
+    error_is_true writeBlock(uint32_t block, const ByteBuffer &buffer) override;
 
-    error_is_true read(uint32_t sectornum, uint32_t *readcount) override;
-    error_is_true write(uint32_t sectornum, bool verify) override;
+    bool isReadOnly() const override { return _readOnly; }
 
-    uint16_t sector_size(uint32_t sectornum) override;
-
-    void status(uint8_t statusbuff[4]) override;
+protected:
+    error_is_true attach() override;
+    error_is_true blockToOffset(uint32_t block, uint32_t &offset) const override;
 
 private:
-    error_is_true _seek(uint32_t sectornum);
-
-    uint16_t _tracks = 0;
-    uint16_t _spt = 0;
+    bool _readOnly;
+    uint16_t _cylinders = 0;
+    uint8_t _sectorsPerTrack = 0;
 };
 
-#endif // _MEDIATYPE_ALTAIR
+#endif /* ALTAIRDSK_H */

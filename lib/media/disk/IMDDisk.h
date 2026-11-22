@@ -1,52 +1,56 @@
-#ifndef _MEDIATYPE_IMD
-#define _MEDIATYPE_IMD
+#ifndef IMDDISK_H
+#define IMDDISK_H
 
-#include <memory>
+#include "BlockMedia.h"
+#include "IMDImage.h"
+#include "PSRAMMemoryResource.h"
 
-#include "diskType.h"
+class fujiHost;
 
-#include "../IMDImage.h"
-#include "../../include/PSRAMMemoryResource.h"
-
-// Serves an ImageDisk (.imd) image using its native geometry: drive sector N is
-// IMD LBA N and sector_size() reports the real per-sector size, so a mixed
-// density disk (128-byte track 0, 512-byte data tracks) presents as it did on
-// the original drive.
-class MediaTypeIMD : public MediaType
+// An ImageDisk (.imd) image in its native geometry: block N is IMD LBA N and
+// has that sector's own size, so a 128-byte track 0 stays 128 bytes. Records
+// are compressed, so blocks are reached through IMDImage, not by offset.
+class IMDDisk : public BlockMedia
 {
 public:
-    static constexpr std::array<const char *, 1> extensions = { ".imd" };
+    static constexpr const char *extensions[] = {".imd"};
 
-    using MediaType::MediaType;
+    IMDDisk(const std::string &path, fnFile *handle, fujiHost * /*host*/, bool readOnly)
+        : BlockMedia(path, handle), _readOnly(readOnly), _image(handle, &_psram) {}
 
-    mediatype_t mount(fnFile *f, uint32_t disksize) override;
-    void unmount() override;
+    uint8_t sideCount() const override { return _sides; }
+    uint16_t cylinderCount() const override { return _cylinders; }
+    // From the track's header, sized by its first sector; {0, 0} if the image
+    // has no such track.
+    TrackGeometry trackGeometry(uint16_t cylinder, uint8_t side) const override;
+    uint32_t blockCount() const override { return _image.lbaCount(); }
+    uint16_t blockSize(uint32_t block) const override { return _image.sectorSize(block); }
 
-    error_is_true read(uint32_t sectornum, uint32_t *readcount) override;
-    error_is_true write(uint32_t sectornum, bool verify) override;
-    error_is_true format(uint32_t *responsesize) override;
+    // A record marked as a data error reads back its recovered contents; one
+    // that was never readable on the original disk fails.
+    error_is_true readBlock(uint32_t block, ByteBuffer &buffer) override;
+    // Flushed by IMDImage before it returns.
+    error_is_true writeBlock(uint32_t block, const ByteBuffer &buffer) override;
 
-    uint16_t sector_size(uint32_t sectornum) override;
-
-    void status(uint8_t statusbuff[4]) override;
+    bool isReadOnly() const override { return _readOnly; }
+    error_is_true close() override;
 
     // Only IBM-3740 (8" single density, 77 x 26 x 128), the Model II's format.
     static success_is_true create(fnFile *f, uint16_t sectorSize, uint32_t numSectors);
 
+protected:
+    // Any name but a raw image's is read for an IMD header.
+    error_is_true attach() override;
+
 private:
-    void _derive_geometry();
-    void _fill_percom();
-    uint32_t _lba_count() const;   // 0 when nothing is mounted
+    // Names that are raw sector images, so never worth a read.
+    static constexpr const char *rawExtensions[] = {".img", ".dsk"};
 
-    PSRAMMemoryResource _psram;     // the sector tables; declared first so it outlives _imd
-    std::unique_ptr<IMDImage> _imd; // made at mount, around the mounted handle
-    uint8_t _base_ctrl_status = DISK_CTRL_STATUS_CLEAR;
-
-    // Derived once at mount for the PERCOM block and status()
-    uint16_t _cyls = 0;
-    uint16_t _spt = 0;
-    uint8_t _heads = 0;
-    bool _mfm = false;
+    bool _readOnly;
+    PSRAMMemoryResource _psram; // the sector tables; declared first so it outlives _image
+    IMDImage _image;
+    uint8_t _sides = 0;
+    uint16_t _cylinders = 0;
 };
 
-#endif // _MEDIATYPE_IMD
+#endif /* IMDDISK_H */

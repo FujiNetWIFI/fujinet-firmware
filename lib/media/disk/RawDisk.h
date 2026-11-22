@@ -1,30 +1,54 @@
-#ifndef _MEDIATYPE_IMG
-#define _MEDIATYPE_IMG
+#ifndef RAWDISK_H
+#define RAWDISK_H
 
-#include "diskType.h"
+#include "BlockMedia.h"
 
-class MediaTypeImg : public MediaType
+class fujiHost;
+
+constexpr uint16_t RAW_DISK_SECTOR_SIZE = 512;
+
+// A raw disk image: 512-byte sectors in order, with no header. It's the format
+// of last resort, so it accepts a file of any name; a trailing partial sector
+// is ignored. The image records no geometry, so it's taken from a FAT boot
+// sector, else a PC floppy of the same size, else one side of 9-sector tracks.
+class RawDisk : public BlockMedia
 {
-private:
-    uint32_t _sector_to_offset(uint32_t sectorNum);
-
-
 public:
-    static constexpr std::array<const char *, 2> extensions = {".img", ".xex"};
+    // Names the directory entry type only; attach() takes any name.
+    static constexpr const char *extensions[] = {".img", ".xex"};
 
-    using MediaType::MediaType;
+    RawDisk(const std::string &path, fnFile *handle, fujiHost * /*host*/, bool readOnly)
+        : BlockMedia(path, handle), _readOnly(readOnly) {}
 
-    error_is_true read(uint32_t sectornum, uint32_t *readcount) override;
-    error_is_true write(uint32_t sectornum, bool verify) override;
+    uint8_t sideCount() const override { return _sides; }
+    uint16_t cylinderCount() const override { return _cylinders; }
+    TrackGeometry trackGeometry(uint16_t cylinder, uint8_t side) const override;
+    uint32_t blockCount() const override { return _size / RAW_DISK_SECTOR_SIZE; }
+    uint16_t blockSize(uint32_t block) const override;
 
-    error_is_true format(uint32_t *responsesize) override;
+    // Flushed straight away, since the computer may be reset at any moment.
+    error_is_true writeBlock(uint32_t block, const ByteBuffer &buffer) override;
 
-    mediatype_t mount(fnFile *f, uint32_t disksize) override;
+    bool isReadOnly() const override { return _readOnly; }
 
-    void status(uint8_t statusbuff[4]) override;
-
+    // Writes a blank image of numSectors sectors of sectorSize bytes to f.
     static success_is_true create(fnFile *f, uint16_t sectorSize, uint32_t numSectors);
+
+protected:
+    error_is_true attach() override;
+    error_is_true blockToOffset(uint32_t block, uint32_t &offset) const override;
+
+private:
+    bool _readOnly;
+    uint8_t _sides = 0;
+    uint16_t _cylinders = 0;
+    uint8_t _sectorsPerTrack = 0;
+    TrackEncoding _encoding = TrackEncoding::UNKNOWN;
+
+    success_is_true geometryFromBootSector();
+    success_is_true geometryFromFloppySize();
+    void setGeometry(uint16_t cylinders, uint8_t sides, uint8_t sectorsPerTrack,
+                     TrackEncoding encoding);
 };
 
-
-#endif // _MEDIATYPE_IMG
+#endif /* RAWDISK_H */
