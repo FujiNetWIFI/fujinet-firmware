@@ -4,6 +4,11 @@
 #include "FujiDiskDrive.h"
 #include "mediatype.h"
 #include "MediaFormats.h"
+
+#include "disk/AltairDSK.h"
+#include "disk/IMDDisk.h"
+#include "disk/RawDisk.h"
+
 #include "rom/Atari2600ROM.h"
 #include "rom/Atari5200ROM.h"
 #include "rom/Atari7800ROM.h"
@@ -14,14 +19,6 @@
 #include "rom/NESROM.h"
 #include "rom/SegaMasterROM.h"
 #include "rom/StudioIIROM.h"
-
-#include "rs232/diskTypeAltair.h"
-#include "rs232/diskTypeIMD.h"
-#include "rs232/diskTypeImg.h"
-
-using IMDDisk = MediaTypeIMD;
-using AltairDSK = MediaTypeAltair;
-using RawDisk = MediaTypeImg;
 
 #include <ctime>
 #include <memory>

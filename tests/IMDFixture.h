@@ -1,7 +1,7 @@
 #ifndef IMD_FIXTURE_H
 #define IMD_FIXTURE_H
 
-// Shared IMD image builder for the IMDImage and MediaTypeIMD test targets.
+// Shared IMD image builder for the IMDImage and IMDDisk test targets.
 // Follows IMD.TXT section 6 field order.
 
 #include <cstdint>
