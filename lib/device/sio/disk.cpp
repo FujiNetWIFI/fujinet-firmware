@@ -235,11 +235,7 @@ error_is_true sioDisk::mount(fnFile *f, const char *filename, uint32_t disksize,
     }
 
     // Destroy any existing MediaType
-    if (_media != nullptr)
-    {
-        delete _media;
-        _media = nullptr;
-    }
+    _media.reset();
 
     // Determine MediaType based on filename extension
     if (disk_type == MEDIATYPE_UNKNOWN && filename != nullptr)
@@ -271,22 +267,18 @@ mediatype_t sioDisk::mount_disk_media(fnFile *f, const char *filename, uint32_t 
     Debug_print("disk MOUNT\n");
 
     // Destroy any existing MediaType
-    if (_media != nullptr)
-    {
-        delete _media;
-        _media = nullptr;
-    }
+    _media.reset();
 
     switch (disk_type)
     {
     case MEDIATYPE_XEX:
-        _media = new MediaTypeXEX();
+        _media = std::make_unique<MediaTypeXEX>();
         break;
     case MEDIATYPE_ATX:
-        _media = new MediaTypeATX();
+        _media = std::make_unique<MediaTypeATX>();
         break;
     default:
-        _media = new MediaTypeATR();
+        _media = std::make_unique<MediaTypeATR>();
         break;
     }
     device_active = true;
@@ -297,11 +289,7 @@ mediatype_t sioDisk::mount_disk_media(fnFile *f, const char *filename, uint32_t 
 // Destructor
 sioDisk::~sioDisk()
 {
-    if (_media != nullptr)
-    {
-        delete _media;
-        _media = nullptr;
-    }
+    _media.reset();
 }
 
 // Unmount disk file
@@ -323,8 +311,7 @@ void sioDisk::unmount()
         _media->unmount();
         device_active = false;
 #ifndef ESP_PLATFORM // apc: good for ESP too?
-        delete _media;
-        _media = nullptr;
+        _media.reset();
 #endif
     }
 }

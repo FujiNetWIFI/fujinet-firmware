@@ -21,11 +21,7 @@ lynxDisk::lynxDisk()
 // Destructor
 lynxDisk::~lynxDisk()
 {
-    if (_media != nullptr)
-    {
-        delete _media;
-        _media = nullptr;
-    }
+    _media.reset();
 }
 
 void lynxDisk::reset()
@@ -47,11 +43,7 @@ error_is_true lynxDisk::mount(FILE *f, const char *filename, uint32_t disksize,
     Debug_printf("disk MOUNT %s\n", filename);
 
     // Destroy any existing MediaType
-    if (_media != nullptr)
-    {
-        delete _media;
-        _media = nullptr;
-    }
+    _media.reset();
 
     // Determine MediaType based on filename extension
     if (disk_type == MEDIATYPE_UNKNOWN && filename != nullptr)
@@ -60,7 +52,7 @@ error_is_true lynxDisk::mount(FILE *f, const char *filename, uint32_t disksize,
     switch (disk_type)
     {
     case MEDIATYPE_ROM:
-        _media = new MediaTypeROM();
+        _media = std::make_unique<MediaTypeROM>();
         mt = _media->mount(f, disksize);
         device_active = true;
         break;
@@ -79,8 +71,7 @@ void lynxDisk::unmount()
     if (_media != nullptr)
     {
         _media->unmount();
-        delete _media;
-        _media = nullptr;
+        _media.reset();
         device_active = false;
     }
 }

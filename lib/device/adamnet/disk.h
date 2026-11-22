@@ -48,8 +48,6 @@ public:
     } __attribute__((packed));
     error_is_true write_blank(fnFile *f, const NewDiskRequest &req);
     void reset() override;
-    MediaType *get_media() { return  _media; }
-    void set_media(MediaType *__media) { _media = __media; }
 
     mediatype_t mediatype() { return _media == nullptr ? MEDIATYPE_UNKNOWN : _media->_mediatype; };
 

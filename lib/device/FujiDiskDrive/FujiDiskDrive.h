@@ -17,7 +17,7 @@ enum disk_access_flags_t {
 class FujiDiskDrive : public DiskDriveBase
 {
 protected:
-    MediaType *_media = nullptr;
+    std::unique_ptr<DiskDriveMedia> _media;
 
 public:
     using DiskDriveBase::DiskDriveBase;
