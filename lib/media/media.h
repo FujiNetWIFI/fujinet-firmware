@@ -157,4 +157,7 @@ protected:
 #include "cx16/mediaType.h"
 #endif
 
+// The disk image type a bus's drive holds; each platform's MediaType.
+using DiskDriveMedia = MediaType;
+
 #endif // MEDIA_H

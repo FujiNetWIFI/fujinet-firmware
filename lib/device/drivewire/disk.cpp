@@ -107,11 +107,7 @@ error_is_true drivewireDisk::mount(fnFile *f, const char *filename, uint32_t dis
     Debug_printf("DW disk MOUNT %s\n", filename);
 
     // Destroy any existing MediaType
-    if (_media != nullptr)
-    {
-        delete _media;
-        _media = nullptr;
-    }
+    _media.reset();
 
     // Determine MediaType based on filename extension
     if (disk_type == MEDIATYPE_UNKNOWN && filename != nullptr)
@@ -120,13 +116,13 @@ error_is_true drivewireDisk::mount(fnFile *f, const char *filename, uint32_t dis
     switch (disk_type)
     {
     case MEDIATYPE_DSK:
-        _media = new MediaTypeDSK();
+        _media = std::make_unique<MediaTypeDSK>();
         break;
     case MEDIATYPE_MRM:
-        _media = new MediaTypeMRM();
+        _media = std::make_unique<MediaTypeMRM>();
         break;
     case MEDIATYPE_VDK:
-        _media = new MediaTypeVDK();
+        _media = std::make_unique<MediaTypeVDK>();
         break;
     case MEDIATYPE_ROM:
     {
@@ -145,7 +141,7 @@ error_is_true drivewireDisk::mount(fnFile *f, const char *filename, uint32_t dis
         RETURN_ERROR_IF(pushed.is_error());
     }
     case MEDIATYPE_CAS:
-        _media = new MediaTypeCASDSK();
+        _media = std::make_unique<MediaTypeCASDSK>();
         break;
     default:
         device_active = false;
@@ -160,8 +156,7 @@ error_is_true drivewireDisk::mount(fnFile *f, const char *filename, uint32_t dis
         mt = _media->mount(f, disksize);
         if (mt == MEDIATYPE_UNKNOWN)
         {
-            delete _media;
-            _media = nullptr;
+            _media.reset();
             device_active = false;
         }
         else
@@ -177,11 +172,7 @@ void drivewireDisk::unmount()
 {
     Debug_print("DW disk UNMOUNT\n");
 
-    if (_media != nullptr)
-    {
-        delete _media;
-        _media = nullptr;
-    }
+    _media.reset();
     device_active = false;
 }
 

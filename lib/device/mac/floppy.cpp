@@ -25,8 +25,9 @@ error_is_true macFloppy::mount(FILE *f, const char *filename, uint32_t disksize,
 
   // Mounted before it is published: the bus task uses _media while an
   // archive is still being unpacked
-  MediaType *media = (disk_type == MEDIATYPE_SIT) ? new MediaTypeSIT(is_floppy_slot(), _archive_entry)
-                                                  : MediaType::create(disk_type, is_floppy_slot());
+  std::unique_ptr<MediaType> media((disk_type == MEDIATYPE_SIT)
+                                   ? new MediaTypeSIT(is_floppy_slot(), _archive_entry)
+                                   : MediaType::create(disk_type, is_floppy_slot()));
   if (media == nullptr)
   {
     Debug_printf("\n'%s' cannot be mounted in slot %c\n", filename, disk_num + 1);
@@ -39,11 +40,10 @@ error_is_true macFloppy::mount(FILE *f, const char *filename, uint32_t disksize,
   if (mt == MEDIATYPE_UNKNOWN)
   {
     Debug_printf("\nMount of '%s' failed\n", filename);
-    delete media;
     device_active = false;
     RETURN_ERROR_AS_TRUE();
   }
-  _media = media;
+  _media = std::move(media);
   device_active = true;
 
   if (is_floppy_slot())
@@ -149,8 +149,7 @@ void macFloppy::unmount()
   if (_media != nullptr)
   {
     _media->unmount();
-    delete _media; // virtual destructor, handles MOOF track buffers
-    _media = nullptr;
+    _media.reset();
   }
 
   if (was_dcd)

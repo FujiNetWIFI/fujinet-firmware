@@ -350,11 +350,7 @@ error_is_true rs232Disk::mount_by_type(fnFile *f, const char *filename, uint32_t
     Debug_print("disk MOUNT\n");
 
     // Destroy any existing MediaType
-    if (_media != nullptr)
-    {
-        delete _media;
-        _media = nullptr;
-    }
+    _media.reset();
 
     if (disk_type == MEDIATYPE_UNKNOWN && filename != nullptr)
         disk_type = MediaType::discover_mediatype(f, filename, disksize);
@@ -396,8 +392,8 @@ error_is_true rs232Disk::mount_by_type(fnFile *f, const char *filename, uint32_t
     {
         device_active = true;
         _mount_time = time(nullptr);
-        MediaTypeIMD *imd = new MediaTypeIMD((access_mode & DISK_ACCESS_MODE_WRITE) != 0);
-        _media = imd;
+        _media = std::make_unique<MediaTypeIMD>((access_mode & DISK_ACCESS_MODE_WRITE) != 0);
+        auto *imd = static_cast<MediaTypeIMD *>(_media.get());
         imd->_media_host = host;
         if (filename != nullptr)
             strlcpy(imd->_disk_filename, filename, sizeof(imd->_disk_filename));
@@ -407,8 +403,8 @@ error_is_true rs232Disk::mount_by_type(fnFile *f, const char *filename, uint32_t
     {
         device_active = true;
         _mount_time = time(nullptr);
-        MediaTypeAltair *altair = new MediaTypeAltair((access_mode & DISK_ACCESS_MODE_WRITE) != 0);
-        _media = altair;
+        _media = std::make_unique<MediaTypeAltair>((access_mode & DISK_ACCESS_MODE_WRITE) != 0);
+        auto *altair = static_cast<MediaTypeAltair *>(_media.get());
         altair->_media_host = host;
         if (filename != nullptr)
             strlcpy(altair->_disk_filename, filename, sizeof(altair->_disk_filename));
@@ -419,7 +415,7 @@ error_is_true rs232Disk::mount_by_type(fnFile *f, const char *filename, uint32_t
     default:
         device_active = true;
         _mount_time = time(NULL);
-        _media = new MediaTypeImg((access_mode & DISK_ACCESS_MODE_WRITE) != 0);
+        _media = std::make_unique<MediaTypeImg>((access_mode & DISK_ACCESS_MODE_WRITE) != 0);
         RETURN_ERROR_IF(_media->mount(f, disksize) == MEDIATYPE_UNKNOWN);
     }
 }
@@ -433,11 +429,7 @@ error_is_true rs232Disk::mount_disk_media(fnFile *f, const char *filename, uint3
 // Destructor
 rs232Disk::~rs232Disk()
 {
-    if (_media != nullptr)
-    {
-        delete _media;
-        _media = nullptr;
-    }
+    _media.reset();
 }
 
 // Unmount disk file
@@ -448,8 +440,7 @@ void rs232Disk::unmount()
     if (_media != nullptr)
     {
         _media->unmount();
-        delete _media;
-        _media = nullptr;
+        _media.reset();
         device_active = false;
         _mount_time = 0;
     }

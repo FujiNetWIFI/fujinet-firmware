@@ -269,15 +269,15 @@ mediatype_t iwmDisk::mount_file(fnFile *f, uint32_t disksize, mediatype_t disk_t
     {
     case MEDIATYPE_DO:
       Debug_printf("\r\nMedia Type DO");
-      _media = new MediaTypeDO();
+      _media = std::make_unique<MediaTypeDO>();
       break;
     case MEDIATYPE_PO:
       Debug_printf("\r\nMedia Type PO");
-      _media = new MediaTypePO();
+      _media = std::make_unique<MediaTypePO>();
       break;
     case MEDIATYPE_2MG:
       Debug_printf("\r\nMedia Type 2MG");
-      _media = new MediaType2MG();
+      _media = std::make_unique<MediaType2MG>();
       break;
     default:
       Debug_printf("\r\nUnsupported Media Type for SmartPort");
@@ -290,8 +290,7 @@ mediatype_t iwmDisk::mount_file(fnFile *f, uint32_t disksize, mediatype_t disk_t
     _media->_mediatype = disk_type;
     disk_type = _media->mount(f, disksize);
     if (disk_type == MEDIATYPE_UNKNOWN) {
-      delete _media;
-      _media = nullptr;
+      _media.reset();
     }
   }
 
@@ -312,13 +311,11 @@ void iwmDisk::unmount()
 {
     if (_media != nullptr)
     {
-        MediaType *media = _media;
-        _media = nullptr;
+        std::unique_ptr<MediaType> media = std::move(_media);
         if (device_active)
             switched = true;
         device_active = false;
         media->unmount();
-        delete media;
         is_config_device = false;
         readonly = true;
         Debug_printf("Disk UNMOUNTED!!!!\r\n");

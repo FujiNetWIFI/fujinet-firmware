@@ -7,8 +7,8 @@ about it.
 
 - `isMounted()` is the authority on whether the drive has an image mounted. Ask the drive, not a
   `fujiDisk` slot or a cached file handle.
-- A drive keeps its mounted image in `_media`, the platform's `MediaType` from
-  [lib/media/](../../media/), and sets it back to `nullptr` once nothing is mounted. `iecDrive`
+- A drive owns its mounted image as a `unique_ptr` in `_media`, the platform's `MediaType` from
+  [lib/media/](../../media/) (`DiskDriveMedia`), and resets it once nothing is mounted. `iecDrive`
   holds no `MediaType`, so it overrides `isMounted()`.
 - `FujiDiskDrive` derives from `DiskDriveBase`, which each bus header in [lib/bus/](../../bus/)
   names: `virtualDevice` on most buses, `drivewireDevice` on DriveWire, `IECFileDevice` on IEC.
