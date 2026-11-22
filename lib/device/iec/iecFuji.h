@@ -11,6 +11,9 @@ class iecFuji : public fujiDevice
 protected:
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                            uint8_t maxlen) override;
+    mediatype_t directoryMediaType(const char *filename) override {
+        return MediaType::discover_mediatype(filename);
+    }
 
     AdapterConfig cfg;
 

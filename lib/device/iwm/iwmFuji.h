@@ -53,6 +53,9 @@ private:
 protected:
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                            uint8_t maxlen) override;
+    mediatype_t directoryMediaType(const char *filename) override {
+        return MediaType::discover_mediatype(filename);
+    }
 
     void iwm_dummy_command(const iwm_decoded_cmd_t &cmd);                     // control 0xAA
     void iwm_hello_world();                       // status 0xAA
