@@ -11,9 +11,9 @@
 class MediaTypeAltair : public MediaType
 {
 public:
-    // `writable` comes from the mount slot's access mode, which also decided
-    // whether the file was opened "rb" or "rb+", so the two must agree.
-    explicit MediaTypeAltair(bool writable) : _writable(writable) {}
+    static constexpr std::array<const char *, 1> extensions = { ".dsk" };
+
+    using MediaType::MediaType;
 
     // .DSK is also a plain sector image, so only the exact FDC+ sizes qualify.
     static bool looks_like_altair(const char *filename, uint32_t disksize);
@@ -30,7 +30,6 @@ public:
 private:
     error_is_true _seek(uint32_t sectornum);
 
-    bool _writable = false;
     uint16_t _tracks = 0;
     uint16_t _spt = 0;
 };

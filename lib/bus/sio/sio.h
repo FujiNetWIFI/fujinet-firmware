@@ -141,6 +141,8 @@ public:
 
 // The class FujiDiskDrive derives from on this bus
 using DiskDriveBase = virtualDevice;
+class MediaType;
+using DiskDriveMedia = MediaType;
 
 enum sio_message : uint16_t
 {

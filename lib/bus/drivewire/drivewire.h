@@ -110,6 +110,7 @@ public:
 
 // The class FujiDiskDrive derives from on this bus
 using DiskDriveBase = drivewireDevice;
+using DiskDriveMedia = MediaType;
 
 // A sector as OP_READ, OP_READEX, and OP_WRITE carry it.
 constexpr uint16_t DRIVEWIRE_SECTOR_SIZE = 256;

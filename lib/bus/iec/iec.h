@@ -29,6 +29,8 @@ enum {
 
 // The class FujiDiskDrive derives from on this bus
 using DiskDriveBase = IECFileDevice;
+class MediaType;
+using DiskDriveMedia = MediaType;
 
 class iecDrive;
 class iecFuji;

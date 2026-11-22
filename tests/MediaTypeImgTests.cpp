@@ -56,7 +56,7 @@ TEST_CASE("an image create() made mounts and reads to its last sector")
     REQUIRE(MediaTypeImg::create(fp, 512, 720).is_success());
     rewind(fp);
 
-    MediaTypeImg media(true);
+    MediaTypeImg media("", nullptr, nullptr, false);
     CHECK(media.mount(fp, 512 * 720) == MEDIATYPE_IMG);
     uint32_t n = 0;
     CHECK(media.read(0, &n).is_success());
@@ -85,7 +85,7 @@ TEST_CASE("a read-only mount refuses writes and reports write protect")
     REQUIRE(MediaTypeImg::create(fp, 512, 4).is_success());
     rewind(fp);
 
-    MediaTypeImg media(false);
+    MediaTypeImg media("", nullptr, nullptr, true);
     REQUIRE(media.mount(fp, 512 * 4) == MEDIATYPE_IMG);
     memset(media._disk_sectorbuff, 0xA5, 512);
     CHECK(media.write(1, false).is_error());
@@ -107,7 +107,7 @@ TEST_CASE("a writable mount writes")
     REQUIRE(MediaTypeImg::create(fp, 512, 4).is_success());
     rewind(fp);
 
-    MediaTypeImg media(true);
+    MediaTypeImg media("", nullptr, nullptr, false);
     REQUIRE(media.mount(fp, 512 * 4) == MEDIATYPE_IMG);
     memset(media._disk_sectorbuff, 0xA5, 512);
     CHECK(media.write(1, false).is_success());

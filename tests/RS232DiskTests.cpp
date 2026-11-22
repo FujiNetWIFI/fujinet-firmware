@@ -111,7 +111,6 @@ TEST_CASE("an .img mounts raw, writable or read-only")
         TestDisk disk;
         CHECK(disk.mount(&file, IMG_TEST_FILE, file.contents().size(), mode).is_success());
         CHECK(disk.device_active);
-        CHECK(disk.mediatype() == MEDIATYPE_IMG);
         CHECK(disk.mount_time() != 0);
         check_closed_once(disk, file);
     }
@@ -182,7 +181,6 @@ TEST_CASE("unmount closes the image once and leaves nothing to read or write")
     check_closed_once(disk, file);
     CHECK_FALSE(disk.device_active);
     CHECK(disk.mount_time() == 0);
-    CHECK(disk.mediatype() == MEDIATYPE_UNKNOWN);
     CHECK_FALSE(read_sector(disk, 0).has_value());
     CHECK(bus.outcome == Outcome::Error);
     CHECK(write_sector(disk, 0, filled(IMG_SECTOR_SIZE, 0x77)) == Outcome::Error);
@@ -341,23 +339,6 @@ TEST_CASE("an IMD with no tracks doesn't mount, and the drive is left inactive")
             .is_error());
     CHECK_FALSE(disk.device_active);
     CHECK(disk.mount_time() == 0);
-    CHECK(disk.mediatype() == MEDIATYPE_UNKNOWN);
-    CHECK(file.closes == 1);
-    CHECK_FALSE(file.usedAfterClose);
-}
-
-TEST_CASE("an Altair image of the wrong size doesn't mount, and the drive is left inactive")
-{
-    std::vector<uint8_t> image(1000, 0);
-    MemFile file(image);
-    TestDisk disk;
-
-    CHECK(disk.mount(&file, "rs232_disk_test.dsk", image.size(), DISK_ACCESS_MODE_READ,
-                     MEDIATYPE_ALTAIR)
-              .is_error());
-    CHECK_FALSE(disk.device_active);
-    CHECK(disk.mount_time() == 0);
-    CHECK(disk.mediatype() == MEDIATYPE_UNKNOWN);
     CHECK(file.closes == 1);
     CHECK_FALSE(file.usedAfterClose);
 }

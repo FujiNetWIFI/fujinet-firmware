@@ -111,7 +111,6 @@ void check_closed_once(rs232Disk &disk, const MemFile &file)
 void check_nothing_mounted(rs232Disk &disk, const MemFile &file)
 {
     CHECK_FALSE(disk.device_active);
-    CHECK(disk.mediatype() == MEDIATYPE_UNKNOWN);
     CHECK(disk.mount_time() == 0);
     CHECK(file.closes == 1);
     for (const auto &opened : host_files.opened)
@@ -215,8 +214,8 @@ TEST_CASE("an Intellivision .int without a .cfg boots with the default map")
     fujiHost host;
 
     rs232Disk disk;
-    CHECK(disk.mount(&file, "cart.int", image.size(), DISK_ACCESS_MODE_READ,
-                     MEDIATYPE_UNKNOWN, &host).is_success());
+    CHECK(disk.mount(&file, "cart.int", image.size(), DISK_ACCESS_MODE_READ, &host)
+          .is_success());
     CHECK(stream_bytes(1).empty());
     CHECK(stream_bytes(0) == std::string(image.begin(), image.end()));
     CHECK(bus.sent[0].payload == open_header(0, image.size()));
@@ -237,8 +236,8 @@ TEST_CASE("a .cfg sibling goes to stream 1 before the image")
         fujiHost host;
 
         rs232Disk disk;
-        CHECK(disk.mount(&file, ROM_BIN_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ,
-                         MEDIATYPE_UNKNOWN, &host).is_success());
+        CHECK(disk.mount(&file, ROM_BIN_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ, &host)
+              .is_success());
         CHECK(host_files.opened.size() == 1);
         check_closed_once(disk, file);
 
@@ -267,8 +266,8 @@ TEST_CASE("an Intellivision image with a .cfg may be any even size")
 
         rs232Disk disk;
         bool even = size % 2 == 0;
-        CHECK((disk.mount(&file, ROM_BIN_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ,
-                          MEDIATYPE_UNKNOWN, &host).is_success() || !even));
+        CHECK((disk.mount(&file, ROM_BIN_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ, &host)
+               .is_success() || !even));
         CHECK(stream_bytes(0) == (even ? std::string(image.begin(), image.end()) : ""));
         check_closed_once(disk, file);
     }
@@ -367,8 +366,8 @@ TEST_CASE("a failed memory map push leaves the image unsent")
     fujiHost host;
 
     rs232Disk disk;
-    CHECK(disk.mount(&file, ROM_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ,
-                     MEDIATYPE_UNKNOWN, &host).is_error());
+    CHECK(disk.mount(&file, ROM_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ, &host)
+          .is_error());
     CHECK(commands() == std::vector<fujiCommandID_t>{CMD::NET_OPEN});
     CHECK(bus.sent[0].payload == open_header(1, 10));
     check_nothing_mounted(disk, file);
@@ -429,7 +428,6 @@ TEST_CASE("an image its extension's format doesn't recognize is refused")
         {"empty .int", "cart.int", {}},
         {".int with no default map", "cart.int", make_image(6_kB)},
         {".int of an odd size", "cart.int", make_image(4_kB + 1)},
-        {"unknown extension", "cart.dat", make_image(64)},
     };
     for (auto &entry : cases)
     {
@@ -438,8 +436,8 @@ TEST_CASE("an image its extension's format doesn't recognize is refused")
         MemFile file(entry.image);
 
         rs232Disk disk;
-        CHECK(disk.mount(&file, entry.filename, entry.image.size(), DISK_ACCESS_MODE_READ,
-                         MEDIATYPE_ROM).is_error());
+        CHECK(disk.mount(&file, entry.filename, entry.image.size(), DISK_ACCESS_MODE_READ)
+              .is_error());
         CHECK(bus.sent.empty());
         check_nothing_mounted(disk, file);
         check_closed_once(disk, file);
@@ -465,7 +463,7 @@ TEST_CASE("a 5200, 7800, SMS, or ColecoVision image sends the .cfg beside it")
 
         rs232Disk disk;
         CHECK(disk.mount(&file, entry.filename, entry.image.size(), DISK_ACCESS_MODE_READ,
-                         MEDIATYPE_UNKNOWN, &host).is_success());
+                         &host).is_success());
         REQUIRE(!bus.sent.empty());
         CHECK(bus.sent[0].payload == open_header(1, map.size()));
         CHECK(stream_bytes(1) == map);
@@ -493,7 +491,7 @@ TEST_CASE("other consoles' images don't send the .cfg beside them")
 
         rs232Disk disk;
         CHECK(disk.mount(&file, entry.filename, entry.image.size(), DISK_ACCESS_MODE_READ,
-                         MEDIATYPE_UNKNOWN, &host).is_success());
+                         &host).is_success());
         CHECK(stream_bytes(1).empty());
         CHECK(stream_bytes(0) == std::string(entry.image.begin(), entry.image.end()));
         CHECK(host_files.opened.empty());

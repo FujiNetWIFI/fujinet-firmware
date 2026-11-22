@@ -15,9 +15,9 @@
 class MediaTypeIMD : public MediaType
 {
 public:
-    // `writable` comes from the mount slot's access mode, which also decided
-    // whether the file was opened "rb" or "rb+", so the two must agree.
-    explicit MediaTypeIMD(bool writable) : _writable(writable) {}
+    static constexpr std::array<const char *, 1> extensions = { ".imd" };
+
+    using MediaType::MediaType;
 
     mediatype_t mount(fnFile *f, uint32_t disksize) override;
     void unmount() override;
@@ -40,7 +40,6 @@ private:
 
     PSRAMMemoryResource _psram;     // the sector tables; declared first so it outlives _imd
     std::unique_ptr<IMDImage> _imd; // made at mount, around the mounted handle
-    bool _writable = false;
     uint8_t _base_ctrl_status = DISK_CTRL_STATUS_CLEAR;
 
     // Derived once at mount for the PERCOM block and status()

@@ -95,6 +95,8 @@ public:
 
 // The class FujiDiskDrive derives from on this bus
 using DiskDriveBase = virtualDevice;
+class BlockMedia;
+using DiskDriveMedia = BlockMedia;
 
 enum rs232_message : uint16_t
 {

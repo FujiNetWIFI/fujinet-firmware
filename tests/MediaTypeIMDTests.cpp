@@ -23,7 +23,7 @@ struct Mounted
     MediaTypeIMD media;
     mediatype_t  type = MEDIATYPE_UNKNOWN;
 
-    Mounted(const IMD &b, bool writable = false) : media(writable)
+    Mounted(const IMD &b, bool writable = false) : media(IMD_TEST_FILE, nullptr, nullptr, !writable)
     {
         fp = fopen(IMD_TEST_FILE, "w+b");
         REQUIRE(fp != nullptr);
@@ -442,7 +442,7 @@ TEST_CASE("an image create() made mounts with E5 through the directory track")
     uint32_t size = (uint32_t)ftell(fp);
     rewind(fp);
 
-    MediaTypeIMD media(false);
+    MediaTypeIMD media("", nullptr, nullptr, true);
     REQUIRE(media.mount(fp, size) == MEDIATYPE_IMD);
     uint32_t n = 0;
     CHECK(media.sector_size(0) == 128);
@@ -466,7 +466,7 @@ TEST_CASE("an image create() made takes real data in any sector")
     uint32_t size = (uint32_t)ftell(fp);
     rewind(fp);
 
-    MediaTypeIMD media(true);
+    MediaTypeIMD media("", nullptr, nullptr, false);
     REQUIRE(media.mount(fp, size) == MEDIATYPE_IMD);
     for (uint32_t lba : {0u, 3u * 26, 77u * 26 - 1})
     {
