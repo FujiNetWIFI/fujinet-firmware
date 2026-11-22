@@ -354,12 +354,12 @@ merges, so nobody has to go back and tidy up.
 ## Write a short pull request description
 
 The description exists to tell a reviewer what the diff cannot: why the change exists, what to look
-at first, and what you did not verify. Anything else is text they have to read past to find those
-three things. `.github/PULL_REQUEST_TEMPLATE.md` has the shape. Treat it as a prompt sheet, not a form
-to complete — delete every section you have nothing to say in.
+at first. Anything else is text they have to read past to find those two things.
+`.github/PULL_REQUEST_TEMPLATE.md` has the shape. Treat it as a prompt sheet, not a form to
+complete — delete every section you have nothing to say in.
 
 - Aim for something that fits on one screen: a summary of one or two sentences, the changes as a
-  handful of bullets, then testing. Testing is the one section worth spending words on.
+  handful of bullets.
 - Say what changed and why. The diff already says how, and says it more accurately than a paragraph
   of prose ever will.
 - One bullet per real change, not per file. A file-by-file walkthrough is the diff with worse
@@ -403,21 +403,13 @@ Write the short version instead, and leave a section out rather than filling it 
 - **Opening a PR that fixes a tracked issue without `Fixes #NNNN` in the description**, leaving the
   issue to be closed by hand.
 - **A PR description that restates the diff.** File-by-file walkthroughs, pasted build logs and
-  padded sections bury the two things a reviewer needs — why, and what you did not test; see
+  padded sections bury the two things a reviewer needs — why, and where to look; see
   Write a short pull request description above.
 - **Growing a god class or a giant switch** instead of adding a mixin, a handler-table entry, or an
   `NParser` subclass; see `docs/cpp-style.md`.
 - **Building before asking.** Inventing an abstraction or a cross-platform pattern without agreeing
   the design first, when a branch already in flight may change it.
 - **Assuming CI tests the firmware.** It only compiles it.
-
-## Say what you did not test
-
-Almost nothing here can be fully verified without a device, so a PR description that is vague about
-testing costs a reviewer real time. Say plainly what you did and did not do: which targets you
-built and which you did not, whether you flashed and ran it on hardware and on which machine, and
-whether any test covers the change. "Builds for ATARI and COCO, not flashed, no test coverage" is a
-perfectly good answer and far more useful than silence.
 
 ## Directory READMEs
 
