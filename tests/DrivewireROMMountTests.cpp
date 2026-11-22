@@ -14,6 +14,7 @@ namespace
 {
 
 #define ROM_TEST_FILE "drivewire_rom_mount_test.ccc"
+#define CART_4K 4_kB
 #define CART_8K 8_kB
 
 std::string written_bytes()
@@ -151,7 +152,7 @@ TEST_CASE("a second ROM mount sends the new image and closes each handle once")
 
 TEST_CASE("every cartridge size mounts")
 {
-    for (size_t size : {CART_8K, CART_8K * 2, CART_8K * 4, CART_8K * 8, CART_8K * 16})
+    for (size_t size : {CART_4K, CART_8K, CART_8K * 2, CART_8K * 4, CART_8K * 8, CART_8K * 16})
     {
         CAPTURE(size);
         bus.reset();
@@ -181,8 +182,8 @@ TEST_CASE("a caller-given ROM type still needs a .ccc or .rom")
 TEST_CASE("a size no cartridge has is refused before anything is sent")
 {
     size_t sizes[] = {
-        CART_8K / 2, CART_8K - 1, CART_8K + 1, CART_8K + 1024, CART_8K * 3 / 2,
-        CART_8K * 3, CART_8K * 5, CART_8K * 16 + 1, CART_8K * 32,
+        CART_4K / 2, CART_4K - 1, CART_4K + 1, CART_8K - 1, CART_8K + 1, CART_8K + 1024,
+        CART_8K * 3 / 2, CART_8K * 3, CART_8K * 5, CART_8K * 16 + 1, CART_8K * 32,
     };
     for (size_t size : sizes)
     {
