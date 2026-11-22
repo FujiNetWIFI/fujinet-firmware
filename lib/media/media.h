@@ -89,13 +89,6 @@ protected:
 # include "atari/diskTypeXex.h"
 #endif
 
-#ifdef BUILD_RS232
-# include "rs232/diskType.h"
-# include "rs232/diskTypeAltair.h"
-# include "rs232/diskTypeImg.h"
-# include "rs232/diskTypeIMD.h"
-#endif
-
 #ifdef BUILD_IEC
 # include "cbm/mediaType.h"
 # include "cbm/BlankImage.h"
@@ -146,18 +139,8 @@ protected:
 # include "drivewire/mediaTypeCASDSK.h"
 #endif
 
-#ifdef NEW_TARGET
-# include "new/mediaType.h"
-# include "new/mediaTypeDDP.h"
-# include "new/mediaTypeDSK.h"
-# include "new/mediaTypeROM.h"
-#endif
-
 #ifdef BUILD_CX16
 #include "cx16/mediaType.h"
 #endif
-
-// The disk image type a bus's drive holds; each platform's MediaType.
-using DiskDriveMedia = MediaType;
 
 #endif // MEDIA_H

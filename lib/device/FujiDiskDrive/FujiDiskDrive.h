@@ -6,6 +6,8 @@
 
 #define MAX_FILENAME_LEN 256
 
+enum mediatype_t : uint8_t;
+
 enum disk_access_flags_t {
     DISK_ACCESS_MODE_INVALID = 0x00,
     DISK_ACCESS_MODE_READ    = 0x01,
@@ -22,7 +24,7 @@ protected:
 public:
     using DiskDriveBase::DiskDriveBase;
 
-    virtual bool isMounted() const { return _media != nullptr; }
+    virtual bool isMounted() const { return device_active && _media != nullptr; }
 };
 
 #endif /* FUJIDISKDRIVE_H */

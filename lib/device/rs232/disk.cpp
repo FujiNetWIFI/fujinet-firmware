@@ -2,7 +2,6 @@
 
 #include "disk.h"
 #include "fujiCommandID.h"
-#include "rom/ROMFactory.h"
 
 #include <algorithm>
 #include <cstring>
@@ -66,7 +65,7 @@ static error_is_true push_image(ROMMedia &rom)
     uint32_t sent = 0;
     while (sent < expected_size)
     {
-        auto got = rom.read(buffer, DISK_SECTORBUF_SIZE);
+        auto got = rom.read(buffer, rs232Disk::ROM_BLOCK_SIZE);
         if (got.is_error() || buffer.empty())
             break; // the size check below reports it
 
@@ -121,9 +120,9 @@ static error_is_true push_mapper(const std::pmr::vector<uint8_t> &mapper)
     }
 
     error_is_true result(false);
-    for (size_t offset = 0; offset < mapper.size(); offset += DISK_SECTORBUF_SIZE)
+    for (size_t offset = 0; offset < mapper.size(); offset += rs232Disk::ROM_BLOCK_SIZE)
     {
-        size_t count = std::min((size_t)DISK_SECTORBUF_SIZE, mapper.size() - offset);
+        size_t count = std::min((size_t)rs232Disk::ROM_BLOCK_SIZE, mapper.size() - offset);
         reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::DBC_SEGMENT_WRITE,
                                        ByteBuffer(mapper.begin() + offset,
                                                   mapper.begin() + offset + count));
@@ -173,6 +172,11 @@ rs232Disk::rs232Disk()
     _mount_time = 0;
 }
 
+rs232Disk::~rs232Disk()
+{
+    unmount();
+}
+
 // Read disk data and send to computer
 void rs232Disk::rs232_read(uint32_t sector)
 {
@@ -180,34 +184,31 @@ void rs232Disk::rs232_read(uint32_t sector)
 
     Debug_printf("disk READ %lu\n", sector);
 
-    if (_media == nullptr || !device_active)
+    if (!isMounted())
     {
         SYSTEM_BUS.transaction_error();
         return;
     }
 
-    uint32_t readcount;
-
-    bool err = _media->read(sector, &readcount).is_error();
-
-    SYSTEM_BUS.transaction_send(_media->_disk_sectorbuff, readcount, err);
+    ByteBuffer buffer;
+    bool err = _media->readBlock(sector, buffer).is_error();
+    SYSTEM_BUS.transaction_send(buffer.data(), err ? 0 : buffer.size(), err);
 }
 
 // Write disk data from computer
-void rs232Disk::rs232_write(uint32_t sector, bool verify)
+void rs232Disk::rs232_write(uint32_t sector, bool /*verify*/)
 {
-    //Debug_print("disk WRITE\n");
-
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
 
-    if (_media != nullptr && device_active)
+    uint16_t size = 0;
+    ByteBuffer buffer;
+    if (isMounted())
+        size = _media->blockSize(sector);
+    if (size > 0)
     {
-        uint16_t sectorSize = _media->sector_size(sector);
-
-        memset(_media->_disk_sectorbuff, 0, DISK_SECTORBUF_SIZE);
-
-        if (SYSTEM_BUS.transaction_get(_media->_disk_sectorbuff, sectorSize).is_success()
-            && _media->write(sector, verify).is_success())
+        buffer.assign(size, 0);
+        if (SYSTEM_BUS.transaction_get(buffer.data(), size).is_success()
+            && _media->writeBlock(sector, buffer).is_success())
         {
             SYSTEM_BUS.transaction_success();
             return;
@@ -217,244 +218,149 @@ void rs232Disk::rs232_write(uint32_t sector, bool verify)
     SYSTEM_BUS.transaction_error();
 }
 
-// Status
-void rs232Disk::rs232_status(FujiStatusReq reqType)
+// Four bytes as an Atari 810 or XF551 reports them; only the bits the geometry
+// and write protection decide are set.
+void rs232Disk::rs232_status(FujiStatusReq /*reqType*/)
 {
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     Debug_print("disk STATUS\n");
 
-    /* STATUS BYTES
-        #0 - Drive status
-            Bit 7 = 1: 26 sectors per track (1050/XF551 drive)
-            Bit 6 = 1: Double sided disk (XF551 drive)
-            Bit 5 = 1: Double density (XF551 drive)
-            Bit 4 = 1: Motor running (always 0 on XF551)
+    constexpr uint8_t FORMAT_TIMEOUT_810 = 0xE0;
+    uint8_t driveStatus = 0;
+    uint8_t controllerStatus = 0;
 
-            Bit 3 = 1: Failed due to write protected disk
-            Bit 2 = 1: Unsuccessful PUT operation
-            Bit 1 = 1: Receive error on last data frame (XF551)
-            Bit 0 = 1: Receive error on last command frame (XF551)
+    if (isMounted())
+    {
+        PercomBlock geometry = derivePercom();
+        if (geometry.density == PERCOM_DENSITY_MFM)
+            driveStatus |= DRIVE_STATUS_DOUBLE_DENSITY;
+        if (geometry.numSides == 1)
+            driveStatus |= DRIVE_STATUS_DOUBLE_SIDED;
+        if (geometry.sectorsPerTrack == 26)
+            driveStatus |= DRIVE_STATUS_ENHANCED_DENSITY;
+        if (_media->isReadOnly())
+        {
+            driveStatus |= DRIVE_STATUS_WRITE_PROTECT;
+            controllerStatus |= CONTROLLER_STATUS_WRITE_PROTECT;
+        }
+    }
 
-        #1 - Floppy drive controller status (inverted from FDC)
-            Bit 7 = 0: Drive not ready (1050 drive)
-            Bit 6 = 0: Write protect error
-            Bit 5 = 0: Deleted sector (sector marked as deleted in sector header)
-            Bit 4 = 0: Record not found (missing sector)
-
-            Bit 3 = 0: CRC error
-            Bit 2 = 0: Lost data
-            Bit 1 = 0: Data request pending
-            Bit 0 = 0: Busy
-
-        #2 - Format timeout
-              810 drive: $E0 = 224 vertical blanks (4 mins NTSC)
-            XF551 drive: $FE = 254 veritcal blanks (4.5 mins NTSC)
-
-        #3 - Unused ($00)
-    */
-    // TODO: Why $DF for second byte?
-    // TODO: Set bit 4 of drive status and bit 6 of FDC status on read-only disk
-#define DRIVE_DEFAULT_TIMEOUT_810 0xE0
-#define DRIVE_DEFAULT_TIMEOUT_XF551 0xFE
-
-    uint8_t _status[4];
-    _status[0] = 0x00;
-    _status[1] = ~DISK_CTRL_STATUS_CLEAR; // Negation of default clear status
-    _status[2] = DRIVE_DEFAULT_TIMEOUT_810;
-    _status[3] = 0x00;
-
-    if (_media != nullptr)
-        _media->status(_status);
-
-    Debug_printf("response: 0x%02x, 0x%02x, 0x%02x\n", _status[0], _status[1], _status[2]);
-
-    SYSTEM_BUS.transaction_send(_status, sizeof(_status), false);
+    // The controller byte is sent inverted, as the FDC reports it.
+    uint8_t status[4] = {driveStatus, (uint8_t)~controllerStatus, FORMAT_TIMEOUT_810, 0};
+    SYSTEM_BUS.transaction_send(status, sizeof(status), false);
 }
 
-// Disk format
+// Nothing on this bus formats a disk image.
 void rs232Disk::rs232_format()
 {
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-    Debug_print("disk FORMAT\n");
-
-    if (_media == nullptr)
-    {
-        SYSTEM_BUS.transaction_error();
-        return;
-    }
-
-    uint32_t responsesize;
-    bool err = _media->format(&responsesize).is_error();
-
-    // Send to computer
-    SYSTEM_BUS.transaction_send(_media->_disk_sectorbuff, responsesize, err);
+    Debug_print("disk FORMAT not supported\n");
+    SYSTEM_BUS.transaction_error();
 }
 
-// Read percom block
+// Taken from the data tracks: track 0 is often a different format from the
+// rest, so it counts only on a single-track disk.
+rs232Disk::PercomBlock rs232Disk::derivePercom()
+{
+    PercomBlock geometry = {};
+    if (!isMounted() || _media->cylinderCount() == 0)
+        return geometry;
+
+    uint16_t cylinders = _media->cylinderCount();
+    uint8_t sides = _media->sideCount();
+    uint8_t sectorsPerTrack = 0;
+    uint16_t sectorSize = 0;
+    bool mfm = false;
+    for (uint16_t cylinder = cylinders > 1 ? 1 : 0; cylinder < cylinders; cylinder++)
+    {
+        for (uint8_t side = 0; side < sides; side++)
+        {
+            TrackGeometry track = _media->trackGeometry(cylinder, side);
+            sectorsPerTrack = std::max(sectorsPerTrack, track.sectorCount);
+            sectorSize = std::max(sectorSize, track.sectorSize);
+            mfm = mfm || track.encoding == TrackEncoding::MFM;
+        }
+    }
+
+    geometry.numTracks = (uint8_t)std::min<uint16_t>(cylinders, UINT8_MAX);
+    geometry.stepRate = 0x01;
+    geometry.sectorsPerTrack = sectorsPerTrack;
+    geometry.numSides = sides - 1;
+    geometry.density = mfm ? PERCOM_DENSITY_MFM : PERCOM_DENSITY_FM;
+    geometry.sectorSize = sectorSize;
+    geometry.drivePresent = 0xFF;
+
+    return geometry;
+}
+
 void rs232Disk::rs232_read_percom_block()
 {
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     Debug_print("disk READ PERCOM BLOCK\n");
 
-    if (_media == nullptr)
+    if (!isMounted())
     {
         SYSTEM_BUS.transaction_error();
         return;
     }
 
-#ifdef VERBOSE_DISK
-    _media->dump_percom_block();
-#endif
-    SYSTEM_BUS.transaction_send((uint8_t *)&_media->_percomBlock, sizeof(_media->_percomBlock), false);
+    PercomBlock geometry = derivePercom();
+    SYSTEM_BUS.transaction_send((uint8_t *)&geometry, sizeof(geometry), false);
 }
 
-// Write percom block
-void rs232Disk::rs232_write_percom_block()
-{
-    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
-    Debug_print("disk WRITE PERCOM BLOCK\n");
-
-    if (_media == nullptr
-        || SYSTEM_BUS.transaction_get((uint8_t *)&_media->_percomBlock,
-                                       sizeof(_media->_percomBlock)).is_error())
-    {
-        SYSTEM_BUS.transaction_error();
-        return;
-    }
-
-#ifdef VERBOSE_DISK
-    _media->dump_percom_block();
-#endif
-    SYSTEM_BUS.transaction_success();
-}
-
-/* Mount Disk
-   A disk_type other than MEDIATYPE_UNKNOWN is used as given. Otherwise the type
-   comes from the filename, or from the contents when the name says nothing, and
-   an image of unknown type mounts raw.
-*/
-error_is_true rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksize,
-                               disk_access_flags_t access_mode, mediatype_t disk_type,
-                               fujiHost *host)
-{
-    error_is_true mounted = mount_by_type(f, filename, disksize, access_mode, disk_type, host);
-    if (mounted.is_error())
-        unmount();
-    return mounted;
-}
-
-error_is_true rs232Disk::mount_by_type(fnFile *f, const char *filename, uint32_t disksize,
-                                       disk_access_flags_t access_mode,
-                                       mediatype_t disk_type, fujiHost *host)
+// A cartridge goes to the DBC and leaves nothing mounted; anything no cartridge
+// takes is a disk. Whatever accepts the file owns the handle; if nothing does,
+// it's closed here.
+error_is_true rs232Disk::mount(fnFile *f, const char *filename, uint32_t /*disksize*/,
+                               disk_access_flags_t access_mode, fujiHost *host)
 {
     Debug_print("disk MOUNT\n");
 
-    // Destroy any existing MediaType
-    _media.reset();
+    unmount();
 
-    if (disk_type == MEDIATYPE_UNKNOWN && filename != nullptr)
-        disk_type = MediaType::discover_mediatype(f, filename, disksize);
-
-    // Now mount based on MediaType
-    switch (disk_type)
+    std::string path = filename != nullptr ? filename : "";
+    auto rom = Formats::open<ROMMedia>(path, f, host);
+    if (rom)
     {
-    case MEDIATYPE_ROM:
-    {
-        // A ROM isn't a disk: once it's on the DBC the drive has no media
-        // and the file isn't read again.
-        device_active = false;
-        _mount_time = 0;
-        // Strongest evidence first: a signature, a mapper file, then the
-        // extension alone.
-        auto rom = ROMFactory::open<
-            IntellicartROM,
-            NESROM,
-            IntellivisionROM,
-            Atari7800ROM,
-            StudioIIROM,
-            Atari5200ROM,
-            Atari2600ROM,
-            SegaMasterROM,
-            ChannelFROM,
-            ColecoROM
-            >(filename != nullptr ? filename : "", f, host);
-        if (!rom)
-        {
-            fnio::fclose(f);
-            RETURN_ERROR_AS_TRUE();
-        }
-
         error_is_true pushed = push_rom_streams(*rom);
         rom->close();
-        RETURN_ERROR_IF(pushed.is_error());
+        return pushed;
     }
-    case MEDIATYPE_IMD:
+
+    bool readOnly = !(access_mode & DISK_ACCESS_MODE_WRITE);
+    _media = Formats::open<BlockMedia>(path, f, host, readOnly);
+    if (!_media)
     {
-        device_active = true;
-        _mount_time = time(nullptr);
-        _media = std::make_unique<MediaTypeIMD>((access_mode & DISK_ACCESS_MODE_WRITE) != 0);
-        auto *imd = static_cast<MediaTypeIMD *>(_media.get());
-        imd->_media_host = host;
-        if (filename != nullptr)
-            strlcpy(imd->_disk_filename, filename, sizeof(imd->_disk_filename));
-        RETURN_ERROR_IF(imd->mount(f, disksize) == MEDIATYPE_UNKNOWN);
+        fnio::fclose(f);
+        RETURN_ERROR_AS_TRUE();
     }
-    case MEDIATYPE_ALTAIR:
-    {
-        device_active = true;
-        _mount_time = time(nullptr);
-        _media = std::make_unique<MediaTypeAltair>((access_mode & DISK_ACCESS_MODE_WRITE) != 0);
-        auto *altair = static_cast<MediaTypeAltair *>(_media.get());
-        altair->_media_host = host;
-        if (filename != nullptr)
-            strlcpy(altair->_disk_filename, filename, sizeof(altair->_disk_filename));
-        RETURN_ERROR_IF(altair->mount(f, disksize) == MEDIATYPE_UNKNOWN);
-    }
-    case MEDIATYPE_IMG:
-    case MEDIATYPE_UNKNOWN:
-    default:
-        device_active = true;
-        _mount_time = time(NULL);
-        _media = std::make_unique<MediaTypeImg>((access_mode & DISK_ACCESS_MODE_WRITE) != 0);
-        RETURN_ERROR_IF(_media->mount(f, disksize) == MEDIATYPE_UNKNOWN);
-    }
+
+    device_active = true;
+    _mount_time = time(nullptr);
+    RETURN_SUCCESS_AS_FALSE();
 }
 
-error_is_true rs232Disk::mount_disk_media(fnFile *f, const char *filename, uint32_t disksize,
-                                          mediatype_t disk_type)
-{
-    return mount(f, filename, disksize, DISK_ACCESS_MODE_READ, disk_type);
-}
-
-// Destructor
-rs232Disk::~rs232Disk()
-{
-    _media.reset();
-}
-
-// Unmount disk file
 void rs232Disk::unmount()
 {
     Debug_print("disk UNMOUNT\n");
 
     if (_media != nullptr)
     {
-        _media->unmount();
+        _media->close();
         _media.reset();
-        device_active = false;
-        _mount_time = 0;
     }
+    device_active = false;
+    _mount_time = 0;
 }
 
-// Create blank disk
+// An IMD name gets a blank IBM-3740 image; anything else a raw one.
 success_is_true rs232Disk::write_blank(fnFile *f, const NewDiskRequest &req)
 {
     Debug_print("disk CREATE NEW IMAGE\n");
 
-    if (MediaType::discover_mediatype(req.filename, (uint32_t)req.sectorSize * req.numSectors)
-        == MEDIATYPE_IMD)
-        return MediaTypeIMD::create(f, req.sectorSize, req.numSectors);
-    return MediaTypeImg::create(f, req.sectorSize, req.numSectors);
+    if (Media::matchExtension(req.filename, IMDDisk::extensions).has_value())
+        return IMDDisk::create(f, req.sectorSize, req.numSectors);
+    return RawDisk::create(f, req.sectorSize, req.numSectors);
 }
 
 // Process command
@@ -486,9 +392,6 @@ void rs232Disk::rs232_process(const FujiBusPacket &packet)
         return;
     case CMD::DISK_PERCOM_READ:
         rs232_read_percom_block();
-        return;
-    case CMD::DISK_PERCOM_WRITE:
-        rs232_write_percom_block();
         return;
     default:
         break;

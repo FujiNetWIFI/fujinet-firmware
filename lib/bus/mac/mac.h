@@ -95,6 +95,8 @@ public:
 
 // The class FujiDiskDrive derives from on this bus
 using DiskDriveBase = virtualDevice;
+class MediaType;
+using DiskDriveMedia = MediaType;
 
 // Older Mac code used this name; keep it as an alias.
 using macDevice = virtualDevice;

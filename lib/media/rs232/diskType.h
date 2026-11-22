@@ -1,6 +1,7 @@
 #ifndef _MEDIATYPE_RS232
 #define _MEDIATYPE_RS232
 
+#include "disk/LegacyBlockMedia.h"
 #include <stdint.h>
 #include "fnio.h"
 #include "global_types.h"
@@ -37,21 +38,12 @@ class fujiHost;
 #define DENSITY_FM 0
 #define DENSITY_MFM 4
 
-// Wire-visible: emitted as the mediatype byte of directory entries, so append
-// only.
-enum mediatype_t : uint8_t
+class MediaType : public LegacyBlockMedia
 {
-    MEDIATYPE_UNKNOWN = 0,
-    MEDIATYPE_IMG,
-    MEDIATYPE_ROM,
-    MEDIATYPE_IMD,
-    MEDIATYPE_ALTAIR,
-    MEDIATYPE_COUNT
-};
+    friend class LegacyBlockMedia;
 
-class MediaType
-{
 protected:
+    bool _writable;
     fnFile *_disk_fileh = nullptr;
     uint32_t _disk_image_size = 0;
     uint32_t _disk_num_sectors = 0;
@@ -83,6 +75,9 @@ public:
     // sibling files.
     fujiHost *_media_host = nullptr;
     char _disk_filename[256] = {0};
+
+    // host lets a format reach sibling files.
+    MediaType(const std::string &path, fnFile *handle, fujiHost *host, bool readOnly);
 
     virtual mediatype_t mount(fnFile *f, uint32_t disksize) = 0;
     virtual void unmount();

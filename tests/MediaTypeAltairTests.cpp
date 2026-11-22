@@ -27,7 +27,7 @@ struct Mounted
     MediaTypeAltair media;
     mediatype_t type = MEDIATYPE_UNKNOWN;
 
-    Mounted(uint32_t size, uint32_t sectors, bool writable = false) : media(writable)
+    Mounted(uint32_t size, uint32_t sectors, bool writable = false) : media(ALTAIR_TEST_FILE, nullptr, nullptr, !writable)
     {
         fp = fopen(ALTAIR_TEST_FILE, "w+b");
         REQUIRE(fp != nullptr);

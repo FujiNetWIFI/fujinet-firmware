@@ -169,6 +169,8 @@ public:
 
 // The class FujiDiskDrive derives from on this bus
 using DiskDriveBase = virtualDevice;
+class MediaType;
+using DiskDriveMedia = MediaType;
 
 class iwmFuji;
 

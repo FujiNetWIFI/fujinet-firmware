@@ -13,14 +13,17 @@ private:
 protected:
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                            uint8_t maxlen) override;
+    mediatype_t directoryMediaType(const char *filename) override
+    {
+        return JoinedMediaFormats<rs232Disk::Formats>::entryType(filename);
+    }
 
     // Passes `host` through so a ROM format can open the ROM's mapper
     // sibling through it -- see fujiDevice::mount_media().
     error_is_true mount_media(DISK_DEVICE *disk_dev, fnFile *fileh, fujiDisk &disk,
                               fujiHost &host, disk_access_flags_t mode) override
     {
-        return disk_dev->mount(fileh, disk.filename, disk.disk_size, mode,
-                               MEDIATYPE_UNKNOWN, &host);
+        return disk_dev->mount(fileh, disk.filename, disk.disk_size, mode, &host);
     }
 
     void rs232_net_set_ssid(bool save);    // 0xFB

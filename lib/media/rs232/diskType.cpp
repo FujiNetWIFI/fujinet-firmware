@@ -118,6 +118,12 @@ mediatype_t MediaType::discover_mediatype(fnFile *f, const char *filename, uint3
     return MEDIATYPE_UNKNOWN;
 }
 
+MediaType::MediaType(const std::string &path, fnFile *handle, fujiHost *host, bool readOnly)
+    : LegacyBlockMedia(path, handle, readOnly), _writable(!readOnly), _media_host(host)
+{
+    snprintf(_disk_filename, sizeof(_disk_filename), "%s", path.c_str());
+}
+
 MediaType::~MediaType()
 {
     unmount();
