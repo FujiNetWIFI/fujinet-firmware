@@ -193,11 +193,6 @@ private:
     uint8_t drive_num;
 
     /**
-     * @brief Sector data (256 bytes)
-     */
-    uint8_t sector_data[DRIVEWIRE_SECTOR_SIZE];
-
-    /**
      * @brief NOP command (do nothing)
      */
     void op_jeff();
