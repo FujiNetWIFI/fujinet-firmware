@@ -426,3 +426,153 @@ TEST_CASE("an image with an unknown extension doesn't mount, and its image is cl
     disk.unmount();
     CHECK(file.closes == 1);
 }
+
+namespace
+{
+
+// A DSK with the FNHS marker in sector 323: the version, a range count, then
+// each range as a big-endian first sector and sector count.
+struct HighScoreDsk
+{
+    std::vector<uint8_t> image = numbered_sectors(330);
+
+    explicit HighScoreDsk(std::vector<std::pair<uint16_t, uint16_t>> ranges = {},
+                          uint8_t version = 1)
+    {
+        std::vector<uint8_t> marker = {'F', 'N', 'H', 'S', version, (uint8_t)ranges.size()};
+        for (auto range : ranges)
+            for (uint16_t field : {range.first, range.second})
+            {
+                marker.push_back(field >> 8);
+                marker.push_back(field & 0xFF);
+            }
+        memcpy(image.data() + 323 * MEDIA_BLOCK_SIZE, marker.data(), marker.size());
+    }
+};
+
+// Mounts read-only with a host that serves the image by name, as the Fuji does.
+struct HighScoreMount
+{
+    fujiHost host;
+    std::unique_ptr<MemFile> file;
+    drivewireDisk disk;
+
+    HighScoreMount(HighScoreDsk &dsk, disk_access_flags_t mode = DISK_ACCESS_MODE_READ,
+                   bool serveFromHost = true, bool giveHost = true)
+    {
+        host_files.reset();
+        if (serveFromHost)
+            host_files.files[DSK_TEST_FILE] = dsk.image;
+        file = MemFile::sharing(serveFromHost ? host_files.files[DSK_TEST_FILE] : dsk.image);
+        REQUIRE(disk.mount(file.get(), DSK_TEST_FILE, dsk.image.size(), mode).is_success());
+        if (giveHost)
+            disk.set_media_host(&host);
+    }
+};
+
+} // namespace
+
+TEST_CASE("every high-score range of a read-only DSK is writable and nothing between them")
+{
+    HighScoreDsk dsk({{10, 2}, {200, 1}});
+    HighScoreMount mount(dsk);
+
+    for (uint32_t lsn : {10, 11, 200})
+    {
+        CAPTURE(lsn);
+        CHECK(write_filled(mount.disk, lsn, 0x77).is_success());
+    }
+    for (uint32_t lsn : {9, 12, 199, 201})
+    {
+        CAPTURE(lsn);
+        CHECK(write_filled(mount.disk, lsn, 0x77).is_error());
+    }
+    for (uint32_t lsn : {10, 11, 200})
+        CHECK(sector_of(host_files.files[DSK_TEST_FILE], lsn)
+              == std::vector<uint8_t>(MEDIA_BLOCK_SIZE, 0x77));
+    for (uint32_t lsn : {9, 12, 199, 201})
+        CHECK(sector_of(host_files.files[DSK_TEST_FILE], lsn) == sector_of(dsk.image, lsn));
+    check_closed_once(mount.disk, *mount.file);
+}
+
+TEST_CASE("each high-score write opens the host once and closes it again")
+{
+    HighScoreDsk dsk({{10, 3}});
+    HighScoreMount mount(dsk);
+
+    for (uint32_t lsn : {10, 11, 12})
+        CHECK(write_filled(mount.disk, lsn, 0x77).is_success());
+
+    REQUIRE(host_files.opened.size() == 3);
+    for (auto &handle : host_files.opened)
+        CHECK(handle->closes == 1);
+    CHECK(mount.file->closes == 0); // the mount's own handle is left alone
+    check_closed_once(mount.disk, *mount.file);
+}
+
+TEST_CASE("a high-score sector reads back as written")
+{
+    HighScoreDsk dsk({{10, 2}});
+    HighScoreMount mount(dsk);
+
+    REQUIRE(read_block(mount.disk, 10).has_value());
+    CHECK(write_filled(mount.disk, 10, 0x77).is_success());
+    CHECK(read_block(mount.disk, 10) == std::vector<uint8_t>(MEDIA_BLOCK_SIZE, 0x77));
+    check_closed_once(mount.disk, *mount.file);
+}
+
+TEST_CASE("a high-score DSK mounted read/write takes writes anywhere without the host")
+{
+    HighScoreDsk dsk({{10, 2}});
+    HighScoreMount mount(dsk, DISK_ACCESS_MODE_WRITE);
+
+    CHECK(write_filled(mount.disk, 10, 0x77).is_success());
+    CHECK(write_filled(mount.disk, 50, 0x77).is_success());
+    CHECK(host_files.opened.empty());
+    check_closed_once(mount.disk, *mount.file);
+}
+
+TEST_CASE("a write to a read-only DSK without a marker is refused")
+{
+    HighScoreDsk dsk;
+    memset(dsk.image.data() + 323 * MEDIA_BLOCK_SIZE, 0, 16);
+    HighScoreMount mount(dsk);
+
+    CHECK(write_filled(mount.disk, 10, 0x77).is_error());
+    CHECK(host_files.opened.empty());
+    CHECK(host_files.files[DSK_TEST_FILE] == dsk.image);
+    check_closed_once(mount.disk, *mount.file);
+}
+
+TEST_CASE("a marker with another version, or no ranges, makes nothing writable")
+{
+    for (auto marked : {HighScoreDsk({{10, 2}}, 2), HighScoreDsk({})})
+    {
+        HighScoreMount mount(marked);
+
+        CHECK(write_filled(mount.disk, 10, 0x77).is_error());
+        CHECK(host_files.files[DSK_TEST_FILE] == marked.image);
+        check_closed_once(mount.disk, *mount.file);
+    }
+}
+
+TEST_CASE("a high-score write is refused and the image kept when the host cannot open it")
+{
+    HighScoreDsk dsk({{10, 2}});
+    HighScoreMount mount(dsk, DISK_ACCESS_MODE_READ, false);
+
+    CHECK(write_filled(mount.disk, 10, 0x77).is_error());
+    CHECK(mount.file->contents() == dsk.image);
+    CHECK(read_block(mount.disk, 10) == sector_of(dsk.image, 10));
+    check_closed_once(mount.disk, *mount.file);
+}
+
+TEST_CASE("a high-score write is refused when the disk was never given a host")
+{
+    HighScoreDsk dsk({{10, 2}});
+    HighScoreMount mount(dsk, DISK_ACCESS_MODE_READ, true, false);
+
+    CHECK(write_filled(mount.disk, 10, 0x77).is_error());
+    CHECK(host_files.files[DSK_TEST_FILE] == dsk.image);
+    check_closed_once(mount.disk, *mount.file);
+}

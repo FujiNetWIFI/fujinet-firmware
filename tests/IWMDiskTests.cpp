@@ -324,3 +324,78 @@ TEST_CASE("mounting over a disk closes the old image and reports the switch once
 
     check_closed_once(disk, second);
 }
+
+namespace
+{
+
+// A 2MG with the high-score marker at offset 48: "HI", then the first and last
+// writable block, little endian.
+std::vector<uint8_t> high_score_image(uint32_t blocks, uint16_t first, uint16_t last)
+{
+    auto image = two_mg_image(blocks);
+    image[48] = 'H';
+    image[49] = 'I';
+    u16le_t bound;
+    bound = first;
+    memcpy(&image[50], &bound, sizeof(bound));
+    bound = last;
+    memcpy(&image[52], &bound, sizeof(bound));
+    return image;
+}
+
+} // namespace
+
+TEST_CASE("a 2MG without a high-score marker is write-protected when mounted read-only")
+{
+    auto image = two_mg_image(16);
+    MemFile file(image);
+    file.readOnly = true;
+    TestDisk disk;
+    REQUIRE(disk.mount(&file, TWO_MG_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
+            .is_success());
+
+    CHECK(write_block(disk, 3, filled(BLOCK_SIZE, 0x77)) == Outcome::Error);
+    CHECK(last_sp_error == SP_ERR::NOWRITE);
+    CHECK(file.contents() == image);
+    check_closed_once(disk, file);
+}
+
+TEST_CASE("a high-score 2MG reads like any other 2MG when mounted read-only")
+{
+    auto image = high_score_image(16, 3, 5);
+    MemFile file(image);
+    file.readOnly = true;
+    TestDisk disk;
+    REQUIRE(disk.mount(&file, TWO_MG_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
+            .is_success());
+    CHECK(disk.mediatype() == MEDIATYPE_2MG);
+
+    for (uint32_t block : {0, 3, 5, 6, 15})
+    {
+        CAPTURE(block);
+        CHECK(read_block(disk, block)
+              == slice(image, TWO_MG_HEADER_SIZE + block * BLOCK_SIZE, BLOCK_SIZE));
+    }
+    check_closed_once(disk, file);
+}
+
+// The disk is not write-protected, so the write reaches the media, which
+// refuses it because the file is read-only and the block is not in the range.
+TEST_CASE("a high-score 2MG refuses a write outside its block range")
+{
+    auto image = high_score_image(16, 3, 5);
+    MemFile file(image);
+    file.readOnly = true;
+    TestDisk disk;
+    REQUIRE(disk.mount(&file, TWO_MG_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
+            .is_success());
+
+    for (uint32_t block : {2, 6, 15})
+    {
+        CAPTURE(block);
+        CHECK(write_block(disk, block, filled(BLOCK_SIZE, 0x77)) == Outcome::Error);
+        CHECK(last_sp_error == SP_ERR::IOERROR);
+    }
+    CHECK(file.contents() == image);
+    check_closed_once(disk, file);
+}
