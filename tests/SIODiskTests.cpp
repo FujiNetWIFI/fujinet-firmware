@@ -283,3 +283,69 @@ TEST_CASE("an XEX that can't load its bootloader doesn't mount, and the file is 
     CHECK(disk.mediatype() == MEDIATYPE_UNKNOWN);
     check_closed_once(disk, file);
 }
+
+namespace
+{
+
+// Header bytes 12 to 14 mark the writable sectors: a count plus one, then the
+// first sector, little endian.
+std::vector<uint8_t> high_score_atr(uint16_t sectors, size_t sectorSize, uint16_t first,
+                                    uint8_t count)
+{
+    auto image = atr_image(sectors, sectorSize);
+    image[12] = count + 1;
+    image[13] = first & 0xFF;
+    image[14] = first >> 8;
+    return image;
+}
+
+} // namespace
+
+TEST_CASE("an ATR without a high-score marker refuses writes on a read-only file")
+{
+    auto image = atr_image(10, 128);
+    MemFile file(image);
+    file.readOnly = true;
+    TestDisk disk;
+    REQUIRE(disk.mount(&file, ATR_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
+            .is_success());
+
+    CHECK(write_sector(disk, 4, filled(128, 0x77)) == Outcome::Error);
+    CHECK(file.contents() == image);
+    check_closed_once(disk, file);
+}
+
+TEST_CASE("a high-score ATR reads like any other ATR when mounted read-only")
+{
+    auto image = high_score_atr(10, 128, 4, 2);
+    MemFile file(image);
+    file.readOnly = true;
+    TestDisk disk;
+    REQUIRE(disk.mount(&file, ATR_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
+            .is_success());
+
+    for (uint16_t sector : {1, 4, 5, 6, 10})
+    {
+        CAPTURE(sector);
+        CHECK(read_sector(disk, sector) == sector_of(image, sector, 128));
+    }
+    check_closed_once(disk, file);
+}
+
+TEST_CASE("a high-score ATR refuses a write outside its sector range")
+{
+    auto image = high_score_atr(10, 128, 4, 2);
+    MemFile file(image);
+    file.readOnly = true;
+    TestDisk disk;
+    REQUIRE(disk.mount(&file, ATR_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
+            .is_success());
+
+    for (uint16_t sector : {1, 3, 6, 10})
+    {
+        CAPTURE(sector);
+        CHECK(write_sector(disk, sector, filled(128, 0x77)) == Outcome::Error);
+    }
+    CHECK(file.contents() == image);
+    check_closed_once(disk, file);
+}

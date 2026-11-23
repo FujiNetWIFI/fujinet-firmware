@@ -77,6 +77,9 @@ public:
     int closes = 0;
     bool usedAfterClose = false;
 
+    // A handle opened "rb": every write fails, as it does on a file opened read-only.
+    bool readOnly = false;
+
     int close(bool) override
     {
         closes++;
@@ -114,6 +117,8 @@ public:
     size_t write(const void *ptr, size_t size, size_t n) override
     {
         touch();
+        if (readOnly)
+            return 0;
         size_t length = size * n;
         if (_pos + length > _image->size())
             _image->resize(_pos + length);
