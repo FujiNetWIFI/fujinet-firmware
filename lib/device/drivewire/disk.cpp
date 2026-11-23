@@ -1,8 +1,8 @@
 #ifdef BUILD_COCO
 
 #include "disk.h"
-#include "rom/ROMFactory.h"
 
+#include <algorithm>
 #include <cstring>
 #include <string>
 
@@ -52,7 +52,7 @@ static error_is_true push_rom_image(ROMMedia &rom)
     size_t sent = 0;
     while (true)
     {
-        auto got = rom.read(blockbuff, MEDIA_BLOCK_SIZE);
+        auto got = rom.read(blockbuff, DRIVEWIRE_SECTOR_SIZE);
         if (got.is_error() || got == 0)
         {
             if (got.is_error())
@@ -94,92 +94,52 @@ drivewireDisk::drivewireDisk()
     device_active = false;
 }
 
-// Destructor
 drivewireDisk::~drivewireDisk()
 {
+    unmount();
 }
 
-error_is_true drivewireDisk::mount(fnFile *f, const char *filename, uint32_t disksize,
-                                   disk_access_flags_t access_mode, mediatype_t disk_type)
+// The disk formats are tried first, then a cartridge. Whatever accepts the
+// file owns the handle; if nothing does, it's closed here.
+error_is_true drivewireDisk::mount(fnFile *f, const char *filename, uint32_t /*disksize*/,
+                                   disk_access_flags_t access_mode, fujiHost *host)
 {
-    mediatype_t mt = MEDIATYPE_UNKNOWN;
-
     Debug_printf("DW disk MOUNT %s\n", filename);
 
-    // Destroy any existing MediaType
-    _media.reset();
+    unmount();
 
-    // Determine MediaType based on filename extension
-    if (disk_type == MEDIATYPE_UNKNOWN && filename != nullptr)
-        disk_type = MediaType::discover_mediatype(filename);
-
-    switch (disk_type)
-    {
-    case MEDIATYPE_DSK:
-        _media = std::make_unique<MediaTypeDSK>();
-        break;
-    case MEDIATYPE_MRM:
-        _media = std::make_unique<MediaTypeMRM>();
-        break;
-    case MEDIATYPE_VDK:
-        _media = std::make_unique<MediaTypeVDK>();
-        break;
-    case MEDIATYPE_ROM:
-    {
-        device_active = false;
-        auto rom = ROMFactory::open<
-            CoCoCartROM
-            >(filename, f, nullptr);
-        if (!rom)
-        {
-            fnio::fclose(f);
-            RETURN_ERROR_AS_TRUE();
-        }
-
-        error_is_true pushed = push_rom_image(*rom);
-        rom->close();
-        RETURN_ERROR_IF(pushed.is_error());
-    }
-    case MEDIATYPE_CAS:
-        _media = std::make_unique<MediaTypeCASDSK>();
-        break;
-    default:
-        device_active = false;
-        fnio::fclose(f);
-        break;
-    }
-
+    std::string path = filename != nullptr ? filename : "";
+    bool readOnly = !(access_mode & DISK_ACCESS_MODE_WRITE);
+    _media = Formats::open<BlockMedia>(path, f, host, readOnly);
     if (_media)
     {
-        strcpy(_media->_disk_filename,filename);
-        _media->_media_read_only = !(access_mode & DISK_ACCESS_MODE_WRITE);
-        mt = _media->mount(f, disksize);
-        if (mt == MEDIATYPE_UNKNOWN)
-        {
-            _media.reset();
-            device_active = false;
-        }
-        else
-        {
-            device_active = true;
-        }
+        _status = DISK_STATUS_OK;
+        device_active = true;
+        RETURN_SUCCESS_AS_FALSE();
     }
 
-    RETURN_ERROR_IF(mt == MEDIATYPE_UNKNOWN);
+    auto rom = Formats::open<ROMMedia>(path, f, nullptr);
+    if (!rom)
+    {
+        fnio::fclose(f);
+        RETURN_ERROR_AS_TRUE();
+    }
+
+    error_is_true pushed = push_rom_image(*rom);
+    rom->close();
+    return pushed;
 }
 
 void drivewireDisk::unmount()
 {
     Debug_print("DW disk UNMOUNT\n");
 
-    _media.reset();
-    device_active = false;
-}
-
-void drivewireDisk::set_media_host(fujiHost *host)
-{
     if (_media)
-        _media->_media_host = host;
+    {
+        _media->close();
+        _media.reset();
+    }
+    device_active = false;
 }
 
 error_is_true drivewireDisk::read(uint32_t sector, ByteBuffer &data)
@@ -187,15 +147,15 @@ error_is_true drivewireDisk::read(uint32_t sector, ByteBuffer &data)
     if (!isMounted())
         RETURN_ERROR_AS_TRUE();
 
-    if (_media->read(sector, nullptr).is_error())
+    // A block the media doesn't have is reported to the CoCo as EOF.
+    if (_media->blockSize(sector) == 0)
+    {
+        _status = DISK_STATUS_EOF;
         RETURN_ERROR_AS_TRUE();
+    }
+    _status = DISK_STATUS_OK;
 
-    uint8_t *blockbuff;
-    uint16_t blk_size;
-    _media->get_block_buffer(&blockbuff, &blk_size);
-    data.assign(blockbuff, blockbuff + blk_size);
-
-    RETURN_SUCCESS_AS_FALSE();
+    return _media->readBlock(sector, data);
 }
 
 error_is_true drivewireDisk::write(uint32_t sector, const ByteBuffer &data)
@@ -203,21 +163,18 @@ error_is_true drivewireDisk::write(uint32_t sector, const ByteBuffer &data)
     if (!isMounted())
         RETURN_ERROR_AS_TRUE();
 
-    uint8_t *blockbuff;
-    uint16_t blk_size;
-    _media->get_block_buffer(&blockbuff, &blk_size);
-    if (!blockbuff || blk_size != data.size())
+    if (_media->blockSize(sector) == 0 || _media->writeBlock(sector, data).is_error())
+    {
+        _status = DISK_STATUS_EOF;
         RETURN_ERROR_AS_TRUE();
-
-    memcpy(blockbuff, data.data(), data.size());
-    return _media->write(sector, false);
+    }
+    _status = DISK_STATUS_OK;
+    RETURN_SUCCESS_AS_FALSE();
 }
 
 uint8_t drivewireDisk::get_media_status()
 {
-    if (!_media)
-        return DISK_STATUS_NO_MEDIA;
-    return _media->status();
+    return isMounted() ? _status : DISK_STATUS_NO_MEDIA;
 }
 
 success_is_true drivewireDisk::write_blank(fnFile *f, const NewDiskRequest &req)

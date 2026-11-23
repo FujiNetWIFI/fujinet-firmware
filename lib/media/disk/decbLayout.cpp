@@ -1,5 +1,3 @@
-#ifdef BUILD_COCO
-
 #include "decbLayout.h"
 
 #include <stdio.h>
@@ -417,5 +415,3 @@ bool DecbLayout::read_sector(uint32_t lsn, uint8_t *buf)
         memset(buf + got, 0x00, DECB_SECTOR_SIZE - got);  // pad the tail sector
     return true;
 }
-
-#endif // BUILD_COCO

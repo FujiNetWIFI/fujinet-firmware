@@ -172,19 +172,6 @@ bool drivewireFuji::processCommand(const FujiDWPacket &packet)
     return true;
 }
 
-success_is_true drivewireFuji::fujicore_mount_disk_image_success(uint8_t deviceSlot,
-                                                                   disk_access_flags_t access_mode)
-{
-    if (fujiDevice::fujicore_mount_disk_image_success(deviceSlot, access_mode).is_error())
-        RETURN_ERROR_AS_FALSE();
-
-    fujiDisk &disk = *get_disk(deviceSlot);
-    fujiHost &host = _fnHosts[disk.host_slot];
-    get_disk_dev(deviceSlot)->set_media_host(&host);
-
-    RETURN_SUCCESS_AS_TRUE();
-}
-
 struct SlotImage
 {
     uint8_t host_slot;

@@ -131,14 +131,6 @@ protected:
 # include "rc2014/mediaTypeIMG.h"
 #endif
 
-#ifdef BUILD_COCO
-# include "drivewire/mediaType.h"
-# include "drivewire/mediaTypeDSK.h"
-# include "drivewire/mediaTypeMRM.h"
-# include "drivewire/mediaTypeVDK.h"
-# include "drivewire/mediaTypeCASDSK.h"
-#endif
-
 #ifdef BUILD_CX16
 #include "cx16/mediaType.h"
 #endif

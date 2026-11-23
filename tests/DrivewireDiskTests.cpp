@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "disk.h"
+#include "fujiHost.h"
 #include "romMountStubs.h"
 
 namespace
@@ -26,10 +27,10 @@ constexpr uint8_t EOF_STATUS = 2;
 // Every sector holds different bytes, so a read from the wrong place shows.
 std::vector<uint8_t> numbered_sectors(size_t count, size_t header = 0)
 {
-    std::vector<uint8_t> image(header + count * MEDIA_BLOCK_SIZE, 0xEE);
+    std::vector<uint8_t> image(header + count * DRIVEWIRE_SECTOR_SIZE, 0xEE);
     for (size_t sector = 0; sector < count; sector++)
-        for (size_t offset = 0; offset < MEDIA_BLOCK_SIZE; offset++)
-            image[header + sector * MEDIA_BLOCK_SIZE + offset] =
+        for (size_t offset = 0; offset < DRIVEWIRE_SECTOR_SIZE; offset++)
+            image[header + sector * DRIVEWIRE_SECTOR_SIZE + offset] =
                 (uint8_t)(sector * 3 + offset + 1);
     return image;
 }
@@ -54,7 +55,7 @@ std::vector<uint8_t> slice(const std::vector<uint8_t> &image, size_t start, size
 std::vector<uint8_t> sector_of(const std::vector<uint8_t> &image, size_t sector,
                                size_t header = 0)
 {
-    return slice(image, header + sector * MEDIA_BLOCK_SIZE, MEDIA_BLOCK_SIZE);
+    return slice(image, header + sector * DRIVEWIRE_SECTOR_SIZE, DRIVEWIRE_SECTOR_SIZE);
 }
 
 std::optional<ByteBuffer> read_block(drivewireDisk &disk, uint32_t lsn)
@@ -67,7 +68,7 @@ std::optional<ByteBuffer> read_block(drivewireDisk &disk, uint32_t lsn)
 
 error_is_true write_filled(drivewireDisk &disk, uint32_t lsn, uint8_t value)
 {
-    ByteBuffer sector(MEDIA_BLOCK_SIZE, value);
+    ByteBuffer sector(DRIVEWIRE_SECTOR_SIZE, value);
     return disk.write(lsn, sector);
 }
 
@@ -132,8 +133,7 @@ TEST_CASE("a .dsk mounts as DSK, writable or read-only")
         drivewireDisk disk;
         CHECK(disk.mount(&file, DSK_TEST_FILE, file.contents().size(), mode).is_success());
         CHECK(disk.device_active);
-        CHECK(disk.mediatype() == MEDIATYPE_DSK);
-        CHECK(disk.get_media_status() == DISK_CTRL_STATUS_CLEAR);
+        CHECK(disk.get_media_status() == drivewireDisk::DISK_STATUS_OK);
         check_closed_once(disk, file);
     }
 }
@@ -179,7 +179,7 @@ TEST_CASE("a DSK write lands in its sector and reads back")
     CHECK(write_filled(disk, 2, 0x77).is_success());
 
     std::vector<uint8_t> expected = image;
-    std::fill_n(expected.begin() + 2 * MEDIA_BLOCK_SIZE, MEDIA_BLOCK_SIZE, 0x77);
+    std::fill_n(expected.begin() + 2 * DRIVEWIRE_SECTOR_SIZE, DRIVEWIRE_SECTOR_SIZE, 0x77);
     CHECK(file.contents() == expected);
     CHECK(read_block(disk, 2) == sector_of(expected, 2));
     check_closed_once(disk, file);
@@ -208,7 +208,7 @@ TEST_CASE("a high-score sector on a read-only DSK is written through the host")
     constexpr uint32_t HIGH_SCORE_LSN = 100;
     auto image = numbered_sectors(330);
     const uint8_t marker[] = {'F', 'N', 'H', 'S', 1, 1, 0, HIGH_SCORE_LSN, 0, 2};
-    memcpy(image.data() + 323 * MEDIA_BLOCK_SIZE, marker, sizeof(marker));
+    memcpy(image.data() + 323 * DRIVEWIRE_SECTOR_SIZE, marker, sizeof(marker));
 
     host_files.reset();
     host_files.files[DSK_TEST_FILE] = image;
@@ -216,17 +216,16 @@ TEST_CASE("a high-score sector on a read-only DSK is written through the host")
     fujiHost host;
 
     drivewireDisk disk;
-    REQUIRE(disk.mount(file.get(), DSK_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
+    REQUIRE(disk.mount(file.get(), DSK_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ, &host)
            .is_success());
-    disk.set_media_host(&host);
 
     CHECK(write_filled(disk, HIGH_SCORE_LSN + 1, 0x77).is_success());
     CHECK(write_filled(disk, HIGH_SCORE_LSN + 2, 0x77).is_error());
     CHECK(sector_of(file->contents(), HIGH_SCORE_LSN + 1)
-          == std::vector<uint8_t>(MEDIA_BLOCK_SIZE, 0x77));
+          == std::vector<uint8_t>(DRIVEWIRE_SECTOR_SIZE, 0x77));
     CHECK(sector_of(file->contents(), HIGH_SCORE_LSN + 2)
           == sector_of(image, HIGH_SCORE_LSN + 2));
-    CHECK(read_block(disk, HIGH_SCORE_LSN + 1) == std::vector<uint8_t>(MEDIA_BLOCK_SIZE, 0x77));
+    CHECK(read_block(disk, HIGH_SCORE_LSN + 1) == std::vector<uint8_t>(DRIVEWIRE_SECTOR_SIZE, 0x77));
 
     REQUIRE(host_files.opened.size() == 1);
     CHECK(host_files.opened[0]->closes == 1);
@@ -242,7 +241,7 @@ TEST_CASE("unmount closes the image once and leaves nothing to read")
 
     check_closed_once(disk, file);
     CHECK_FALSE(disk.device_active);
-    CHECK(disk.mediatype() == MEDIATYPE_UNKNOWN);
+    CHECK_FALSE(disk.isMounted());
     CHECK(disk.get_media_status() == NO_MEDIA_STATUS);
     CHECK_FALSE(read_block(disk, 0).has_value());
     CHECK(write_filled(disk, 0, 0x77).is_error());
@@ -298,9 +297,9 @@ TEST_CASE("a VDK write lands in its sector, and one past the end is refused")
     CHECK(write_filled(disk, 5, 0x77).is_error());
 
     std::vector<uint8_t> expected = image;
-    std::fill_n(expected.begin() + VDK_HEADER_SIZE + MEDIA_BLOCK_SIZE, MEDIA_BLOCK_SIZE, 0x77);
+    std::fill_n(expected.begin() + VDK_HEADER_SIZE + DRIVEWIRE_SECTOR_SIZE, DRIVEWIRE_SECTOR_SIZE, 0x77);
     CHECK(file.contents() == expected);
-    CHECK(read_block(disk, 2) == std::vector<uint8_t>(MEDIA_BLOCK_SIZE, 0x77));
+    CHECK(read_block(disk, 2) == std::vector<uint8_t>(DRIVEWIRE_SECTOR_SIZE, 0x77));
     check_closed_once(disk, file);
 }
 
@@ -368,11 +367,11 @@ TEST_CASE("a .cas mounts as a Disk BASIC disk holding the tape's file")
     CHECK((*directory)[DECB_DIRENT_SIZE] == 0xFF); // no second entry
 
     uint32_t first_lsn = granule_lsn((*directory)[13]);
-    CHECK(read_block(disk, first_lsn) == slice(payload, 0, MEDIA_BLOCK_SIZE));
+    CHECK(read_block(disk, first_lsn) == slice(payload, 0, DRIVEWIRE_SECTOR_SIZE));
     auto second = read_block(disk, first_lsn + 1);
     REQUIRE(second.has_value());
-    CHECK(slice(*second, 0, 300 - MEDIA_BLOCK_SIZE)
-          == slice(payload, MEDIA_BLOCK_SIZE, 300 - MEDIA_BLOCK_SIZE));
+    CHECK(slice(*second, 0, 300 - DRIVEWIRE_SECTOR_SIZE)
+          == slice(payload, DRIVEWIRE_SECTOR_SIZE, 300 - DRIVEWIRE_SECTOR_SIZE));
 
     auto name = read_block(disk, DECB_LSN_DISKNAME);
     REQUIRE(name.has_value());
@@ -405,7 +404,7 @@ TEST_CASE("a .cas holding no file doesn't mount, and its image is closed")
     CHECK(disk.mount(&file, CAS_TEST_FILE, tape.size(), DISK_ACCESS_MODE_READ)
          .is_error());
     CHECK_FALSE(disk.device_active);
-    CHECK(disk.mediatype() == MEDIATYPE_UNKNOWN);
+    CHECK_FALSE(disk.isMounted());
     CHECK(file.closes == 1);
     disk.unmount();
     CHECK(file.closes == 1);
@@ -420,7 +419,7 @@ TEST_CASE("an image with an unknown extension doesn't mount, and its image is cl
     CHECK(disk.mount(&file, "drivewire_disk_test.xyz", image.size(), DISK_ACCESS_MODE_READ)
          .is_error());
     CHECK_FALSE(disk.device_active);
-    CHECK(disk.mediatype() == MEDIATYPE_UNKNOWN);
+    CHECK_FALSE(disk.isMounted());
     CHECK(file.closes == 1);
     CHECK_FALSE(file.usedAfterClose);
     disk.unmount();
@@ -446,7 +445,7 @@ struct HighScoreDsk
                 marker.push_back(field >> 8);
                 marker.push_back(field & 0xFF);
             }
-        memcpy(image.data() + 323 * MEDIA_BLOCK_SIZE, marker.data(), marker.size());
+        memcpy(image.data() + 323 * DRIVEWIRE_SECTOR_SIZE, marker.data(), marker.size());
     }
 };
 
@@ -464,9 +463,8 @@ struct HighScoreMount
         if (serveFromHost)
             host_files.files[DSK_TEST_FILE] = dsk.image;
         file = MemFile::sharing(serveFromHost ? host_files.files[DSK_TEST_FILE] : dsk.image);
-        REQUIRE(disk.mount(file.get(), DSK_TEST_FILE, dsk.image.size(), mode).is_success());
-        if (giveHost)
-            disk.set_media_host(&host);
+        REQUIRE(disk.mount(file.get(), DSK_TEST_FILE, dsk.image.size(), mode,
+                           giveHost ? &host : nullptr).is_success());
     }
 };
 
@@ -489,7 +487,7 @@ TEST_CASE("every high-score range of a read-only DSK is writable and nothing bet
     }
     for (uint32_t lsn : {10, 11, 200})
         CHECK(sector_of(host_files.files[DSK_TEST_FILE], lsn)
-              == std::vector<uint8_t>(MEDIA_BLOCK_SIZE, 0x77));
+              == std::vector<uint8_t>(DRIVEWIRE_SECTOR_SIZE, 0x77));
     for (uint32_t lsn : {9, 12, 199, 201})
         CHECK(sector_of(host_files.files[DSK_TEST_FILE], lsn) == sector_of(dsk.image, lsn));
     check_closed_once(mount.disk, *mount.file);
@@ -517,7 +515,7 @@ TEST_CASE("a high-score sector reads back as written")
 
     REQUIRE(read_block(mount.disk, 10).has_value());
     CHECK(write_filled(mount.disk, 10, 0x77).is_success());
-    CHECK(read_block(mount.disk, 10) == std::vector<uint8_t>(MEDIA_BLOCK_SIZE, 0x77));
+    CHECK(read_block(mount.disk, 10) == std::vector<uint8_t>(DRIVEWIRE_SECTOR_SIZE, 0x77));
     check_closed_once(mount.disk, *mount.file);
 }
 
@@ -535,7 +533,7 @@ TEST_CASE("a high-score DSK mounted read/write takes writes anywhere without the
 TEST_CASE("a write to a read-only DSK without a marker is refused")
 {
     HighScoreDsk dsk;
-    memset(dsk.image.data() + 323 * MEDIA_BLOCK_SIZE, 0, 16);
+    memset(dsk.image.data() + 323 * DRIVEWIRE_SECTOR_SIZE, 0, 16);
     HighScoreMount mount(dsk);
 
     CHECK(write_filled(mount.disk, 10, 0x77).is_error());

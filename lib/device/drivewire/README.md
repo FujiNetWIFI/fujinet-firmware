@@ -5,8 +5,10 @@ The CoCo and Dragon device set for `BUILD_COCO`.
 ## How it fits
 - The bus in [lib/bus/drivewire/](../../bus/drivewire/) dispatches by opcode, so the disk, printer,
   modem and cassette derive its `drivewireDevice` base directly; the Fuji, network, clock and CP/M
-  devices derive `virtualDevice` and answer `processCommand()`. Images come from
-  [lib/media/drivewire/](../../media/drivewire/).
+  devices derive `virtualDevice` and answer `processCommand()`. Disk images are the CoCo, Dragon
+  and PMD 85 formats in [lib/media/disk/](../../media/disk/); cartridges are `CoCoCartROM` in
+  [lib/media/rom/](../../media/rom/).
+- `drivewireFuji` overrides `mount_media()` to pass the host to the disk.
 - `src/main.cpp` hands the printer to the bus with `setPrinter()`; the bus keeps no daisy chain.
 
 ## Build

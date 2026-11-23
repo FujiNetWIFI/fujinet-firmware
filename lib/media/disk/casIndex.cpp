@@ -1,5 +1,3 @@
-#ifdef BUILD_COCO
-
 #include "casIndex.h"
 
 #include <stdio.h>
@@ -239,5 +237,3 @@ bool CasIndex::check_segment_chain(int idx)
     }
     return false;
 }
-
-#endif // BUILD_COCO

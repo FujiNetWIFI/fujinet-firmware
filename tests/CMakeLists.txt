@@ -961,17 +961,18 @@ if(FUJINET_TARGET STREQUAL "COCO")
     channelStubs.cpp
     ${CMAKE_SOURCE_DIR}/lib/device/drivewire/disk.cpp
     ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFile.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/mediaType.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/media.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/rom/ROMMedia.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/rom/CoCoCartROM.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/mediaTypeDSK.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/mediaTypeMRM.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/mediaTypeVDK.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/mediaTypeCASDSK.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/casIndex.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/casReader.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/decbLayout.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/disk/DiskMedia.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/disk/BlockMedia.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/disk/CoCoDSK.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/disk/DragonVDK.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/disk/PMD85MRM.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/disk/CoCoCAS.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/disk/casIndex.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/disk/casReader.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/disk/decbLayout.cpp
     ${CMAKE_SOURCE_DIR}/lib/bus/FujiBusPacket.cpp
     ${CMAKE_SOURCE_DIR}/lib/bus/DaisyChain.cpp
   )
@@ -980,7 +981,6 @@ if(FUJINET_TARGET STREQUAL "COCO")
   target_include_directories(drivewire_rom_mount_tests PRIVATE
     ${CMAKE_SOURCE_DIR}/lib/device/drivewire/
     ${CMAKE_SOURCE_DIR}/lib/bus/drivewire/
-    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/
     ${ROM_MOUNT_TEST_INCLUDES}
   )
   if(WIN32)
@@ -997,17 +997,18 @@ if(FUJINET_TARGET STREQUAL "COCO")
     channelStubs.cpp
     ${CMAKE_SOURCE_DIR}/lib/device/drivewire/disk.cpp
     ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFile.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/mediaType.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/media.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/rom/ROMMedia.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/rom/CoCoCartROM.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/mediaTypeDSK.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/mediaTypeMRM.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/mediaTypeVDK.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/mediaTypeCASDSK.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/casIndex.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/casReader.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/decbLayout.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/disk/DiskMedia.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/disk/BlockMedia.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/disk/CoCoDSK.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/disk/DragonVDK.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/disk/PMD85MRM.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/disk/CoCoCAS.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/disk/casIndex.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/disk/casReader.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/disk/decbLayout.cpp
     ${CMAKE_SOURCE_DIR}/lib/bus/FujiBusPacket.cpp
     ${CMAKE_SOURCE_DIR}/lib/bus/DaisyChain.cpp
   )
@@ -1015,7 +1016,6 @@ if(FUJINET_TARGET STREQUAL "COCO")
   target_include_directories(drivewire_disk_tests PRIVATE
     ${CMAKE_SOURCE_DIR}/lib/device/drivewire/
     ${CMAKE_SOURCE_DIR}/lib/bus/drivewire/
-    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/
     ${ROM_MOUNT_TEST_INCLUDES}
   )
   if(WIN32)
@@ -1037,7 +1037,6 @@ if(FUJINET_TARGET STREQUAL "COCO")
   target_compile_definitions(media_tests PRIVATE UNIT_TESTS PINMAP_FUJIVERSAL_DRIVEWIRE)
   target_include_directories(media_tests PRIVATE
     ${CMAKE_SOURCE_DIR}/lib/bus/drivewire/
-    ${CMAKE_SOURCE_DIR}/lib/media/drivewire/
     ${ROM_MOUNT_TEST_INCLUDES}
   )
   if(WIN32)

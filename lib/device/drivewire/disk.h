@@ -2,11 +2,33 @@
 #define DISK_H
 
 #include "FujiDiskDrive.h"
+#include "mediatype.h"
+#include "MediaFormats.h"
+#include "disk/CoCoDSK.h"
+#include "disk/DragonVDK.h"
+#include "disk/PMD85MRM.h"
+#include "disk/CoCoCAS.h"
+#include "rom/CoCoCartROM.h"
+
+#include <memory>
 
 class drivewireDisk : public FujiDiskDrive
 {
 public:
-    // What get_media_status() reports for a read past the end, and with no media.
+    // Disks are tried before cartridges; within each, in this order.
+    using Formats = MediaFormats<MEDIATYPE_UNKNOWN,
+                                 MediaFormat<CoCoDSK, MEDIATYPE_DSK>,
+                                 MediaFormat<DragonVDK, MEDIATYPE_VDK>,
+                                 MediaFormat<PMD85MRM, MEDIATYPE_MRM>,
+                                 MediaFormat<CoCoCAS, MEDIATYPE_CAS>,
+                                 MediaFormat<CoCoCartROM, MEDIATYPE_ROM>>;
+
+private:
+    uint8_t _status = DISK_STATUS_OK;
+
+public:
+    // What get_media_status() reports: a good read, one past the end, and no media.
+    static constexpr uint8_t DISK_STATUS_OK = 0;
     static constexpr uint8_t DISK_STATUS_EOF = 2;
     static constexpr uint8_t DISK_STATUS_NO_MEDIA = 3;
 
@@ -18,13 +40,12 @@ public:
     drivewireDisk();
     ~drivewireDisk();
 
-    mediatype_t mediatype() { return _media == nullptr ? MEDIATYPE_UNKNOWN : _media->_mediatype; };
-    error_is_true mount(fnFile *f, const char *filename, uint32_t disksize,
-                        disk_access_flags_t access_mode,
-                        mediatype_t disk_type = MEDIATYPE_UNKNOWN);
-    void unmount();
+    bool isMounted() const override { return _media != nullptr; }
 
-    void set_media_host(fujiHost *host);
+    // host lets a format reopen the image, as CoCoDSK does for high scores; may be nullptr.
+    error_is_true mount(fnFile *f, const char *filename, uint32_t disksize,
+                        disk_access_flags_t access_mode, fujiHost *host = nullptr);
+    void unmount();
 
     struct NewDiskRequest {
         uint8_t numDisks;
