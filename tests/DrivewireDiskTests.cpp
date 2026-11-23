@@ -57,30 +57,18 @@ std::vector<uint8_t> sector_of(const std::vector<uint8_t> &image, size_t sector,
     return slice(image, header + sector * MEDIA_BLOCK_SIZE, MEDIA_BLOCK_SIZE);
 }
 
-// The CoCo's read: the bus sends whatever the media's own buffer holds.
-std::optional<std::vector<uint8_t>> coco_read(drivewireDisk &disk, uint32_t lsn)
+std::optional<ByteBuffer> read_block(drivewireDisk &disk, uint32_t lsn)
 {
-    uint8_t *buffer = nullptr;
-    uint16_t size = 0;
-    disk.get_media_buffer(&buffer, &size);
-    if (buffer == nullptr || disk.read(lsn, nullptr).is_error())
+    ByteBuffer block;
+    if (disk.read(lsn, block).is_error())
         return std::nullopt;
-    return std::vector<uint8_t>(buffer, buffer + size);
-}
-
-// The Dragon's read: the sector is copied into the bus's buffer.
-std::optional<std::vector<uint8_t>> dragon_read(drivewireDisk &disk, uint32_t lsn)
-{
-    std::vector<uint8_t> sector(MEDIA_BLOCK_SIZE);
-    if (disk.read(lsn, sector.data()).is_error())
-        return std::nullopt;
-    return sector;
+    return block;
 }
 
 error_is_true write_filled(drivewireDisk &disk, uint32_t lsn, uint8_t value)
 {
-    std::vector<uint8_t> sector(MEDIA_BLOCK_SIZE, value);
-    return disk.write(lsn, sector.data());
+    ByteBuffer sector(MEDIA_BLOCK_SIZE, value);
+    return disk.write(lsn, sector);
 }
 
 void check_closed_once(drivewireDisk &disk, const MemFile &file)
@@ -161,8 +149,7 @@ TEST_CASE("every DSK sector reads back as stored, in any order")
     for (uint32_t lsn : {2, 0, 1, 3, 3, 1})
     {
         CAPTURE(lsn);
-        CHECK(coco_read(disk, lsn) == sector_of(image, lsn));
-        CHECK(dragon_read(disk, lsn) == sector_of(image, lsn));
+        CHECK(read_block(disk, lsn) == sector_of(image, lsn));
     }
     check_closed_once(disk, file);
 }
@@ -174,8 +161,8 @@ TEST_CASE("a DSK read at the block count reports EOF")
     REQUIRE(disk.mount(&file, DSK_TEST_FILE, file.contents().size(), DISK_ACCESS_MODE_READ)
            .is_success());
 
-    CHECK(disk.read(3, nullptr).is_success());
-    CHECK(disk.read(4, nullptr).is_error());
+    CHECK(read_block(disk, 3).has_value());
+    CHECK_FALSE(read_block(disk, 4).has_value());
     CHECK(disk.get_media_status() == EOF_STATUS);
     check_closed_once(disk, file);
 }
@@ -188,13 +175,13 @@ TEST_CASE("a DSK write lands in its sector and reads back")
     REQUIRE(disk.mount(&file, DSK_TEST_FILE, image.size(), DISK_ACCESS_MODE_WRITE)
            .is_success());
 
-    REQUIRE(coco_read(disk, 2) == sector_of(image, 2));
+    REQUIRE(read_block(disk, 2) == sector_of(image, 2));
     CHECK(write_filled(disk, 2, 0x77).is_success());
 
     std::vector<uint8_t> expected = image;
     std::fill_n(expected.begin() + 2 * MEDIA_BLOCK_SIZE, MEDIA_BLOCK_SIZE, 0x77);
     CHECK(file.contents() == expected);
-    CHECK(coco_read(disk, 2) == sector_of(expected, 2));
+    CHECK(read_block(disk, 2) == sector_of(expected, 2));
     check_closed_once(disk, file);
 }
 
@@ -239,7 +226,7 @@ TEST_CASE("a high-score sector on a read-only DSK is written through the host")
           == std::vector<uint8_t>(MEDIA_BLOCK_SIZE, 0x77));
     CHECK(sector_of(file->contents(), HIGH_SCORE_LSN + 2)
           == sector_of(image, HIGH_SCORE_LSN + 2));
-    CHECK(coco_read(disk, HIGH_SCORE_LSN + 1) == std::vector<uint8_t>(MEDIA_BLOCK_SIZE, 0x77));
+    CHECK(read_block(disk, HIGH_SCORE_LSN + 1) == std::vector<uint8_t>(MEDIA_BLOCK_SIZE, 0x77));
 
     REQUIRE(host_files.opened.size() == 1);
     CHECK(host_files.opened[0]->closes == 1);
@@ -257,7 +244,7 @@ TEST_CASE("unmount closes the image once and leaves nothing to read")
     CHECK_FALSE(disk.device_active);
     CHECK(disk.mediatype() == MEDIATYPE_UNKNOWN);
     CHECK(disk.get_media_status() == NO_MEDIA_STATUS);
-    CHECK(disk.read(0, nullptr).is_error());
+    CHECK_FALSE(read_block(disk, 0).has_value());
     CHECK(write_filled(disk, 0, 0x77).is_error());
     CHECK(file.closes == 1);
 }
@@ -276,7 +263,7 @@ TEST_CASE("mounting over a disk closes the old image once")
            .is_success());
     CHECK(first.closes == 1);
     CHECK(second.closes == 0);
-    CHECK(coco_read(disk, 6) == sector_of(second_image, 6));
+    CHECK(read_block(disk, 6) == sector_of(second_image, 6));
     check_closed_once(disk, second);
 }
 
@@ -292,10 +279,9 @@ TEST_CASE("VDK sectors start at LSN 1, after the header")
     for (uint32_t lsn : {3, 1, 2, 4, 4})
     {
         CAPTURE(lsn);
-        CHECK(coco_read(disk, lsn) == sector_of(image, lsn - 1, VDK_HEADER_SIZE));
-        CHECK(dragon_read(disk, lsn) == sector_of(image, lsn - 1, VDK_HEADER_SIZE));
+        CHECK(read_block(disk, lsn) == sector_of(image, lsn - 1, VDK_HEADER_SIZE));
     }
-    CHECK(disk.read(5, nullptr).is_error());
+    CHECK_FALSE(read_block(disk, 5).has_value());
     CHECK(disk.get_media_status() == EOF_STATUS);
     check_closed_once(disk, file);
 }
@@ -314,7 +300,7 @@ TEST_CASE("a VDK write lands in its sector, and one past the end is refused")
     std::vector<uint8_t> expected = image;
     std::fill_n(expected.begin() + VDK_HEADER_SIZE + MEDIA_BLOCK_SIZE, MEDIA_BLOCK_SIZE, 0x77);
     CHECK(file.contents() == expected);
-    CHECK(coco_read(disk, 2) == std::vector<uint8_t>(MEDIA_BLOCK_SIZE, 0x77));
+    CHECK(read_block(disk, 2) == std::vector<uint8_t>(MEDIA_BLOCK_SIZE, 0x77));
     check_closed_once(disk, file);
 }
 
@@ -340,13 +326,13 @@ TEST_CASE("an MRM reads in 32K blocks, padding the last with $FF")
     REQUIRE(disk.mount(&file, MRM_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
            .is_success());
 
-    CHECK(coco_read(disk, 0) == slice(image, 0, MRM_BLOCK));
+    CHECK(read_block(disk, 0) == slice(image, 0, MRM_BLOCK));
 
     std::vector<uint8_t> last(MRM_BLOCK, 0xFF);
     std::copy(image.begin() + MRM_BLOCK, image.end(), last.begin());
-    CHECK(coco_read(disk, 1) == last);
+    CHECK(read_block(disk, 1) == last);
 
-    CHECK(disk.read(2, nullptr).is_error());
+    CHECK_FALSE(read_block(disk, 2).has_value());
     CHECK(disk.get_media_status() == EOF_STATUS);
     check_closed_once(disk, file);
 }
@@ -374,7 +360,7 @@ TEST_CASE("a .cas mounts as a Disk BASIC disk holding the tape's file")
            .is_success());
     CHECK(disk.device_active);
 
-    auto directory = coco_read(disk, DECB_LSN_DIR_FIRST);
+    auto directory = read_block(disk, DECB_LSN_DIR_FIRST);
     REQUIRE(directory.has_value());
     CHECK(std::string(directory->begin(), directory->begin() + 11) == "HELLO   DAT");
     CHECK((*directory)[11] == 1);    // data
@@ -382,17 +368,17 @@ TEST_CASE("a .cas mounts as a Disk BASIC disk holding the tape's file")
     CHECK((*directory)[DECB_DIRENT_SIZE] == 0xFF); // no second entry
 
     uint32_t first_lsn = granule_lsn((*directory)[13]);
-    CHECK(coco_read(disk, first_lsn) == slice(payload, 0, MEDIA_BLOCK_SIZE));
-    auto second = coco_read(disk, first_lsn + 1);
+    CHECK(read_block(disk, first_lsn) == slice(payload, 0, MEDIA_BLOCK_SIZE));
+    auto second = read_block(disk, first_lsn + 1);
     REQUIRE(second.has_value());
     CHECK(slice(*second, 0, 300 - MEDIA_BLOCK_SIZE)
           == slice(payload, MEDIA_BLOCK_SIZE, 300 - MEDIA_BLOCK_SIZE));
 
-    auto name = coco_read(disk, DECB_LSN_DISKNAME);
+    auto name = read_block(disk, DECB_LSN_DISKNAME);
     REQUIRE(name.has_value());
     CHECK(std::string((const char *)name->data()) == "tape");
 
-    CHECK(disk.read(DECB_TOTAL_SECTORS, nullptr).is_error());
+    CHECK_FALSE(read_block(disk, DECB_TOTAL_SECTORS).has_value());
     CHECK(disk.get_media_status() == EOF_STATUS);
     check_closed_once(disk, file);
 }
