@@ -1,7 +1,8 @@
 # pico/common
 
 Code the cartridge firmwares share: the FujiBus SLIP codec, its USB CDC transport to the
-ESP32-S3, a CDC-only USB device, and the start of the carts' CMake builds.
+ESP32-S3, a CDC-only USB device, a disk track cache for I/O cards, and the start of the carts'
+CMake builds.
 
 ## How it fits
 - Each cart's `build-cart.sh` sets its board, firmware name, baked headers and `cart_gen`, then
@@ -41,6 +42,9 @@ ESP32-S3, a CDC-only USB device, and the start of the carts' CMake builds.
 - Every MAME cart's `emu/apply.sh` grafts this code into MAME through `emu/graft.lib.sh`, so the
   emulators run the same code; it keeps only its own driver and slot edits. A function added to a
   module goes in `emu/fujins.syms` too. o2's (o2em) and s100's (SIMH) copy what they need by hand.
+- [s100/](../s100/) builds `src/fuji_tcache.c` for its floppy controller, with its own
+  `include/fuji_tcache_cfg.h` (drives, sector size, slots) and `fuji_tcache_accept()` (which
+  disk geometries it takes).
 - [intellivision/](../intellivision/) keeps its own copy; its transport has a different API.
 - Each cart's `firmware/host_test/Makefile` lists its tests and includes `host_test/cart.mk`; a
   listed test the cart does not have, such as `test_fujimail`, comes from here. The pico
@@ -48,11 +52,13 @@ ESP32-S3, a CDC-only USB device, and the start of the carts' CMake builds.
 
 ## Build
 Not part of the ESP32 or FujiNet-PC builds. pico-sdk compiles it inside each cart's firmware;
-`make -C host_test` runs the codec, .cfg, `fuji_port`, store, watchdog and CRC tests.
+`make -C host_test` runs the codec, .cfg, `fuji_port`, store, watchdog, CRC and track-cache
+tests.
 
 ## Notes
 - `cmake/pico_sdk_import.cmake` is the pico-sdk's own import script, one copy for every cart.
 - `src/fujibus.c` is a plain-C client of `lib/bus/FujiBusPacket.cpp`.
 - Every link through `fujicart_firmware()` fails unless core1's loop, everything it branches to
   and its named state are in SRAM, with no branch through a register (`tools/checksram.py`).
-- `host_test/stub/` is used by astrocade's store test too.
+- `host_test/stub/` is used by astrocade's store test too, and `host_test/check.h` by s100's
+  tests.

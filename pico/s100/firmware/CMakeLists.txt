@@ -18,6 +18,7 @@ fujicart_firmware(${PROJECT_NAME}
         src/s100_link.c
         ${FUJI_COMMON}/usb/usb_descriptors.c
         ${FUJI_COMMON}/src/fujibus.c
+        ${FUJI_COMMON}/src/fuji_tcache.c
     LIBRARIES hardware_pio
     PIO src/s100_bus.pio
     COPY_TO_RAM

@@ -9,8 +9,10 @@ FW=$HERE/../firmware
 AZ=$SIMH/AltairZ80
 
 mkdir -p "$AZ/fujis100"
-cp "$FW"/src/s100_{regs,fdc,2sio,link}.c "$FW"/include/s100_*.h "$AZ/fujis100/"
-cp "$HERE/../../common/src/fujibus.c" "$HERE/../../common/include/fujibus.h" "$AZ/fujis100/"
+COMMON=$HERE/../../common
+cp "$FW"/src/s100_{regs,fdc,2sio,link}.c "$FW"/include/s100_*.h "$FW"/include/fuji_tcache_cfg.h \
+    "$AZ/fujis100/"
+cp "$COMMON"/src/{fujibus,fuji_tcache}.c "$COMMON"/include/{fujibus,fuji_tcache}.h "$AZ/fujis100/"
 # The boot page and images: build.sh's fresh ones, else the baked ones.
 for h in s100_bootpage.h s100_images.h; do
     if [ -f "$HERE/../build/gen/$h" ]; then
@@ -37,14 +39,20 @@ def edit(path, marker, fn):
         sys.exit("apply.sh: could not patch " + path)
     open(path, "w", newline="").write(t.replace("\n", "\r\n") if crlf else t)
 
+common = "${ALTAIRZ80D}/fujis100/fuji_tcache.c "
 core = ("${ALTAIRZ80D}/s100_fujinet.c ${ALTAIRZ80D}/fujis100/s100_regs.c "
         "${ALTAIRZ80D}/fujis100/s100_fdc.c ${ALTAIRZ80D}/fujis100/s100_2sio.c "
-        "${ALTAIRZ80D}/fujis100/s100_link.c ${ALTAIRZ80D}/fujis100/fujibus.c \\\n\t")
-edit(simh + "/makefile", "s100_fujinet.c",
-     lambda s: s.replace("ALTAIRZ80 = ${ALTAIRZ80D}/altairz80_cpu.c",
+        "${ALTAIRZ80D}/fujis100/s100_link.c ${ALTAIRZ80D}/fujis100/fujibus.c " + common + "\\\n\t")
+def makefile_patch(text):
+    # A tree an older apply.sh grafted has the card but not the shared sources.
+    if "s100_fujinet.c" in text:
+        return text.replace("${ALTAIRZ80D}/fujis100/fujibus.c ",
+                            "${ALTAIRZ80D}/fujis100/fujibus.c " + common, 1)
+    return (text.replace("ALTAIRZ80 = ${ALTAIRZ80D}/altairz80_cpu.c",
                          "ALTAIRZ80 = " + core + "${ALTAIRZ80D}/altairz80_cpu.c", 1)
                 .replace("ALTAIRZ80_OPT = -I ${ALTAIRZ80D}",
                          "ALTAIRZ80_OPT = -I ${ALTAIRZ80D} -I ${ALTAIRZ80D}/fujis100", 1))
+edit(simh + "/makefile", "fuji_tcache.c", makefile_patch)
 
 sysc = simh + "/AltairZ80/altairz80_sys.c"
 edit(sysc, "fujinet_dev",
