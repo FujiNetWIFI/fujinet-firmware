@@ -39,7 +39,6 @@ void check_closed_once(drivewireDisk &disk, const MemFile &file)
 void check_nothing_mounted(drivewireDisk &disk, const MemFile &file)
 {
     CHECK_FALSE(disk.device_active);
-    CHECK(disk.mediatype() == MEDIATYPE_UNKNOWN);
     CHECK(file.closes == 1);
 }
 
@@ -56,7 +55,7 @@ TEST_CASE("a ROM image goes to the DBC in 256-byte blocks between OPEN and CLOSE
          .is_success());
     check_closed_once(disk, file);
 
-    REQUIRE(bus.sent.size() == 3 + CART_8K / MEDIA_BLOCK_SIZE);
+    REQUIRE(bus.sent.size() == 3 + CART_8K / DRIVEWIRE_SECTOR_SIZE);
     for (const auto &packet : bus.sent)
         CHECK(packet.device == FUJI_DEVICEID::DBC);
     CHECK(bus.sent.front().command == CMD::DBC_SEGMENT_OPEN);
@@ -64,7 +63,7 @@ TEST_CASE("a ROM image goes to the DBC in 256-byte blocks between OPEN and CLOSE
     for (size_t idx = 1; idx + 2 < bus.sent.size(); idx++)
     {
         CHECK(bus.sent[idx].command == CMD::DBC_SEGMENT_WRITE);
-        CHECK(bus.sent[idx].payload.size() == MEDIA_BLOCK_SIZE);
+        CHECK(bus.sent[idx].payload.size() == DRIVEWIRE_SECTOR_SIZE);
     }
     const auto &info = bus.sent[bus.sent.size() - 2];
     CHECK(info.command == CMD::DBC_MAPPER_SET_INFO);
@@ -172,8 +171,7 @@ TEST_CASE("a caller-given ROM type still needs a .ccc or .rom")
     MemFile file(make_image(CART_8K));
 
     drivewireDisk disk;
-    CHECK(disk.mount(&file, "cart.dat", CART_8K, DISK_ACCESS_MODE_READ, MEDIATYPE_ROM)
-          .is_error());
+    CHECK(disk.mount(&file, "cart.dat", CART_8K, DISK_ACCESS_MODE_READ).is_error());
     CHECK(bus.sent.empty());
     check_nothing_mounted(disk, file);
     check_closed_once(disk, file);

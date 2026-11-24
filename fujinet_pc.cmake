@@ -343,12 +343,22 @@ set(SOURCES src/main.cpp
     lib/media/media.h lib/media/media.cpp lib/media/MediaFormats.h
     # Matches the ESP builds, which glob lib/media/*.cpp into every target
     lib/media/IMDImage.h lib/media/IMDImage.cpp
-    lib/media/rom/ROMMedia.h lib/media/rom/ROMMedia.cpp lib/media/rom/ROMFactory.h
+    lib/media/rom/ROMMedia.h lib/media/rom/ROMMedia.cpp
     lib/media/disk/DiskMedia.h lib/media/disk/DiskMedia.cpp
     lib/media/disk/BlockMedia.h lib/media/disk/BlockMedia.cpp
     lib/media/disk/RawDisk.h lib/media/disk/RawDisk.cpp
     lib/media/disk/IMDDisk.h lib/media/disk/IMDDisk.cpp
     lib/media/disk/AltairDSK.h lib/media/disk/AltairDSK.cpp
+    lib/media/disk/CoCoDSK.h lib/media/disk/CoCoDSK.cpp
+    lib/media/disk/DragonVDK.h lib/media/disk/DragonVDK.cpp
+    lib/media/disk/PMD85MRM.h lib/media/disk/PMD85MRM.cpp
+
+    lib/media/disk/CoCoCAS.h lib/media/disk/CoCoCAS.cpp
+    lib/media/disk/casSource.h lib/media/disk/casSourceFile.h
+    lib/media/disk/casReader.h lib/media/disk/casReader.cpp
+    lib/media/disk/casIndex.h lib/media/disk/casIndex.cpp
+    lib/media/disk/decbLayout.h lib/media/disk/decbLayout.cpp
+
     lib/media/rom/Atari2600ROM.h lib/media/rom/Atari2600ROM.cpp
     lib/media/rom/Atari5200ROM.h lib/media/rom/Atari5200ROM.cpp
     lib/media/rom/Atari7800ROM.h lib/media/rom/Atari7800ROM.cpp
@@ -477,16 +487,6 @@ if(FUJINET_TARGET STREQUAL "COCO")
     lib/bus/drivewire/drivewire.h lib/bus/drivewire/drivewire.cpp
     lib/bus/drivewire/FujiDWPacket.h lib/bus/drivewire/FujiDWPacket.cpp
     lib/hardware/BoIPChannel.h lib/hardware/BoIPChannel.cpp
-
-    lib/media/drivewire/mediaType.h lib/media/drivewire/mediaType.cpp
-    lib/media/drivewire/mediaTypeDSK.h lib/media/drivewire/mediaTypeDSK.cpp
-    lib/media/drivewire/mediaTypeMRM.h lib/media/drivewire/mediaTypeMRM.cpp
-    lib/media/drivewire/mediaTypeVDK.h lib/media/drivewire/mediaTypeVDK.cpp
-    lib/media/drivewire/mediaTypeCASDSK.h lib/media/drivewire/mediaTypeCASDSK.cpp
-    lib/media/drivewire/casSource.h lib/media/drivewire/casSourceFile.h
-    lib/media/drivewire/casReader.h lib/media/drivewire/casReader.cpp
-    lib/media/drivewire/casIndex.h lib/media/drivewire/casIndex.cpp
-    lib/media/drivewire/decbLayout.h lib/media/drivewire/decbLayout.cpp
 
     lib/device/drivewire/drivewireFuji.h lib/device/drivewire/drivewireFuji.cpp
     lib/device/drivewire/disk.h lib/device/drivewire/disk.cpp

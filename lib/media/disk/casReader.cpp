@@ -1,5 +1,3 @@
-#ifdef BUILD_COCO
-
 #include "casReader.h"
 
 #include <string.h>
@@ -136,5 +134,3 @@ size_t CasReader::read_bytes(uint64_t bitpos, uint8_t *buf, size_t len)
     }
     return n;
 }
-
-#endif // BUILD_COCO
