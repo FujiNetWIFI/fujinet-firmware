@@ -145,8 +145,8 @@ int main(void)
     CHECK(c.rom_on);
     CHECK_EQ(s100_mem(&c, 0x1234), 0xC3);
 
-    // Ports that don't read: PUTC and CONTROL addresses.
-    CHECK_EQ(in(FUJI_PIPE_PUTC), 0xFF);
+    // +3 isn't a register.
+    CHECK_EQ(in(3), 0xFF);
 
     return check_done("test_regs");
 }

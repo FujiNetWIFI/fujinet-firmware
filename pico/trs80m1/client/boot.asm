@@ -14,7 +14,7 @@ DRVSEL  EQU     37E1h
 SPT     EQU     10
 TRIES   EQU     5
 PIPEST  EQU     0D1h            ; the card's pipe STATUS
-PIPECTL EQU     0D3h            ; and CONTROL
+PIPECTL EQU     PIPEST          ; and CONTROL, written
 CTLRAM  EQU     41h             ; CONTROL: turn the card's RAM on
 
         ORG     4200h

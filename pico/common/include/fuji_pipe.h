@@ -1,10 +1,12 @@
-/* fuji_pipe.h -- the four I/O ports an I/O card's host speaks FujiBus through.
+/* fuji_pipe.h -- the I/O ports an I/O card's host speaks FujiBus through.
  *
  *   +0 GETC     read: the next reply byte; empty, the last one again
+ *      PUTC     write: a byte toward the ESP32
  *   +1 STATUS   read: AVAIL, the signature, TXFULL
- *   +2 PUTC     write: a byte toward the ESP32
- *   +3 CONTROL  write: FLUSH and the card's own commands
- *      TICK     read: a free-running 1 kHz counter, for the host's timeouts
+ *      CONTROL  write: FLUSH and the card's own commands
+ *   +2 TICK     read: a free-running 1 kHz counter, for the host's timeouts
+ *
+ * A card decodes four ports; +3 and a write to +2 do nothing.
  *
  * The bus side calls these; the link side (fuji_iolink.c) drains from_host and
  * fills to_host. Entries in from_host above a byte are marks for the link.
@@ -16,11 +18,11 @@
 
 #include "fuji_ring.h"
 
-#define FUJI_PIPE_GETC    0
-#define FUJI_PIPE_STATUS  1
-#define FUJI_PIPE_PUTC    2
-#define FUJI_PIPE_CONTROL 3 /* write */
-#define FUJI_PIPE_TICK    3 /* read */
+#define FUJI_PIPE_GETC    0 /* read */
+#define FUJI_PIPE_PUTC    0 /* write */
+#define FUJI_PIPE_STATUS  1 /* read */
+#define FUJI_PIPE_CONTROL 1 /* write */
+#define FUJI_PIPE_TICK    2 /* read */
 
 #define FUJI_PIPE_ST_AVAIL  0x80
 #define FUJI_PIPE_ST_SIG    0x2C /* bits 5-1 = 10110b; bit 6 is always 0 */
