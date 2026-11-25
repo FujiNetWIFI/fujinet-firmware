@@ -12,11 +12,11 @@ COMMON := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))..)
 
 CC ?= cc
 CFLAGS ?= -Wall -Wextra -Werror -O1 -g -std=c11
-INC ?= -I. -I.. -I../include -I$(COMMON)/include
+INC ?= -I. -I.. -I../include -I$(COMMON)/include -I$(COMMON)/host_test
 SRC ?= ../src
 OUT ?= ../../build/host_test
 
-HDRS = $(wildcard *.h ../include/*.h $(COMMON)/include/*.h)
+HDRS = $(wildcard *.h ../include/*.h $(COMMON)/include/*.h $(COMMON)/host_test/*.h)
 
 # A test a cart lists but does not have, such as test_fujimail, is the shared one.
 vpath %.c $(COMMON)/host_test

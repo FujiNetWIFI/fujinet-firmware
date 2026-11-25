@@ -241,10 +241,10 @@ int main(void)
 
     // Link lost and back: mounts are forgotten and probed again.
     s100_link_set_up(&c, false, now);
-    CHECK_EQ(atomic_load(&c.fdc.drv[0].geo), FDC_GEO_UNKNOWN);
+    CHECK_EQ(fuji_tcache_geo(&c.fdc.cache, 0), FUJI_TC_GEO_UNKNOWN);
     s100_link_set_up(&c, true, now);
     poll(30);
-    CHECK_EQ(atomic_load(&c.fdc.drv[0].geo), FDC_GEO_OK);
+    CHECK_EQ(fuji_tcache_geo(&c.fdc.cache, 0), FUJI_TC_GEO_OK);
 
     return check_done("test_link");
 }

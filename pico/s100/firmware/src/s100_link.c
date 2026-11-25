@@ -59,7 +59,7 @@ static void modem_rx(s100_card_t *c, const uint8_t *b, uint32_t n)
 
 static void finish_fdc(s100_card_t *c, bool ok, const uint8_t *data, uint16_t len, uint32_t now)
 {
-    fdc_op_done(&c->fdc, &c->link.fop, ok, data, len, now);
+    fuji_tcache_op_done(&c->fdc.cache, &c->link.fop, ok, data, len, now);
 }
 
 void s100_link_set_up(s100_card_t *c, bool up, uint32_t now)
@@ -75,7 +75,7 @@ void s100_link_set_up(s100_card_t *c, bool up, uint32_t now)
     l->rin = false;
     l->rlen = 0;
     l->host_orphaned = false;
-    fdc_link_reset(&c->fdc);
+    fuji_tcache_link_reset(&c->fdc.cache);
 }
 
 static void send(s100_card_t *c, const uint8_t *buf, size_t n)
@@ -161,7 +161,7 @@ static bool candidate(s100_card_t *c, uint32_t now)
         }
         l->host_orphaned = false;
         if (l->invalidate_after)
-            fdc_invalidate(&c->fdc);
+            fuji_tcache_invalidate(&c->fdc.cache);
         break;
     case LO_FDC:
         finish_fdc(c, ok, r.data, r.data_len, now);
@@ -270,12 +270,12 @@ static void load_info(s100_card_t *c, const s100_image_t *img)
             l->load_info = (int32_t)i + 4;
             break;
         }
-    fdc_drive_t *d0 = &c->fdc.drv[0];
+    fuji_tcache_t *cache = &c->fdc.cache;
     l->info[0] = c->dip.pipe_base;
     l->info[1] = c->dip.page;
     l->info[2] = c->dip.console;
     l->info[3] = c->dip.phantom ? S100_INFOF_PHANTOM : 0;
-    l->info[4] = atomic_load_explicit(&d0->geo, memory_order_acquire) == FDC_GEO_OK ? d0->spt : 0;
+    l->info[4] = fuji_tcache_geo(cache, 0) == FUJI_TC_GEO_OK ? cache->drv[0].spt : 0;
 }
 
 // Takes PUTC bytes until one whole frame is ready.
@@ -378,21 +378,21 @@ static void collect(s100_card_t *c, uint32_t now)
 static bool start_fdc(s100_card_t *c, bool probes, uint32_t now)
 {
     s100_link_t *l = &c->link;
-    if (!fdc_next_op(&c->fdc, &l->fop, probes, now))
+    if (!fuji_tcache_next_op(&c->fdc.cache, &l->fop, probes, now))
         return false;
-    fdc_op_t *op = &l->fop;
-    uint8_t dev = (uint8_t)(FUJI_DEVICEID_DISK + op->drive);
-    fb_param_t p = {op->lba, 4};
-    switch (op->kind)
+    fuji_tc_op_t *txn = &l->fop;
+    uint8_t dev = (uint8_t)(FUJI_DEVICEID_DISK + txn->drive);
+    fb_param_t param = {txn->lba, 4};
+    switch (txn->kind)
     {
-    case FDC_OP_PROBE:
+    case FUJI_TC_OP_PROBE:
         request(c, LO_FDC, dev, 'N', NULL, 0, NULL, 0, LINK_OWN_US, now);
         break;
-    case FDC_OP_READ:
-        request(c, LO_FDC, dev, 'R', &p, 1, NULL, 0, LINK_OWN_US, now);
+    case FUJI_TC_OP_READ:
+        request(c, LO_FDC, dev, 'R', &param, 1, NULL, 0, LINK_OWN_US, now);
         break;
     default:
-        request(c, LO_FDC, dev, 'W', &p, 1, op->data, FDC_SECTOR, LINK_OWN_US, now);
+        request(c, LO_FDC, dev, 'W', &param, 1, txn->data, FUJI_TC_SECTOR, LINK_OWN_US, now);
         break;
     }
     return true;
@@ -406,7 +406,7 @@ static bool start_host(s100_card_t *c, uint32_t now)
     if (l->hrep_len)
         return false; // the last reply hasn't been read yet
     parse(l->hraw, l->hlen, copy, &r);
-    if (mount_class(r.command) && r.device == FUJI_DEVICEID_FUJINET && fdc_dirty(&c->fdc))
+    if (mount_class(r.command) && r.device == FUJI_DEVICEID_FUJINET && fuji_tcache_dirty(&c->fdc.cache))
         return false;
     send(c, l->hraw, l->hlen);
     TRACE(c, "TXHOST", r.device, r.command);

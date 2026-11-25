@@ -57,7 +57,7 @@ typedef struct {
     uint32_t deadline;
     bool host_orphaned;
     bool invalidate_after;
-    fdc_op_t fop;
+    fuji_tc_op_t fop;
 
     /* a host reply waiting for room in GETC */
     uint8_t hrep[LINK_FRAME_MAX];

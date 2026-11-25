@@ -3,22 +3,14 @@
 
 #include <string.h>
 
-#define ACQ memory_order_acquire
-#define REL memory_order_release
-
 static inline bool late(uint32_t now, uint32_t at)
 {
     return (int32_t)(now - at) >= 0;
 }
 
-static inline bool mini(const fdc_drive_t *d)
+static inline bool mini(const fuji_tc_drive_t *drv)
 {
-    return d->spt == 16;
-}
-
-static inline uint32_t full_mask(uint8_t spt)
-{
-    return spt >= 32 ? 0xFFFFFFFFu : (1u << spt) - 1;
+    return drv->spt == 16;
 }
 
 static bool ready(const fdc_t *f)
@@ -32,59 +24,10 @@ static void touch(fdc_t *f, uint32_t now)
     f->idle_flushed = false;
 }
 
-static bool slot_free(fdc_slot_t *s)
+static void drop_drive(fdc_t *fdc, int8_t drive)
 {
-    return atomic_load_explicit(&s->busy, ACQ) == 0 && atomic_load_explicit(&s->fill, ACQ) == 0 &&
-           atomic_load_explicit(&s->dirty, ACQ) == 0;
-}
-
-static int slot_find(fdc_t *f, uint8_t d, uint16_t t)
-{
-    uint16_t key = FDC_KEY(d, t);
-    for (int i = 0; i < FDC_SLOTS; i++)
-        if (f->slot[i].key == key && f->slot[i].gen == f->seen_epoch)
-            return i;
-    return -1;
-}
-
-// Keys the least recently used free slot to (d, t) and asks the link side to fill it.
-static int slot_claim(fdc_t *f, uint8_t d, uint16_t t)
-{
-    int best = -1;
-    for (int i = 0; i < FDC_SLOTS; i++)
-    {
-        fdc_slot_t *s = &f->slot[i];
-        if (!slot_free(s))
-            continue;
-        if (s->key == FDC_NOKEY || s->gen != f->seen_epoch)
-        {
-            best = i;
-            break;
-        }
-        if (best < 0 || s->used < f->slot[best].used)
-            best = i;
-    }
-    if (best < 0)
-        return -1;
-    fdc_slot_t *s = &f->slot[best];
-    s->key = FDC_KEY(d, t);
-    s->gen = f->seen_epoch;
-    s->used = ++f->lru;
-    atomic_store_explicit(&s->valid, 0, REL);
-    atomic_store_explicit(&s->fill, 1, REL);
-    return best;
-}
-
-static void drop_drive(fdc_t *f, int8_t d)
-{
-    for (int i = 0; i < FDC_SLOTS; i++)
-    {
-        fdc_slot_t *s = &f->slot[i];
-        if (s->key != FDC_NOKEY && (s->key >> 12) == (uint16_t)d && slot_free(s))
-            s->key = FDC_NOKEY;
-    }
-    f->cur_slot = -1;
-    atomic_store_explicit(&f->drv[d].probe, 1, REL);
+    fuji_tcache_drop_drive(&fdc->cache, (uint8_t)drive);
+    fdc->cur_slot = -1;
 }
 
 static void drive_ready(fdc_t *f, uint32_t now);
@@ -108,23 +51,19 @@ static void end_write(fdc_t *f)
     f->writing = false;
     f->status |= FDC_ST_ENWD;
     if (f->wrote && f->cur_slot >= 0)
-        atomic_fetch_or_explicit(&f->slot[f->cur_slot].dirty, 1u << f->cur_sector, REL);
+        fuji_tcache_mark_dirty(&f->cache, f->cur_slot, f->cur_sector);
     f->wrote = false;
 }
 
 static void advance(fdc_t *f, uint32_t now)
 {
-    uint32_t e = atomic_load_explicit(&f->epoch, ACQ);
-    if (e != f->seen_epoch)
-    {
-        f->seen_epoch = e;
+    if (fuji_tcache_sync(&f->cache))
         f->cur_slot = -1;
-    }
 
     if (f->cur < 0)
         return;
-    fdc_drive_t *d = &f->drv[f->cur];
-    if (atomic_load_explicit(&d->geo, ACQ) != FDC_GEO_OK)
+    fuji_tc_drive_t *drv = &f->cache.drv[f->cur];
+    if (fuji_tcache_geo(&f->cache, (uint8_t)f->cur) != FUJI_TC_GEO_OK)
     {
         if (f->status != 0xFF)
             not_ready(f);
@@ -135,7 +74,7 @@ static void advance(fdc_t *f, uint32_t now)
     if (!ready(f))
         drive_ready(f, now);
 
-    uint32_t period = mini(d) ? FDC_SECTOR_US_MINI : FDC_SECTOR_US_8;
+    uint32_t period = mini(drv) ? FDC_SECTOR_US_MINI : FDC_SECTOR_US_8;
     if (late(now, f->tick_at))
     {
         f->sector_start = true;
@@ -153,7 +92,7 @@ static void advance(fdc_t *f, uint32_t now)
     }
 
     uint32_t idle = now - f->idle_at;
-    if (mini(d))
+    if (mini(drv))
     {
         if (idle >= FDC_MOTOR_OFF_US_MINI)
         {
@@ -177,10 +116,7 @@ static void advance(fdc_t *f, uint32_t now)
 void fdc_init(fdc_t *f, uint32_t now)
 {
     memset(f, 0, sizeof(*f));
-    for (int i = 0; i < FDC_SLOTS; i++)
-        f->slot[i].key = FDC_NOKEY;
-    for (int d = 0; d < FDC_DRIVES; d++)
-        atomic_store_explicit(&f->drv[d].probe, 1, REL);
+    fuji_tcache_init(&f->cache);
     fdc_reset(f, now);
 }
 
@@ -214,44 +150,42 @@ static uint8_t read_secpos(fdc_t *f, uint32_t now)
     if (!ready(f))
         return v;
 
-    fdc_drive_t *d = &f->drv[f->cur];
-    if (!mini(d))
+    fuji_tc_drive_t *drv = &f->cache.drv[f->cur];
+    uint16_t track = f->track[f->cur];
+    if (!mini(drv))
         touch(f, now);
 
     // The value just read had Sector True: point at that sector and preload byte 0.
     if ((v & 1) == 0 && f->cur_slot >= 0)
     {
-        f->cur_sector = (v >> 1) & (d->spt - 1);
+        f->cur_sector = (v >> 1) & (drv->spt - 1);
         f->ptr = 0;
         f->count = 0;
-        f->rdata = f->slot[f->cur_slot].data[f->cur_sector][0];
+        f->rdata = f->cache.slot[f->cur_slot].data[f->cur_sector][0];
         f->status &= ~FDC_ST_NRDA;
     }
 
     // Next value: a new sector only after a tick, and only once it is buffered.
     // Past the last track there is nothing to read.
-    int s = slot_find(f, f->cur, d->track);
-    if (s < 0 && d->track < d->tracks)
-        s = slot_claim(f, f->cur, d->track);
-    if (s < 0)
+    int slot_idx = fuji_tcache_find(&f->cache, (uint8_t)f->cur, track);
+    if (slot_idx < 0 && track < drv->tracks)
+        slot_idx = fuji_tcache_claim(&f->cache, (uint8_t)f->cur, track);
+    if (slot_idx < 0)
     {
         f->secpos = 0xFF;
         return v;
     }
-    fdc_slot_t *sl = &f->slot[s];
-    sl->used = ++f->lru;
-    uint32_t valid = atomic_load_explicit(&sl->valid, ACQ);
-    if (valid != full_mask(d->spt) && atomic_load_explicit(&sl->fill, ACQ) == 0)
-        atomic_store_explicit(&sl->fill, 1, REL);
+    fuji_tcache_touch(&f->cache, slot_idx);
+    uint32_t valid = fuji_tcache_valid(&f->cache, slot_idx);
 
     if (f->sector_start)
     {
-        uint8_t n = (uint8_t)(((f->secpos >> 1) + 1) & (d->spt - 1));
-        if (valid & (1u << n))
+        uint8_t next = (uint8_t)(((f->secpos >> 1) + 1) & (drv->spt - 1));
+        if (valid & (1u << next))
         {
-            f->secpos = (uint8_t)((n << 1) | 0xC0);
+            f->secpos = (uint8_t)((next << 1) | 0xC0);
             f->sector_start = false;
-            f->cur_slot = s;
+            f->cur_slot = slot_idx;
             return v;
         }
     }
@@ -274,11 +208,13 @@ uint8_t fdc_in(fdc_t *f, uint8_t reg, uint32_t now)
         uint8_t v = f->rdata;
         if (f->cur_slot < 0)
             return v;
-        if (++f->count >= FDC_SECTOR)
+        if (++f->count >= FUJI_TC_SECTOR)
             f->status |= FDC_ST_NRDA;
         // Past the end the FDC+ keeps reading the next sector's bytes; so do we.
-        uint32_t at = (uint32_t)f->cur_sector * FDC_SECTOR + ++f->ptr;
-        f->rdata = at < FDC_TRACK_BYTES ? (&f->slot[f->cur_slot].data[0][0])[at] : 0;
+        uint32_t offset = (uint32_t)f->cur_sector * FUJI_TC_SECTOR + ++f->ptr;
+        f->rdata = offset < FUJI_TC_SPT_MAX * FUJI_TC_SECTOR
+                       ? (&f->cache.slot[f->cur_slot].data[0][0])[offset]
+                       : 0;
         return v;
     }
     default:
@@ -298,24 +234,23 @@ static void select_drive(fdc_t *f, uint8_t v, uint32_t now)
         return;
     }
     f->cur = (int8_t)(v & FDC_SEL_DRIVE);
-    fdc_drive_t *d = &f->drv[f->cur];
-    atomic_store_explicit(&d->probe, 1, REL);
-    if (atomic_load_explicit(&d->geo, ACQ) == FDC_GEO_OK)
+    fuji_tcache_ask_probe(&f->cache, (uint8_t)f->cur);
+    if (fuji_tcache_geo(&f->cache, (uint8_t)f->cur) == FUJI_TC_GEO_OK)
         drive_ready(f, now);
 }
 
 // A selected drive whose mount is confirmed: as the FDC+ shows it at select.
 static void drive_ready(fdc_t *f, uint32_t now)
 {
-    fdc_drive_t *d = &f->drv[f->cur];
+    fuji_tc_drive_t *drv = &f->cache.drv[f->cur];
     f->status = FDC_ST_INIT;
-    if (d->track == 0)
+    if (f->track[f->cur] == 0)
         f->status &= ~FDC_ST_TRACK0;
     if (f->pinte)
         f->status &= ~FDC_ST_INTE;
     touch(f, now);
-    f->tick_at = now + (mini(d) ? FDC_SECTOR_US_MINI : FDC_SECTOR_US_8);
-    if (mini(d))
+    f->tick_at = now + (mini(drv) ? FDC_SECTOR_US_MINI : FDC_SECTOR_US_8);
+    if (mini(drv))
     {
         f->status &= ~FDC_ST_HEAD;
         f->loaded = true;
@@ -326,9 +261,10 @@ static void command(fdc_t *f, uint8_t v, uint32_t now)
 {
     if (!ready(f))
         return;
-    fdc_drive_t *d = &f->drv[f->cur];
+    fuji_tc_drive_t *drv = &f->cache.drv[f->cur];
+    uint16_t *track = &f->track[f->cur];
 
-    if ((v & 0x0F) && !mini(d))
+    if ((v & 0x0F) && !mini(drv))
         f->secpos = 0xFF;
 
     if (v & (FDC_CMD_STEPIN | FDC_CMD_STEPOUT))
@@ -338,26 +274,26 @@ static void command(fdc_t *f, uint8_t v, uint32_t now)
         f->cur_slot = -1;
         f->status |= FDC_ST_MOVE | FDC_ST_HEAD;
         touch(f, now);
-        uint16_t was = d->track;
+        uint16_t was = *track;
         if (v & FDC_CMD_STEPOUT)
         {
-            if (d->track > 0 && --d->track == 0)
+            if (*track > 0 && --*track == 0)
                 f->status &= ~FDC_ST_TRACK0;
         }
         else
         {
             f->status |= FDC_ST_TRACK0;
-            if (d->track < 0x0FFF)
-                d->track++;
+            if (*track < 0x0FFF)
+                ++*track;
         }
-        uint32_t us = mini(d) ? FDC_STEP_US_MINI : FDC_STEP_US_8;
-        if (!mini(d) && (was > 76 || d->track > 76))
-            us = FDC_STEP_US_FAST;
+        uint32_t step_us = mini(drv) ? FDC_STEP_US_MINI : FDC_STEP_US_8;
+        if (!mini(drv) && (was > 76 || *track > 76))
+            step_us = FDC_STEP_US_FAST;
         f->stepping = true;
-        f->step_at = now + us;
+        f->step_at = now + step_us;
     }
 
-    if ((v & FDC_CMD_UNLOAD) && !mini(d))
+    if ((v & FDC_CMD_UNLOAD) && !mini(drv))
     {
         f->loaded = false;
         f->status |= FDC_ST_HEAD;
@@ -366,7 +302,7 @@ static void command(fdc_t *f, uint8_t v, uint32_t now)
     if (v & FDC_CMD_LOAD)
     {
         touch(f, now);
-        if (!mini(d))
+        if (!mini(drv))
         {
             f->loaded = true;
             f->status &= ~FDC_ST_HEAD;
@@ -402,9 +338,9 @@ void fdc_out(fdc_t *f, uint8_t reg, uint8_t v, uint32_t now)
         // Bytes past the 137th are accepted and dropped.
         if (!f->writing || f->cur_slot < 0)
             break;
-        if (++f->count <= FDC_SECTOR && f->ptr < FDC_SECTOR)
+        if (++f->count <= FUJI_TC_SECTOR && f->ptr < FUJI_TC_SECTOR)
         {
-            f->slot[f->cur_slot].data[f->cur_sector][f->ptr++] = v;
+            f->cache.slot[f->cur_slot].data[f->cur_sector][f->ptr++] = v;
             f->wrote = true;
         }
         break;
@@ -415,7 +351,7 @@ void fdc_out(fdc_t *f, uint8_t reg, uint8_t v, uint32_t now)
 
 bool fdc_mount_pending(fdc_t *f)
 {
-    return f->cur >= 0 && atomic_load_explicit(&f->drv[f->cur].geo, ACQ) == FDC_GEO_UNKNOWN;
+    return f->cur >= 0 && fuji_tcache_geo(&f->cache, (uint8_t)f->cur) == FUJI_TC_GEO_UNKNOWN;
 }
 
 bool fdc_starved(fdc_t *f)
@@ -425,210 +361,20 @@ bool fdc_starved(fdc_t *f)
     if (!ready(f))
         return false;
     // Only a track already asked for: the 09h read is what asks.
-    fdc_drive_t *d = &f->drv[f->cur];
-    int s = slot_find(f, f->cur, d->track);
-    return s >= 0 && atomic_load_explicit(&f->slot[s].fill, ACQ) &&
-           atomic_load_explicit(&f->slot[s].valid, ACQ) != full_mask(d->spt);
+    fuji_tc_drive_t *drv = &f->cache.drv[f->cur];
+    int slot_idx = fuji_tcache_find(&f->cache, (uint8_t)f->cur, f->track[f->cur]);
+    return slot_idx >= 0 && fuji_tcache_filling(&f->cache, slot_idx) &&
+           fuji_tcache_valid(&f->cache, slot_idx) != fuji_tcache_full_mask(drv->spt);
 }
 
 /* ---- link side ---- */
 
-static uint32_t lba_of(const fdc_drive_t *d, uint16_t key, uint8_t sector)
+// Altair images only: 137-byte sectors, 32 a track on 8", 16 on the minidisk.
+bool fuji_tcache_accept(const fuji_percom_t *percom, uint16_t *tracks, uint8_t *spt)
 {
-    return (uint32_t)(key & 0x0FFF) * d->spt + sector;
-}
-
-bool fdc_next_op(fdc_t *f, fdc_op_t *op, bool probes, uint32_t now)
-{
-    uint32_t epoch = atomic_load_explicit(&f->epoch, ACQ);
-    memset(op, 0, sizeof(*op));
-
-    // Fills first, newest slot first: the CPU is polling for it.
-    int best = -1;
-    for (int i = 0; i < FDC_SLOTS; i++)
-    {
-        fdc_slot_t *s = &f->slot[i];
-        if (!atomic_load_explicit(&s->fill, ACQ) || atomic_load_explicit(&s->busy, ACQ))
-            continue;
-        if (s->key == FDC_NOKEY || s->gen != epoch)
-        {
-            atomic_store_explicit(&s->fill, 0, REL);
-            continue;
-        }
-        fdc_drive_t *d = &f->drv[s->key >> 12];
-        uint8_t geo = atomic_load_explicit(&d->geo, ACQ);
-        if (geo == FDC_GEO_NONE || (geo == FDC_GEO_OK && ((s->key & 0x0FFF) >= d->tracks ||
-                                    atomic_load_explicit(&s->valid, ACQ) == full_mask(d->spt))))
-        {
-            atomic_store_explicit(&s->fill, 0, REL);
-            continue;
-        }
-        if (geo != FDC_GEO_OK || !late(now, s->retry_at))
-            continue;
-        if (best < 0 || s->used > f->slot[best].used)
-            best = i;
-    }
-    if (best >= 0)
-    {
-        fdc_slot_t *s = &f->slot[best];
-        fdc_drive_t *d = &f->drv[s->key >> 12];
-        uint32_t missing = ~atomic_load_explicit(&s->valid, ACQ) & full_mask(d->spt);
-        uint8_t n = 0;
-        while (!(missing & (1u << n)))
-            n++;
-        atomic_store_explicit(&s->busy, 1, REL);
-        op->kind = FDC_OP_READ;
-        op->drive = (uint8_t)(s->key >> 12);
-        op->slot = best;
-        op->sector = n;
-        op->lba = lba_of(d, s->key, n);
-        return true;
-    }
-
-    for (int i = 0; i < FDC_SLOTS; i++)
-    {
-        fdc_slot_t *s = &f->slot[i];
-        uint32_t dirty = atomic_load_explicit(&s->dirty, ACQ);
-        if (!dirty || atomic_load_explicit(&s->busy, ACQ))
-            continue;
-        if (s->key == FDC_NOKEY)
-        {
-            atomic_store_explicit(&s->dirty, 0, REL);
-            continue;
-        }
-        fdc_drive_t *d = &f->drv[s->key >> 12];
-        if (atomic_load_explicit(&d->geo, ACQ) != FDC_GEO_OK)
-        {
-            atomic_store_explicit(&s->dirty, 0, REL); // nowhere to write it
-            continue;
-        }
-        uint8_t n = 0;
-        while (!(dirty & (1u << n)))
-            n++;
-        atomic_store_explicit(&s->busy, 1, REL);
-        atomic_fetch_and_explicit(&s->dirty, ~(1u << n), REL);
-        op->kind = FDC_OP_WRITE;
-        op->drive = (uint8_t)(s->key >> 12);
-        op->slot = i;
-        op->sector = n;
-        op->lba = lba_of(d, s->key, n);
-        memcpy(op->data, s->data[n], FDC_SECTOR);
-        f->op_write = true;
-        return true;
-    }
-
-    for (int i = 0; probes && i < FDC_DRIVES; i++)
-    {
-        fdc_drive_t *d = &f->drv[i];
-        bool want = atomic_load_explicit(&d->probe, ACQ) ||
-                    atomic_load_explicit(&d->geo, ACQ) == FDC_GEO_UNKNOWN;
-        if (!want || (f->probed[i] && now - f->probed_at[i] < 1000000))
-            continue;
-        atomic_store_explicit(&d->probe, 0, REL);
-        f->probed[i] = true;
-        f->probed_at[i] = now;
-        op->kind = FDC_OP_PROBE;
-        op->drive = (uint8_t)i;
-        op->slot = -1;
-        return true;
-    }
-    return false;
-}
-
-static void set_geo(fdc_drive_t *d, const uint8_t *percom, uint16_t len)
-{
-    // PERCOM: num_tracks (0 = 2048), step, u16be spt, sides, density, u16be size
-    if (percom && len >= 8)
-    {
-        uint16_t tracks = percom[0] ? percom[0] : 2048;
-        uint16_t spt = (uint16_t)(percom[2] << 8 | percom[3]);
-        uint16_t size = (uint16_t)(percom[6] << 8 | percom[7]);
-        if (size == FDC_SECTOR && (spt == 16 || spt == 32))
-        {
-            if (atomic_load_explicit(&d->geo, ACQ) == FDC_GEO_OK && d->spt == spt &&
-                d->tracks == tracks)
-                return;
-            atomic_store_explicit(&d->geo, FDC_GEO_UNKNOWN, REL);
-            d->tracks = tracks;
-            d->spt = (uint8_t)spt;
-            atomic_store_explicit(&d->geo, FDC_GEO_OK, REL);
-            return;
-        }
-    }
-    atomic_store_explicit(&d->geo, FDC_GEO_NONE, REL);
-}
-
-void fdc_op_done(fdc_t *f, const fdc_op_t *op, bool ok, const uint8_t *data, uint16_t len,
-                 uint32_t now)
-{
-    switch (op->kind)
-    {
-    case FDC_OP_PROBE:
-        set_geo(&f->drv[op->drive], ok ? data : NULL, ok ? len : 0);
-        break;
-    case FDC_OP_READ:
-    {
-        fdc_slot_t *s = &f->slot[op->slot];
-        if (ok && len == FDC_SECTOR && s->gen == atomic_load_explicit(&f->epoch, ACQ))
-        {
-            memcpy(s->data[op->sector], data, FDC_SECTOR);
-            atomic_fetch_or_explicit(&s->valid, 1u << op->sector, REL);
-        }
-        else
-        {
-            s->retry_at = now + 200000;
-            atomic_store_explicit(&f->drv[op->drive].probe, 1, REL);
-        }
-        atomic_store_explicit(&s->busy, 0, REL);
-        break;
-    }
-    case FDC_OP_WRITE:
-    {
-        fdc_slot_t *s = &f->slot[op->slot];
-        if (ok)
-            f->wfail = 0;
-        else if (++f->wfail <= 3)
-            atomic_fetch_or_explicit(&s->dirty, 1u << op->sector, REL);
-        else
-            f->wfail = 0; // give up on this sector
-        f->op_write = false;
-        atomic_store_explicit(&s->busy, 0, REL);
-        break;
-    }
-    default:
-        break;
-    }
-}
-
-bool fdc_dirty(fdc_t *f)
-{
-    if (f->op_write)
-        return true;
-    for (int i = 0; i < FDC_SLOTS; i++)
-        if (atomic_load_explicit(&f->slot[i].dirty, ACQ))
-            return true;
-    return false;
-}
-
-void fdc_invalidate(fdc_t *f)
-{
-    atomic_fetch_add_explicit(&f->epoch, 1, REL);
-    for (int i = 0; i < FDC_SLOTS; i++)
-        atomic_store_explicit(&f->slot[i].fill, 0, REL);
-    for (int d = 0; d < FDC_DRIVES; d++)
-    {
-        atomic_store_explicit(&f->drv[d].probe, 1, REL);
-        f->probed[d] = false;
-    }
-}
-
-void fdc_link_reset(fdc_t *f)
-{
-    for (int i = 0; i < FDC_SLOTS; i++)
-        atomic_store_explicit(&f->slot[i].dirty, 0, REL);
-    f->op_write = false;
-    f->wfail = 0;
-    for (int d = 0; d < FDC_DRIVES; d++)
-        atomic_store_explicit(&f->drv[d].geo, FDC_GEO_UNKNOWN, REL);
-    fdc_invalidate(f);
+    if (percom->size != FUJI_TC_SECTOR || (percom->spt != 16 && percom->spt != 32))
+        return false;
+    *tracks = percom->cylinders ? percom->cylinders : 2048;
+    *spt = (uint8_t)percom->spt;
+    return true;
 }
