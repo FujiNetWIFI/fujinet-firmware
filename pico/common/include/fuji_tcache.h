@@ -127,7 +127,8 @@ static inline void fuji_tcache_mark_dirty(fuji_tcache_t *cache, int slot, uint8_
 {
     __atomic_fetch_or(&cache->slot[slot].dirty, 1u << sector, __ATOMIC_RELEASE);
 }
-/* A sector the CPU wrote: now valid, and dirty until the link writes it back. */
+/* A sector the CPU wrote: now valid, and dirty until the link writes it back.
+ * Call it on the link's core: a read reply fills the same sector. */
 void fuji_tcache_store(fuji_tcache_t *cache, int slot, uint8_t sector, const uint8_t *data);
 static inline bool fuji_tcache_write_protected(fuji_tcache_t *cache, uint8_t drive)
 {

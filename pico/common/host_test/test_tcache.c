@@ -132,6 +132,19 @@ int main(void)
     now += FUJI_TC_RETRY_US;
     serve_reads(now, NULL);
 
+    // A sector the CPU stores while its read is out keeps the CPU's bytes.
+    slot = fuji_tcache_claim(&cache, 0, 6);
+    CHECK(fuji_tcache_next_op(&cache, &txn, false, now));
+    CHECK_EQ(txn.kind, FUJI_TC_OP_READ);
+    uint8_t wrote[256];
+    memset(wrote, 0xC3, sizeof(wrote));
+    fuji_tcache_store(&cache, slot, txn.sector, wrote);
+    fuji_tcache_op_done(&cache, &txn, true, data, 256, now);
+    CHECK_EQ(cache.slot[slot].data[txn.sector][0], 0xC3);
+    CHECK(fuji_tcache_dirty(&cache));
+    serve_reads(now, NULL);
+    CHECK(!fuji_tcache_dirty(&cache));
+
     // Dirty sectors go back lowest first; a failed write is retried, then dropped.
     slot = fuji_tcache_find(&cache, 0, 3);
     cache.slot[slot].data[2][0] = 0xAA;
