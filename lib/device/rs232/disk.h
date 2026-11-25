@@ -33,7 +33,7 @@ public:
     // Cartridges are tried first, strongest evidence first: a signature, a
     // mapper file, then the extension alone. Then the disks: an IMD header, a
     // JV1 size, an Altair size, and raw for anything else. A name alone can't
-    // tell an Altair .dsk, so it lists as unknown.
+    // tell a JV1 or Altair .dsk, so it lists as unknown.
     using Formats = MediaFormats<MEDIATYPE_UNKNOWN,
                                  MediaFormat<IntellicartROM, MEDIATYPE_ROM>,
                                  MediaFormat<NESROM, MEDIATYPE_ROM>,
