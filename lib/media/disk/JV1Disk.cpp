@@ -1,5 +1,8 @@
 #include "JV1Disk.h"
 
+// The names attach() takes.
+static constexpr const char *JV1_OPEN_EXTENSIONS[] = {".jv1", ".dsk"};
+
 // The track counts a .dsk is taken at: Model I 35- and 40-track drives, and 80.
 static constexpr uint16_t JV1_DSK_CYLINDERS[] = {35, 40, 80};
 
@@ -25,7 +28,7 @@ error_is_true JV1Disk::blockToOffset(uint32_t block, uint32_t &offset) const
 
 error_is_true JV1Disk::attach()
 {
-    std::optional<std::string> extension = matchExtension(_path, extensions);
+    std::optional<std::string> extension = matchExtension(_path, JV1_OPEN_EXTENSIONS);
     if (!extension.has_value() || readSize().is_error() || _size == 0 || _size % JV1_TRACK_SIZE)
         RETURN_ERROR_AS_TRUE();
 

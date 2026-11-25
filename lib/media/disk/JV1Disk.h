@@ -16,7 +16,8 @@ constexpr uint16_t JV1_MAX_CYLINDERS = 96;
 class JV1Disk : public BlockMedia
 {
 public:
-    static constexpr const char *extensions[] = {".jv1", ".dsk"};
+    // Names the directory entry type only; attach() also takes a .dsk.
+    static constexpr const char *extensions[] = {".jv1"};
 
     JV1Disk(const std::string &path, fnFile *handle, fujiHost * /*host*/, bool readOnly)
         : BlockMedia(path, handle), _readOnly(readOnly) {}

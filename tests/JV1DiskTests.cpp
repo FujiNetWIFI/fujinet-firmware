@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "JV1Disk.h"
+#include "MediaFormats.h"
 #include "fujiHost.h"
 
 // media.cpp's sibling-file helpers go through the host; these tests never reach them.
@@ -150,4 +151,12 @@ TEST_CASE("a JV1 write lands in place and is flushed; a read-only image refuses 
     CHECK(media->isReadOnly());
     CHECK(media->writeBlock(0, ByteBuffer(JV1_SECTOR_SIZE, 0xE5)).is_error());
     remove_image(file);
+}
+
+TEST_CASE("only a .jv1 lists as JV1, since a .dsk may be another format")
+{
+    using Formats = MediaFormats<0, MediaFormat<JV1Disk, 1>>;
+    CHECK(Formats::entryType("trsdos.jv1") == 1);
+    CHECK(Formats::entryType("TRSDOS.JV1") == 1);
+    CHECK(Formats::entryType("trsdos.dsk") == 0);
 }
