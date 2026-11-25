@@ -31,6 +31,29 @@ KeyManager fnKeyManager;
 
 static int mButtonPin[eKey::KEY_COUNT];
 
+// A button counts as pressed only when KEY_SAMPLES reads in a row are low. Short
+// low glitches (WiFi RF on an input without a pull-up - GPIO34 of button B has
+// none on the ESP32) would otherwise give phantom presses and double taps.
+#define KEY_SAMPLES 3
+#define KEY_SAMPLE_GAP_US 500
+
+// A press must also be seen at two polls in a row (100 ms apart) - a floating input can stay low
+// for more than a millisecond now and then - a real press lasts far longer
+#define KEY_CONFIRM_POLLS 2
+static uint8_t s_low_polls[eKey::KEY_COUNT];
+
+static bool key_pin_low(int pin)
+{
+    for (int i = 0; i < KEY_SAMPLES; i++)
+    {
+        if (i)
+            fnSystem.delay_microseconds(KEY_SAMPLE_GAP_US);
+        if (fnSystem.digital_read(pin) != DIGI_LOW)
+            return false;
+    }
+    return true;
+}
+
 void KeyManager::setup()
 {
 #ifdef PINMAP_ESP32S3
@@ -125,7 +148,7 @@ bool KeyManager::keyCurrentlyPressed(eKey key)
     if(_keys[key].disabled)
         return false;
 
-    return fnSystem.digital_read(mButtonPin[key]) == DIGI_LOW;
+    return key_pin_low(mButtonPin[key]);
 }
 
 /*
@@ -146,8 +169,15 @@ eKeyStatus KeyManager::getKeyStatus(eKey key)
 
     unsigned long ms = fnSystem.millis();
 
-    // Button is PRESSED when DIGI_LOW
-    if (fnSystem.digital_read(mButtonPin[key]) == DIGI_LOW)
+    // Button is PRESSED when DIGI_LOW - confirmed at KEY_CONFIRM_POLLS polls in a row
+    if (key_pin_low(mButtonPin[key]))
+    {
+        if (s_low_polls[key] < KEY_CONFIRM_POLLS)
+            s_low_polls[key]++;
+    }
+    else
+        s_low_polls[key] = 0;
+    if (s_low_polls[key] >= KEY_CONFIRM_POLLS)
     {
         // If not already active, mark as ACTIVE and note the time
         if (_keys[key].active == false)
