@@ -2,8 +2,8 @@
 ; FNPORT.INC -- an I/O card's FujiBus pipe (pico/common/include/fuji_pipe.h),
 ; 8080 code, so it runs on any of the cards' CPUs.
 ;
-; The pipe is four ports at a movable base: +0 GETC, +1 STATUS,
-; +2 PUTC, +3 CONTROL (write) / TICK (read, 1 kHz). The 8080 has no
+; The pipe is at a movable base: +0 GETC (read) / PUTC (write),
+; +1 STATUS / CONTROL, +2 TICK (read, 1 kHz). The 8080 has no
 ; IN r,(C), so PINIT finds the base and patches it into every IN/OUT
 ; below; the code must run from RAM.
 ;
@@ -61,13 +61,12 @@ ENDIF
 ; Patch base A into every port operand.
 PSET:   LD      (PBASE),A
         LD      (PGETC+1),A
+        LD      (PPUTC+1),A
         INC     A
         LD      (PSTAT1+1),A
         LD      (PSTAT2+1),A
-        INC     A
-        LD      (PPUTC+1),A
-        INC     A
         LD      (PCTL+1),A
+        INC     A
         LD      (PTICK1+1),A
         LD      (PTICK2+1),A
         LD      (PTICK3+1),A

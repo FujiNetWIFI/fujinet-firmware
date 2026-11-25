@@ -17,7 +17,7 @@ PAGE    EQU     0FF00h          ; patched: the page's high byte
 PIPE    EQU     0A0h            ; patched: the pipe base
 GETC    EQU     PIPE
 STATUS  EQU     PIPE+1
-CONTROL EQU     PIPE+3
+CONTROL EQU     PIPE+1
 LOAD    EQU     20h
 NOIMAGE EQU     80h
 

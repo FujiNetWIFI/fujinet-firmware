@@ -8,7 +8,7 @@
  *   E8h-EBh      RS-232 board as the FujiNet modem             (RS-232 enable)
  *   D0h-D3h      the FujiBus pipe (fuji_pipe.h), base movable
  *
- * CONTROL (the pipe's +3) also takes the card's settings: a block turned on
+ * CONTROL (the pipe's +1) also takes the card's settings: a block turned on
  * answers at once, one turned off goes quiet at the next reset, so a program
  * can't pull its own memory out from under itself. A DIP switch forces a block
  * off whatever is saved.

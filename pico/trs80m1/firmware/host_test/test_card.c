@@ -62,7 +62,7 @@ int main(void)
     size_t len = fujibus_build_request(FUJI_DEVICEID_FUJINET, 0xE8, NULL, 0, NULL, 0, req,
                                        sizeof(req));
     for (size_t idx = 0; idx < len; idx++)
-        out_port(0xD2, req[idx]);
+        out_port(0xD0, req[idx]);
     run_us(5000);
     CHECK(in_port(0xD1) & FUJI_PIPE_ST_AVAIL);
     uint8_t rep[64];
@@ -72,22 +72,23 @@ int main(void)
     fb_reply_t reply;
     CHECK(fujibus_parse_reply(rep, (size_t)got, &reply));
     CHECK_EQ(reply.command, CMD_FUJI_ACK);
+    CHECK_EQ(in_port(0xD3), 0xFF); // +3 isn't a register
 
     // Settings through CONTROL: off waits for the next reset, on is at once,
     // and both are kept; a DIP switch wins.
-    out_port(0xD3, M1_CTL_OFF | M1_SET_RAM);
+    out_port(0xD1, M1_CTL_OFF | M1_SET_RAM);
     CHECK(m1_mem_peek(&card, 0x8000, now, &val));
     CHECK(m1_card_take_save(&card));
     CHECK(!m1_card_take_save(&card));
     m1_bus_reset(&card);
     CHECK(!m1_mem_peek(&card, 0x8000, now, &val));
-    out_port(0xD3, M1_CTL_ON | M1_SET_RAM);
+    out_port(0xD1, M1_CTL_ON | M1_SET_RAM);
     CHECK(m1_mem_peek(&card, 0x8000, now, &val));
     m1_card_force_off(&card, M1_SET_RAM);
     CHECK(!m1_mem_peek(&card, 0x8000, now, &val));
-    out_port(0xD3, M1_CTL_ON | M1_SET_RAM);
+    out_port(0xD1, M1_CTL_ON | M1_SET_RAM);
     CHECK(!m1_mem_peek(&card, 0x8000, now, &val));
-    out_port(0xD3, M1_CTL_INFO);
+    out_port(0xD1, M1_CTL_INFO);
     run_us(1000);
     uint8_t info[M1_INFO_LEN];
     for (int idx = 0; idx < M1_INFO_LEN; idx++)
