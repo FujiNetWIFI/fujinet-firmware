@@ -11,6 +11,10 @@
 #include "fnConfig.h"
 #include "utils.h"
 
+// Set while a stream runs - main.cpp skips its DEBUG heap report then (the heap walk holds the heap
+// lock with the interrupts off for 20-50 us and delays the echo clock data bits on this core)
+volatile bool g_netstream_active = false;
+
 #ifdef ESP_PLATFORM
 #include <errno.h>
 #include <sys/socket.h>
@@ -1301,6 +1305,7 @@ void sioNetStream::sio_enable_netstream()
 #endif
 
     netstreamActive = true;
+    g_netstream_active = true;
     last_rx_us = netstream_time_us();
     last_tx_us = last_rx_us;
     rx_head = 0;
@@ -1354,6 +1359,7 @@ void sioNetStream::sio_disable_netstream()
     fnSystem.digital_write(PIN_CKI, DIGI_HIGH);
 #endif
     netstreamActive = false;
+    g_netstream_active = false;
     Debug_println("NETSTREAM mode DISABLED");
 }
 

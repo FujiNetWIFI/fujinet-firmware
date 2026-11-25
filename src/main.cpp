@@ -509,6 +509,13 @@ void main_setup(int argc, char *argv[])
 #endif /* BUILD_S100*/
 
 // Main high-priority service loop
+#if defined(BUILD_ATARI) && defined(ESP_PLATFORM)
+extern volatile bool g_netstream_active;       // lib/device/sio/netstream.cpp
+static inline bool netstream_busy() { return g_netstream_active; }
+#else
+static inline bool netstream_busy() { return false; }
+#endif
+
 void fn_service_loop(void *param)
 {
 #ifdef ESP_PLATFORM
@@ -581,7 +588,8 @@ void fn_service_loop(void *param)
 #endif
 
 #if defined(ESP_PLATFORM) && defined(DEBUG)
-        // Internal DRAM checked every 10s and printed only when it changes: falling free
+        // Internal DRAM checked every 10s - not while a NetStream runs (the heap walk delays
+        // its clock interrupts by 20-50 us) and printed only when it changes: falling free
         // is a leak, flat free with a decaying largest block is fragmentation. The loop
         // has no delay, so anything per-iteration is unreadable at bus rates. IntMin is the
         // lowest internal free since boot, so it catches a dip between two samples.
@@ -590,7 +598,7 @@ void fn_service_loop(void *param)
             static uint32_t last_low = 0, last_total = 0, last_min = 0;
             static unsigned last_blk = 0;
             unsigned long now = fnSystem.millis();
-            if (now - last_heap_report >= 10000)
+            if (now - last_heap_report >= 10000 && !netstream_busy())
             {
                 last_heap_report = now;
                 uint32_t low = esp_get_free_internal_heap_size();
