@@ -11,6 +11,26 @@
 
 class fujiHost;
 
+// An address range the cart maps a bank into, switched by writes to a register
+// range; regBase == regTop means no register.
+struct MapperWindow
+{
+    uint32_t regBase, regTop, windowBase, windowTop;
+};
+
+// An address range that shows what another range shows.
+struct MapperMirror
+{
+    uint32_t mirrorBase, mirrorTop, source;
+};
+
+// The windows and mirrors the cart sets up for bank switching.
+struct MapperLayout
+{
+    std::vector<MapperWindow> windows;
+    std::vector<MapperMirror> mirrors;
+};
+
 class ROMMedia : public Media
 {
 protected:
@@ -38,6 +58,10 @@ public:
     // Mapping information for the cart, passed through to the device verbatim;
     // nullopt if the format has none.
     virtual std::optional<std::pmr::vector<uint8_t>> mapperInfo() { return std::nullopt; }
+
+    // Bank switching the cart sets up for the image; nullopt if the format
+    // doesn't describe any.
+    virtual std::optional<MapperLayout> mapperLayout() { return std::nullopt; }
 
     error_is_true close() override;
 };

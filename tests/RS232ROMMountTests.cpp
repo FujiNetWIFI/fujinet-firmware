@@ -123,6 +123,65 @@ void reset()
     host_files.reset();
 }
 
+// An image of total bytes with the MSX cartridge ID "AB" at offset at.
+std::vector<uint8_t> msx_image(size_t total, size_t at = 0)
+{
+    auto image = make_image(total);
+    image[0] = image[1] = 0;
+    image[at] = 'A';
+    image[at + 1] = 'B';
+    return image;
+}
+
+using Window = std::vector<uint32_t>;
+
+// The params of each packet sent for command, in order.
+std::vector<Window> params_of(fujiCommandID_t command)
+{
+    std::vector<Window> all;
+    for (const auto &packet : bus.sent)
+        if (packet.command == command)
+            all.push_back(packet.params);
+    return all;
+}
+
+// Mounts image as filename and checks the mapper commands sit after the image
+// blocks and before CLOSE, with the image bytes unchanged.
+void check_msx_mount(const char *filename, const std::vector<uint8_t> &image,
+                     const std::vector<Window> &windows, const std::vector<Window> &mirrors)
+{
+    reset();
+    MemFile file(image);
+    rs232Disk disk;
+    CHECK(disk.mount(&file, filename, image.size(), DISK_ACCESS_MODE_READ).is_success());
+    check_closed_once(disk, file);
+
+    REQUIRE(bus.sent.size() >= 4);
+    CHECK(bus.sent.front().command == CMD::DBC_SEGMENT_OPEN);
+    CHECK(bus.sent.front().params == Window{0});
+    CHECK(bus.sent.back().command == CMD::DBC_SEGMENT_CLOSE);
+    CHECK(bus.sent.back().payload.empty());
+
+    size_t blocks = (image.size() + rs232Disk::ROM_BLOCK_SIZE - 1) / rs232Disk::ROM_BLOCK_SIZE;
+    std::vector<fujiCommandID_t> expected{CMD::DBC_SEGMENT_OPEN};
+    expected.insert(expected.end(), blocks, CMD::DBC_SEGMENT_WRITE);
+    expected.push_back(CMD::DBC_MAPPER_SET_INFO);
+    expected.insert(expected.end(), windows.size(), CMD::DBC_MAPPER_ADD_WINDOW);
+    expected.insert(expected.end(), mirrors.size(), CMD::DBC_MAPPER_ADD_MIRROR);
+    expected.push_back(CMD::DBC_SEGMENT_CLOSE);
+    CHECK(commands() == expected);
+
+    CHECK(bus.sent[1 + blocks].payload.empty());
+    CHECK(params_of(CMD::DBC_MAPPER_ADD_WINDOW) == windows);
+    CHECK(params_of(CMD::DBC_MAPPER_ADD_MIRROR) == mirrors);
+
+    std::string bytes;
+    for (const auto &packet : bus.sent)
+        if (packet.command == CMD::DBC_SEGMENT_WRITE)
+            bytes += packet.payload;
+    CHECK(bytes == std::string(image.begin(), image.end()));
+}
+
 } // namespace
 
 void systemBus::addDevice(virtualDevice *, fujiDeviceID_t) {}
@@ -498,4 +557,76 @@ TEST_CASE("other consoles' images don't send the .cfg beside them")
         check_nothing_mounted(disk, file);
         check_closed_once(disk, file);
     }
+}
+
+TEST_CASE("an untagged 16K MSX ROM is one fixed window at 0x4000")
+{
+    check_msx_mount("game.rom", msx_image(16_kB), {{0, 0, 0x4000, 0x8000}}, {});
+}
+
+TEST_CASE("an untagged 32K MSX ROM is two fixed windows from 0x4000")
+{
+    check_msx_mount("game.mx1", msx_image(32_kB),
+                    {{0, 0, 0x4000, 0x8000}, {0, 0, 0x8000, 0xC000}}, {});
+}
+
+TEST_CASE("an untagged 48K MSX ROM with its ID at 0x4000 gets four windows from 0")
+{
+    std::vector<Window> windows = {{0, 0, 0x0000, 0x4000}, {0, 0, 0x4000, 0x8000},
+                                   {0, 0, 0x8000, 0xC000}, {0, 0, 0xC000, 0x10000}};
+    check_msx_mount("game.rom", msx_image(48_kB, 0x4000), windows, {});
+    check_msx_mount("game.mx2", msx_image(64_kB, 0x4000), windows, {});
+}
+
+TEST_CASE("a [KonamiSCC] tag sets the SCC windows and mirrors")
+{
+    check_msx_mount("King's Valley 2 [KonamiSCC].rom", msx_image(128_kB),
+                    {{0x5000, 0x5800, 0x4000, 0x6000}, {0x7000, 0x7800, 0x6000, 0x8000},
+                     {0x9000, 0x9800, 0x8000, 0xA000}, {0xB000, 0xB800, 0xA000, 0xC000}},
+                    {{0x0000, 0x4000, 0x8000}, {0xC000, 0x10000, 0x4000}});
+}
+
+TEST_CASE("mapper tags are case-insensitive and pick their own layouts")
+{
+    check_msx_mount("game [aScII8].rom", msx_image(64_kB),
+                    {{0x6000, 0x6800, 0x4000, 0x6000}, {0x6800, 0x7000, 0x6000, 0x8000},
+                     {0x7000, 0x7800, 0x8000, 0xA000}, {0x7800, 0x8000, 0xA000, 0xC000}}, {});
+    check_msx_mount("game [ASCII16].ROM", msx_image(64_kB),
+                    {{0x6000, 0x6800, 0x4000, 0x8000}, {0x7000, 0x7800, 0x8000, 0xC000}}, {});
+    check_msx_mount("game [konami].rom", msx_image(64_kB),
+                    {{0, 0, 0x4000, 0x6000}, {0x6000, 0x8000, 0x6000, 0x8000},
+                     {0x8000, 0xA000, 0x8000, 0xA000}, {0xA000, 0xC000, 0xA000, 0xC000}},
+                    {{0x0000, 0x4000, 0x4000}, {0xC000, 0x10000, 0x8000}});
+}
+
+TEST_CASE("a .rom without the MSX cartridge ID is not taken as MSX")
+{
+    reset();
+    auto image = make_image(16_kB);
+    MemFile file(image);
+    rs232Disk disk;
+    CHECK(disk.mount(&file, "game [KonamiSCC].rom", image.size(), DISK_ACCESS_MODE_READ)
+          .is_success());
+    CHECK(params_of(CMD::DBC_MAPPER_ADD_WINDOW).empty());
+    CHECK(params_of(CMD::DBC_MAPPER_SET_INFO).empty());
+    check_closed_once(disk, file);
+}
+
+TEST_CASE("a refused mapper window sends an aborting CLOSE and fails the mount")
+{
+    auto image = msx_image(16_kB);
+    reset();
+    size_t blocks = 16_kB / rs232Disk::ROM_BLOCK_SIZE;
+    // OPEN, the blocks, SET_INFO, then the window
+    bus.replies.assign(1 + blocks + 1, Reply::Ack);
+    bus.replies.push_back(Reply::Nak);
+    MemFile file(image);
+
+    rs232Disk disk;
+    CHECK(disk.mount(&file, "game.rom", image.size(), DISK_ACCESS_MODE_READ).is_error());
+    REQUIRE(bus.sent.size() == blocks + 4);
+    CHECK(bus.sent.back().command == CMD::DBC_SEGMENT_CLOSE);
+    CHECK(bus.sent.back().payload == std::string(1, '\x01'));
+    check_nothing_mounted(disk, file);
+    check_closed_once(disk, file);
 }

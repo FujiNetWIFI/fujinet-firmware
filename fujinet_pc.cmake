@@ -368,6 +368,7 @@ set(SOURCES src/main.cpp
     lib/media/rom/ColecoROM.h lib/media/rom/ColecoROM.cpp
     lib/media/rom/IntellicartROM.h lib/media/rom/IntellicartROM.cpp
     lib/media/rom/IntellivisionROM.h lib/media/rom/IntellivisionROM.cpp
+    lib/media/rom/MSXROM.h lib/media/rom/MSXROM.cpp
     lib/media/rom/NESROM.h lib/media/rom/NESROM.cpp
     lib/media/rom/SegaMasterROM.h lib/media/rom/SegaMasterROM.cpp
     lib/media/rom/StudioIIROM.h lib/media/rom/StudioIIROM.cpp

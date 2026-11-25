@@ -36,6 +36,42 @@ static ByteBuffer console_cart_open_data(bool isMapperInfo, uint32_t size)
     return ByteBuffer(bytes, bytes + sizeof(openData));
 }
 
+// Sends the mapper's windows and mirrors; the DBC sizes its banks from them at
+// CLOSE, so they go before it.
+static error_is_true push_mapper_layout(const MapperLayout &layout)
+{
+    auto reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::DBC_MAPPER_SET_INFO);
+    if (!reply || reply->command() != CMD::FUJI_ACK)
+    {
+        Debug_printv("ROM push: failed to reset mapper\n");
+        RETURN_ERROR_AS_TRUE();
+    }
+
+    for (const auto &window : layout.windows)
+    {
+        reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::DBC_MAPPER_ADD_WINDOW,
+                                       window.regBase, window.regTop,
+                                       window.windowBase, window.windowTop);
+        if (!reply || reply->command() != CMD::FUJI_ACK)
+        {
+            Debug_printv("ROM push: failed to add mapper window\n");
+            RETURN_ERROR_AS_TRUE();
+        }
+    }
+
+    for (const auto &mirror : layout.mirrors)
+    {
+        reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::DBC_MAPPER_ADD_MIRROR,
+                                       mirror.mirrorBase, mirror.mirrorTop, mirror.source);
+        if (!reply || reply->command() != CMD::FUJI_ACK)
+        {
+            Debug_printv("ROM push: failed to add mapper mirror\n");
+            RETURN_ERROR_AS_TRUE();
+        }
+    }
+    RETURN_SUCCESS_AS_FALSE();
+}
+
 // Opens segment 0 and sends the image. CLOSE always goes out, so a later WRITE
 // can't land in a segment left open. Game consoles don't watch a status
 // register for the transfer to finish, so the DBC activates the ROM itself on
@@ -85,6 +121,10 @@ static error_is_true push_image(ROMMedia &rom)
                      (unsigned long)sent, (unsigned long)expected_size);
         result = error_is_true(true);
     }
+
+    auto layout = rom.mapperLayout();
+    if (result.is_success() && layout.has_value())
+        result = push_mapper_layout(*layout);
 
     if (result.is_success())
         reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::DBC_SEGMENT_CLOSE);
