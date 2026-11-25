@@ -14,6 +14,13 @@
 #ifdef ESP_PLATFORM
 #include <errno.h>
 #include <sys/socket.h>
+#include <sys/select.h>
+#include <atomic>
+#include <new>
+#include <driver/uart.h>
+#include <esp_timer.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 #endif
 #ifdef NETSTREAM_ECHO_CLOCK
 #include <atomic>
@@ -753,10 +760,355 @@ void sioNetStream::enqueue_frame(const uint8_t *data, int len)
     update_rx_high_water();
 }
 
+#ifdef ESP_PLATFORM
+/*
+ * NetStream I/O on CPU0 - the network and the UART reads and the network sends run in small tasks on CPU0
+ * (the core of the WiFi and lwIP). fnLoop runs on CPU1 together with the echo clock bit interrupt - every
+ * lwIP call - every heap allocation or free and every FreeRTOS queue call there takes a lock that both
+ * CPUs share (a critical section with the interrupts off). Under WiFi load CPU0 holds those locks longer -
+ * the bit interrupt was measured up to 45 us late (the low part of CKI is 41.7 us at 19200 - 9 us at 55K).
+ * The tasks hand the data over in single producer single consumer rings - fnLoop takes no lock.
+ */
+#define NETSTREAM_IO_TASK_PRIO 15            // below the WiFi (23) and lwIP (18) - CPU0
+#define NETSTREAM_URX_RING 4096              // bytes - power of 2 - datagrams from the network
+#define NETSTREAM_URX_DGRAM 1472
+#define NETSTREAM_UTX_RING 4096              // bytes - power of 2 - batches to the network
+#define NETSTREAM_SRX_RING 2048              // bytes - power of 2 - bytes from the Atari
+
+// A ring of length prefixed records (2 bytes length + data) - one writer - one reader
+static void netstream_ring_put(uint8_t *ring, uint32_t mask, uint32_t h, const uint8_t *data, int len)
+{
+    ring[h & mask] = (uint8_t)(len & 0xFF);
+    ring[(h + 1) & mask] = (uint8_t)(len >> 8);
+    for (int i = 0; i < len; i++)
+        ring[(h + 2 + i) & mask] = data[i];
+}
+
+static int netstream_ring_get(const uint8_t *ring, uint32_t mask, uint32_t t, uint8_t *out, int max)
+{
+    int len = ring[t & mask] | (ring[(t + 1) & mask] << 8);
+    int n = len > max ? max : len;
+    for (int i = 0; i < n; i++)
+        out[i] = ring[(t + 2 + i) & mask];
+    return len;
+}
+
+// UDP receive - the task waits in select and copies each datagram into the ring
+struct NetstreamUrx
+{
+    uint8_t ring[NETSTREAM_URX_RING];
+    uint8_t dgram[NETSTREAM_URX_DGRAM];
+    std::atomic<uint32_t> head{0};             // task
+    std::atomic<uint32_t> tail{0};             // fnLoop
+    volatile bool run = false;
+    volatile bool done = true;
+    int fd = -1;
+    uint32_t got = 0, drops = 0;               // task
+};
+static NetstreamUrx *s_urx = nullptr;          // allocated at the first start
+
+static void netstream_urx_task(void *)
+{
+    while (s_urx->run)
+    {
+        fd_set rs;
+        FD_ZERO(&rs);
+        FD_SET(s_urx->fd, &rs);
+        struct timeval tv = {0, 20000};        // the stop flag is seen within 20 ms
+        if (select(s_urx->fd + 1, &rs, nullptr, nullptr, &tv) <= 0)
+            continue;
+        while (s_urx->run)
+        {
+            int len = recvfrom(s_urx->fd, (char *)s_urx->dgram, NETSTREAM_URX_DGRAM, MSG_DONTWAIT, nullptr, nullptr);
+            if (len <= 0)
+                break;
+            s_urx->got++;
+            uint32_t h = s_urx->head.load(std::memory_order_relaxed);
+            if ((uint32_t)len + 2 > NETSTREAM_URX_RING - (h - s_urx->tail.load(std::memory_order_acquire)))
+            {
+                s_urx->drops++;
+                continue;
+            }
+            netstream_ring_put(s_urx->ring, NETSTREAM_URX_RING - 1, h, s_urx->dgram, len);
+            s_urx->head.store(h + 2 + len, std::memory_order_release);
+        }
+    }
+    s_urx->done = true;
+    vTaskDelete(nullptr);
+}
+
+// SIO receive - the task waits in uart_read_bytes and copies the bytes into the ring
+struct NetstreamSrx
+{
+    uint8_t ring[NETSTREAM_SRX_RING];
+    std::atomic<uint32_t> head{0};             // task
+    std::atomic<uint32_t> tail{0};             // fnLoop
+    volatile bool run = false;
+    volatile bool done = true;
+    uint32_t got = 0, drops = 0;               // task
+};
+static NetstreamSrx *s_srx = nullptr;
+
+static void netstream_srx_put(uint8_t c)
+{
+    uint32_t h = s_srx->head.load(std::memory_order_relaxed);
+    if (h - s_srx->tail.load(std::memory_order_acquire) >= NETSTREAM_SRX_RING)
+    {
+        s_srx->drops++;
+        return;
+    }
+    s_srx->ring[h & (NETSTREAM_SRX_RING - 1)] = c;
+    s_srx->head.store(h + 1, std::memory_order_release);
+}
+
+static void netstream_srx_task(void *)
+{
+    uint8_t buf[64];
+    while (s_srx->run)
+    {
+        int n = uart_read_bytes(PIN_BUS_UART, buf, sizeof(buf), pdMS_TO_TICKS(10));
+        for (int i = 0; i < n; i++)
+            netstream_srx_put(buf[i]);
+        if (n > 0)
+            s_srx->got += n;
+    }
+    s_srx->done = true;
+    vTaskDelete(nullptr);
+}
+
+// UDP send - fnLoop puts batches into the ring - a 1 ms esp_timer (its task runs on CPU0) wakes the sender
+// task when the ring holds data (the tick is 10 ms - and a notify from CPU1 would take the kernel lock)
+struct NetstreamUtx
+{
+    uint8_t ring[NETSTREAM_UTX_RING];
+    uint8_t pkt[NETSTREAM_BUFFER_SIZE];
+    std::atomic<uint32_t> head{0};             // fnLoop
+    std::atomic<uint32_t> tail{0};             // task
+    TaskHandle_t task = nullptr;
+    esp_timer_handle_t timer = nullptr;
+    volatile bool run = false;
+    volatile bool done = true;
+    int fd = -1;
+    in_addr_t ip = 0;
+    uint16_t port = 0;
+    uint32_t sent = 0;                         // task
+    uint32_t drops = 0;                        // fnLoop
+};
+static NetstreamUtx *s_utx = nullptr;
+
+static void netstream_utx_tick(void *)
+{
+    if (s_utx->task != nullptr &&
+        s_utx->head.load(std::memory_order_acquire) != s_utx->tail.load(std::memory_order_relaxed))
+        xTaskNotifyGive(s_utx->task);
+}
+
+static void netstream_utx_task(void *)
+{
+    while (true)
+    {
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+        if (!s_utx->run)
+            break;
+        uint32_t t = s_utx->tail.load(std::memory_order_relaxed);
+        while (t != s_utx->head.load(std::memory_order_acquire))
+        {
+            int len = netstream_ring_get(s_utx->ring, NETSTREAM_UTX_RING - 1, t, s_utx->pkt, NETSTREAM_BUFFER_SIZE);
+            t += 2 + len;
+            s_utx->tail.store(t, std::memory_order_release);
+            struct sockaddr_in to = {};
+            to.sin_family = AF_INET;
+            to.sin_addr.s_addr = s_utx->ip;
+            to.sin_port = htons(s_utx->port);
+            if (sendto(s_utx->fd, (const char *)s_utx->pkt, len, 0, (struct sockaddr *)&to, sizeof(to)) >= 0)
+                s_utx->sent++;
+        }
+    }
+    s_utx->done = true;
+    vTaskDelete(nullptr);
+}
+
+static void netstream_task_wait(volatile bool &done)
+{
+    for (int i = 0; i < 100 && !done; i++)     // the tasks see the stop flag within 20 ms
+        vTaskDelay(pdMS_TO_TICKS(2));
+}
+
+static void netstream_io_start(bool udp, int fd, in_addr_t ip, int port)
+{
+    if (s_srx == nullptr)
+        s_srx = new (std::nothrow) NetstreamSrx();
+    if (s_srx != nullptr && s_srx->done)
+    {
+        s_srx->head.store(0);
+        s_srx->tail.store(0);
+        s_srx->got = s_srx->drops = 0;
+        while (SYSTEM_BUS.available() > 0)     // what the bus channel already holds goes first
+            netstream_srx_put((uint8_t)SYSTEM_BUS.read());
+        s_srx->run = true;
+        s_srx->done = false;
+        if (xTaskCreatePinnedToCore(netstream_srx_task, "nsSioRx", 2560, nullptr, NETSTREAM_IO_TASK_PRIO, nullptr, 0) != pdPASS)
+        {
+            s_srx->run = false;
+            s_srx->done = true;
+        }
+    }
+    if (!udp || fd < 0)
+        return;
+    if (s_urx == nullptr)
+        s_urx = new (std::nothrow) NetstreamUrx();
+    if (s_urx != nullptr && s_urx->done)
+    {
+        s_urx->head.store(0);
+        s_urx->tail.store(0);
+        s_urx->got = s_urx->drops = 0;
+        s_urx->fd = fd;
+        s_urx->run = true;
+        s_urx->done = false;
+        if (xTaskCreatePinnedToCore(netstream_urx_task, "nsUdpRx", 3072, nullptr, NETSTREAM_IO_TASK_PRIO, nullptr, 0) != pdPASS)
+        {
+            s_urx->run = false;
+            s_urx->done = true;
+        }
+    }
+    if (ip == IPADDR_NONE || port <= 0)
+        return;
+    if (s_utx == nullptr)
+        s_utx = new (std::nothrow) NetstreamUtx();
+    if (s_utx != nullptr && s_utx->done)
+    {
+        s_utx->head.store(0);
+        s_utx->tail.store(0);
+        s_utx->sent = s_utx->drops = 0;
+        s_utx->fd = fd;
+        s_utx->ip = ip;
+        s_utx->port = (uint16_t)port;
+        s_utx->run = true;
+        s_utx->done = false;
+        if (xTaskCreatePinnedToCore(netstream_utx_task, "nsUdpTx", 3072, nullptr, NETSTREAM_IO_TASK_PRIO, &s_utx->task, 0) != pdPASS)
+        {
+            s_utx->task = nullptr;
+            s_utx->run = false;
+            s_utx->done = true;
+            return;
+        }
+        esp_timer_create_args_t ta = {};
+        ta.callback = netstream_utx_tick;
+        ta.name = "nsUdpTx";
+        if (esp_timer_create(&ta, &s_utx->timer) != ESP_OK || esp_timer_start_periodic(s_utx->timer, 1000) != ESP_OK)
+        {
+            if (s_utx->timer != nullptr)
+                esp_timer_delete(s_utx->timer);
+            s_utx->timer = nullptr;
+            s_utx->run = false;
+            xTaskNotifyGive(s_utx->task);
+            netstream_task_wait(s_utx->done);
+            s_utx->task = nullptr;
+        }
+    }
+}
+
+// Before the socket closes
+static void netstream_io_stop()
+{
+    if (s_srx != nullptr && !s_srx->done)
+    {
+        s_srx->run = false;
+        netstream_task_wait(s_srx->done);
+    }
+    if (s_utx != nullptr && !s_utx->done)
+    {
+        if (s_utx->timer != nullptr)
+        {
+            esp_timer_stop(s_utx->timer);
+            esp_timer_delete(s_utx->timer);
+            s_utx->timer = nullptr;
+        }
+        xTaskNotifyGive(s_utx->task);          // send what is left
+        for (int i = 0; i < 10 && s_utx->head.load() != s_utx->tail.load(); i++)
+            vTaskDelay(pdMS_TO_TICKS(2));
+        s_utx->run = false;
+        xTaskNotifyGive(s_utx->task);
+        netstream_task_wait(s_utx->done);
+        s_utx->task = nullptr;
+    }
+    if (s_urx != nullptr && !s_urx->done)
+    {
+        s_urx->run = false;
+        netstream_task_wait(s_urx->done);
+    }
+    Debug_printf("NETSTREAM: I/O on CPU0 - SIO in %lu bytes - UDP in %lu - out %lu datagrams - ring drops %lu %lu %lu\n",
+                 (unsigned long)(s_srx ? s_srx->got : 0), (unsigned long)(s_urx ? s_urx->got : 0),
+                 (unsigned long)(s_utx ? s_utx->sent : 0), (unsigned long)(s_srx ? s_srx->drops : 0),
+                 (unsigned long)(s_urx ? s_urx->drops : 0), (unsigned long)(s_utx ? s_utx->drops : 0));
+}
+
+static inline bool netstream_urx_on() { return s_urx != nullptr && !s_urx->done; }
+static inline bool netstream_srx_on() { return s_srx != nullptr && !s_srx->done; }
+static inline bool netstream_utx_on() { return s_utx != nullptr && !s_utx->done && s_utx->timer != nullptr; }
+
+// fnLoop - one batch toward the network (no lock)
+static void netstream_utx_put(const uint8_t *data, size_t len)
+{
+    uint32_t h = s_utx->head.load(std::memory_order_relaxed);
+    if (len + 2 > NETSTREAM_UTX_RING - (h - s_utx->tail.load(std::memory_order_acquire)))
+    {
+        s_utx->drops++;
+        return;
+    }
+    netstream_ring_put(s_utx->ring, NETSTREAM_UTX_RING - 1, h, data, (int)len);
+    s_utx->head.store(h + 2 + len, std::memory_order_release);
+}
+
+// fnLoop - the Atari bytes - the ring while the task runs - else the bus channel
+static int netstream_sio_available()
+{
+    if (netstream_srx_on())
+        return (int)(s_srx->head.load(std::memory_order_acquire) - s_srx->tail.load(std::memory_order_relaxed));
+    return SYSTEM_BUS.available();
+}
+
+static int netstream_sio_read()
+{
+    if (netstream_srx_on())
+    {
+        uint32_t t = s_srx->tail.load(std::memory_order_relaxed);
+        if (t == s_srx->head.load(std::memory_order_acquire))
+            return -1;
+        uint8_t c = s_srx->ring[t & (NETSTREAM_SRX_RING - 1)];
+        s_srx->tail.store(t + 1, std::memory_order_release);
+        return c;
+    }
+    return SYSTEM_BUS.read();
+}
+#endif /* ESP_PLATFORM */
+
 void sioNetStream::drain_net_to_ring()
 {
     if (netstreamMode == NetStreamMode::UDP)
     {
+#ifdef ESP_PLATFORM
+        if (netstream_urx_on())
+        {
+            // the datagrams from the CPU0 receiver - no lwIP and no heap here
+            int taken = 0;
+            uint32_t t = s_urx->tail.load(std::memory_order_relaxed);
+            while (taken++ < NETSTREAM_RX_DRAIN_MAX_PACKETS && t != s_urx->head.load(std::memory_order_acquire))
+            {
+                int len = netstream_ring_get(s_urx->ring, NETSTREAM_URX_RING - 1, t, buf_net, NETSTREAM_BUFFER_SIZE);
+                t += 2 + len;
+                s_urx->tail.store(t, std::memory_order_release);
+                int n = len > NETSTREAM_BUFFER_SIZE ? NETSTREAM_BUFFER_SIZE : len;
+                if (rx_framed)
+                    enqueue_frame(buf_net, n);
+                else
+                    enqueue_rx(buf_net, n);
+                last_rx_us = netstream_time_us();
+            }
+            log_rx_stats();
+            return;
+        }
+#endif
         // Pull every datagram already queued, not just one, so a burst that arrived
         // while we were busy doesn't pile up in the kernel UDP receive buffer.
         int guard = 0;
@@ -944,6 +1296,9 @@ void sioNetStream::sio_enable_netstream()
         // Open the TCP connection
         ensure_netstream_ready();
     }
+#ifdef ESP_PLATFORM
+    netstream_io_start(netstreamMode == NetStreamMode::UDP, netStreamUdp.fd(), netstream_host_ip, netstream_port);
+#endif
 
     netstreamActive = true;
     last_rx_us = netstream_time_us();
@@ -976,6 +1331,9 @@ void sioNetStream::sio_enable_netstream()
 
 void sioNetStream::sio_disable_netstream()
 {
+#ifdef ESP_PLATFORM
+    netstream_io_stop();                       // the CPU0 tasks - before the sockets close
+#endif
     netStreamTcp.stop();
     netStreamUdp.stop();
     if (cassette_was_active && SYSTEM_BUS.getCassette() != nullptr && SYSTEM_BUS.getCassette()->is_mounted())
@@ -999,6 +1357,14 @@ void sioNetStream::sio_disable_netstream()
     Debug_println("NETSTREAM mode DISABLED");
 }
 
+#ifdef ESP_PLATFORM
+#define NS_SIO_AVAILABLE() netstream_sio_available()
+#define NS_SIO_READ() netstream_sio_read()
+#else
+#define NS_SIO_AVAILABLE() SYSTEM_BUS.available()
+#define NS_SIO_READ() SYSTEM_BUS.read()
+#endif
+
 void sioNetStream::sio_handle_netstream()
 {
     const uint32_t min_gap_us = netstream_gap_us_for_baud(netstream_baud, netstream_port);
@@ -1019,9 +1385,16 @@ void sioNetStream::sio_handle_netstream()
                 batch_start_us = 0;
                 return;
             }
-            netStreamUdp.beginPacket(netstream_host_ip, netstream_port); // remote IP and port
-            netStreamUdp.write(buf_stream, buf_stream_index);
-            netStreamUdp.endPacket();
+#ifdef ESP_PLATFORM
+            if (netstream_utx_on())
+                netstream_utx_put(buf_stream, buf_stream_index);   // sent on CPU0
+            else
+#endif
+            {
+                netStreamUdp.beginPacket(netstream_host_ip, netstream_port); // remote IP and port
+                netStreamUdp.write(buf_stream, buf_stream_index);
+                netStreamUdp.endPacket();
+            }
         }
         else
         {
@@ -1051,7 +1424,7 @@ void sioNetStream::sio_handle_netstream()
     pace_to_atari(min_gap_us);
 
     // Read the data until there's a pause in the incoming stream
-    if (SYSTEM_BUS.available() > 0)
+    if (NS_SIO_AVAILABLE() > 0)
     {
         while (true)
         {
@@ -1066,10 +1439,10 @@ void sioNetStream::sio_handle_netstream()
                 sio_disable_netstream();
                 return;
             }
-            if (SYSTEM_BUS.available() > 0)
+            if (NS_SIO_AVAILABLE() > 0)
             {
                 // Collect bytes read in our buffer
-                int in_byte = SYSTEM_BUS.read(); // TODO apc: check for error first
+                int in_byte = NS_SIO_READ(); // TODO apc: check for error first
                 if (!batch_active)
                 {
                     batch_start_us = netstream_time_us();
@@ -1098,7 +1471,7 @@ void sioNetStream::sio_handle_netstream()
                 const uint32_t wait_budget_us = 10000;
                 uint32_t waited_us = 0;
                 bool flushed = false;
-                while (waited_us < wait_budget_us && SYSTEM_BUS.available() <= 0)
+                while (waited_us < wait_budget_us && NS_SIO_AVAILABLE() <= 0)
                 {
                     fnSystem.delay_microseconds(wait_step_us);
                     waited_us += wait_step_us;
@@ -1114,9 +1487,9 @@ void sioNetStream::sio_handle_netstream()
                         break;
                     }
                 }
-                if (flushed && SYSTEM_BUS.available() > 0)
+                if (flushed && NS_SIO_AVAILABLE() > 0)
                     continue;
-                if (SYSTEM_BUS.available() <= 0)
+                if (NS_SIO_AVAILABLE() <= 0)
                     break;
             }
         }
