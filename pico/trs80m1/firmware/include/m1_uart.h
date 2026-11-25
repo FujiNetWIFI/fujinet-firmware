@@ -16,6 +16,7 @@
 #include <stdint.h>
 
 #include "fuji_ring.h"
+#include "m1_inline.h"
 
 #define M1_UART_BASE  0xE8
 #define M1_UART_RING  256
@@ -38,7 +39,7 @@ typedef struct {
     uint8_t outbound_buf[M1_UART_RING];
 } m1_uart_t;
 
-static inline uint8_t m1_uart_peek(m1_uart_t *uart, uint8_t port)
+M1_INLINE uint8_t m1_uart_peek(m1_uart_t *uart, uint8_t port)
 {
     switch (port & 3)
     {
@@ -55,13 +56,13 @@ static inline uint8_t m1_uart_peek(m1_uart_t *uart, uint8_t port)
     }
 }
 
-static inline void m1_uart_after_read(m1_uart_t *uart, uint8_t port)
+M1_INLINE void m1_uart_after_read(m1_uart_t *uart, uint8_t port)
 {
     if ((port & 3) == 3)
         __atomic_store_n(&uart->ready, 0, __ATOMIC_RELEASE);
 }
 
-static inline void m1_uart_write(m1_uart_t *uart, uint8_t port, uint8_t val)
+M1_INLINE void m1_uart_write(m1_uart_t *uart, uint8_t port, uint8_t val)
 {
     switch (port & 3)
     {

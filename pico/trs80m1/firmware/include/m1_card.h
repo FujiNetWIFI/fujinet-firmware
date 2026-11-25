@@ -26,6 +26,7 @@
 #include "fuji_pipe.h"
 #include "fuji_ring.h"
 #include "fuji_tcache.h"
+#include "m1_inline.h"
 #include "m1_uart.h"
 #include "m1_wd1771.h"
 
@@ -104,23 +105,23 @@ typedef struct {
 
 /* ---- bus side ---- */
 
-static inline bool m1_on(const m1_card_t *card, uint8_t what)
+M1_INLINE bool m1_on(const m1_card_t *card, uint8_t what)
 {
     return (card->settings.enabled & what) != 0;
 }
 
-static inline bool m1_is_pipe(const m1_card_t *card, uint8_t port)
+M1_INLINE bool m1_is_pipe(const m1_card_t *card, uint8_t port)
 {
     return (uint8_t)(port & 0xFC) == card->settings.pipe_base;
 }
 
-static inline bool m1_is_uart(const m1_card_t *card, uint8_t port)
+M1_INLINE bool m1_is_uart(const m1_card_t *card, uint8_t port)
 {
     return (port & 0xFC) == M1_UART_BASE && m1_on(card, M1_SET_RS232);
 }
 
 /* True when the card answers a memory read of addr; *val is what it drives. */
-static inline bool m1_mem_peek(m1_card_t *card, uint16_t addr, uint32_t now, uint8_t *val)
+M1_INLINE bool m1_mem_peek(m1_card_t *card, uint16_t addr, uint32_t now, uint8_t *val)
 {
     if (addr & M1_RAM_BASE)
     {
@@ -147,7 +148,7 @@ static inline bool m1_mem_peek(m1_card_t *card, uint16_t addr, uint32_t now, uin
 }
 
 /* The side effects of a read m1_mem_peek() answered. */
-static inline void m1_mem_after_read(m1_card_t *card, uint16_t addr)
+M1_INLINE void m1_mem_after_read(m1_card_t *card, uint16_t addr)
 {
     if ((addr & 0xFFF0) != M1_EI_BASE)
         return;
@@ -157,7 +158,7 @@ static inline void m1_mem_after_read(m1_card_t *card, uint16_t addr)
         wd_after_read(&card->fdc, (uint8_t)(addr & 3));
 }
 
-static inline void m1_mem_write(m1_card_t *card, uint16_t addr, uint8_t val, uint32_t now)
+M1_INLINE void m1_mem_write(m1_card_t *card, uint16_t addr, uint8_t val, uint32_t now)
 {
     if (addr & M1_RAM_BASE)
     {
@@ -183,7 +184,7 @@ static inline void m1_mem_write(m1_card_t *card, uint16_t addr, uint8_t val, uin
     }
 }
 
-static inline bool m1_io_peek(m1_card_t *card, uint8_t port, uint32_t now, uint8_t *val)
+M1_INLINE bool m1_io_peek(m1_card_t *card, uint8_t port, uint32_t now, uint8_t *val)
 {
     if (m1_is_pipe(card, port))
     {
@@ -212,7 +213,7 @@ static inline bool m1_io_peek(m1_card_t *card, uint8_t port, uint32_t now, uint8
     return false;
 }
 
-static inline void m1_io_after_read(m1_card_t *card, uint8_t port)
+M1_INLINE void m1_io_after_read(m1_card_t *card, uint8_t port)
 {
     if (m1_is_pipe(card, port) && (port & 3) == FUJI_PIPE_GETC)
         fuji_pipe_getc(&card->pipe);
@@ -220,7 +221,7 @@ static inline void m1_io_after_read(m1_card_t *card, uint8_t port)
         m1_uart_after_read(&card->uart, port);
 }
 
-static inline void m1_control(m1_card_t *card, uint8_t val)
+M1_INLINE void m1_control(m1_card_t *card, uint8_t val)
 {
     uint8_t blocks = val & M1_SET_ALL;
     if (val == FUJI_PIPE_CTL_FLUSH)
@@ -240,7 +241,7 @@ static inline void m1_control(m1_card_t *card, uint8_t val)
     }
 }
 
-static inline void m1_io_write(m1_card_t *card, uint8_t port, uint8_t val)
+M1_INLINE void m1_io_write(m1_card_t *card, uint8_t port, uint8_t val)
 {
     if (m1_is_pipe(card, port))
     {
@@ -254,7 +255,7 @@ static inline void m1_io_write(m1_card_t *card, uint8_t port, uint8_t val)
 }
 
 /* The heartbeats core0 has counted since the last look. */
-static inline void m1_take_ticks(m1_card_t *card)
+M1_INLINE void m1_take_ticks(m1_card_t *card)
 {
     uint32_t ticks = __atomic_load_n(&card->rtc_ticks, __ATOMIC_ACQUIRE);
     if (ticks != card->rtc_seen)
@@ -265,21 +266,21 @@ static inline void m1_take_ticks(m1_card_t *card)
 }
 
 /* Between cycles: the FDC engine's posts and the heartbeat. */
-static inline void m1_bus_idle(m1_card_t *card)
+M1_INLINE void m1_bus_idle(m1_card_t *card)
 {
     wd_apply(&card->fdc);
     m1_take_ticks(card);
 }
 
 /* INT*: the latch holds something and the EI is the card's. */
-static inline bool m1_int_pending(const m1_card_t *card)
+M1_INLINE bool m1_int_pending(const m1_card_t *card)
 {
     return m1_on(card, M1_SET_EI) && (card->rtc || card->fdc.intrq);
 }
 
 /* SYSRES*: the EI's latches clear and the 1771 restores; RAM and the pipe stay,
  * and the saved settings take hold. */
-static inline void m1_bus_reset(m1_card_t *card)
+M1_INLINE void m1_bus_reset(m1_card_t *card)
 {
     card->settings.enabled = (uint8_t)(card->saved & ~card->forced_off);
     card->rtc = false;

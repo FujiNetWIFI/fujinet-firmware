@@ -15,6 +15,7 @@
 #include <stdint.h>
 
 #include "fuji_tcache.h"
+#include "m1_inline.h"
 
 #define WD_DRIVES      4
 #define WD_SECTOR      256
@@ -104,19 +105,19 @@ typedef struct {
 
 /* ---- bus side ---- */
 
-static inline int wd_drive_of(uint8_t latch)
+M1_INLINE int wd_drive_of(uint8_t latch)
 {
     return (latch & 1) ? 0 : (latch & 2) ? 1 : (latch & 4) ? 2 : (latch & 8) ? 3 : -1;
 }
 
-static inline bool wd_ready(const wd1771_t *fdc, uint32_t now)
+M1_INLINE bool wd_ready(const wd1771_t *fdc, uint32_t now)
 {
     int drive = wd_drive_of(fdc->latch);
     return drive >= 0 && (int32_t)(fdc->motor_until - now) > 0 &&
            (__atomic_load_n(&fdc->present, __ATOMIC_ACQUIRE) & (1u << drive));
 }
 
-static inline uint8_t wd_status(const wd1771_t *fdc, uint32_t now)
+M1_INLINE uint8_t wd_status(const wd1771_t *fdc, uint32_t now)
 {
     uint8_t status = fdc->status;
     bool ready = wd_ready(fdc, now);
@@ -138,7 +139,7 @@ static inline uint8_t wd_status(const wd1771_t *fdc, uint32_t now)
 }
 
 /* The value a read of register 0-3 (37ECh + reg) returns. */
-static inline uint8_t wd_peek(const wd1771_t *fdc, uint8_t reg, uint32_t now)
+M1_INLINE uint8_t wd_peek(const wd1771_t *fdc, uint8_t reg, uint32_t now)
 {
     switch (reg & 3)
     {
@@ -153,7 +154,7 @@ static inline uint8_t wd_peek(const wd1771_t *fdc, uint8_t reg, uint32_t now)
     }
 }
 
-static inline void wd_transfer_end(wd1771_t *fdc)
+M1_INLINE void wd_transfer_end(wd1771_t *fdc)
 {
     fdc->phase = WD_PHASE_IDLE;
     fdc->status &= (uint8_t)~WD_ST_DRQ;
@@ -167,7 +168,7 @@ static inline void wd_transfer_end(wd1771_t *fdc)
 }
 
 /* What a read did: a status read clears INTRQ; a data read takes the next byte. */
-static inline void wd_after_read(wd1771_t *fdc, uint8_t reg)
+M1_INLINE void wd_after_read(wd1771_t *fdc, uint8_t reg)
 {
     if ((reg & 3) == 0)
         fdc->intrq = false;
@@ -179,7 +180,7 @@ static inline void wd_after_read(wd1771_t *fdc, uint8_t reg)
     }
 }
 
-static inline void wd_force_interrupt(wd1771_t *fdc, uint8_t cmd)
+M1_INLINE void wd_force_interrupt(wd1771_t *fdc, uint8_t cmd)
 {
     fdc->status &= (uint8_t)(WD_ST_HLD | WD_ST_SEEK | WD_ST_CRC);
     if (fdc->mode != WD_MODE_TYPE1)
@@ -189,7 +190,7 @@ static inline void wd_force_interrupt(wd1771_t *fdc, uint8_t cmd)
     fdc->intrq = (cmd & 0x08) != 0;
 }
 
-static inline void wd_command(wd1771_t *fdc, uint8_t cmd)
+M1_INLINE void wd_command(wd1771_t *fdc, uint8_t cmd)
 {
     bool force = (cmd & 0xF0) == 0xD0;
     if ((fdc->status & WD_ST_BUSY) && !force)
@@ -211,7 +212,7 @@ static inline void wd_command(wd1771_t *fdc, uint8_t cmd)
     __atomic_store_n(&fdc->seq, fdc->seq + 1, __ATOMIC_RELEASE);
 }
 
-static inline void wd_write(wd1771_t *fdc, uint8_t reg, uint8_t val)
+M1_INLINE void wd_write(wd1771_t *fdc, uint8_t reg, uint8_t val)
 {
     switch (reg & 3)
     {
@@ -237,7 +238,7 @@ static inline void wd_write(wd1771_t *fdc, uint8_t reg, uint8_t val)
 }
 
 /* A write to the drive select latch (37E0h-37E3h): retriggers the motors. */
-static inline void wd_select(wd1771_t *fdc, uint8_t val, uint32_t now)
+M1_INLINE void wd_select(wd1771_t *fdc, uint8_t val, uint32_t now)
 {
     if (!((int32_t)(fdc->motor_until - now) > 0))
         fdc->index_origin = now;
@@ -246,7 +247,7 @@ static inline void wd_select(wd1771_t *fdc, uint8_t val, uint32_t now)
 }
 
 /* Takes the engine's newest post, if it answers the command in progress. */
-static inline void wd_apply(wd1771_t *fdc)
+M1_INLINE void wd_apply(wd1771_t *fdc)
 {
     uint32_t post_num = __atomic_load_n(&fdc->post_id, __ATOMIC_ACQUIRE);
     if (post_num == __atomic_load_n(&fdc->applied, __ATOMIC_RELAXED))
@@ -277,7 +278,7 @@ static inline void wd_apply(wd1771_t *fdc)
 }
 
 /* SYSRES*: the 1771's master reset, which starts a Restore; the latch clears. */
-static inline void wd_reset(wd1771_t *fdc)
+M1_INLINE void wd_reset(wd1771_t *fdc)
 {
     fdc->phase = WD_PHASE_IDLE;
     fdc->status = 0;

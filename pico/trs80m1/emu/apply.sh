@@ -20,7 +20,7 @@ FW=../firmware
 graft "$TRSDIR" trs80m1_fujinet.cpp trs80m1_fujinet.h trs80fn.ipp
 graft_common "$TRSDIR" fujibus fuji_ring fuji_pipe fuji_iolink fuji_tcache
 graft "$TRSDIR" "$FW"/src/m1_{card,wd1771,uart}.c \
-    "$FW"/include/{m1_card,m1_wd1771,m1_uart,fuji_tcache_cfg}.h
+    "$FW"/include/{m1_card,m1_wd1771,m1_uart,m1_inline,fuji_tcache_cfg}.h
 graft_fujins "$TRSDIR" m1 m1_card.cpp m1_wd1771.cpp m1_uart.cpp m1_card.h m1_wd1771.h \
     m1_uart.h trs80m1_fujinet.cpp -- fuji_tcache_accept
 
