@@ -150,7 +150,8 @@ static MapperLayout make_layout(std::span<const MapperWindow> windows,
 size_result_t MSXROM::read(ByteBuffer &buffer, size_t length)
 {
     auto got = ROMMedia::read(buffer, length);
-    if (got.is_success() && !buffer.empty() && _sha1 && _sha1->update(buffer.data(), buffer.size()))
+    if (got.is_success() && !buffer.empty() && _sha1
+        && _sha1->update(buffer.data(), buffer.size()).is_success())
         _hashed += buffer.size();
     return got;
 }
@@ -162,9 +163,9 @@ void MSXROM::lookupDatabase()
         return;
 
     uint8_t digest[20];
-    int finished = _sha1->finish(digest, sizeof(digest));
+    auto finished = _sha1->finish(digest, sizeof(digest));
     _sha1.reset();
-    if (finished != 0)
+    if (finished.is_error())
         return;
     std::string hash = mstr::toHex(digest, sizeof(digest));
     FILE *db = msx_rom_db_open();

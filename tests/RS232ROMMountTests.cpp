@@ -172,11 +172,11 @@ TEST_CASE("a hash stream fed uneven chunks matches the one-shot hash")
         size_t offset = 0;
         for (size_t chunk : {1, 7, 100, 0, 333, 559})
         {
-            REQUIRE(stream.update(data.data() + offset, chunk));
+            REQUIRE(stream.update(data.data() + offset, chunk).is_success());
             offset += chunk;
         }
         REQUIRE(offset == data.size());
-        REQUIRE(stream.finish(actual, len) == 0);
+        REQUIRE(stream.finish(actual, len).is_success());
         CHECK(std::memcmp(actual, expected, len) == 0);
     }
 }

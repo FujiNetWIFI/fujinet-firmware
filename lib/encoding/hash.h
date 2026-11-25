@@ -7,6 +7,8 @@
 #include <cstdint>
 #include <memory>
 
+#include "global_types.h"
+
 class Hash {
 public:
     enum class Algorithm {
@@ -44,9 +46,9 @@ public:
         Stream(const Stream &) = delete;
         Stream &operator=(const Stream &) = delete;
 
-        bool update(const void *data, size_t len);
-        // Returns 0 on success; output_size must be >= hash_length(algorithm, false).
-        int finish(uint8_t *output, size_t output_size);
+        success_is_true update(const void *data, size_t len);
+        // output_size must be >= hash_length(algorithm, false).
+        success_is_true finish(uint8_t *output, size_t output_size);
 
     private:
         struct Context;

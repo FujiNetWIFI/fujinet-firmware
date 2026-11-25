@@ -232,14 +232,14 @@ Hash::Stream::Stream(Algorithm algorithm)
 
 Hash::Stream::~Stream() = default;
 
-bool Hash::Stream::update(const void *data, size_t len) {
-    return context && mbedtls_md_update(&context->md, (const unsigned char *)data, len) == 0;
+success_is_true Hash::Stream::update(const void *data, size_t len) {
+    RETURN_SUCCESS_IF(context && mbedtls_md_update(&context->md, (const unsigned char *)data, len) == 0);
 }
 
-int Hash::Stream::finish(uint8_t *output, size_t output_size) {
+success_is_true Hash::Stream::finish(uint8_t *output, size_t output_size) {
     if (!context || output_size < length)
-        return -1;
-    return mbedtls_md_finish(&context->md, output) == 0 ? 0 : -1;
+        RETURN_ERROR_AS_FALSE();
+    RETURN_SUCCESS_IF(mbedtls_md_finish(&context->md, output) == 0);
 }
 
 void Hash::compute_md5() {
