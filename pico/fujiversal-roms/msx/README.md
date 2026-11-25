@@ -6,7 +6,7 @@ built during the ESP32 build, because building it needs a Z80 toolchain (z88dk) 
 fujinet-lib, neither of which the firmware or CI toolchain carries.
 
 It lives here, outside the `pico/fujiversal` submodule, so the submodule stays a clean
-checkout of upstream. The CoCo equivalent (`hdbdw3bc3.rom`) needs no such treatment — it is
+checkout of upstream. The CoCo equivalent (`fujidos.rom`) needs no such treatment — it is
 tracked inside the submodule already.
 
 `build_pico.py` turns this file into `pico/fujiversal/build/msx_proto_260402/rom.h` via
@@ -22,11 +22,6 @@ tracked inside the submodule already.
 | source | `msxio/` in the `pico/fujiversal` submodule |
 | built from submodule commit | `2f8950a` ("Updates to serial debugging (#19)") |
 | fujinet-lib version | unrecorded — latest at build time (see the note below) |
-
-The submodule is currently pinned at `929e2f8`, which is three commits newer than the commit
-this ROM was built from. Those three commits touch `Makefile` and
-`boards/coco_proto_260402.pio` only, not `msxio/`, so the ROM is still current. Check
-`git -C pico/fujiversal log 2f8950a..HEAD -- msxio` before assuming it stays that way.
 
 ## Regenerating
 
