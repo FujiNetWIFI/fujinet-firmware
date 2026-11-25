@@ -10,6 +10,16 @@
 #include "led.h"
 #include "debug.h"
 
+// The UART divider cannot hit every rate - it reads back for example 55424 for 55425.
+// An exact compare set the baud rate again on every service loop (and logged it).
+static bool baud_matches(int current, int wanted)
+{
+    int diff = current - wanted;
+    if (diff < 0)
+        diff = -diff;
+    return diff <= wanted / 1000 + 1;
+}
+
 #ifdef ESP_PLATFORM
 #define SIO_UART_DEVICE PIN_BUS_UART
 #else /* !ESP_PLATFORM */
@@ -375,11 +385,15 @@ void systemBus::service()
     bool is_motor_asserted = false;
     is_motor_asserted = motor_asserted();
 
-    if (_streamDev != nullptr && _streamDev->netstreamActive && !is_motor_asserted
-        && getCurrentBaudrate() != getBaudrate())
+    if (_streamDev != nullptr && _streamDev->netstreamActive && !is_motor_asserted)
     {
-        Debug_printf("NETSTREAM: MOTOR de-assert, restoring baud %d\n", getBaudrate());
-        setBaudrate(getBaudrate());
+        // Give the SIO DATA IN line back to the UART (echo clock mode)
+        _streamDev->sio_netstream_motor(false);
+        if (!baud_matches(getCurrentBaudrate(), getBaudrate()))
+        {
+            Debug_printf("NETSTREAM: MOTOR de-assert, restoring baud %d\n", getBaudrate());
+            setBaudrate(getBaudrate());
+        }
     }
 
     if (_streamDev != nullptr && _streamDev->netstreamActive && is_motor_asserted)
@@ -392,7 +406,7 @@ void systemBus::service()
         else
         {
             const int netstream_baud = _streamDev->netstream_baud;
-            if (getCurrentBaudrate() != netstream_baud)
+            if (!baud_matches(getCurrentBaudrate(), netstream_baud))
             {
                 // Ensure NetStream baud
 #ifdef DEBUG_NETSTREAM
@@ -400,6 +414,7 @@ void systemBus::service()
 #endif
                 setBaudrate(netstream_baud);
             }
+            _streamDev->sio_netstream_motor(true);
             _streamDev->sio_handle_netstream();
             return; // break!
         }

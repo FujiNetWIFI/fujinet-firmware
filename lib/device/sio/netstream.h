@@ -4,6 +4,7 @@
 #ifdef ESP_PLATFORM
 #include <driver/ledc.h>
 #include "sdkconfig.h"
+#include "soc/soc_caps.h"
 #endif
 
 #include "bus.h"
@@ -35,6 +36,12 @@
 #define NETSTREAM_MAX_BATCH_AGE_US 3000                         // Max SIO->NET batch age before forced flush.
 #define NETSTREAM_FLUSH_THRESHOLD (NETSTREAM_BUFFER_SIZE - 16)  // Flush when nearly full.
 #define NETSTREAM_RX_STATS_INTERVAL_US 1000000                  // Periodic debug stats cadence while active.
+// The echo clock - the synchronous external clock (the Atari receives with the external clock - flag 0x08).
+// CKI comes from an MCPWM timer locked to the POKEY CLOCK OUT echo (PIN_CKO) and the data bits from its
+// comparator interrupt - see netstream.cpp. Without it (or when it cannot start) the LEDC clock runs.
+#if defined(ESP_PLATFORM) && SOC_MCPWM_SUPPORTED && !defined(NETSTREAM_NO_ECHO_CLOCK)
+#define NETSTREAM_ECHO_CLOCK 1
+#endif
 #define MIDI_PORT 5004
 #define MIDI_BAUDRATE 31250
 
@@ -82,6 +89,15 @@ private:
     void enqueue_rx(const uint8_t *data, int len);    // byte path enqueue; TCP drains are capped before overflow
     void enqueue_frame(const uint8_t *data, int len); // framed path (lossy UDP): push whole frame, evict oldest whole frames over cap
     void drain_net_to_ring();                         // pull all available net datagrams into the buffer
+    bool netstream_out_byte(uint8_t c);               // one byte toward the Atari (UART or echo clock)
+#ifdef NETSTREAM_ECHO_CLOCK
+    bool echo_active = false;                         // CKI and the data from the echo clock
+    bool echo_start(int baud);                        // false - the LEDC clock
+    void echo_stop();
+    bool echo_paced() const { return echo_active; }   // the echo clock queue paces the bytes - not the timer
+#else
+    bool echo_paced() const { return false; }
+#endif
     void sio_status(const FujiSIOPacket &packet) override;
     void sio_process(const FujiSIOPacket &packet) override;
 
@@ -107,6 +123,7 @@ public:
     void sio_enable_netstream();  // setup netstream
     void sio_disable_netstream(); // stop netstream
     void sio_handle_netstream();  // Handle incoming & outgoing data for netstream
+    void sio_netstream_motor(bool asserted); // MOTOR line state while NetStream is active
 };
 
 #endif

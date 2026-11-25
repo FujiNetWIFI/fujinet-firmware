@@ -15,6 +15,20 @@
 #include <errno.h>
 #include <sys/socket.h>
 #endif
+#ifdef NETSTREAM_ECHO_CLOCK
+#include <atomic>
+#include <driver/mcpwm_prelude.h>
+#include <driver/gpio.h>
+#include <driver/uart.h>
+#include <esp_attr.h>
+#include <esp_rom_gpio.h>
+#include <esp_rom_sys.h>
+#include <soc/gpio_reg.h>
+#include <soc/gpio_sig_map.h>
+#if CONFIG_IDF_TARGET_ESP32
+#include <soc/mcpwm_struct.h>
+#endif
+#endif
 
 static uint64_t netstream_time_us()
 {
@@ -90,6 +104,536 @@ static void netstream_enable_clock_pwm(int baud)
     ledc_update_duty(LEDC_ESP32XX_HIGH_SPEED, LEDC_CHANNEL_1);
 }
 #endif
+
+#ifdef NETSTREAM_ECHO_CLOCK
+/*
+ * The echo clock - the synchronous external clock (the Atari receives with SKCTL serial mode 000).
+ *
+ * POKEY copies the CKI edges to CLOCK OUT after it synchronized them to PHI2 - and POKEY can lose a CKI
+ * edge that comes close to a PHI2 edge (the known edge defect - see ijor/sioSync). The free running LEDC
+ * clock and the UART data drift through that window and through the sampling point - the Atari gets
+ * framing errors on long streams.
+ *
+ * Here one MCPWM timer (80 MHz) makes CKI. The falling CLOCK OUT edge (our falling CKI edge echoed by
+ * POKEY) resets the timer - comparator A raises CKI - comparator B lowers it a fixed time later. So our
+ * edges keep one phase against PHI2 and the bit is a whole number of PHI2 cycles (the UART receives at
+ * PHI2 / n). Without an echo the timer wraps after the period (a bit plus 3 PHI2 cycles) and goes on.
+ *
+ * At the start a phase scan moves the falling edge over one PHI2 period with the data line at mark. The
+ * CLOCK OUT period grows by one PHI2 cycle where our edge passes the PHI2 edge POKEY synchronizes on -
+ * that is the dangerous window. The edge is then placed half a PHI2 period away from it.
+ *
+ * The data bit is written by the interrupt of a comparator at the falling CKI edge. POKEY reads it about
+ * 4-5 us after the rising edge - the bit changes while CKI is low (the 74LS07 then holds CLOCK IN down
+ * hard - a DATA IN edge while CKI is high can couple a dip into CLOCK IN). The high part is about 10 us
+ * (whole PHI2 cycles - at most half a bit) - so the interrupt has the long low part to run in.
+ */
+#define NETSTREAM_ECHO_LAT_TICKS 113         // CLOCK OUT falls this long after our falling CKI edge (ticks of 12.5 ns)
+#define NETSTREAM_ECHO_HIGH_US 10            // the high part of CKI
+#define NETSTREAM_ECHO_INTR_PRIO 3           // the highest priority for C handlers
+#define NETSTREAM_ECHO_SCAN_STEPS 16         // phase steps over one PHI2 period
+#define NETSTREAM_ECHO_SCAN_IV 8             // CLOCK OUT intervals measured per step
+#define NETSTREAM_ECHO_TXQ_SIZE 64           // bytes toward the Atari - power of 2
+#define NETSTREAM_ECHO_TXQ_MASK (NETSTREAM_ECHO_TXQ_SIZE - 1)
+#define NETSTREAM_ECHO_TXQ_HIGH 8            // pace_to_atari keeps at most this many bytes queued
+
+struct NetstreamEcho
+{
+    bool active = false;
+    bool enabled = false;                      // the timer is enabled
+    bool data_attached = false;                // our GPIO drives the SIO DATA IN pin (else the UART TX)
+    volatile bool hold = true;                 // the phase scan runs - the data line stays at mark
+    mcpwm_timer_handle_t timer = nullptr;
+    mcpwm_oper_handle_t oper = nullptr;
+    mcpwm_cmpr_handle_t ca = nullptr, cb = nullptr;
+    mcpwm_oper_handle_t oper2 = nullptr;
+    mcpwm_cmpr_handle_t cc = nullptr;          // the data bit comparator (at the falling edge)
+    mcpwm_gen_handle_t gen = nullptr;
+    mcpwm_sync_handle_t sync = nullptr;
+    int pin = -1;                              // the SIO DATA IN pin (the UART TX pin)
+    uint32_t mask = 0;                         // its bit in the GPIO out registers
+    bool hi = false;                           // pin 32 or more
+    double tphi = 0;                           // ticks per PHI2 cycle
+    uint32_t hticks = 0;                       // the high part in ticks
+    uint32_t dpos = 0, tbit = 0;               // the data comparator value - the bit in ticks
+    int tid = -1;                              // our timer in MCPWM0 (ESP32 - for the lateness) - -1 unknown
+    uint32_t bits = 0;                         // ISR - line bits sent
+    uint32_t late_max = 0;                     // ISR - the latest data bit interrupt (ticks)
+    // the byte queue (single producer pace_to_atari - single consumer the ISR)
+    uint8_t q[NETSTREAM_ECHO_TXQ_SIZE];
+    std::atomic<uint32_t> head{0};
+    std::atomic<uint32_t> tail{0};
+    uint16_t frame = 0;                        // ISR - rest of the current byte - LSB = next bit
+    uint8_t frame_bits = 0;                    // ISR - bits left in frame
+    // the phase scan - the CLOCK OUT period measured by the capture unit
+    mcpwm_cap_timer_handle_t ctimer = nullptr;
+    mcpwm_cap_channel_handle_t cch = nullptr;
+    uint32_t c_last = 0;                       // ISR
+    bool c_have = false;                       // ISR
+    volatile uint32_t c_n = 0;                 // ISR - intervals stored
+    uint32_t c_iv[NETSTREAM_ECHO_SCAN_IV];     // ISR - CLOCK OUT falling to falling in ticks
+};
+static NetstreamEcho s_echo;
+
+// The TX pin of the SIO UART (the same choice as ESP32UARTChannel::begin)
+static int netstream_bus_tx_pin()
+{
+    switch (PIN_BUS_UART)
+    {
+#ifdef PIN_UART0_TX
+    case 0:
+        return PIN_UART0_TX;
+#endif
+#ifdef PIN_UART1_TX
+    case 1:
+        return PIN_UART1_TX;
+#endif
+#ifdef PIN_UART2_TX
+    case 2:
+        return PIN_UART2_TX;
+#endif
+    default:
+        return GPIO_NUM_NC;
+    }
+}
+
+static inline __attribute__((always_inline)) void netstream_echo_level(uint32_t b)
+{
+    if (s_echo.hi)
+        REG_WRITE(b ? GPIO_OUT1_W1TS_REG : GPIO_OUT1_W1TC_REG, s_echo.mask);
+    else
+        REG_WRITE(b ? GPIO_OUT_W1TS_REG : GPIO_OUT_W1TC_REG, s_echo.mask);
+}
+
+// One byte toward the Atari - false when the queue is full enough (pace_to_atari tries again)
+static bool netstream_echo_push(uint8_t c)
+{
+    uint32_t head = s_echo.head.load(std::memory_order_relaxed);
+    uint32_t tail = s_echo.tail.load(std::memory_order_acquire);
+    if ((head - tail) >= NETSTREAM_ECHO_TXQ_HIGH)
+        return false;
+    s_echo.q[head & NETSTREAM_ECHO_TXQ_MASK] = c;
+    s_echo.head.store(head + 1, std::memory_order_release);
+    return true;
+}
+
+// The data bit at the falling CKI edge - start bit - 8 data bits LSB first - stop bit - else idle mark
+static bool IRAM_ATTR netstream_echo_bit_cb(mcpwm_cmpr_handle_t, const mcpwm_compare_event_data_t *, void *)
+{
+    if (s_echo.hold)
+    {
+        netstream_echo_level(1);
+        return false;
+    }
+    uint32_t tail = s_echo.tail.load(std::memory_order_relaxed);
+    uint32_t head = s_echo.head.load(std::memory_order_acquire);
+    uint16_t frame = s_echo.frame;
+    uint8_t bits = s_echo.frame_bits;
+    if (bits == 0)
+    {
+        if (tail != head)
+        {
+            frame = (uint16_t)(0x200 | ((uint16_t)s_echo.q[tail & NETSTREAM_ECHO_TXQ_MASK] << 1));
+            tail++;
+            bits = 10;
+        }
+        else
+        {
+            frame = 1;
+            bits = 1;
+        }
+    }
+    netstream_echo_level(frame & 1);
+#if CONFIG_IDF_TARGET_ESP32
+    if (s_echo.tid >= 0)
+    {
+        // how late this interrupt runs - the counter is past the data comparator (or reset by the next echo)
+        uint32_t cnt = MCPWM0.timer[s_echo.tid].timer_status.val & 0xFFFF;
+        uint32_t late = cnt >= s_echo.dpos ? cnt - s_echo.dpos : cnt + s_echo.tbit - s_echo.dpos;
+        if (late > s_echo.late_max)
+            s_echo.late_max = late;
+    }
+#endif
+    s_echo.frame = frame >> 1;
+    s_echo.frame_bits = bits - 1;
+    s_echo.tail.store(tail, std::memory_order_release);
+    s_echo.bits++;
+    return false;
+}
+
+static void netstream_echo_cap_free()
+{
+    if (s_echo.cch != nullptr)
+    {
+        mcpwm_capture_channel_disable(s_echo.cch);
+        mcpwm_del_capture_channel(s_echo.cch);
+        s_echo.cch = nullptr;
+    }
+    if (s_echo.ctimer != nullptr)
+    {
+        mcpwm_capture_timer_stop(s_echo.ctimer);
+        mcpwm_capture_timer_disable(s_echo.ctimer);
+        mcpwm_del_capture_timer(s_echo.ctimer);
+        s_echo.ctimer = nullptr;
+    }
+}
+
+static void netstream_echo_free()
+{
+    netstream_echo_cap_free();
+    if (s_echo.timer != nullptr && s_echo.enabled)
+    {
+        mcpwm_timer_start_stop(s_echo.timer, MCPWM_TIMER_STOP_EMPTY);
+        mcpwm_timer_disable(s_echo.timer);
+    }
+    s_echo.enabled = false;
+    if (s_echo.gen != nullptr)
+        mcpwm_del_generator(s_echo.gen);
+    if (s_echo.cc != nullptr)
+        mcpwm_del_comparator(s_echo.cc);
+    if (s_echo.oper2 != nullptr)
+        mcpwm_del_operator(s_echo.oper2);
+    if (s_echo.ca != nullptr)
+        mcpwm_del_comparator(s_echo.ca);
+    if (s_echo.cb != nullptr)
+        mcpwm_del_comparator(s_echo.cb);
+    if (s_echo.oper != nullptr)
+        mcpwm_del_operator(s_echo.oper);
+    if (s_echo.timer != nullptr && s_echo.sync != nullptr)
+    {
+        mcpwm_timer_sync_phase_config_t none = {};
+        mcpwm_timer_set_phase_on_sync(s_echo.timer, &none);
+    }
+    if (s_echo.sync != nullptr)
+        mcpwm_del_sync_src(s_echo.sync);
+    if (s_echo.timer != nullptr)
+        mcpwm_del_timer(s_echo.timer);
+    s_echo.gen = nullptr;
+    s_echo.cc = nullptr;
+    s_echo.oper2 = nullptr;
+    s_echo.ca = s_echo.cb = nullptr;
+    s_echo.oper = nullptr;
+    s_echo.sync = nullptr;
+    s_echo.timer = nullptr;
+    s_echo.active = false;
+}
+
+// The phase scan - one falling CLOCK OUT edge (ISR)
+static bool IRAM_ATTR netstream_echo_cap_cb(mcpwm_cap_channel_handle_t, const mcpwm_capture_event_data_t *e, void *)
+{
+    uint32_t t = e->cap_value;
+    if (s_echo.c_have && s_echo.c_n < NETSTREAM_ECHO_SCAN_IV)
+    {
+        s_echo.c_iv[s_echo.c_n] = t - s_echo.c_last;
+        s_echo.c_n = s_echo.c_n + 1;
+    }
+    s_echo.c_last = t;
+    s_echo.c_have = true;
+    return false;
+}
+
+// Both CKI edges and the data comparator - the falling edge at cb - the values load at the next echo
+static void netstream_echo_place(uint32_t cb)
+{
+    mcpwm_comparator_set_compare_value(s_echo.ca, cb - s_echo.hticks);
+    mcpwm_comparator_set_compare_value(s_echo.cb, cb);
+    mcpwm_comparator_set_compare_value(s_echo.cc, cb);
+    s_echo.dpos = cb;
+}
+
+// The phase scan at the stream start (the data line at mark). Locked, the CLOCK OUT period is a whole number
+// of PHI2 cycles. Moving our falling edge later over one PHI2 period, the period stays m cycles until our
+// edge passes the PHI2 edge POKEY synchronizes on - from there it is m+1. The edge goes half a period away
+// from that step - and by whole periods back or forth so that the bit stays n cycles. Returns the falling
+// edge place - base_cb when the scan finds no step.
+static uint32_t netstream_echo_scan(uint32_t base_cb, int n)
+{
+    mcpwm_capture_timer_config_t tcfg = {};
+    tcfg.group_id = 0;
+    tcfg.clk_src = MCPWM_CAPTURE_CLK_SRC_DEFAULT;
+    if (mcpwm_new_capture_timer(&tcfg, &s_echo.ctimer) != ESP_OK)
+    {
+        s_echo.ctimer = nullptr;
+        Debug_println("NETSTREAM: echo clock - no capture timer for the phase scan");
+        return base_cb;
+    }
+    mcpwm_capture_channel_config_t ccfg = {};
+    ccfg.gpio_num = PIN_CKO;
+    ccfg.prescale = 1;
+    ccfg.intr_priority = NETSTREAM_ECHO_INTR_PRIO;
+    ccfg.flags.neg_edge = 1;
+    ccfg.flags.pull_up = 1;
+    mcpwm_capture_event_callbacks_t cbs = {};
+    cbs.on_cap = netstream_echo_cap_cb;
+    if (mcpwm_new_capture_channel(s_echo.ctimer, &ccfg, &s_echo.cch) != ESP_OK ||
+        mcpwm_capture_channel_register_event_callbacks(s_echo.cch, &cbs, nullptr) != ESP_OK ||
+        mcpwm_capture_channel_enable(s_echo.cch) != ESP_OK ||
+        mcpwm_capture_timer_enable(s_echo.ctimer) != ESP_OK ||
+        mcpwm_capture_timer_start(s_echo.ctimer) != ESP_OK)
+    {
+        netstream_echo_cap_free();
+        Debug_println("NETSTREAM: echo clock - phase scan capture setup failed");
+        return base_cb;
+    }
+    const int steps = NETSTREAM_ECHO_SCAN_STEPS;
+    const double tphi = s_echo.tphi;
+    uint32_t bit_us = (uint32_t)(n * tphi / 80.0) + 1;
+    int cyc[NETSTREAM_ECHO_SCAN_STEPS];        // CLOCK OUT period in PHI2 cycles per step (0 = no clear answer)
+    char line[NETSTREAM_ECHO_SCAN_STEPS + 1];
+    for (int k = 0; k < steps; k++)
+    {
+        netstream_echo_place(base_cb + (uint32_t)(k * tphi / steps + 0.5));
+        esp_rom_delay_us(6 * bit_us);          // the new place loads at the next echo - let it settle
+        s_echo.c_have = false;
+        s_echo.c_n = 0;
+        for (uint32_t w = 0; w < 4 * NETSTREAM_ECHO_SCAN_IV && s_echo.c_n < NETSTREAM_ECHO_SCAN_IV; w++)
+            esp_rom_delay_us(bit_us);
+        uint32_t cnt = s_echo.c_n;
+        int first = cnt ? (int)(s_echo.c_iv[0] / tphi + 0.5) : 0;
+        bool same = cnt >= NETSTREAM_ECHO_SCAN_IV / 2;
+        for (uint32_t i = 1; i < cnt && same; i++)
+            if ((int)(s_echo.c_iv[i] / tphi + 0.5) != first)
+                same = false;
+        cyc[k] = same ? first : 0;
+        int d = cyc[k] - n;
+        line[k] = cyc[k] == 0 ? '?' : d == 0 ? '0' : d == 1 ? '+' : d == -1 ? '-' : '*';
+    }
+    line[steps] = 0;
+    netstream_echo_cap_free();
+    // the jump - the first clear step whose period is one more than the clear step before it (unclear steps
+    // between them are the window itself - there the period changes from bit to bit)
+    int kb = -1, jb = -1;
+    for (int k = 0, last = -1; k < steps; k++)
+    {
+        if (cyc[k] == 0)
+            continue;
+        if (last >= 0 && cyc[k] == cyc[last] + 1)
+        {
+            kb = k;
+            jb = last;
+            break;
+        }
+        last = k;
+    }
+    if (kb < 0)
+    {
+        // no jump inside - the window is at the wrap (between step 15 and step 0 one period later) - in the
+        // middle of the unclear steps there or at 15.5 - all clear steps must agree
+        int c = 0, nun = 0;
+        bool agree = true;
+        for (int k = 0; k < steps; k++)
+        {
+            if (cyc[k] == 0)
+            {
+                nun++;
+                continue;
+            }
+            if (c == 0)
+                c = cyc[k];
+            else if (cyc[k] != c)
+                agree = false;
+        }
+        if (!agree || c == 0 || nun > steps / 4)
+        {
+            Debug_printf("NETSTREAM: echo clock phase scan %s - no step found - phase 0\n", line);
+            return base_cb;
+        }
+        int ue = 0, us = 0;                    // unclear steps at the end and at the start
+        while (ue < steps && cyc[steps - 1 - ue] == 0)
+            ue++;
+        while (us < steps && cyc[us] == 0)
+            us++;
+        double b = steps - 0.5 + (us - ue) / 2.0;
+        double sk2 = b - steps / 2;
+        Debug_printf("NETSTREAM: echo clock phase scan %s - PHI2 edge at the wrap - edge at step %.1f\n", line, sk2);
+        return (uint32_t)(base_cb + sk2 * tphi / steps - (c - n) * tphi + 0.5);
+    }
+    double sk = (jb + kb) / 2.0 + steps / 2;   // half a period from the window
+    double cbd = base_cb + sk * tphi / steps - (cyc[kb] - n) * tphi;
+    Debug_printf("NETSTREAM: echo clock phase scan %s - PHI2 edge at step %.1f - edge at step %.1f\n",
+                 line, (jb + kb) / 2.0, sk >= steps ? sk - steps : sk);
+    return (uint32_t)(cbd + 0.5);
+}
+
+// Returns the line rate (PHI2 / whole cycles) - 0 when the echo clock cannot run (the LEDC clock then)
+static int netstream_echo_start(int baud, bool pal)
+{
+    const double phi2 = pal ? 1773447.0 : 1789773.0;
+    const double tphi = 80000000.0 / phi2;     // ticks per PHI2 cycle (45.1 PAL - 44.7 NTSC)
+    int n = (int)(phi2 / (double)baud + 0.5);  // PHI2 cycles per bit
+    s_echo.pin = netstream_bus_tx_pin();
+    if (s_echo.pin < 0 || (int)PIN_CKI < 0 || (int)PIN_CKO < 0 || n < 16 || n * tphi > 60000.0)
+    {
+        Debug_printf("NETSTREAM: echo clock not possible (%d baud)\n", baud);
+        return 0;
+    }
+    double tbit = n * tphi;
+    int hc = (int)(NETSTREAM_ECHO_HIGH_US * 80.0 / tphi + 0.999);   // the high part in PHI2 cycles
+    if (hc < 4)
+        hc = 4;
+    if (hc > n / 2)
+        hc = n / 2;
+    uint32_t base_cb = (uint32_t)(tbit - NETSTREAM_ECHO_LAT_TICKS + 0.5);
+    uint32_t hticks = (uint32_t)(hc * tphi + 0.5);
+    uint32_t period = (uint32_t)(tbit + 3.0 * tphi + 0.5);          // the scan moves the edge up to one PHI2
+    s_echo.hi = s_echo.pin >= 32;
+    s_echo.mask = 1u << (s_echo.pin & 31);
+    s_echo.tphi = tphi;
+    s_echo.hticks = hticks;
+    s_echo.tbit = (uint32_t)(tbit + 0.5);
+    s_echo.dpos = base_cb;
+    s_echo.tid = -1;
+    s_echo.bits = 0;
+    s_echo.late_max = 0;
+    s_echo.head.store(0);
+    s_echo.tail.store(0);
+    s_echo.frame = 0;
+    s_echo.frame_bits = 0;
+    s_echo.data_attached = false;
+    s_echo.hold = true;
+
+    mcpwm_timer_config_t tcfg = {};
+    tcfg.group_id = 0;
+    tcfg.clk_src = MCPWM_TIMER_CLK_SRC_DEFAULT;
+    tcfg.resolution_hz = 80000000;
+    tcfg.count_mode = MCPWM_TIMER_COUNT_MODE_UP;
+    tcfg.period_ticks = period;
+    tcfg.intr_priority = NETSTREAM_ECHO_INTR_PRIO;   // the first part fixes the priority of the whole group
+    mcpwm_operator_config_t ocfg = {};
+    ocfg.group_id = 0;
+    ocfg.intr_priority = NETSTREAM_ECHO_INTR_PRIO;
+    mcpwm_comparator_config_t ccfg = {};
+    ccfg.intr_priority = NETSTREAM_ECHO_INTR_PRIO;
+    ccfg.flags.update_cmp_on_tez = 1;
+    ccfg.flags.update_cmp_on_sync = 1;         // the echo resets the counter - new places load there too
+    mcpwm_generator_config_t gcfg = {};
+    gcfg.gen_gpio_num = PIN_CKI;
+    mcpwm_gpio_sync_src_config_t scfg = {};
+    scfg.group_id = 0;
+    scfg.gpio_num = PIN_CKO;
+    scfg.flags.active_neg = 1;                 // the falling CLOCK OUT edge
+    scfg.flags.pull_up = 1;                    // the 74LS07 output is open collector
+    mcpwm_comparator_event_callbacks_t cbs = {};
+    cbs.on_reach = netstream_echo_bit_cb;
+    mcpwm_timer_sync_phase_config_t ph = {};
+    ph.count_value = 0;
+    ph.direction = MCPWM_TIMER_DIRECTION_UP;
+    uint32_t cb = base_cb;
+    const char *step = "timer";
+    if (mcpwm_new_timer(&tcfg, &s_echo.timer) != ESP_OK)
+        goto fail;
+#if CONFIG_IDF_TARGET_ESP32
+    for (int i = 0; i < 3; i++)                // which hardware timer the driver gave us (up mode keeps period - 1)
+        if (MCPWM0.timer[i].timer_cfg0.timer_period == period - 1)
+        {
+            s_echo.tid = i;
+            break;
+        }
+#endif
+    step = "operator";
+    if (mcpwm_new_operator(&ocfg, &s_echo.oper) != ESP_OK || mcpwm_operator_connect_timer(s_echo.oper, s_echo.timer) != ESP_OK ||
+        mcpwm_new_operator(&ocfg, &s_echo.oper2) != ESP_OK || mcpwm_operator_connect_timer(s_echo.oper2, s_echo.timer) != ESP_OK)
+        goto fail;
+    step = "comparator";
+    if (mcpwm_new_comparator(s_echo.oper, &ccfg, &s_echo.ca) != ESP_OK ||
+        mcpwm_new_comparator(s_echo.oper, &ccfg, &s_echo.cb) != ESP_OK ||
+        mcpwm_new_comparator(s_echo.oper2, &ccfg, &s_echo.cc) != ESP_OK ||
+        mcpwm_comparator_register_event_callbacks(s_echo.cc, &cbs, nullptr) != ESP_OK)
+        goto fail;
+    netstream_echo_place(base_cb);
+    step = "generator";
+    if (mcpwm_new_generator(s_echo.oper, &gcfg, &s_echo.gen) != ESP_OK ||
+        mcpwm_generator_set_action_on_compare_event(s_echo.gen,
+            MCPWM_GEN_COMPARE_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, s_echo.ca, MCPWM_GEN_ACTION_HIGH)) != ESP_OK ||
+        mcpwm_generator_set_action_on_compare_event(s_echo.gen,
+            MCPWM_GEN_COMPARE_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, s_echo.cb, MCPWM_GEN_ACTION_LOW)) != ESP_OK)
+        goto fail;
+    step = "sync";
+    if (mcpwm_new_gpio_sync_src(&scfg, &s_echo.sync) != ESP_OK)
+        goto fail;
+    ph.sync_src = s_echo.sync;
+    if (mcpwm_timer_set_phase_on_sync(s_echo.timer, &ph) != ESP_OK)
+        goto fail;
+    step = "start";
+    s_echo.active = true;                      // before the first interrupt
+    if (mcpwm_timer_enable(s_echo.timer) != ESP_OK)
+        goto fail;
+    s_echo.enabled = true;
+    if (mcpwm_timer_start_stop(s_echo.timer, MCPWM_TIMER_START_NO_STOP) != ESP_OK)
+        goto fail;
+    cb = netstream_echo_scan(base_cb, n);
+    netstream_echo_place(cb);
+    esp_rom_delay_us((uint32_t)(4 * tbit / 80.0));
+    s_echo.hold = false;                       // data from now on
+    Debug_printf("NETSTREAM: echo clock - %d PHI2 cycles per bit (%s) - %d Hz - high %d cycles\n",
+                 n, pal ? "PAL" : "NTSC", (int)(phi2 / n + 0.5), hc);
+    return (int)(phi2 / n + 0.5);
+fail:
+    Debug_printf("NETSTREAM: echo clock %s setup failed - LEDC clock\n", step);
+    netstream_echo_free();
+    return 0;
+}
+
+// Our GPIO (echo clock data) or the UART TX on the SIO DATA IN pin - our GPIO only while MOTOR is on
+static void netstream_echo_attach_data(bool attach)
+{
+    if (!s_echo.active || attach == s_echo.data_attached)
+        return;
+    int pin = s_echo.pin;
+    if (attach)
+    {
+        netstream_echo_level(1);               // mark until the next bit
+        esp_rom_gpio_pad_select_gpio(pin);
+        esp_rom_gpio_connect_out_signal(pin, SIG_GPIO_OUT_IDX, false, false);
+        gpio_set_direction((gpio_num_t)pin, GPIO_MODE_OUTPUT);
+    }
+    else
+        uart_set_pin(PIN_BUS_UART, pin, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+    s_echo.data_attached = attach;
+}
+
+bool sioNetStream::echo_start(int baud)
+{
+    int r = netstream_echo_start(baud, netstream_video_pal);
+    if (r == 0)
+        return false;
+    netstream_baud = r;                        // the UART receives with the real line rate
+    echo_active = true;
+    return true;
+}
+
+void sioNetStream::echo_stop()
+{
+    if (!echo_active)
+        return;
+    netstream_echo_attach_data(false);
+    Debug_printf("NETSTREAM: echo clock stop - %lu line bits - bit interrupt late max %lu us\n",
+                 (unsigned long)s_echo.bits, (unsigned long)(s_echo.late_max / 80));
+    netstream_echo_free();
+    echo_active = false;
+}
+#endif /* NETSTREAM_ECHO_CLOCK */
+
+void sioNetStream::sio_netstream_motor(bool asserted)
+{
+#ifdef NETSTREAM_ECHO_CLOCK
+    if (echo_active)
+        netstream_echo_attach_data(asserted);
+#else
+    (void)asserted;
+#endif
+}
+
+// One byte toward the Atari - false when it has to wait (the echo clock queue is full)
+bool sioNetStream::netstream_out_byte(uint8_t c)
+{
+#ifdef NETSTREAM_ECHO_CLOCK
+    if (echo_active)
+        return netstream_echo_push(c);
+#endif
+    SYSTEM_BUS.write(&c, 1);
+    return true;
+}
 
 bool sioNetStream::ensure_netstream_ready()
 {
@@ -306,9 +850,10 @@ void sioNetStream::pace_to_atari(uint32_t min_gap_us)
                     continue;
             }
             uint64_t now_us = netstream_time_us();
-            if ((now_us - last_tx_us) < min_gap_us)
+            if (!echo_paced() && (now_us - last_tx_us) < min_gap_us)
                 break;
-            SYSTEM_BUS.write(&inflight[inflight_pos], 1);
+            if (!netstream_out_byte(inflight[inflight_pos]))
+                break;
             inflight_pos++;
             last_tx_us += min_gap_us;
             send_count++;
@@ -320,12 +865,12 @@ void sioNetStream::pace_to_atari(uint32_t min_gap_us)
     while (rx_count > 0 && send_count < NETSTREAM_PACE_MAX_PER_CALL)
     {
         uint64_t now_us = netstream_time_us();
-        if ((now_us - last_tx_us) < min_gap_us)
+        if (!echo_paced() && (now_us - last_tx_us) < min_gap_us)
             break;
-        uint8_t out = rx_ring[rx_tail];
+        if (!netstream_out_byte(rx_ring[rx_tail]))
+            break;
         rx_tail = (rx_tail + 1) % NETSTREAM_RX_RING_SIZE;
         rx_count--;
-        SYSTEM_BUS.write(&out, 1);
         last_tx_us += min_gap_us;
         send_count++;
     }
@@ -367,7 +912,16 @@ void sioNetStream::sio_enable_netstream()
 
 #ifdef ESP_PLATFORM
     if (netstream_tx_clock_external || netstream_rx_clock_external)
-        netstream_enable_clock_pwm(netstream_baud);
+    {
+        bool synced = false;
+#ifdef NETSTREAM_ECHO_CLOCK
+        // The Atari receives with our clock - the data must come with the same clock
+        if (netstream_rx_clock_external && !SYSTEM_BUS.isBoIP())
+            synced = echo_start(netstream_baud);
+#endif
+        if (!synced)
+            netstream_enable_clock_pwm(netstream_baud);
+    }
 #endif
 
     if (netstreamMode == NetStreamMode::UDP)
@@ -427,6 +981,11 @@ void sioNetStream::sio_disable_netstream()
     if (cassette_was_active && SYSTEM_BUS.getCassette() != nullptr && SYSTEM_BUS.getCassette()->is_mounted())
         SYSTEM_BUS.getCassette()->sio_enable_cassette();
     cassette_was_active = false;
+#ifdef NETSTREAM_ECHO_CLOCK
+    if (echo_active)
+        echo_stop();
+    else
+#endif
 #ifdef ESP_PLATFORM
         ledc_stop(LEDC_ESP32XX_HIGH_SPEED, LEDC_CHANNEL_1, 0);
 #endif
