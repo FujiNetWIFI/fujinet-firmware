@@ -1101,6 +1101,9 @@ if(FUJINET_TARGET STREQUAL "RS232")
     ${CMAKE_SOURCE_DIR}/lib/media/rom/MSXROM.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/rom/MSXROMDatabase.cpp
     ${CMAKE_SOURCE_DIR}/lib/encoding/hash.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/string_utils.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/U8Char.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/punycode.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/rom/NESROM.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/rom/SegaMasterROM.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/rom/StudioIIROM.cpp
@@ -1154,6 +1157,9 @@ if(FUJINET_TARGET STREQUAL "RS232")
     ${CMAKE_SOURCE_DIR}/lib/media/rom/MSXROM.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/rom/MSXROMDatabase.cpp
     ${CMAKE_SOURCE_DIR}/lib/encoding/hash.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/string_utils.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/U8Char.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/punycode.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/rom/NESROM.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/rom/SegaMasterROM.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/rom/StudioIIROM.cpp

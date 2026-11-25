@@ -1,6 +1,7 @@
 #include "MSXROM.h"
 #include "MSXROMDatabase.h"
 #include "hash.h"
+#include "string_utils.h"
 
 #include "debug.h"
 
@@ -69,15 +70,15 @@ static bool has_cart_id(const uint8_t header[2])
 }
 
 // The tag in square brackets just before the extension, such as
-// "Game [ASCII8].rom"; nullopt if there is none or it isn't one we know.
-static std::optional<MSXROM::Mapper> mapper_from_name(const std::string &path)
+// "Game [ASCII8].rom"; Unknown if there is none or it isn't one we know.
+static MSXROM::Mapper mapper_from_name(const std::string &path)
 {
     size_t dot = path.rfind('.');
     if (dot == std::string::npos || dot == 0 || path[dot - 1] != ']')
-        return std::nullopt;
+        return MSXROM::Mapper::Unknown;
     size_t open = path.rfind('[', dot - 1);
     if (open == std::string::npos)
-        return std::nullopt;
+        return MSXROM::Mapper::Unknown;
 
     std::string tag = path.substr(open + 1, dot - open - 2);
     for (char &ch : tag)
@@ -91,17 +92,16 @@ static std::optional<MSXROM::Mapper> mapper_from_name(const std::string &path)
         return MSXROM::Mapper::Konami;
     if (tag == "konamiscc")
         return MSXROM::Mapper::KonamiScc;
-    return std::nullopt;
+    return MSXROM::Mapper::Unknown;
 }
 
-struct DbType
+struct DBType
 {
     std::string_view name;
     MSXROM::Mapper mapper;
 };
 
-// The openMSX type names the database uses; any other is placed by size.
-static constexpr DbType DB_TYPES[] = {
+static constexpr DBType DB_TYPES[] = {
     {"ASCII8", MSXROM::Mapper::Ascii8},
     {"ASCII16", MSXROM::Mapper::Ascii16},
     {"Konami", MSXROM::Mapper::Konami},
@@ -133,9 +133,11 @@ error_is_true MSXROM::attach()
     if (!found)
         RETURN_ERROR_AS_TRUE();
 
-    auto tagged = mapper_from_name(_path);
-    _tagged = tagged.has_value();
-    _mapper = tagged.value_or(Mapper::Plain);
+    _mapper = mapper_from_name(_path);
+    _hashed = 0;
+    _sha1.reset();
+    if (_mapper == Mapper::Unknown)
+        _sha1.emplace(Hash::Algorithm::SHA1);
     RETURN_SUCCESS_AS_FALSE();
 }
 
@@ -148,43 +150,23 @@ static MapperLayout make_layout(std::span<const MapperWindow> windows,
 size_result_t MSXROM::read(ByteBuffer &buffer, size_t length)
 {
     auto got = ROMMedia::read(buffer, length);
-    if (!_tagged && got.is_success() && !buffer.empty())
-    {
-        if (_image.empty())
-            _image.reserve(_size);
-        _image.insert(_image.end(), buffer.begin(), buffer.end());
-    }
+    if (got.is_success() && !buffer.empty() && _sha1 && _sha1->update(buffer.data(), buffer.size()))
+        _hashed += buffer.size();
     return got;
 }
 
-static std::string hex_upper(const uint8_t *bytes, size_t len)
-{
-    static constexpr char HEX_DIGITS[] = "0123456789ABCDEF";
-    std::string out;
-    for (size_t idx = 0; idx < len; idx++)
-    {
-        out += HEX_DIGITS[bytes[idx] >> 4];
-        out += HEX_DIGITS[bytes[idx] & 0x0F];
-    }
-    return out;
-}
-
-// Only once, and only if the whole image was read.
+// Only if the whole image was hashed.
 void MSXROM::lookupDatabase()
 {
-    if (_tagged || _looked)
-        return;
-    _looked = true;
-    if (_size == 0 || _image.size() != _size)
+    if (!_sha1 || _size == 0 || _hashed != _size)
         return;
 
     uint8_t digest[20];
-    int hashed = Hash::compute(Hash::Algorithm::SHA1, _image.data(), _image.size(), digest,
-                               sizeof(digest));
-    std::vector<uint8_t>().swap(_image);
-    if (hashed != 0)
+    int finished = _sha1->finish(digest, sizeof(digest));
+    _sha1.reset();
+    if (finished != 0)
         return;
-    std::string hash = hex_upper(digest, sizeof(digest));
+    std::string hash = mstr::toHex(digest, sizeof(digest));
     FILE *db = msx_rom_db_open();
     if (db == nullptr)
     {
@@ -200,7 +182,7 @@ void MSXROM::lookupDatabase()
     }
 
     Debug_printf("MSX ROM %s: database type %s\n", hash.c_str(), type->c_str());
-    for (const DbType &entry : DB_TYPES)
+    for (const DBType &entry : DB_TYPES)
     {
         if (entry.name == *type)
         {
@@ -212,7 +194,12 @@ void MSXROM::lookupDatabase()
 
 std::optional<MapperLayout> MSXROM::mapperLayout()
 {
-    lookupDatabase();
+    if (_mapper == Mapper::Unknown)
+    {
+        lookupDatabase();
+        if (_mapper == Mapper::Unknown)
+            _mapper = Mapper::Plain;
+    }
 
     size_t pages = (_size + MSX_PAGE - 1) / MSX_PAGE;
     switch (_mapper)
@@ -229,6 +216,7 @@ std::optional<MapperLayout> MSXROM::mapperLayout()
         return make_layout(std::span(PLAIN_WINDOWS_PAGE0).first(pages <= 2 ? pages : 4));
     case Mapper::PlainPage2:
         return make_layout(std::span(PLAIN_WINDOWS_PAGE2).first(std::min<size_t>(pages, 2)));
+    case Mapper::Unknown:
     case Mapper::Plain:
         break;
     }

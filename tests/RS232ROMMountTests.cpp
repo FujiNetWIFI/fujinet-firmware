@@ -10,6 +10,7 @@
 #include "romMountStubs.h"
 #include "fujiHost.h"
 #include "hash.h"
+#include "string_utils.h"
 #include "rom/MSXROMDatabase.h"
 
 namespace
@@ -152,16 +153,32 @@ std::vector<Window> params_of(fujiCommandID_t command)
 // The SHA-1 of data as uppercase hex.
 std::string sha1_hex(const std::vector<uint8_t> &data)
 {
-    static constexpr char HEX_DIGITS[] = "0123456789ABCDEF";
     uint8_t digest[20];
     CHECK(Hash::compute(Hash::Algorithm::SHA1, data.data(), data.size(), digest, sizeof(digest)) == 0);
-    std::string out;
-    for (uint8_t byte : digest)
+    return mstr::toHex(digest, sizeof(digest));
+}
+
+TEST_CASE("a hash stream fed uneven chunks matches the one-shot hash")
+{
+    auto data = make_image(1000);
+    for (auto algorithm : {Hash::Algorithm::MD5, Hash::Algorithm::SHA1, Hash::Algorithm::SHA256,
+                           Hash::Algorithm::SHA512})
     {
-        out += HEX_DIGITS[byte >> 4];
-        out += HEX_DIGITS[byte & 0x0F];
+        size_t len = Hash::hash_length(algorithm, false);
+        uint8_t expected[64], actual[64];
+        REQUIRE(Hash::compute(algorithm, data.data(), data.size(), expected, len) == 0);
+
+        Hash::Stream stream(algorithm);
+        size_t offset = 0;
+        for (size_t chunk : {1, 7, 100, 0, 333, 559})
+        {
+            REQUIRE(stream.update(data.data() + offset, chunk));
+            offset += chunk;
+        }
+        REQUIRE(offset == data.size());
+        REQUIRE(stream.finish(actual, len) == 0);
+        CHECK(std::memcmp(actual, expected, len) == 0);
     }
-    return out;
 }
 
 // A database line for image: its SHA-1 in lowercase, a tab, the type, CRLF.

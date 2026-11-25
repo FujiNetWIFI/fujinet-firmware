@@ -2,17 +2,18 @@
 #define MSXROM_H
 
 #include "ROMMedia.h"
+#include "hash.h"
 
 #include <optional>
 #include <string>
-#include <vector>
 
 class MSXROM : public ROMMedia
 {
 public:
-    // Plain is a fixed image placed by its size; PlainPage0 and PlainPage2 are fixed
-    // images that start at that page.
-    enum class Mapper { Plain, PlainPage0, PlainPage2, Ascii8, Ascii16, Konami, KonamiScc };
+    // Unknown is an untagged image not yet looked up in the database. Plain is a
+    // fixed image placed by its size; PlainPage0 and PlainPage2 are fixed images
+    // that start at that page.
+    enum class Mapper { Unknown, Plain, PlainPage0, PlainPage2, Ascii8, Ascii16, Konami, KonamiScc };
 
 protected:
     error_is_true attach() override;
@@ -29,10 +30,9 @@ public:
 private:
     void lookupDatabase();
 
-    Mapper _mapper = Mapper::Plain;
-    bool _tagged = false;
-    bool _looked = false;
-    std::vector<uint8_t> _image;
+    Mapper _mapper = Mapper::Unknown;
+    std::optional<Hash::Stream> _sha1;
+    size_t _hashed = 0;
 };
 
 #endif /* MSXROM_H */

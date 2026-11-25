@@ -5,6 +5,7 @@
 #include <string>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 
 class Hash {
 public:
@@ -34,6 +35,24 @@ public:
 
     // One-shot hash; returns 0 on success. output_size must be >= hash_length(algorithm, false).
     static int compute(Algorithm algorithm, const void *data, size_t len, uint8_t *output, size_t output_size);
+
+    // Hash of data that arrives in pieces.
+    class Stream {
+    public:
+        explicit Stream(Algorithm algorithm);
+        ~Stream();
+        Stream(const Stream &) = delete;
+        Stream &operator=(const Stream &) = delete;
+
+        bool update(const void *data, size_t len);
+        // Returns 0 on success; output_size must be >= hash_length(algorithm, false).
+        int finish(uint8_t *output, size_t output_size);
+
+    private:
+        struct Context;
+        std::unique_ptr<Context> context;
+        size_t length;
+    };
 
     static Hash::Algorithm to_algorithm(uint8_t value);
     static Hash::Algorithm from_string(std::string hash_name);

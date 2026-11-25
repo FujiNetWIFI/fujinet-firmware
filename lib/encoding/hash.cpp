@@ -4,12 +4,12 @@
 #include <iomanip>
 
 #include <mbedtls/version.h>
+#include <mbedtls/md.h>
 
-// mbedtls 4.x moved the low-level hash API into TF-PSA-Crypto; only PSA remains public.
+// mbedtls 4.x made the per-algorithm hash API private; only md.h and PSA remain public.
 #if MBEDTLS_VERSION_MAJOR >= 4
 #include <psa/crypto.h>
 #else
-#include <mbedtls/md.h>
 #include <mbedtls/md5.h>
 #include <mbedtls/sha1.h>
 #include <mbedtls/sha256.h>
@@ -40,7 +40,8 @@ static psa_algorithm_t to_psa_alg(Hash::Algorithm algorithm) {
         default:                      return PSA_ALG_NONE;
     }
 }
-#else
+#endif
+
 static mbedtls_md_type_t to_md_type(Hash::Algorithm algorithm) {
     switch (algorithm) {
         case Hash::Algorithm::MD5:    return MBEDTLS_MD_MD5;
@@ -52,7 +53,6 @@ static mbedtls_md_type_t to_md_type(Hash::Algorithm algorithm) {
         default:                      return MBEDTLS_MD_NONE;
     }
 }
-#endif
 
 // TODO: Add support for other algorithms and hardware acceleration
 
@@ -211,6 +211,35 @@ int Hash::compute(Algorithm algorithm, const void *data, size_t len, uint8_t *ou
     }
     return 0;
 #endif
+}
+
+struct Hash::Stream::Context {
+    mbedtls_md_context_t md;
+    Context() { mbedtls_md_init(&md); }
+    ~Context() { mbedtls_md_free(&md); }
+};
+
+Hash::Stream::Stream(Algorithm algorithm)
+    : context(std::make_unique<Context>()), length(hash_length(algorithm, false)) {
+#if MBEDTLS_VERSION_MAJOR >= 4
+    psa_crypto_init();
+#endif
+    if (length == 0
+        || mbedtls_md_setup(&context->md, mbedtls_md_info_from_type(to_md_type(algorithm)), 0) != 0
+        || mbedtls_md_starts(&context->md) != 0)
+        context.reset();
+}
+
+Hash::Stream::~Stream() = default;
+
+bool Hash::Stream::update(const void *data, size_t len) {
+    return context && mbedtls_md_update(&context->md, (const unsigned char *)data, len) == 0;
+}
+
+int Hash::Stream::finish(uint8_t *output, size_t output_size) {
+    if (!context || output_size < length)
+        return -1;
+    return mbedtls_md_finish(&context->md, output) == 0 ? 0 : -1;
 }
 
 void Hash::compute_md5() {
