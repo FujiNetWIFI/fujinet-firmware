@@ -282,7 +282,7 @@ rs232Disk::PercomBlock rs232Disk::derivePercom()
         }
     }
 
-    geometry.numTracks = (uint8_t)std::min<uint16_t>(cylinders, UINT8_MAX);
+    geometry.numTracks = cylinders > UINT8_MAX ? 0 : (uint8_t)cylinders;
     geometry.stepRate = 0x01;
     geometry.sectorsPerTrack = sectorsPerTrack;
     geometry.numSides = sides - 1;
