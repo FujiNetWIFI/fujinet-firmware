@@ -4,6 +4,7 @@
 #include <cstring>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "disk.h"
@@ -21,6 +22,7 @@ constexpr size_t IMG_SECTOR_SIZE = 512;
 constexpr size_t IMD_SECTOR_SIZE = 128;
 constexpr size_t ALTAIR_MINIDISK_SIZE = 76720;
 constexpr uint32_t ALTAIR_MINIDISK_SECTORS = 35 * 16;
+constexpr size_t ALTAIR_8MB_SIZE = 8978432;
 
 // Reaches the command handler the bus calls, which is the only way in to a
 // sector read or write.
@@ -70,6 +72,13 @@ std::vector<uint8_t> drive_status(TestDisk &disk)
 {
     bus.reset();
     disk.rs232_process(FujiBusPacket(FUJI_DEVICEID::DISK, CMD::DISK_STATUS));
+    return bus.answer;
+}
+
+std::vector<uint8_t> percom_block(TestDisk &disk)
+{
+    bus.reset();
+    disk.rs232_process(FujiBusPacket(FUJI_DEVICEID::DISK, CMD::DISK_PERCOM_READ));
     return bus.answer;
 }
 
@@ -313,6 +322,22 @@ TEST_CASE("an Altair write lands in its sector, and a read-only mount refuses")
         CHECK(write_sector(disk, ALTAIR_MINIDISK_SECTORS, filled(ALTAIR_DSK_SECTOR_SIZE, 0x77))
               == Outcome::Error);
         CHECK(file.contents() == expected);
+        check_closed_once(disk, file);
+    }
+}
+
+TEST_CASE("PERCOM sends an Altair disk's track count, and 0 for more than 255")
+{
+    for (auto [size, tracks] : {std::pair<size_t, uint8_t>{ALTAIR_MINIDISK_SIZE, 35},
+                                std::pair<size_t, uint8_t>{ALTAIR_8MB_SIZE, 0}})
+    {
+        CAPTURE(size);
+        MemFile file(std::vector<uint8_t>(size, 0));
+        TestDisk disk;
+        REQUIRE(disk.mount(&file, ALTAIR_TEST_FILE, size, DISK_ACCESS_MODE_READ).is_success());
+        auto percom = percom_block(disk);
+        REQUIRE(percom.size() == 12);
+        CHECK(percom[0] == tracks);
         check_closed_once(disk, file);
     }
 }

@@ -63,7 +63,7 @@ private:
     // The disk's geometry as DISK_PERCOM_READ sends it.
     struct PercomBlock
     {
-        uint8_t numTracks;
+        uint8_t numTracks; // 0 for more than 255
         uint8_t stepRate;
         u16be_t sectorsPerTrack;
         uint8_t numSides; // 0 single, 1 double
