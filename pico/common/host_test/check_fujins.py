@@ -24,7 +24,8 @@ def main():
                    if os.path.exists(p))
         obj = os.path.join(out, module + ".o")
         subprocess.run(["cc", "-c", "-std=gnu11", "-w", "-I" + os.path.join(COMMON, "include"),
-                        "-I" + os.path.join(COMMON, "emu"), "-I" + mailbox, "-o", obj, src],
+                        "-I" + os.path.join(COMMON, "emu"), "-I" + mailbox,
+                        "-I" + os.path.join(COMMON, "host_test"), "-o", obj, src],
                        check=True)
         nm = subprocess.run(["nm", "--defined-only", "-g", obj], check=True,
                             capture_output=True, text=True).stdout.split("\n")

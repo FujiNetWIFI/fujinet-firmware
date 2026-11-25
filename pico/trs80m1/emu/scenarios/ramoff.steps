@@ -1,0 +1,6 @@
+; RAMTEST with the card's RAM switched off: nothing answers at 8000h.
+; mount 0 client:ramtest.dsk
+; switches 6
+; timeout 90
+wait "RAMTEST NONE" 60
+pass

@@ -1,0 +1,5 @@
+; FNHELLO boots from a test disk in slot 1: the card's pipe and one FujiBus round trip.
+; mount 0 client:fnhello.dsk
+; timeout 60
+wait "FNHELLO PASS" 30
+pass

@@ -1,0 +1,18 @@
+; NEWDOS/80 2.0 boots from slot 1, copies a file, and runs the copy.
+; mount 0 disk:newdos80.dsk rw
+; timeout 180
+wait "NEWDOS/80 READY" 60
+type "COPY HELP/CMD:0 HELP2/CMD:0\r"
+sleep 15
+type "CLS\r"
+sleep 2
+type "DIR 0\r"
+wait "HELP2/CMD  " 20
+must "73 GRANS"
+wait "NEWDOS/80 READY" 10
+sleep 1
+type "CLS\r"
+sleep 2
+type "HELP2 DIR\r"
+wait "Display a diskette's directory" 20
+pass

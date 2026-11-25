@@ -190,6 +190,18 @@ int main(void)
     CHECK_EQ(link.state, FUJI_LS_IDLE);
     CHECK_EQ(getc_all(buf), 0);
 
+    // A request of the card's own goes out first, and the cache drops after it.
+    int fuji_before = fe.fuji;
+    fb_param_t mode = {0, 1};
+    fuji_iolink_card_request(&link, FUJI_DEVICEID_FUJINET, 0xD6, &mode);
+    fuji_tcache_sync(&cache);
+    fuji_iolink_poll(&link, now);
+    CHECK_EQ(fe.last_cmd, 0xD6);
+    poll(3);
+    CHECK_EQ(fe.fuji, fuji_before + 1);
+    CHECK(fuji_tcache_sync(&cache));
+    CHECK_EQ(getc_all(buf), 0); // its reply is nobody's
+
     // Link lost: mounts are forgotten.
     fuji_iolink_set_up(&link, false, now);
     CHECK_EQ(fuji_tcache_geo(&cache, 0), FUJI_TC_GEO_UNKNOWN);

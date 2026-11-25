@@ -590,6 +590,11 @@ jobs:
           ./build-cart.sh --baked
           make -C firmware/host_test
 
+      # Nothing is baked: CONFIG boots from slot 1 as a disk image.
+      - name: TRS-80 Model I card (fujitrs80m1_rp2354b)
+        working-directory: pico/trs80m1
+        run: ./build-cart.sh --baked
+
       - name: Template cartridge (fujitemplate)
         working-directory: pico/template
         run: ./build-cart.sh --baked

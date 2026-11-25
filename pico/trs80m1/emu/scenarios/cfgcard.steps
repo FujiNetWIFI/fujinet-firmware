@@ -1,0 +1,32 @@
+; CONFIG's card settings screen: the RS-232 DIP switch holds that block off, the others toggle.
+; mount 0 client:autorun.jv1
+; switches 3
+; timeout 120
+wait "HOST SLOTS" 60
+sleep 2
+type "K"
+wait "MODEL I CARD SETTINGS" 10
+sleep 1
+must "1 32K RAM"
+must "3 RS-232 MODEM"
+must "OFF (DIP SWITCH)"
+dump
+key Enter 0.5
+wait "OFF FROM THE NEXT RESET." 10
+sleep 1
+dump
+key Enter 0.5
+wait "ON NOW, AND AT EVERY RESET." 10
+type "2"
+sleep 1
+key Enter 0.5
+wait "THEN NO DISK DRIVES" 10
+sleep 1
+dump
+type "3"
+sleep 1
+key Enter 0.5
+wait "A DIP SWITCH HOLDS THAT BLOCK OFF." 10
+key Break 0.5
+wait "HOST SLOTS" 10
+pass

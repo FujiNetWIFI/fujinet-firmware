@@ -1,0 +1,7 @@
+; PRNTEST: a line through the card's printer port reaches the FujiNet printer.
+; mount 0 client:prntest.dsk
+; printed FUJINET MODEL I PRINTER TEST
+; timeout 90
+wait "PRNTEST SENT" 60
+sleep 3
+pass

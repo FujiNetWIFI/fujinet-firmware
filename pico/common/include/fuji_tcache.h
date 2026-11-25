@@ -4,12 +4,13 @@
  *
  * The cart sizes it in its fuji_tcache_cfg.h (FUJI_TC_DRIVES, FUJI_TC_SECTOR,
  * FUJI_TC_SPT_MAX, FUJI_TC_SLOTS) and decides which mounts it can serve in
- * fuji_tcache_accept().
+ * fuji_tcache_accept(). Defining FUJI_TC_PROBE_STATUS there follows each
+ * accepted mount check with DISK_STATUS, for the write protect.
  *
- * Ownership: the bus side owns slot keys and LRU and sets fill requests and
- * dirty bits; the link side sets valid bits, clears fill and dirty, and holds
- * `busy` while it touches a slot's data. A slot is rekeyed only when it has no
- * fill, no dirty sector and is not busy.
+ * Ownership: the bus side owns slot keys and LRU and sets fill requests, wanted
+ * sectors and dirty bits; the link side sets valid bits, clears fill and dirty,
+ * and holds `busy` while it touches a slot's data. A slot is rekeyed only when it
+ * has no fill, no dirty sector and is not busy.
  */
 #ifndef FUJI_TCACHE_H
 #define FUJI_TCACHE_H
@@ -36,6 +37,7 @@ typedef struct {
     uint32_t retry_at; /* link side: back off after a failed read */
     uint32_t valid;    /* atomic */
     uint32_t dirty;    /* atomic */
+    uint32_t want;     /* atomic: sectors to fetch before the rest */
     uint8_t fill;      /* atomic */
     uint8_t busy;      /* atomic */
     uint8_t data[FUJI_TC_SPT_MAX][FUJI_TC_SECTOR];
@@ -46,6 +48,8 @@ typedef struct {
     uint16_t tracks;
     uint8_t spt;
     uint8_t probe; /* atomic: the bus side asks the link side to recheck the mount */
+    uint8_t write_protect; /* atomic, link side; known only with FUJI_TC_PROBE_STATUS */
+    uint8_t status_due;    /* link side */
 } fuji_tc_drive_t;
 
 typedef struct {
@@ -106,6 +110,11 @@ int fuji_tcache_find(fuji_tcache_t *cache, uint8_t drive, uint16_t track);
 int fuji_tcache_claim(fuji_tcache_t *cache, uint8_t drive, uint16_t track);
 /* Marks a slot used now, and asks again for any sectors it still lacks. */
 void fuji_tcache_touch(fuji_tcache_t *cache, int slot);
+/* Asks for these sectors before the rest of the track. */
+static inline void fuji_tcache_want(fuji_tcache_t *cache, int slot, uint32_t sectors)
+{
+    __atomic_fetch_or(&cache->slot[slot].want, sectors, __ATOMIC_RELEASE);
+}
 static inline uint32_t fuji_tcache_valid(fuji_tcache_t *cache, int slot)
 {
     return __atomic_load_n(&cache->slot[slot].valid, __ATOMIC_ACQUIRE);
@@ -118,6 +127,12 @@ static inline void fuji_tcache_mark_dirty(fuji_tcache_t *cache, int slot, uint8_
 {
     __atomic_fetch_or(&cache->slot[slot].dirty, 1u << sector, __ATOMIC_RELEASE);
 }
+/* A sector the CPU wrote: now valid, and dirty until the link writes it back. */
+void fuji_tcache_store(fuji_tcache_t *cache, int slot, uint8_t sector, const uint8_t *data);
+static inline bool fuji_tcache_write_protected(fuji_tcache_t *cache, uint8_t drive)
+{
+    return __atomic_load_n(&cache->drv[drive].write_protect, __ATOMIC_ACQUIRE) != 0;
+}
 /* Forgets the drive's idle tracks (a disk may have been swapped) and asks for a
  * mount check. */
 void fuji_tcache_drop_drive(fuji_tcache_t *cache, uint8_t drive);
@@ -127,7 +142,8 @@ typedef enum {
     FUJI_TC_OP_NONE,
     FUJI_TC_OP_PROBE,
     FUJI_TC_OP_READ,
-    FUJI_TC_OP_WRITE
+    FUJI_TC_OP_WRITE,
+    FUJI_TC_OP_STATUS
 } fuji_tc_op_kind_t;
 
 typedef struct {

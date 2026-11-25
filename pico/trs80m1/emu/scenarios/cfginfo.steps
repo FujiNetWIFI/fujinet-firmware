@@ -1,0 +1,46 @@
+; CONFIG's info and WiFi screens, host editing, and the refusal to boot with slot 1 empty.
+; mount 0 client:autorun.jv1
+; timeout 180
+wait "HOST SLOTS" 60
+sleep 2
+type "C"
+wait "SSID: DUMMY CAFE" 10
+sleep 1
+must "IP ADDRESS: 127.0.0.1"
+must "FIRMWARE: V"
+must "S CHANGE WIFI  R RECONNECT  K CARD SETTINGS"
+dump
+type "S"
+wait "WIFI NETWORKS" 10
+sleep 5
+dump
+key Break 0.5
+wait "HOST SLOTS" 20
+sleep 2
+key Down 0.5
+key Down 0.5
+key Down 0.5
+key Down 0.5
+key Down 0.5
+key Down 0.5
+key Down 0.5
+type "E"
+wait "HOST NAME, OR SD" 10
+type "X"
+wait "TNFS.ABBUC.SOCIALX" 10
+sleep 1
+dump
+key Break 0.5
+wait "8 TNFS.ABBUC.SOCIAL " 10
+sleep 1
+must "BREAK MOUNT AND BOOT"
+key Down 0.5
+wait "DRIVE SLOTS" 10
+sleep 1
+type "E"
+wait "1 EMPTY" 10
+key Break 0.5
+wait "SLOT 1 IS EMPTY" 10
+sleep 1
+dump
+pass
