@@ -19,6 +19,7 @@ private:
     char * tx_buffer = nullptr;
     size_t tx_buffer_len = 0;
     cbuf * rx_buffer = nullptr;
+    char * rx_tmp = nullptr;   // receive buffer - allocated once at the first parsePacket - freed by stop()
 
 public:
     fnUDP();
@@ -42,6 +43,7 @@ public:
     size_t write(const uint8_t *buffer, size_t size);
 
     int parsePacket();
+    int fd() const { return udp_server; }   // the socket (for a direct recvfrom - -1 when not open)
     void wait_readable(uint32_t timeout_ms);
 
     int read();

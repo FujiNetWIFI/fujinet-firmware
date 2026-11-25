@@ -48,6 +48,12 @@ void fnUDP::stop()
         delete b;
     }
 
+    if (rx_tmp)
+    {
+        delete[] rx_tmp;
+        rx_tmp = nullptr;
+    }
+
     if (udp_server == -1)
         return;
 
@@ -240,13 +246,18 @@ int fnUDP::parsePacket()
     struct sockaddr_in si_other;
     int slen = sizeof(si_other);
     int len;
-    char *buf = new char[UDP_RXTX_BUFLEN];
-    if (!buf)
-        return 0;
+    // One receive buffer for the life of the socket - a new/delete per poll made every polling loop
+    // (TNFS replies - N: UDP available() - NetStream) take the heap lock thousands of times a second
+    if (!rx_tmp)
+    {
+        rx_tmp = new char[UDP_RXTX_BUFLEN];
+        if (!rx_tmp)
+            return 0;
+    }
+    char *buf = rx_tmp;
 
     if ((len = recvfrom(udp_server, buf, UDP_RXTX_BUFLEN, MSG_DONTWAIT, (struct sockaddr *)&si_other, (socklen_t *)&slen)) == -1)
     {
-        delete[] buf;
         int err = compat_getsockerr();
 #if defined(_WIN32)
         if (err != WSAEWOULDBLOCK)
@@ -265,7 +276,6 @@ int fnUDP::parsePacket()
         rx_buffer = new cbuf(len);
         rx_buffer->write(buf, len);
     }
-    delete[] buf;
     return len;
 }
 
