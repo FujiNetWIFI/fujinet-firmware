@@ -7,7 +7,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "s100_ring.h"
+#include "fuji_ring.h"
 
 #define SIO_CH_MODEM   0
 #define SIO_CH_PRINTER 1

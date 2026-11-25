@@ -11,8 +11,9 @@ How to add a cartridge for a new console under `pico/`: what to copy, what to wr
   shape. Start from [pico/template/](../pico/template/).
 - **An I/O card.** The bus has writes and ports, so the card answers registers instead of
   painting a window. [pico/s100/](../pico/s100/) is the example: it takes common's FujiBus
-  codec and USB device, but has its own link (`s100_link.c`) in place of `fujibus_usb.c`, and no
-  mailbox. Start from it; steps 2, 7, 9 and 10 below still apply, and the rest are its own.
+  codec and USB device, and in place of `fujibus_usb.c` and the mailbox its I/O-card link
+  (`fuji_iolink.c`), FujiBus pipe (`fuji_pipe.h`) and track cache (`fuji_tcache.c`). Start from
+  it; steps 2, 7, 9 and 10 below still apply, and the rest are its own.
 
 ## The pieces you write
 

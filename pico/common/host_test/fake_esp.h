@@ -1,10 +1,12 @@
-/* fake_esp.h -- a stand-in for the ESP32's rs232 bus on the far end of the link.
+/* fake_esp.h -- a stand-in for the ESP32's rs232 bus on the far end of an I/O
+ * card's link (fuji_iolink.h).
  *
- * Frames the card sends are answered from in-memory Altair images (one per slot)
- * as the ESP32 does: 'N' PERCOM, 'R'/'W' 137-byte sectors, FUJI
- * mount commands, printer writes, and MODEM_WRITE with no reply. Replies queue
- * in `out` until the test pumps them into s100_link_rx(), so a test can delay,
- * split or interleave them with raw modem bytes.
+ * Frames the card sends are answered from in-memory images (one per slot) as the
+ * ESP32 does: 'N' PERCOM, 'R'/'W' sectors of the cart's FUJI_TC_SECTOR bytes
+ * unless a test says otherwise, FUJI mount commands, printer writes, and
+ * MODEM_WRITE with no reply. Replies queue in `out` until the test pumps them
+ * into the link, so a test can delay, split or interleave them with raw modem
+ * bytes.
  */
 #ifndef FAKE_ESP_H
 #define FAKE_ESP_H
@@ -13,14 +15,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "fuji_iolink.h"
 #include "fujibus.h"
-#include "s100_regs.h"
 
 #define FE_SLOTS 8
 
 typedef struct {
     uint8_t *img;
-    uint32_t tracks, spt;
+    uint32_t tracks, spt, size;
     int writable;
 } fe_disk_t;
 
@@ -44,16 +46,18 @@ typedef struct {
 
 static fake_esp_t fe;
 
+/* An image of FUJI_TC_SECTOR-byte sectors; byte n of sector s holds s * 7 + n. */
 static inline void fe_disk(int slot, uint32_t tracks, uint32_t spt, int writable)
 {
-    fe_disk_t *d = &fe.disk[slot];
-    free(d->img);
-    d->tracks = tracks;
-    d->spt = spt;
-    d->writable = writable;
-    d->img = malloc(tracks * spt * 137);
-    for (uint32_t i = 0; i < tracks * spt * 137; i++)
-        d->img[i] = (uint8_t)(i / 137 * 7 + i % 137);
+    fe_disk_t *disk = &fe.disk[slot];
+    free(disk->img);
+    disk->tracks = tracks;
+    disk->spt = spt;
+    disk->size = FUJI_TC_SECTOR;
+    disk->writable = writable;
+    disk->img = (uint8_t *)malloc(tracks * spt * FUJI_TC_SECTOR);
+    for (uint32_t idx = 0; idx < tracks * spt * FUJI_TC_SECTOR; idx++)
+        disk->img[idx] = (uint8_t)(idx / FUJI_TC_SECTOR * 7 + idx % FUJI_TC_SECTOR);
 }
 
 static inline void fe_unmount(int slot)
@@ -127,8 +131,8 @@ static inline void fe_frame(uint8_t *raw, uint32_t n)
             p[1] = 1;
             p[2] = (uint8_t)(d->spt >> 8);
             p[3] = (uint8_t)d->spt;
-            p[6] = 0;
-            p[7] = 137;
+            p[6] = (uint8_t)(d->size >> 8);
+            p[7] = (uint8_t)d->size;
             p[8] = 0xFF;
             return fe_reply(r.device, 1, p, 12);
         }
@@ -138,14 +142,14 @@ static inline void fe_frame(uint8_t *raw, uint32_t n)
         if (r.command == 'R')
         {
             fe.reads++;
-            return fe_reply(r.device, 1, d->img + lba * 137, 137);
+            return fe_reply(r.device, 1, d->img + lba * d->size, (uint16_t)d->size);
         }
         if (r.command == 'W')
         {
             fe.writes++;
-            if (!d->writable || r.data_len != 137)
+            if (!d->writable || r.data_len != d->size)
                 return fe_reply(r.device, 0, NULL, 0);
-            memcpy(d->img + lba * 137, r.data, 137);
+            memcpy(d->img + lba * d->size, r.data, d->size);
             return fe_reply(r.device, 1, NULL, 0);
         }
         return fe_reply(r.device, 0, NULL, 0);
@@ -206,15 +210,15 @@ static inline size_t fe_tx(void *ctx, const uint8_t *buf, size_t n)
 }
 
 /* Delivers everything the fake has queued. */
-static inline void fe_pump(s100_card_t *c, uint32_t now)
+static inline void fe_pump(fuji_iolink_t *link, uint32_t now)
 {
     if (!fe.outlen)
         return;
-    uint8_t buf[sizeof(fe.out)];
-    uint32_t n = fe.outlen;
-    memcpy(buf, fe.out, n);
+    static uint8_t buf[sizeof(fe.out)];
+    uint32_t len = fe.outlen;
+    memcpy(buf, fe.out, len);
     fe.outlen = 0;
-    s100_link_rx(c, buf, n, now);
+    fuji_iolink_rx(link, buf, len, now);
 }
 
 static inline void fe_reset(void)

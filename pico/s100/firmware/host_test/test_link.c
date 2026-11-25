@@ -2,6 +2,7 @@
 // orphans, the printer and the modem.
 #include "check.h"
 #include "fake_esp.h"
+#include "s100_regs.h"
 
 static s100_card_t c;
 static uint32_t now = 1000;
@@ -11,7 +12,7 @@ static void poll(int n)
     for (int i = 0; i < n; i++)
     {
         s100_link_poll(&c, now);
-        fe_pump(&c, now);
+        fe_pump(&c.link, now);
         now += 10;
     }
 }
@@ -21,15 +22,15 @@ static void putc_frame(uint8_t dev, uint8_t cmd, const uint8_t *payload, uint16_
     uint8_t req[2400];
     size_t n = fujibus_build_request(dev, cmd, NULL, 0, payload, len, req, sizeof(req));
     for (size_t i = 0; i < n; i++)
-        s100_out(&c, S100_BLK_PIPE, S100_PIPE_PUTC, req[i], now);
+        s100_out(&c, S100_BLK_PIPE, FUJI_PIPE_PUTC, req[i], now);
 }
 
 // Reads whatever GETC has; returns the count.
 static int getc_all(uint8_t *buf)
 {
     int n = 0;
-    while (s100_in(&c, S100_BLK_PIPE, S100_PIPE_STATUS, now) & S100_ST_AVAIL)
-        buf[n++] = s100_in(&c, S100_BLK_PIPE, S100_PIPE_GETC, now);
+    while (s100_in(&c, S100_BLK_PIPE, FUJI_PIPE_STATUS, now) & FUJI_PIPE_ST_AVAIL)
+        buf[n++] = s100_in(&c, S100_BLK_PIPE, FUJI_PIPE_GETC, now);
     return n;
 }
 
@@ -71,8 +72,8 @@ int main(void)
     putc_frame(0x70, 0xE8, NULL, 0);
     poll(3);
     CHECK(host_reply_ok(0x70));
-    s100_out(&c, S100_BLK_PIPE, S100_PIPE_PUTC, 'x', now); // noise before a frame
-    s100_out(&c, S100_BLK_PIPE, S100_PIPE_PUTC, 0xC0, now);
+    s100_out(&c, S100_BLK_PIPE, FUJI_PIPE_PUTC, 'x', now); // noise before a frame
+    s100_out(&c, S100_BLK_PIPE, FUJI_PIPE_PUTC, 0xC0, now);
     putc_frame(0x70, 0xE8, NULL, 0);
     poll(3);
     CHECK(host_reply_ok(0x70));
@@ -83,15 +84,15 @@ int main(void)
     size_t n = fujibus_build_request(0x70, 0xE8, NULL, 0, NULL, 0, req, sizeof(req));
     req[3] ^= 1;
     for (size_t i = 0; i < n; i++)
-        s100_out(&c, S100_BLK_PIPE, S100_PIPE_PUTC, req[i], now);
+        s100_out(&c, S100_BLK_PIPE, FUJI_PIPE_PUTC, req[i], now);
     poll(3);
     CHECK_EQ(fe.fuji, 2);
 
     // Modem bytes with nothing in flight, 0xC0 included, all reach channel A;
-    // what follows an END may wait out LINK_HOLD_US in case a frame is starting.
+    // what follows an END may wait out FUJI_LINK_HOLD_US in case a frame is starting.
     fe_modem_out((const uint8_t *)"\xC0" "CONNECT\xC0\r\n", 11);
     poll(1);
-    now += LINK_HOLD_US;
+    now += FUJI_LINK_HOLD_US;
     poll(1);
     CHECK_EQ(modem_all(buf), 11);
     CHECK(memcmp(buf, "\xC0" "CONNECT\xC0\r\n", 11) == 0);
@@ -100,7 +101,7 @@ int main(void)
     fe_modem_out((const uint8_t *)"X\xC0YZ", 4);
     poll(1);
     CHECK_EQ(modem_all(buf), 1);
-    now += LINK_HOLD_US;
+    now += FUJI_LINK_HOLD_US;
     poll(1);
     CHECK_EQ(modem_all(buf), 3);
     CHECK(memcmp(buf, "\xC0YZ", 3) == 0);
@@ -108,7 +109,7 @@ int main(void)
     // END END in modem data keeps both bytes.
     fe_modem_out((const uint8_t *)"\xC0\xC0Q", 3);
     poll(1);
-    now += LINK_HOLD_US;
+    now += FUJI_LINK_HOLD_US;
     poll(1);
     CHECK_EQ(modem_all(buf), 3);
     CHECK(memcmp(buf, "\xC0\xC0Q", 3) == 0);
@@ -154,7 +155,7 @@ int main(void)
     fe.mute = 1;
     putc_frame(0x70, 0xE8, NULL, 0);
     poll(1);
-    s100_out(&c, S100_BLK_PIPE, S100_PIPE_CONTROL, S100_CTL_FLUSH, now);
+    s100_out(&c, S100_BLK_PIPE, FUJI_PIPE_CONTROL, FUJI_PIPE_CTL_FLUSH, now);
     poll(1);
     fe.mute = 0;
     fe_reply(0x70, 1, NULL, 0);
@@ -176,7 +177,7 @@ int main(void)
     s100_out(&c, S100_BLK_SIO, 3, 'X', now);
     poll(2);
     CHECK_EQ(fe.nprinted, strlen(line));
-    now += LINK_PRN_US;
+    now += FUJI_LINK_PRN_US;
     poll(2);
     CHECK_EQ(fe.nprinted, strlen(line) + 1);
 
@@ -187,7 +188,7 @@ int main(void)
     putc_frame(0x70, 0xE8, NULL, 0);
     poll(3);
     CHECK_EQ(getc_all(buf), 0);
-    now += LINK_OWN_US + LINK_ORPHAN_US;
+    now += FUJI_LINK_OWN_US + FUJI_LINK_ORPHAN_US;
     poll(3);
     CHECK(host_reply_ok(0x70));
     fe.mute_prn = 0;
@@ -197,7 +198,7 @@ int main(void)
         s100_out(&c, S100_BLK_SIO, 1, (uint8_t)*p, now);
     poll(1);
     CHECK_EQ(fe.nmodem, 0); // batched for a moment
-    now += LINK_MDM_US;
+    now += FUJI_LINK_MDM_US;
     poll(2);
     CHECK_EQ(fe.nmodem, 6);
     CHECK(memcmp(fe.modem_tx, "ATDT\xC0\r", 6) == 0);
@@ -214,14 +215,14 @@ int main(void)
         s100_in(&c, S100_BLK_FDC, 1, now);
         poll(1);
     }
-    CHECK_EQ(c.link.st, LS_WAIT);
-    now += LINK_OWN_US;
+    CHECK_EQ(c.link.state, FUJI_LS_WAIT);
+    now += FUJI_LINK_OWN_US;
     poll(1);
-    CHECK_EQ(c.link.st, LS_ORPHAN);
+    CHECK_EQ(c.link.state, FUJI_LS_ORPHAN);
     fe.mute = 0;
     fe_reply(0x31, 1, fe.disk[0].img, 137);
     poll(1);
-    CHECK_EQ(c.link.st, LS_IDLE);
+    CHECK_EQ(c.link.state, FUJI_LS_IDLE);
     now += 300000;
     int reads = fe.reads;
     for (int i = 0; i < 200; i++)

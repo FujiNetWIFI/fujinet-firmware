@@ -125,7 +125,7 @@ PATTERN:
         DEFB    13,10,"!",0C0h
 
         INCLUDE "cpm.inc"
-        INCLUDE "fnport.inc"
+        INCLUDE "pipe.inc"
         INCLUDE "sio.inc"
 
         DEFS    128

@@ -1,6 +1,7 @@
 // The pipe, TICK, CONTROL, the LOAD stream and the boot page.
 #include "check.h"
 #include "fake_esp.h"
+#include "s100_regs.h"
 
 static s100_card_t c;
 static uint32_t now = 1000;
@@ -20,7 +21,7 @@ static void poll(int n)
     for (int i = 0; i < n; i++)
     {
         s100_link_poll(&c, now);
-        fe_pump(&c, now);
+        fe_pump(&c.link, now);
         now += 10;
     }
 }
@@ -57,25 +58,25 @@ int main(void)
     CHECK(c.rom_on);
 
     // STATUS: signature, nothing waiting.
-    CHECK_EQ(in(S100_PIPE_STATUS) & S100_ST_SIGMSK, S100_ST_SIG);
-    CHECK_EQ(in(S100_PIPE_STATUS) & S100_ST_AVAIL, 0);
-    CHECK_EQ(in(S100_PIPE_STATUS) & 0x40, 0);
+    CHECK_EQ(in(FUJI_PIPE_STATUS) & FUJI_PIPE_ST_SIGMSK, FUJI_PIPE_ST_SIG);
+    CHECK_EQ(in(FUJI_PIPE_STATUS) & FUJI_PIPE_ST_AVAIL, 0);
+    CHECK_EQ(in(FUJI_PIPE_STATUS) & 0x40, 0);
 
     // TICK counts milliseconds and wraps.
-    uint8_t t0 = in(S100_PIPE_TICK);
+    uint8_t tick_before = in(FUJI_PIPE_TICK);
     now += 5000;
-    CHECK_EQ((uint8_t)(in(S100_PIPE_TICK) - t0), 5);
+    CHECK_EQ((uint8_t)(in(FUJI_PIPE_TICK) - tick_before), 5);
     now += 256000;
-    CHECK_EQ((uint8_t)(in(S100_PIPE_TICK) - t0), 5);
+    CHECK_EQ((uint8_t)(in(FUJI_PIPE_TICK) - tick_before), 5);
 
     // LOAD 0: header then the image, through GETC.
-    out(S100_PIPE_CONTROL, S100_CTL_LOAD | S100_IMG_CONFIG);
+    out(FUJI_PIPE_CONTROL, S100_CTL_LOAD | S100_IMG_CONFIG);
     poll(4);
     uint8_t hdr[S100_LOAD_HDR];
     for (int i = 0; i < S100_LOAD_HDR; i++)
     {
-        CHECK(in(S100_PIPE_STATUS) & S100_ST_AVAIL);
-        hdr[i] = in(S100_PIPE_GETC);
+        CHECK(in(FUJI_PIPE_STATUS) & FUJI_PIPE_ST_AVAIL);
+        hdr[i] = in(FUJI_PIPE_GETC);
     }
     CHECK_EQ(hdr[0] | hdr[1] << 8, sizeof(config_img));
     CHECK_EQ(hdr[2] | hdr[3] << 8, 0x0100);
@@ -95,57 +96,57 @@ int main(void)
     int got = 0;
     for (int i = 0; i < (int)sizeof(config_img); i++)
     {
-        if (!(in(S100_PIPE_STATUS) & S100_ST_AVAIL))
+        if (!(in(FUJI_PIPE_STATUS) & FUJI_PIPE_ST_AVAIL))
             poll(1);
-        got += in(S100_PIPE_GETC) == want[i];
+        got += in(FUJI_PIPE_GETC) == want[i];
     }
     CHECK_EQ(got, (int)sizeof(config_img));
     CHECK_EQ(config_img[7], 9); // the image itself is untouched
-    CHECK_EQ(in(S100_PIPE_STATUS) & S100_ST_AVAIL, 0);
+    CHECK_EQ(in(FUJI_PIPE_STATUS) & FUJI_PIPE_ST_AVAIL, 0);
     // Empty GETC repeats the last byte.
-    CHECK_EQ(in(S100_PIPE_GETC), config_img[sizeof(config_img) - 1]);
+    CHECK_EQ(in(FUJI_PIPE_GETC), config_img[sizeof(config_img) - 1]);
 
     // LOAD of a missing image: a header that says so.
-    out(S100_PIPE_CONTROL, S100_CTL_LOAD | 5);
+    out(FUJI_PIPE_CONTROL, S100_CTL_LOAD | 5);
     poll(2);
     for (int i = 0; i < S100_LOAD_HDR; i++)
-        hdr[i] = in(S100_PIPE_GETC);
+        hdr[i] = in(FUJI_PIPE_GETC);
     CHECK_EQ(hdr[0] | hdr[1] << 8, 0);
     CHECK(hdr[9] & S100_LOADF_NOIMAGE);
 
     // A LOAD cut short by FLUSH leaves nothing behind.
-    out(S100_PIPE_CONTROL, S100_CTL_LOAD | S100_IMG_CONFIG);
+    out(FUJI_PIPE_CONTROL, S100_CTL_LOAD | S100_IMG_CONFIG);
     poll(1);
-    in(S100_PIPE_GETC);
-    out(S100_PIPE_CONTROL, S100_CTL_FLUSH);
+    in(FUJI_PIPE_GETC);
+    out(FUJI_PIPE_CONTROL, FUJI_PIPE_CTL_FLUSH);
     poll(3);
-    CHECK_EQ(in(S100_PIPE_STATUS) & S100_ST_AVAIL, 0);
+    CHECK_EQ(in(FUJI_PIPE_STATUS) & FUJI_PIPE_ST_AVAIL, 0);
 
     // A FujiBus round trip through PUTC/GETC.
     uint8_t req[64];
     size_t n = fujibus_build_request(0x70, 0xE8, NULL, 0, NULL, 0, req, sizeof(req));
     for (size_t i = 0; i < n; i++)
-        out(S100_PIPE_PUTC, req[i]);
+        out(FUJI_PIPE_PUTC, req[i]);
     poll(3);
     CHECK_EQ(fe.fuji, 1);
     uint8_t rep[64];
     int rn = 0;
-    while (in(S100_PIPE_STATUS) & S100_ST_AVAIL)
-        rep[rn++] = in(S100_PIPE_GETC);
+    while (in(FUJI_PIPE_STATUS) & FUJI_PIPE_ST_AVAIL)
+        rep[rn++] = in(FUJI_PIPE_GETC);
     fb_reply_t r;
     CHECK(fujibus_parse_reply(rep, rn, &r));
     CHECK_EQ(r.device, 0x70);
     CHECK_EQ(r.command, 0x06);
 
     // ROM_OFF, then RESET* puts the page back and re-arms POJ.
-    out(S100_PIPE_CONTROL, S100_CTL_ROMOFF);
+    out(FUJI_PIPE_CONTROL, S100_CTL_ROMOFF);
     CHECK(!c.rom_on);
     s100_reset(&c, now);
     CHECK(c.rom_on);
     CHECK_EQ(s100_mem(&c, 0x1234), 0xC3);
 
     // Ports that don't read: PUTC and CONTROL addresses.
-    CHECK_EQ(in(S100_PIPE_PUTC), 0xFF);
+    CHECK_EQ(in(FUJI_PIPE_PUTC), 0xFF);
 
     return check_done("test_regs");
 }

@@ -421,7 +421,7 @@ MOV1:   LD      A,(HL)
         JP      NZ,MOV1
         RET
 
-        INCLUDE "fnport.inc"
+        INCLUDE "pipe.inc"
         INCLUDE "fnbus.inc"
 
 ; A disk of 8 MB: 64 records a track, 1024 tracks, 4 KB blocks, 1024

@@ -46,7 +46,7 @@ FAIL:   PUSH    AF
         JP      0
 
         INCLUDE "cpm.inc"
-        INCLUDE "fnport.inc"
+        INCLUDE "pipe.inc"
         INCLUDE "fnbus.inc"
 
 TXBUF:  DEFS    400

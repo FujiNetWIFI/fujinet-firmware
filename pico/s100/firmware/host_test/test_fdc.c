@@ -2,6 +2,7 @@
 // poll 09h for the sector, then two bytes per loop from 0Ah.
 #include "check.h"
 #include "fake_esp.h"
+#include "s100_regs.h"
 
 static s100_card_t c;
 static uint32_t now = 1000;
@@ -13,7 +14,7 @@ static void tick(uint32_t us)
     if (link_live)
     {
         s100_link_poll(&c, now);
-        fe_pump(&c, now);
+        fe_pump(&c.link, now);
     }
 }
 
@@ -243,7 +244,7 @@ int main(void)
     fb_param_t p[2] = {{4, 1}, {1, 1}};
     size_t n = fujibus_build_request(0x70, 0xF8, p, 2, NULL, 0, req, sizeof(req));
     for (size_t i = 0; i < n; i++)
-        s100_out(&c, S100_BLK_PIPE, S100_PIPE_PUTC, req[i], now);
+        s100_out(&c, S100_BLK_PIPE, FUJI_PIPE_PUTC, req[i], now);
     int writes = fe.writes;
     link_live = 1;
     tick(10);
@@ -256,8 +257,8 @@ int main(void)
     CHECK(read_sector(1, buf));
     CHECK(memcmp(buf, data, 137) == 0);
     CHECK(fe.reads > reads); // reread after the mount
-    while (s100_in(&c, S100_BLK_PIPE, S100_PIPE_STATUS, now) & S100_ST_AVAIL)
-        s100_in(&c, S100_BLK_PIPE, S100_PIPE_GETC, now);
+    while (s100_in(&c, S100_BLK_PIPE, FUJI_PIPE_STATUS, now) & FUJI_PIPE_ST_AVAIL)
+        s100_in(&c, S100_BLK_PIPE, FUJI_PIPE_GETC, now);
 
     // Unmounted under us: the drive goes not-ready once the link notices.
     fe_unmount(0);

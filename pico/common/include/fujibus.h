@@ -44,6 +44,12 @@
 #define CMD_FUJI_ACK 0x06
 #define CMD_FUJI_NAK 0x15
 
+#define CMD_DISK_READ        0x52
+#define CMD_DISK_WRITE       0x57
+#define CMD_DISK_PERCOM_READ 0x4E
+#define CMD_PRINTER_WRITE    0x57
+#define CMD_MODEM_WRITE      0x57
+
 // The ESP32's packed AdapterConfigExtended reply.
 #define FUJI_ADAPTERCONFIG_EXTENDED_SIZE 240
 
