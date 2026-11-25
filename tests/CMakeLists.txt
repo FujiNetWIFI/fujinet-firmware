@@ -1099,6 +1099,8 @@ if(FUJINET_TARGET STREQUAL "RS232")
     ${CMAKE_SOURCE_DIR}/lib/media/rom/IntellicartROM.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/rom/IntellivisionROM.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/rom/MSXROM.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rom/MSXROMDatabase.cpp
+    ${CMAKE_SOURCE_DIR}/lib/encoding/hash.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/rom/NESROM.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/rom/SegaMasterROM.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/rom/StudioIIROM.cpp
@@ -1118,8 +1120,10 @@ if(FUJINET_TARGET STREQUAL "RS232")
     ${CMAKE_SOURCE_DIR}/lib/media/rs232/
     ${ROM_MOUNT_TEST_INCLUDES}
   )
+  target_include_directories(rs232_rom_mount_tests PRIVATE ${MBEDTLS_INCLUDE_DIR})
+  target_link_libraries(rs232_rom_mount_tests PRIVATE ${MBEDCRYPTO_STATIC_LIB})
   if(WIN32)
-    target_link_libraries(rs232_rom_mount_tests PRIVATE ws2_32)
+    target_link_libraries(rs232_rom_mount_tests PRIVATE ws2_32 bcrypt)
   endif()
   add_test(NAME rs232_rom_mount_tests COMMAND rs232_rom_mount_tests)
 
@@ -1148,6 +1152,8 @@ if(FUJINET_TARGET STREQUAL "RS232")
     ${CMAKE_SOURCE_DIR}/lib/media/rom/IntellicartROM.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/rom/IntellivisionROM.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/rom/MSXROM.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rom/MSXROMDatabase.cpp
+    ${CMAKE_SOURCE_DIR}/lib/encoding/hash.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/rom/NESROM.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/rom/SegaMasterROM.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/rom/StudioIIROM.cpp
@@ -1167,8 +1173,10 @@ if(FUJINET_TARGET STREQUAL "RS232")
     ${CMAKE_SOURCE_DIR}/lib/media/rs232/
     ${ROM_MOUNT_TEST_INCLUDES}
   )
+  target_include_directories(rs232_disk_tests PRIVATE ${MBEDTLS_INCLUDE_DIR})
+  target_link_libraries(rs232_disk_tests PRIVATE ${MBEDCRYPTO_STATIC_LIB})
   if(WIN32)
-    target_link_libraries(rs232_disk_tests PRIVATE ws2_32)
+    target_link_libraries(rs232_disk_tests PRIVATE ws2_32 bcrypt)
   endif()
   add_test(NAME rs232_disk_tests COMMAND rs232_disk_tests)
 endif()

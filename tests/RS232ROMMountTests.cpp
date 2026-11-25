@@ -1,6 +1,7 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
+#include <cstdio>
 #include <cstring>
 #include <string>
 #include <vector>
@@ -8,6 +9,8 @@
 #include "disk.h"
 #include "romMountStubs.h"
 #include "fujiHost.h"
+#include "hash.h"
+#include "rom/MSXROMDatabase.h"
 
 namespace
 {
@@ -121,6 +124,7 @@ void reset()
 {
     bus.reset();
     host_files.reset();
+    msx_rom_db.reset();
 }
 
 // An image of total bytes with the MSX cartridge ID "AB" at offset at.
@@ -145,12 +149,52 @@ std::vector<Window> params_of(fujiCommandID_t command)
     return all;
 }
 
-// Mounts image as filename and checks the mapper commands sit after the image
+// The SHA-1 of data as uppercase hex.
+std::string sha1_hex(const std::vector<uint8_t> &data)
+{
+    static constexpr char HEX_DIGITS[] = "0123456789ABCDEF";
+    uint8_t digest[20];
+    CHECK(Hash::compute(Hash::Algorithm::SHA1, data.data(), data.size(), digest, sizeof(digest)) == 0);
+    std::string out;
+    for (uint8_t byte : digest)
+    {
+        out += HEX_DIGITS[byte >> 4];
+        out += HEX_DIGITS[byte & 0x0F];
+    }
+    return out;
+}
+
+// A database line for image: its SHA-1 in lowercase, a tab, the type, CRLF.
+std::string db_line(const std::vector<uint8_t> &image, const char *type)
+{
+    std::string hash = sha1_hex(image);
+    for (char &ch : hash)
+        ch = static_cast<char>(tolower(static_cast<unsigned char>(ch)));
+    return hash + "\t" + type + "\r\n";
+}
+
+const std::string OTHER_DB_LINES =
+    "0000000000000000000000000000000000000000\tASCII8\r\n"
+    "\r\n"
+    "short\r\n";
+
+// Serves image's entry, listed as type, after some unrelated lines.
+void set_db(const std::vector<uint8_t> &image, const char *type)
+{
+    msx_rom_db.hasDb = true;
+    msx_rom_db.text = OTHER_DB_LINES + db_line(image, type);
+}
+
+// Mounts image as filename, listed in the database as dbType if given, and
+// checks the mapper commands sit after the image
 // blocks and before CLOSE, with the image bytes unchanged.
 void check_msx_mount(const char *filename, const std::vector<uint8_t> &image,
-                     const std::vector<Window> &windows, const std::vector<Window> &mirrors)
+                     const std::vector<Window> &windows, const std::vector<Window> &mirrors,
+                     const char *dbType = nullptr)
 {
     reset();
+    if (dbType != nullptr)
+        set_db(image, dbType);
     MemFile file(image);
     rs232Disk disk;
     CHECK(disk.mount(&file, filename, image.size(), DISK_ACCESS_MODE_READ).is_success());
@@ -597,6 +641,115 @@ TEST_CASE("mapper tags are case-insensitive and pick their own layouts")
                     {{0, 0, 0x4000, 0x6000}, {0x6000, 0x8000, 0x6000, 0x8000},
                      {0x8000, 0xA000, 0x8000, 0xA000}, {0xA000, 0xC000, 0xA000, 0xC000}},
                     {{0x0000, 0x4000, 0x4000}, {0xC000, 0x10000, 0x8000}});
+}
+
+TEST_CASE("an untagged MSX ROM listed as KonamiSCC gets the SCC layout")
+{
+    check_msx_mount("King's Valley 2.rom", msx_image(128_kB),
+                    {{0x5000, 0x5800, 0x4000, 0x6000}, {0x7000, 0x7800, 0x6000, 0x8000},
+                     {0x9000, 0x9800, 0x8000, 0xA000}, {0xB000, 0xB800, 0xA000, 0xC000}},
+                    {{0x0000, 0x4000, 0x8000}, {0xC000, 0x10000, 0x4000}}, "KonamiSCC");
+}
+
+TEST_CASE("a filename tag overrides the database")
+{
+    check_msx_mount("game [ASCII16].rom", msx_image(64_kB),
+                    {{0x6000, 0x6800, 0x4000, 0x8000}, {0x7000, 0x7800, 0x8000, 0xC000}}, {},
+                    "Konami");
+}
+
+TEST_CASE("database types pick ASCII8, ASCII16, and Konami layouts")
+{
+    check_msx_mount("a.rom", msx_image(64_kB),
+                    {{0x6000, 0x6800, 0x4000, 0x6000}, {0x6800, 0x7000, 0x6000, 0x8000},
+                     {0x7000, 0x7800, 0x8000, 0xA000}, {0x7800, 0x8000, 0xA000, 0xC000}}, {},
+                    "ASCII8");
+    check_msx_mount("a.rom", msx_image(64_kB),
+                    {{0x6000, 0x6800, 0x4000, 0x8000}, {0x7000, 0x7800, 0x8000, 0xC000}}, {},
+                    "ASCII16");
+    check_msx_mount("a.rom", msx_image(64_kB),
+                    {{0, 0, 0x4000, 0x6000}, {0x6000, 0x8000, 0x6000, 0x8000},
+                     {0x8000, 0xA000, 0x8000, 0xA000}, {0xA000, 0xC000, 0xA000, 0xC000}},
+                    {{0x0000, 0x4000, 0x4000}, {0xC000, 0x10000, 0x8000}}, "Konami");
+}
+
+TEST_CASE("database entries that place a plain ROM at a page")
+{
+    check_msx_mount("a.rom", msx_image(16_kB), {{0, 0, 0x8000, 0xC000}}, {}, "Page2");
+    check_msx_mount("a.rom", msx_image(32_kB),
+                    {{0, 0, 0x8000, 0xC000}, {0, 0, 0xC000, 0x10000}}, {}, "0x8000");
+    check_msx_mount("a.rom", msx_image(32_kB),
+                    {{0, 0, 0x0000, 0x4000}, {0, 0, 0x4000, 0x8000}}, {}, "0x0000");
+    check_msx_mount("a.rom", msx_image(48_kB),
+                    {{0, 0, 0x0000, 0x4000}, {0, 0, 0x4000, 0x8000},
+                     {0, 0, 0x8000, 0xC000}, {0, 0, 0xC000, 0x10000}}, {}, "0x0000");
+}
+
+TEST_CASE("database types that need no mapper keep the plain layout")
+{
+    check_msx_mount("a.rom", msx_image(16_kB), {{0, 0, 0x4000, 0x8000}}, {}, "Mirrored");
+    check_msx_mount("a.rom", msx_image(32_kB),
+                    {{0, 0, 0x4000, 0x8000}, {0, 0, 0x8000, 0xC000}}, {}, "GameMaster2");
+    check_msx_mount("a.rom", msx_image(32_kB),
+                    {{0, 0, 0x4000, 0x8000}, {0, 0, 0x8000, 0xC000}}, {}, "ascii8");
+}
+
+TEST_CASE("no database, or an image it doesn't list, keeps the plain layout")
+{
+    check_msx_mount("a.rom", msx_image(16_kB), {{0, 0, 0x4000, 0x8000}}, {});
+
+    auto image = msx_image(16_kB);
+    auto other = msx_image(32_kB);
+    reset();
+    set_db(other, "Page2");
+    MemFile file(image);
+    rs232Disk disk;
+    CHECK(disk.mount(&file, "a.rom", image.size(), DISK_ACCESS_MODE_READ).is_success());
+    CHECK(params_of(CMD::DBC_MAPPER_ADD_WINDOW) == std::vector<Window>{{0, 0, 0x4000, 0x8000}});
+}
+
+static std::optional<std::string> lookup_in(const std::string &text, const std::string &hash)
+{
+    FILE *db = tmpfile();
+    REQUIRE(db != nullptr);
+    fwrite(text.data(), 1, text.size(), db);
+    rewind(db);
+    auto type = msx_rom_db_lookup(db, hash);
+    fclose(db);
+    return type;
+}
+
+TEST_CASE("the database lookup ignores case and line endings")
+{
+    const std::string hash = "0123456789ABCDEF0123456789ABCDEF01234567";
+    const std::string lower = "0123456789abcdef0123456789abcdef01234567";
+    CHECK(lookup_in(lower + "\tKonami\r\n", hash) == "Konami");
+    CHECK(lookup_in(hash + "\tKonami\n", lower) == "Konami");
+    CHECK(lookup_in(hash + "\tKonami", hash) == "Konami");
+    CHECK(lookup_in("x\n" + hash + "\tASCII8  \r\n", hash) == "ASCII8");
+}
+
+TEST_CASE("the database lookup skips malformed lines")
+{
+    const std::string hash = "0123456789ABCDEF0123456789ABCDEF01234567";
+    CHECK_FALSE(lookup_in("", hash).has_value());
+    CHECK_FALSE(lookup_in(hash + " Konami\n", hash).has_value());
+    CHECK_FALSE(lookup_in(hash + "\t\n", hash).has_value());
+    CHECK_FALSE(lookup_in("\n\r\nabc\n", hash).has_value());
+    CHECK_FALSE(lookup_in(hash + "\tKonami\n", "0123").has_value());
+    CHECK(lookup_in("\n" + hash.substr(0, 39) + "\n" + hash + "\tKonami\n", hash) == "Konami");
+}
+
+TEST_CASE("an overlong database line is discarded without desyncing")
+{
+    const std::string hash = "0123456789ABCDEF0123456789ABCDEF01234567";
+    // The overlong line has the wanted hash and a tab, but isn't a valid entry;
+    // its tail looks like one.
+    std::string text = hash + "\t" + std::string(300, 'x') + "\n";
+    text += std::string(100, 'y') + hash + "\tASCII16\n";
+    CHECK_FALSE(lookup_in(text, hash).has_value());
+    CHECK(lookup_in(text + hash + "\tKonami\n", hash) == "Konami");
+    CHECK(lookup_in(std::string(127, 'z') + "\n" + hash + "\tKonami\n", hash) == "Konami");
 }
 
 TEST_CASE("a .rom without the MSX cartridge ID is not taken as MSX")

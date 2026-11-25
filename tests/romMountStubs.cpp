@@ -4,10 +4,24 @@
 
 #include "romMountStubs.h"
 #include "fujiHost.h"
+#include "rom/MSXROMDatabase.h"
 
 systemBus SYSTEM_BUS;
 BusLog bus;
 HostFiles host_files;
+MsxRomDb msx_rom_db;
+
+FILE *msx_rom_db_open()
+{
+    if (!msx_rom_db.hasDb)
+        return nullptr;
+    FILE *db = tmpfile();
+    if (db == nullptr)
+        return nullptr;
+    fwrite(msx_rom_db.text.data(), 1, msx_rom_db.text.size(), db);
+    rewind(db);
+    return db;
+}
 
 void systemBus::transaction_accept(transState_t) {}
 void systemBus::transaction_success() { bus.outcome = Outcome::Success; }
