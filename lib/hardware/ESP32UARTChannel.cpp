@@ -7,11 +7,58 @@
 #include <soc/gpio_sig_map.h>
 #include <hal/gpio_types.h>
 #include <esp_rom_gpio.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <freertos/semphr.h>
 
 #define MAX_FLUSH_WAIT_TICKS 200
 
 // Serial "debug port"
 ESP32UARTChannel fnDebugConsole;
+
+// The UART interrupt is allocated on the core that installs the driver. main_setup()
+// runs inside fnLoop on CPU1 - so the RX interrupt would run on CPU1 and its ring
+// buffer critical sections (interrupts masked up to level 3) would delay the time
+// critical interrupts there (the NetStream echo clock data bits). The driver is
+// installed from a short task on CPU0 instead - next to WiFi and the network tasks.
+struct UartInstallArgs
+{
+    uart_port_t num;
+    int rx_size, tx_size, queue_size, flags;
+    QueueHandle_t *queue;
+    esp_err_t result;
+    SemaphoreHandle_t done;
+};
+
+static void uart_install_task(void *arg)
+{
+    UartInstallArgs *a = (UartInstallArgs *)arg;
+    a->result = uart_driver_install(a->num, a->rx_size, a->tx_size, a->queue_size, a->queue, a->flags);
+    xSemaphoreGive(a->done);
+    vTaskDelete(nullptr);
+}
+
+static esp_err_t uart_install_on_cpu0(uart_port_t num, int rx_size, int tx_size, int queue_size,
+                                      QueueHandle_t *queue, int flags)
+{
+#if !CONFIG_FREERTOS_UNICORE
+    if (xPortGetCoreID() != 0)
+    {
+        UartInstallArgs a = {num, rx_size, tx_size, queue_size, flags, queue, ESP_FAIL, xSemaphoreCreateBinary()};
+        if (a.done != nullptr)
+        {
+            if (xTaskCreatePinnedToCore(uart_install_task, "uart_inst", 4096, &a, uxTaskPriorityGet(nullptr), nullptr, 0) == pdPASS)
+            {
+                xSemaphoreTake(a.done, portMAX_DELAY);
+                vSemaphoreDelete(a.done);
+                return a.result;
+            }
+            vSemaphoreDelete(a.done);
+        }
+    }
+#endif
+    return uart_driver_install(num, rx_size, tx_size, queue_size, queue, flags);
+}
 
 void ESP32UARTChannel::begin(const ChannelConfig& conf)
 {
@@ -68,8 +115,8 @@ void ESP32UARTChannel::begin(const ChannelConfig& conf)
     int uart_queue_size = 20;
     int intr_alloc_flags = ESP_INTR_FLAG_IRAM;
 
-    uart_driver_install(_uart_num, uart_buffer_size, conf.tx_buffer_size,
-                        uart_queue_size, &_uart_q, intr_alloc_flags);
+    uart_install_on_cpu0(_uart_num, uart_buffer_size, conf.tx_buffer_size,
+                         uart_queue_size, &_uart_q, intr_alloc_flags);
 
     _halfDuplex = conf.isHalfDuplex;
 
