@@ -1,0 +1,13 @@
+; LDOS 5.3.1 boots from slot 1 and lists itself.
+; mount 0 disk:ldos531.dsk rw
+; timeout 120
+wait "Date ?" 60
+type "11/24/86\r"
+wait "Time ?" 10
+type "\r"
+wait "LDOS Ready" 30
+type "DIR\r"
+wait "TED/CMD" 20
+type "FREE\r"
+wait "Free=    0.0/   87.5" 20
+pass

@@ -58,7 +58,7 @@ typedef struct {
 } fuji_iolink_cfg_t;
 
 typedef enum { FUJI_LS_IDLE, FUJI_LS_WAIT, FUJI_LS_ORPHAN } fuji_link_state_t;
-typedef enum { FUJI_LO_HOST, FUJI_LO_DISK, FUJI_LO_PRN } fuji_link_owner_t;
+typedef enum { FUJI_LO_HOST, FUJI_LO_DISK, FUJI_LO_PRN, FUJI_LO_CARD } fuji_link_owner_t;
 
 typedef struct {
     fuji_iolink_cfg_t cfg;
@@ -97,6 +97,12 @@ typedef struct {
     uint8_t ptx[FUJI_LINK_PRN_MAX];
     uint16_t plen;
     uint32_t plast;
+
+    /* a request of the card's own, sent when the link is free */
+    bool card_due;
+    uint8_t card_dev, card_cmd;
+    fb_param_t card_param;
+    unsigned card_nparams;
 } fuji_iolink_t;
 
 void fuji_iolink_init(fuji_iolink_t *link, const fuji_iolink_cfg_t *cfg);
@@ -106,5 +112,11 @@ void fuji_iolink_rx(fuji_iolink_t *link, const uint8_t *buf, size_t len, uint32_
 void fuji_iolink_poll(fuji_iolink_t *link, uint32_t now);
 /* True while a host request is waiting for its reply. */
 bool fuji_iolink_host_busy(const fuji_iolink_t *link);
+/* Queues a request of the card's own, with at most one param, ahead of the host's
+ * next one; its reply is dropped, and the track cache rereads everything after it,
+ * since such a request may change a mount. A second before the first went out
+ * replaces it. */
+void fuji_iolink_card_request(fuji_iolink_t *link, uint8_t dev, uint8_t cmd,
+                              const fb_param_t *param);
 
 #endif /* FUJI_IOLINK_H */

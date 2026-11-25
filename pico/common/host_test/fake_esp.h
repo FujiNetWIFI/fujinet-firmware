@@ -42,22 +42,29 @@ typedef struct {
     int mute;      /* swallow requests without replying */
     int mute_prn;  /* a disabled printer never answers */
     uint8_t last_dev, last_cmd;
+    uint8_t last_fuji; /* the last FUJI command */
 } fake_esp_t;
 
 static fake_esp_t fe;
 
-/* An image of FUJI_TC_SECTOR-byte sectors; byte n of sector s holds s * 7 + n. */
-static inline void fe_disk(int slot, uint32_t tracks, uint32_t spt, int writable)
+/* An image of `size`-byte sectors; byte n of sector s holds s * 7 + n. */
+static inline void fe_disk_sized(int slot, uint32_t tracks, uint32_t spt, uint32_t size,
+                                 int writable)
 {
     fe_disk_t *disk = &fe.disk[slot];
     free(disk->img);
     disk->tracks = tracks;
     disk->spt = spt;
-    disk->size = FUJI_TC_SECTOR;
+    disk->size = size;
     disk->writable = writable;
-    disk->img = (uint8_t *)malloc(tracks * spt * FUJI_TC_SECTOR);
-    for (uint32_t idx = 0; idx < tracks * spt * FUJI_TC_SECTOR; idx++)
-        disk->img[idx] = (uint8_t)(idx / FUJI_TC_SECTOR * 7 + idx % FUJI_TC_SECTOR);
+    disk->img = (uint8_t *)malloc(tracks * spt * size);
+    for (uint32_t idx = 0; idx < tracks * spt * size; idx++)
+        disk->img[idx] = (uint8_t)(idx / size * 7 + idx % size);
+}
+
+static inline void fe_disk(int slot, uint32_t tracks, uint32_t spt, int writable)
+{
+    fe_disk_sized(slot, tracks, spt, FUJI_TC_SECTOR, writable);
 }
 
 static inline void fe_unmount(int slot)
@@ -136,6 +143,12 @@ static inline void fe_frame(uint8_t *raw, uint32_t n)
             p[8] = 0xFF;
             return fe_reply(r.device, 1, p, 12);
         }
+        if (r.command == 'S')
+        {
+            // byte 0 carries the drive's write protect in bit 3, as rs232Disk sends it
+            uint8_t status[4] = {(uint8_t)(d->img && !d->writable ? 0x08 : 0), 0xFF, 0xE0, 0};
+            return fe_reply(r.device, 1, status, 4);
+        }
         uint32_t lba = param0(pkt);
         if (!d->img || lba >= d->tracks * d->spt)
             return fe_reply(r.device, 0, NULL, 0);
@@ -157,6 +170,7 @@ static inline void fe_frame(uint8_t *raw, uint32_t n)
     if (r.device == 0x70)
     {
         fe.fuji++;
+        fe.last_fuji = r.command;
         if (r.command == 0xF8)
             fe.mounts++;
         return fe_reply(0x70, 1, (const uint8_t *)"OK", 2);

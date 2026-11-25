@@ -1,0 +1,30 @@
+; CONFIG boots from slot 1: pick LDOS 5.3.1 on the SD host, mount it in slot 1, boot it.
+; mount 0 client:autorun.jv1
+; timeout 240
+; The host list fills in after the header, later still when the link is slow.
+wait "1 SD" 60
+type "\r"
+wait "TRS80/" 10
+sleep 2
+key Down 0.5
+type "\r"
+wait "LDOS531.DSK" 10
+sleep 2
+must "NEWDOS80.DSK"
+type "\r"
+wait "PUT IT IN WHICH DRIVE" 10
+type "\r"
+wait "NEWDOS80.DSK" 10
+sleep 2
+key Break 0.5
+wait "HOST SLOTS" 10
+key Right 0.5
+wait "DRIVE SLOTS" 10
+sleep 1
+must "1 R/O LDOS531.DSK"
+dump
+key Break 0.5
+wait "BOOTING FROM SLOT 1" 20
+dump
+wait "Date ?" 90
+pass

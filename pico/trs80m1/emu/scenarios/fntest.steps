@@ -1,0 +1,8 @@
+; FNTEST boots from slot 1: adapter config, host slots, and an N1: HTTP read
+; compared with what run.sh serves.
+; mount 0 client:fntest.dsk
+; http
+; timeout 90
+wait "FNTEST PASS" 60
+must "READ:    FUJINET MODEL I FNTEST OK"
+pass

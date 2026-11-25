@@ -76,6 +76,7 @@ int fuji_tcache_claim(fuji_tcache_t *cache, uint8_t drive, uint16_t track)
     slot->gen = cache->seen_epoch;
     slot->used = ++cache->lru;
     STORE(&slot->valid, 0);
+    STORE(&slot->want, 0);
     STORE(&slot->fill, 1);
     return best;
 }
@@ -87,6 +88,14 @@ void fuji_tcache_touch(fuji_tcache_t *cache, int slot_idx)
     fuji_tc_drive_t *drv = &cache->drv[FUJI_TC_KEY_DRIVE(slot->key)];
     if (LOAD(&slot->valid) != fuji_tcache_full_mask(drv->spt) && LOAD(&slot->fill) == 0)
         STORE(&slot->fill, 1);
+}
+
+void fuji_tcache_store(fuji_tcache_t *cache, int slot_idx, uint8_t sector, const uint8_t *data)
+{
+    fuji_tc_slot_t *slot = &cache->slot[slot_idx];
+    memcpy(slot->data[sector], data, FUJI_TC_SECTOR);
+    __atomic_fetch_or(&slot->valid, 1u << sector, __ATOMIC_RELEASE);
+    fuji_tcache_mark_dirty(cache, slot_idx, sector);
 }
 
 void fuji_tcache_drop_drive(fuji_tcache_t *cache, uint8_t drive)
@@ -149,7 +158,8 @@ bool fuji_tcache_next_op(fuji_tcache_t *cache, fuji_tc_op_t *txn, bool probes, u
         fuji_tc_slot_t *slot = &cache->slot[best];
         fuji_tc_drive_t *drv = &cache->drv[FUJI_TC_KEY_DRIVE(slot->key)];
         uint32_t missing = ~LOAD(&slot->valid) & fuji_tcache_full_mask(drv->spt);
-        uint8_t sector = lowest(missing);
+        uint32_t wanted = missing & LOAD(&slot->want);
+        uint8_t sector = lowest(wanted ? wanted : missing);
         STORE(&slot->busy, 1);
         txn->kind = FUJI_TC_OP_READ;
         txn->drive = FUJI_TC_KEY_DRIVE(slot->key);
@@ -192,6 +202,14 @@ bool fuji_tcache_next_op(fuji_tcache_t *cache, fuji_tc_op_t *txn, bool probes, u
     for (int drive = 0; probes && drive < FUJI_TC_DRIVES; drive++)
     {
         fuji_tc_drive_t *drv = &cache->drv[drive];
+        if (drv->status_due)
+        {
+            drv->status_due = 0;
+            txn->kind = FUJI_TC_OP_STATUS;
+            txn->drive = (uint8_t)drive;
+            txn->slot = -1;
+            return true;
+        }
         bool asked = LOAD(&drv->probe) || LOAD(&drv->geo) == FUJI_TC_GEO_UNKNOWN;
         if (!asked || (cache->probed[drive] && now - cache->probed_at[drive] < FUJI_TC_PROBE_US))
             continue;
@@ -239,17 +257,30 @@ void fuji_tcache_op_done(fuji_tcache_t *cache, const fuji_tc_op_t *txn, bool goo
     switch (txn->kind)
     {
     case FUJI_TC_OP_PROBE:
-        set_geo(&cache->drv[txn->drive], good ? data : NULL, good ? len : 0);
+    {
+        fuji_tc_drive_t *drv = &cache->drv[txn->drive];
+        set_geo(drv, good ? data : NULL, good ? len : 0);
+#ifdef FUJI_TC_PROBE_STATUS
+        drv->status_due = LOAD(&drv->geo) == FUJI_TC_GEO_OK;
+#endif
+        break;
+    }
+    case FUJI_TC_OP_STATUS:
+        // DISK_STATUS byte 0 carries the drive's write protect in bit 3.
+        STORE(&cache->drv[txn->drive].write_protect,
+              (uint8_t)(good && len >= 1 && (data[0] & 0x08)));
         break;
     case FUJI_TC_OP_READ:
     {
         fuji_tc_slot_t *slot = &cache->slot[txn->slot];
-        if (good && len == FUJI_TC_SECTOR && slot->gen == LOAD(&cache->epoch))
+        // A sector the CPU wrote while the read was out keeps what it wrote.
+        bool stored = (LOAD(&slot->valid) & (1u << txn->sector)) != 0;
+        if (!stored && good && len == FUJI_TC_SECTOR && slot->gen == LOAD(&cache->epoch))
         {
             memcpy(slot->data[txn->sector], data, FUJI_TC_SECTOR);
             __atomic_fetch_or(&slot->valid, 1u << txn->sector, __ATOMIC_RELEASE);
         }
-        else
+        else if (!stored)
         {
             slot->retry_at = now + FUJI_TC_RETRY_US;
             fuji_tcache_ask_probe(cache, txn->drive);

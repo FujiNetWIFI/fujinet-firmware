@@ -1,5 +1,5 @@
 // The track cache on its own: claiming slots, the order fills and write-backs
-// go out in, epochs, probes and the accept hook.
+// go out in, wanted sectors first, epochs, probes and the accept hook.
 #include <string.h>
 
 #include "check.h"
@@ -109,7 +109,16 @@ int main(void)
     CHECK_EQ(cache.slot[slot].data[5][0], 35);
     CHECK(!fuji_tcache_filling(&cache, slot));
 
+    // A wanted sector comes before the lower ones.
     slot = fuji_tcache_claim(&cache, 0, 4);
+    fuji_tcache_want(&cache, slot, 1u << 7);
+    CHECK(fuji_tcache_next_op(&cache, &txn, false, now));
+    CHECK_EQ(txn.kind, FUJI_TC_OP_READ);
+    CHECK_EQ(txn.lba, 47);
+    fuji_tcache_op_done(&cache, &txn, true, data, 256, now);
+    CHECK(fuji_tcache_next_op(&cache, &txn, false, now));
+    CHECK_EQ(txn.lba, 40);
+    fuji_tcache_op_done(&cache, &txn, true, data, 256, now);
     serve_reads(now, NULL);
 
     // A failed read backs off, then retries.
@@ -122,6 +131,19 @@ int main(void)
     fuji_tcache_op_done(&cache, &txn, true, data, 256, now);
     now += FUJI_TC_RETRY_US;
     serve_reads(now, NULL);
+
+    // A sector the CPU stores while its read is out keeps the CPU's bytes.
+    slot = fuji_tcache_claim(&cache, 0, 6);
+    CHECK(fuji_tcache_next_op(&cache, &txn, false, now));
+    CHECK_EQ(txn.kind, FUJI_TC_OP_READ);
+    uint8_t wrote[256];
+    memset(wrote, 0xC3, sizeof(wrote));
+    fuji_tcache_store(&cache, slot, txn.sector, wrote);
+    fuji_tcache_op_done(&cache, &txn, true, data, 256, now);
+    CHECK_EQ(cache.slot[slot].data[txn.sector][0], 0xC3);
+    CHECK(fuji_tcache_dirty(&cache));
+    serve_reads(now, NULL);
+    CHECK(!fuji_tcache_dirty(&cache));
 
     // Dirty sectors go back lowest first; a failed write is retried, then dropped.
     slot = fuji_tcache_find(&cache, 0, 3);

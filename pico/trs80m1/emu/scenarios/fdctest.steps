@@ -1,0 +1,6 @@
+; FDCTEST drives the FD1771 directly on drive 1, a pattern disk in slot 2.
+; mount 0 client:fdctest.dsk
+; mount 1 client:pattern.dsk rw
+; timeout 90
+wait "FDCTEST PASS" 60
+pass

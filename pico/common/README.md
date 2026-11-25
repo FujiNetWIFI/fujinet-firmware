@@ -15,12 +15,12 @@ carts' CMake builds.
   [coleco/](../coleco/), [nes/](../nes/), [sms/](../sms/), [studio2/](../studio2/),
   [atari-5200/](../atari-5200/), [atari-7800/](../atari-7800/) and [template/](../template/) list all of it among their `fujicart_firmware()` sources, through
   `FUJI_COMMON`, and each names its `USB_PRODUCT` there.
-- The I/O card, [s100/](../s100/), takes the codec and the USB device, and in place of
-  `fujibus_usb.c` builds `src/fuji_iolink.c` (one link shared by the host's frames from the pipe
-  in `include/fuji_pipe.h`, the disks, the printer and the modem) and `src/fuji_tcache.c` (whole
-  tracks of the FujiNet disk slots), sized by its `fuji_tcache_cfg.h` and
-  `fuji_tcache_accept()`. Its clients take `client/fnport.inc` and `client/fnbus.inc`, and its
-  rig `tools/fnmount.py` and `tools/fujibus.py`.
+- The I/O cards, [s100/](../s100/) and [trs80m1/](../trs80m1/), take the codec and the USB device,
+  and in place of `fujibus_usb.c` build `src/fuji_iolink.c` (one link shared by the host's frames
+  from the pipe in `include/fuji_pipe.h`, the disks, the printer and the modem) and
+  `src/fuji_tcache.c` (whole tracks of the FujiNet disk slots), each sized by the cart's
+  `fuji_tcache_cfg.h` and `fuji_tcache_accept()`. Their clients share `client/fnport.inc` and `client/fnbus.inc`, and their
+  rigs `tools/fnmount.py` and `tools/fujibus.py`.
 - [o2/](../o2/) takes only the codec and transport; its USB device stays in `o2/firmware` because
   it adds a mass-storage interface, and its `fujimail.c` is an older design.
 - Every ROM-window cart but o2 builds `src/fujimail.c`, which sits on top of `fujibus_usb.h`.
@@ -63,5 +63,5 @@ track cache tests.
 - `src/fujibus.c` is a plain-C client of `lib/bus/FujiBusPacket.cpp`.
 - Every link through `fujicart_firmware()` fails unless core1's loop, everything it branches to
   and its named state are in SRAM, with no branch through a register (`tools/checksram.py`).
-- `host_test/stub/` is used by astrocade's store test too, and `host_test/check.h` by s100's
-  tests.
+- `host_test/stub/` is used by astrocade's store test too, and `host_test/check.h` by the I/O
+  cards' tests.

@@ -164,6 +164,10 @@ static bool candidate(fuji_iolink_t *link, uint32_t now)
     case FUJI_LO_DISK:
         finish_disk(link, good, reply.data, reply.data_len, now);
         break;
+    case FUJI_LO_CARD:
+        if (link->cfg.cache)
+            fuji_tcache_invalidate(link->cfg.cache);
+        break;
     default:
         break;
     }
@@ -341,6 +345,10 @@ static bool start_disk(fuji_iolink_t *link, bool probes, uint32_t now)
         request(link, FUJI_LO_DISK, dev, CMD_DISK_READ, &lba, 1, NULL, 0, FUJI_LINK_OWN_US,
                 now);
         break;
+    case FUJI_TC_OP_STATUS:
+        request(link, FUJI_LO_DISK, dev, CMD_DISK_STATUS, NULL, 0, NULL, 0, FUJI_LINK_OWN_US,
+                now);
+        break;
     default:
         request(link, FUJI_LO_DISK, dev, CMD_DISK_WRITE, &lba, 1, txn->data, FUJI_TC_SECTOR,
                 FUJI_LINK_OWN_US, now);
@@ -400,6 +408,14 @@ void fuji_iolink_poll(fuji_iolink_t *link, uint32_t now)
     if (!link->connected || link->state != FUJI_LS_IDLE)
         return;
 
+    if (link->card_due)
+    {
+        link->card_due = false;
+        request(link, FUJI_LO_CARD, link->card_dev, link->card_cmd, &link->card_param,
+                link->card_nparams, NULL, 0, FUJI_LINK_OWN_US, now);
+        return;
+    }
+
     // Host and disk take turns when both have work.
     bool host_first = link->hready && !link->host_last;
     if (host_first && start_host(link, now))
@@ -429,6 +445,17 @@ void fuji_iolink_poll(fuji_iolink_t *link, uint32_t now)
         return;
     }
     start_disk(link, true, now);
+}
+
+void fuji_iolink_card_request(fuji_iolink_t *link, uint8_t dev, uint8_t cmd,
+                              const fb_param_t *param)
+{
+    link->card_dev = dev;
+    link->card_cmd = cmd;
+    link->card_nparams = param ? 1 : 0;
+    if (param)
+        link->card_param = *param;
+    link->card_due = true;
 }
 
 bool fuji_iolink_host_busy(const fuji_iolink_t *link)

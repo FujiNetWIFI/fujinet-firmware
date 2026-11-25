@@ -1,0 +1,6 @@
+; One of fujinet-lib's test programs, booted from slot 1:
+;   run.sh libtest --set PROG=fujidev    (build/libtest from tools/libtest.sh)
+; mount 0 libtest:%PROG%.dsk
+; timeout 400
+wait "tests passed, 0 skipped ===" 300
+pass

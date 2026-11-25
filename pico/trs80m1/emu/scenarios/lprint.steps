@@ -1,0 +1,12 @@
+; Level II BASIC with no disk boot (BREAK held at power-on): LPRINT through the
+; ROM's own printer driver to the FujiNet printer.
+; printed LPRINT FROM LEVEL II
+; timeout 90
+key Break 3
+wait "MEMORY SIZE?" 20
+type "\r"
+wait "READY" 20
+type "LPRINT \"LPRINT FROM LEVEL II\":PRINT 6*7\r"
+wait " 42 " 30
+sleep 3
+pass

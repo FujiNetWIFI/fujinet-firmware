@@ -1,0 +1,5 @@
+; RAMTEST: the card's 32K at 8000h-FFFFh, every byte both ways.
+; mount 0 client:ramtest.dsk
+; timeout 90
+wait "RAMTEST PASS 32K" 60
+pass

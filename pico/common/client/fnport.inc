@@ -1,14 +1,15 @@
 ;=====================================================================
 ; FNPORT.INC -- an I/O card's FujiBus pipe (pico/common/include/fuji_pipe.h),
-; 8080 code, so it runs on an 8080 or a Z80.
+; 8080 code, so it runs on any of the cards' CPUs.
 ;
 ; The pipe is four ports at a movable base: +0 GETC, +1 STATUS,
 ; +2 PUTC, +3 CONTROL (write) / TICK (read, 1 kHz). The 8080 has no
 ; IN r,(C), so PINIT finds the base and patches it into every IN/OUT
 ; below; the code must run from RAM.
 ;
-; The includer sets FNBASE, the card's default base, and FNSKIP1 and
-; FNSKIP2, two bases a scan of every other one must not read.
+; The includer sets FNBASE, the card's default base, and either
+; FNSKIP1/FNSKIP2, two bases a scan of every other one must not read,
+; or FNNOSCAN, where reading an unknown port is never safe.
 ;
 ;   PINIT   find the card: at FNBASE, else scan. Carry set if none.
 ;   PFLUSH  empty both directions
@@ -36,6 +37,10 @@ PINIT:  LD      A,FNBASE
         CALL    PPROBE
         LD      A,FNBASE
         JP      Z,PSET
+IFDEF FNNOSCAN
+        SCF
+        RET
+ELSE
         LD      C,0             ; scan
 PINI1:  LD      A,C
         CP      FNSKIP1
@@ -51,6 +56,7 @@ PINI2:  LD      A,C
         JP      NZ,PINI1
         SCF
         RET
+ENDIF
 
 ; Patch base A into every port operand.
 PSET:   LD      (PBASE),A

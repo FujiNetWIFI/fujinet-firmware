@@ -1,0 +1,9 @@
+; TRSDOS 2.3 boots from slot 1 and loads a program. This disk's TRSDOS has no SYS6
+; (no DIR or FREE): it is the game Xenos's system disk.
+; mount 0 disk:trsdos23.dsk rw
+; timeout 180
+wait "DOS READY" 60
+must "VER 2.3"
+type "XENOS\r"
+wait "STRANGER, BEWARE!" 30
+pass

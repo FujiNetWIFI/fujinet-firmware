@@ -1,0 +1,8 @@
+; MDMTEST: the FujiNet modem through the RS-232 board: ATNET0, dial a local echo
+; server, 64 bytes with every SLIP special round-trip intact, +++ and ATH.
+; mount 0 client:mdmtest.dsk
+; echo
+; timeout 120
+wait "MDMTEST PASS" 60
+must "ECHO INTACT"
+pass
