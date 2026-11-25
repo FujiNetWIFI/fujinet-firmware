@@ -328,6 +328,36 @@ endif()
 
 add_test(NAME altairdsk_tests COMMAND altairdsk_tests)
 
+# The TRS-80 Model I JV1 format.
+add_executable(jv1disk_tests
+    JV1DiskTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/media.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/disk/DiskMedia.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/disk/BlockMedia.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/disk/JV1Disk.cpp
+)
+
+target_compile_definitions(jv1disk_tests PRIVATE UNIT_TESTS FNIO_IS_STDIO)
+target_compile_options(jv1disk_tests PRIVATE -U${FUJINET_BUILD_PLATFORM})
+
+target_include_directories(jv1disk_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/include/
+    ${CMAKE_SOURCE_DIR}/lib/
+    ${CMAKE_SOURCE_DIR}/lib/compat/
+    ${CMAKE_SOURCE_DIR}/lib/fuji/
+    ${CMAKE_SOURCE_DIR}/lib/media/
+    ${CMAKE_SOURCE_DIR}/lib/media/disk/
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/
+    ${CMAKE_SOURCE_DIR}/lib/utils/
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+
+if(WIN32)
+    target_link_libraries(jv1disk_tests PRIVATE ws2_32)
+endif()
+
+add_test(NAME jv1disk_tests COMMAND jv1disk_tests)
+
 # ------------------------------------------------------------------------------
 # The Commodore blank images NEW DISK writes. BUILD_IEC is the whole-file guard on
 # the media sources, and mediaType.cpp supplies the extension check. See imdimage_tests
@@ -1057,6 +1087,7 @@ if(FUJINET_TARGET STREQUAL "RS232")
     ${CMAKE_SOURCE_DIR}/lib/media/disk/BlockMedia.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/disk/RawDisk.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/disk/IMDDisk.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/disk/JV1Disk.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/disk/AltairDSK.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/media.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/rom/ROMMedia.cpp
@@ -1104,6 +1135,7 @@ if(FUJINET_TARGET STREQUAL "RS232")
     ${CMAKE_SOURCE_DIR}/lib/media/disk/BlockMedia.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/disk/RawDisk.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/disk/IMDDisk.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/disk/JV1Disk.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/disk/AltairDSK.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/media.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/rom/ROMMedia.cpp
