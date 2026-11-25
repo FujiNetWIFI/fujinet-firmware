@@ -349,6 +349,7 @@ set(SOURCES src/main.cpp
     lib/media/disk/RawDisk.h lib/media/disk/RawDisk.cpp
     lib/media/disk/IMDDisk.h lib/media/disk/IMDDisk.cpp
     lib/media/disk/AltairDSK.h lib/media/disk/AltairDSK.cpp
+    lib/media/disk/JV1Disk.h lib/media/disk/JV1Disk.cpp
     lib/media/disk/CoCoDSK.h lib/media/disk/CoCoDSK.cpp
     lib/media/disk/DragonVDK.h lib/media/disk/DragonVDK.cpp
     lib/media/disk/PMD85MRM.h lib/media/disk/PMD85MRM.cpp

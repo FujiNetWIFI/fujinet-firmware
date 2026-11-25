@@ -11,6 +11,7 @@ enum mediatype_t : uint8_t
     MEDIATYPE_ROM,
     MEDIATYPE_IMD,
     MEDIATYPE_ALTAIR,
+    MEDIATYPE_JV1,
     MEDIATYPE_COUNT
 };
 
