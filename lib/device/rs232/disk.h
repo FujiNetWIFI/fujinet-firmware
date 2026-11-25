@@ -17,6 +17,7 @@
 #include "rom/ColecoROM.h"
 #include "rom/IntellicartROM.h"
 #include "rom/IntellivisionROM.h"
+#include "rom/MSXROM.h"
 #include "rom/NESROM.h"
 #include "rom/SegaMasterROM.h"
 #include "rom/StudioIIROM.h"
@@ -36,6 +37,7 @@ public:
     using Formats = MediaFormats<MEDIATYPE_UNKNOWN,
                                  MediaFormat<IntellicartROM, MEDIATYPE_ROM>,
                                  MediaFormat<NESROM, MEDIATYPE_ROM>,
+                                 MediaFormat<MSXROM, MEDIATYPE_ROM>,
                                  MediaFormat<IntellivisionROM, MEDIATYPE_ROM>,
                                  MediaFormat<Atari7800ROM, MEDIATYPE_ROM>,
                                  MediaFormat<StudioIIROM, MEDIATYPE_ROM>,

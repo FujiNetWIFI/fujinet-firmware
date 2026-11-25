@@ -1098,6 +1098,7 @@ if(FUJINET_TARGET STREQUAL "RS232")
     ${CMAKE_SOURCE_DIR}/lib/media/rom/ColecoROM.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/rom/IntellicartROM.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/rom/IntellivisionROM.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rom/MSXROM.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/rom/NESROM.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/rom/SegaMasterROM.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/rom/StudioIIROM.cpp
@@ -1146,6 +1147,7 @@ if(FUJINET_TARGET STREQUAL "RS232")
     ${CMAKE_SOURCE_DIR}/lib/media/rom/ColecoROM.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/rom/IntellicartROM.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/rom/IntellivisionROM.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rom/MSXROM.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/rom/NESROM.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/rom/SegaMasterROM.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/rom/StudioIIROM.cpp

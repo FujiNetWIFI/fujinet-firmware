@@ -203,6 +203,7 @@ typedef enum class CMD : uint8_t {
     DBC_MAPPER_SET_INFO             = 0x49, // I
     DBC_SEGMENT_CLOSE               = 0x43, // C
     DBC_MAPPER_ADD_WINDOW           = 0x41, // A
+    DBC_MAPPER_ADD_MIRROR           = 0x4D, // M
 } fujiCommandID_t;
 
 #endif /* FUJI_COMMANDS_H */
