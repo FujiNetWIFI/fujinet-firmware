@@ -1266,20 +1266,6 @@ void sioNetStream::sio_enable_netstream()
                  netstream_video_pal ? "PAL" : "NTSC");
 #endif
 
-#ifdef ESP_PLATFORM
-    if (netstream_tx_clock_external || netstream_rx_clock_external)
-    {
-        bool synced = false;
-#ifdef NETSTREAM_ECHO_CLOCK
-        // The Atari receives with our clock - the data must come with the same clock
-        if (netstream_rx_clock_external && !SYSTEM_BUS.isBoIP())
-            synced = echo_start(netstream_baud);
-#endif
-        if (!synced)
-            netstream_enable_clock_pwm(netstream_baud);
-    }
-#endif
-
     if (netstreamMode == NetStreamMode::UDP)
     {
         // Open the UDP connection. Use ephemeral port when targeting localhost.
@@ -1332,18 +1318,27 @@ void sioNetStream::sio_enable_netstream()
     inflight_pos = 0;
 
     Debug_println("NETSTREAM mode ENABLED");
+
+    // The clock last - the socket - the I/O tasks and the logs above take heap and lwIP locks
+    // that would delay the echo clock bit interrupt
+#ifdef ESP_PLATFORM
+    if (netstream_tx_clock_external || netstream_rx_clock_external)
+    {
+        bool synced = false;
+#ifdef NETSTREAM_ECHO_CLOCK
+        // The Atari receives with our clock - the data must come with the same clock
+        if (netstream_rx_clock_external && !SYSTEM_BUS.isBoIP())
+            synced = echo_start(netstream_baud);
+#endif
+        if (!synced)
+            netstream_enable_clock_pwm(netstream_baud);
+    }
+#endif
 }
 
 void sioNetStream::sio_disable_netstream()
 {
-#ifdef ESP_PLATFORM
-    netstream_io_stop();                       // the CPU0 tasks - before the sockets close
-#endif
-    netStreamTcp.stop();
-    netStreamUdp.stop();
-    if (cassette_was_active && SYSTEM_BUS.getCassette() != nullptr && SYSTEM_BUS.getCassette()->is_mounted())
-        SYSTEM_BUS.getCassette()->sio_enable_cassette();
-    cassette_was_active = false;
+    // The clock first - stopping the I/O tasks and the sockets frees heap and lwIP memory
 #ifdef NETSTREAM_ECHO_CLOCK
     if (echo_active)
         echo_stop();
@@ -1352,7 +1347,15 @@ void sioNetStream::sio_disable_netstream()
 #ifdef ESP_PLATFORM
         ledc_stop(LEDC_ESP32XX_HIGH_SPEED, LEDC_CHANNEL_1, 0);
 #endif
-        SYSTEM_BUS.setBaudrate(SIO_STANDARD_BAUDRATE);
+#ifdef ESP_PLATFORM
+    netstream_io_stop();                       // the CPU0 tasks - before the sockets close
+#endif
+    netStreamTcp.stop();
+    netStreamUdp.stop();
+    if (cassette_was_active && SYSTEM_BUS.getCassette() != nullptr && SYSTEM_BUS.getCassette()->is_mounted())
+        SYSTEM_BUS.getCassette()->sio_enable_cassette();
+    cassette_was_active = false;
+    SYSTEM_BUS.setBaudrate(SIO_STANDARD_BAUDRATE);
 #ifdef ESP_PLATFORM
     // Reset CKI pin back to output open drain high
     fnSystem.set_pin_mode(PIN_CKI, gpio_mode_t::GPIO_MODE_OUTPUT_OD);
