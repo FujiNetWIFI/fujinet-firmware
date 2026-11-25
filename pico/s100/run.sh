@@ -118,7 +118,7 @@ else
         cp "$(find_disk "$img")" "$FNPC/SD/run/slot$slot.dsk"
         margs+=("$slot=/run/slot$slot.dsk${rw:+:rw}")
     done <<< "$mounts"
-    python3 -I "$HERE/tools/fnmount.py" --clear "${margs[@]}" > "$OUT/mount.log"
+    python3 -I "$HERE/../common/tools/fnmount.py" --clear "${margs[@]}" > "$OUT/mount.log"
     {
         echo "set dsk disabled"
         echo "set fujinet enabled"

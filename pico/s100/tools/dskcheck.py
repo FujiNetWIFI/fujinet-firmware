@@ -13,7 +13,7 @@ import struct
 import sys
 
 sys.dont_write_bytecode = True                  # no __pycache__ in the tree
-sys.path.insert(0, os.path.dirname(__file__))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "common", "tools"))
 import fujibus  # noqa: E402
 
 SECTOR = 137

@@ -56,19 +56,7 @@
 #define S100_PIN_RXD     45
 #define S100_PIN_LED     47
 
-/* ---- pipe registers, offsets from the pipe base ---- */
-#define S100_PIPE_GETC    0
-#define S100_PIPE_STATUS  1
-#define S100_PIPE_PUTC    2
-#define S100_PIPE_CONTROL 3 /* write */
-#define S100_PIPE_TICK    3 /* read: free-running 1 kHz counter */
-
-#define S100_ST_AVAIL  0x80
-#define S100_ST_SIG    0x2C /* bits 5-1 = 10110b; bit 6 is always 0 */
-#define S100_ST_SIGMSK 0x7E
-#define S100_ST_TXFULL 0x01
-
-#define S100_CTL_FLUSH  0x08 /* empties both directions, as on fujiversal */
+/* ---- pipe: registers, status bits and FLUSH are fuji_pipe.h's ---- */
 #define S100_CTL_ROMOFF 0x10 /* turns the boot page off until RESET* */
 #define S100_CTL_LOAD   0x20 /* 0x20|n: flush, then stream image n into GETC */
 #define S100_CTL_LOADMSK 0xF8

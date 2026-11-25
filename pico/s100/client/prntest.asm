@@ -23,7 +23,7 @@ PR2:    CALL    PRINT
 LINE:   DEFB    "FUJINET S-100 PRINTER TEST",13,10,0
 
         INCLUDE "cpm.inc"
-        INCLUDE "fnport.inc"
+        INCLUDE "pipe.inc"
         INCLUDE "sio.inc"
 
         DEFS    64

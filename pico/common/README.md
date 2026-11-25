@@ -1,8 +1,8 @@
 # pico/common
 
 Code the cartridge firmwares share: the FujiBus SLIP codec, its USB CDC transport to the
-ESP32-S3, a CDC-only USB device, a disk track cache for I/O cards, and the start of the carts'
-CMake builds.
+ESP32-S3, a CDC-only USB device, the I/O cards' pipe, link and track cache, and the start of the
+carts' CMake builds.
 
 ## How it fits
 - Each cart's `build-cart.sh` sets its board, firmware name, baked headers and `cart_gen`, then
@@ -14,11 +14,16 @@ CMake builds.
 - [arcadia/](../arcadia/), [astrocade/](../astrocade/), [channelf/](../channelf/),
   [coleco/](../coleco/), [nes/](../nes/), [sms/](../sms/), [studio2/](../studio2/),
   [atari-5200/](../atari-5200/), [atari-7800/](../atari-7800/) and [template/](../template/) list all of it among their `fujicart_firmware()` sources, through
-  `FUJI_COMMON`, and each names its `USB_PRODUCT` there. [s100/](../s100/) takes the codec and
-  the USB device but has its own link in place of `fujibus_usb.c`.
+  `FUJI_COMMON`, and each names its `USB_PRODUCT` there.
+- The I/O card, [s100/](../s100/), takes the codec and the USB device, and in place of
+  `fujibus_usb.c` builds `src/fuji_iolink.c` (one link shared by the host's frames from the pipe
+  in `include/fuji_pipe.h`, the disks, the printer and the modem) and `src/fuji_tcache.c` (whole
+  tracks of the FujiNet disk slots), sized by its `fuji_tcache_cfg.h` and
+  `fuji_tcache_accept()`. Its clients take `client/fnport.inc` and `client/fnbus.inc`, and its
+  rig `tools/fnmount.py` and `tools/fujibus.py`.
 - [o2/](../o2/) takes only the codec and transport; its USB device stays in `o2/firmware` because
   it adds a mass-storage interface, and its `fujimail.c` is an older design.
-- Every cart but o2 builds `src/fujimail.c`, which sits on top of `fujibus_usb.h`.
+- Every ROM-window cart but o2 builds `src/fujimail.c`, which sits on top of `fujibus_usb.h`.
 - Every cart but nes and o2 starts fujimail through `src/fuji_port.c`, and so builds
   `src/fuji_cfg.c` too. nes fills in a `fujimail_port_t` itself, as the MAME devices do with
   `emu/fujitcp.c` as the link.
@@ -42,18 +47,16 @@ CMake builds.
 - Every MAME cart's `emu/apply.sh` grafts this code into MAME through `emu/graft.lib.sh`, so the
   emulators run the same code; it keeps only its own driver and slot edits. A function added to a
   module goes in `emu/fujins.syms` too. o2's (o2em) and s100's (SIMH) copy what they need by hand.
-- [s100/](../s100/) builds `src/fuji_tcache.c` for its floppy controller, with its own
-  `include/fuji_tcache_cfg.h` (drives, sector size, slots) and `fuji_tcache_accept()` (which
-  disk geometries it takes).
 - [intellivision/](../intellivision/) keeps its own copy; its transport has a different API.
 - Each cart's `firmware/host_test/Makefile` lists its tests and includes `host_test/cart.mk`; a
-  listed test the cart does not have, such as `test_fujimail`, comes from here. The pico
-  cartridges workflow runs every one of them.
+  listed test the cart does not have, such as `test_fujimail`, comes from here. The I/O cards'
+  tests drive their link with `host_test/fake_esp.h`. The pico cartridges workflow runs every one
+  of them.
 
 ## Build
 Not part of the ESP32 or FujiNet-PC builds. pico-sdk compiles it inside each cart's firmware;
-`make -C host_test` runs the codec, .cfg, `fuji_port`, store, watchdog, CRC and track-cache
-tests.
+`make -C host_test` runs the codec, .cfg, `fuji_port`, store, watchdog, CRC, I/O link and
+track cache tests.
 
 ## Notes
 - `cmake/pico_sdk_import.cmake` is the pico-sdk's own import script, one copy for every cart.

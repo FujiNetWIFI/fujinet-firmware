@@ -237,6 +237,6 @@ int main(void)
             s100_link_rx(&card, buf, n, t);
         }
         s100_link_poll(&card, t);
-        gpio_put(S100_PIN_LED, card.link.st != LS_IDLE);
+        gpio_put(S100_PIN_LED, card.link.state != FUJI_LS_IDLE);
     }
 }

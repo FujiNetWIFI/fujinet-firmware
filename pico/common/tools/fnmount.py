@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """fnmount.py -- mount images into fujinet-pc's slots over BoIP, from the SD host.
 
-    FUJINET_TCP=127.0.0.1:1995 tools/fnmount.py 0=/altair/a.dsk:rw 1=/altair/b.dsk [...]
-    tools/fnmount.py --clear     unmount every slot
+    FUJINET_TCP=127.0.0.1:1995 fnmount.py 0=/altair/a.dsk:rw 1=/altair/b.dsk [...]
+    fnmount.py --clear     unmount every slot
 """
 import os
 import sys

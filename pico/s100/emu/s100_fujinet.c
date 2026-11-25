@@ -168,7 +168,7 @@ static int mount_known(void)
 
 static int host_fed(void)
 {
-    return ring8_count(&card.to_host) || !s100_link_host_busy(&card);
+    return ring8_count(&card.pipe.to_host) || !s100_link_host_busy(&card);
 }
 
 /* ---- bus handlers ---- */
@@ -181,7 +181,7 @@ static int32 fn_pipe(const int32 port, const int32 io, const int32 data)
     fn_net();
     if (io == 0)
     {
-        if (fn_sync && (a == S100_PIPE_GETC || a == S100_PIPE_STATUS))
+        if (fn_sync && (a == FUJI_PIPE_GETC || a == FUJI_PIPE_STATUS))
             fn_wait(host_fed, FN_SYNC_HOST_MS);
         return s100_in(&card, S100_BLK_PIPE, a, fn_now());
     }

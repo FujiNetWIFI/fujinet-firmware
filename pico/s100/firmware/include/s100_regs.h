@@ -11,13 +11,10 @@
 #include "s100_card.h"
 #include "s100_fdc.h"
 #include "s100_link.h"
-#include "s100_ring.h"
+#include "fuji_pipe.h"
 
-#define PIPE_RING 4096
-
-/* from_host entries above a byte */
-#define PIPE_MARK_FLUSH 0x100
-#define PIPE_MARK_LOAD  0x200 /* | image */
+/* the LOAD mark in from_host */
+#define S100_MARK_LOAD 0x200 /* | image */
 
 typedef struct {
     const uint8_t *data;
@@ -54,18 +51,13 @@ typedef struct s100_card {
     /* bus side */
     fdc_t fdc;
     sio2_t sio;
-    ring16_t from_host;
-    ring8_t to_host;
-    uint8_t last_getc;
+    fuji_pipe_t pipe;
     uint8_t page[256];
     bool rom_on;
     uint8_t poj_left;
-    uint32_t epoch_us; /* TICK origin */
 
-    s100_link_t link;
-
-    uint16_t from_host_buf[PIPE_RING];
-    uint8_t to_host_buf[PIPE_RING];
+    fuji_iolink_t link;
+    s100_load_t load;
 } s100_card_t;
 
 void s100_init(s100_card_t *c, const s100_dip_t *dip, const s100_image_t *images, int nimages,

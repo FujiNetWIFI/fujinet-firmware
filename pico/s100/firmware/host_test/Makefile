@@ -3,7 +3,7 @@
 EXTRA_CFLAGS = -D_DEFAULT_SOURCE
 
 CORE = $(SRC)/s100_regs.c $(SRC)/s100_fdc.c $(SRC)/s100_2sio.c $(SRC)/s100_link.c \
-       $(COMMON)/src/fujibus.c $(COMMON)/src/fuji_tcache.c
+       $(COMMON)/src/fujibus.c $(COMMON)/src/fuji_iolink.c $(COMMON)/src/fuji_tcache.c
 CORE_TESTS = test_regs test_2sio test_fdc test_link test_glue test_timing
 TESTS = $(CORE_TESTS)
 $(foreach t,$(CORE_TESTS),$(eval $(t)_SRCS = $$(CORE)))

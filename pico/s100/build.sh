@@ -6,12 +6,13 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 Z88DK=${Z88DK:-$HOME/Workspace/z88dk}
 ASM=$Z88DK/bin/z88dk-z80asm
 OUT=$HERE/build/client
+COMMON_CLIENT=$HERE/../common/client
 mkdir -p "$OUT"
 # FNBIOS carries its resident part, assembled on its own for E800h.
-"$ASM" -m8080 -b -I"$HERE/client" -O"$OUT" -o"$OUT/fnbres.bin" "$HERE/client/fnbres.asm"
+"$ASM" -m8080 -b -I"$HERE/client" -I"$COMMON_CLIENT" -O"$OUT" -o"$OUT/fnbres.bin" "$HERE/client/fnbres.asm"
 rm -f "$OUT/fnbres.o"
 for prog in fnhello fntest mdmtest prntest fnbios bootcheck loader; do
-    "$ASM" -m8080 -b -I"$HERE/client" -I"$OUT" -O"$OUT" -o"$OUT/$prog.bin" "$HERE/client/$prog.asm"
+    "$ASM" -m8080 -b -I"$HERE/client" -I"$COMMON_CLIENT" -I"$OUT" -O"$OUT" -o"$OUT/$prog.bin" "$HERE/client/$prog.asm"
     mv "$OUT/$prog.bin" "$OUT/${prog^^}.COM"
     rm -f "$OUT/$prog".o
     echo "${prog^^}.COM: $(stat -c %s "$OUT/${prog^^}.COM") bytes"
