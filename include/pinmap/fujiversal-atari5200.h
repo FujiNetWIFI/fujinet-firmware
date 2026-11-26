@@ -1,18 +1,11 @@
 #ifdef PINMAP_FUJIVERSAL_ATARI5200
 
-// Atari 5200. The console side is an RP2354B cartridge (see pico/atari-5200/)
-// that serves the mailbox and holds the game image in its own SRAM; this
-// ESP32-S3 is the USB *host* on the other end of that link, as for the other
-// fujiversal cartridges. Nothing here is 5200-specific -- the console identity
-// lives entirely in the RP2354B firmware.
+// Atari 5200: FujiNet-5200 Rev0 (fujinet-hardware ATARI-5200/FujiNet-5200-Rev0), an
+// ESP32-S3-WROOM-1-N16R8 beside an RP2354B cartridge MCU. The S3 is the USB *host* on the RP's
+// link, as for the other fujiversal cartridges; the console identity lives in the RP firmware.
 //
 // Deliberately no PIN_UART1_RX/PIN_UART2_RX: their absence is what selects
 // the USB transport in lib/bus/rs232/rs232.h rather than a wired UART.
-//
-// PROVISIONAL. Pin numbers are the Freenove ESP32-S3 CAM assignments
-// carried over from fujiversal-astrocade.h so the SD/UART/LED paths need no
-// change. The cartridge is a separate board joined only by USB, so there are
-// no RUN/BOOTSEL control lines to declare. Revisit when hardware exists.
 
 #define PIN_BUTTON_A            GPIO_NUM_NC
 #define PIN_BUTTON_B            GPIO_NUM_NC
@@ -22,13 +15,15 @@
 #define PIN_LED_BUS             GPIO_NUM_NC
 #define PIN_LED_WIFI            GPIO_NUM_NC
 
-// Freenove ESP32-S3 CAM onboard WS2812, used as a single combined status
-// light: white = WiFi up, fast orange flicker = bus activity
+// WS2812B-2020 used as a single combined status light:
+// white = WiFi up, fast orange flicker = bus activity
 #define PIN_LED_STRIP           GPIO_NUM_48
 #define LED_STRIP_COUNT         1
 #define LED_STRIP_STATUS_LIGHT          // WS2812 acts as a combined status light
 #define LED_BUS_FLICKER_US      30000   // bus LED flickers (hard-drive activity style)
 
+// The board wires card-detect to IO42 with a 10k pull-up; unused until its
+// polarity is confirmed on hardware.
 #define PIN_CARD_DETECT         GPIO_NUM_NC
 #define PIN_CARD_DETECT_FIX     GPIO_NUM_NC
 #define PIN_SD_HOST_CS          GPIO_NUM_41
@@ -40,6 +35,11 @@
 // native USB on the S3's host pins and has no GPIO of its own.
 #define PIN_UART0_RX            GPIO_NUM_44
 #define PIN_UART0_TX            GPIO_NUM_43
+
+// To the RP's RUN and QSPI_SS (BOOTSEL) through 1k each, both pulled up 10k:
+// driven low to assert, input when idle. Same pins as fujiversal-atari2600.
+#define PIN_RP2040_RUN          GPIO_NUM_4
+#define PIN_RP2040_BOOTSEL      GPIO_NUM_5
 
 // USB device filter for the cartridge. VID-only: 0xCafe is TinyUSB's
 // default and what the fuji5200 cart enumerates as; the PID varies with
