@@ -1126,6 +1126,9 @@ if(FUJINET_TARGET STREQUAL "RS232")
   target_include_directories(rs232_rom_mount_tests PRIVATE ${MBEDTLS_INCLUDE_DIR})
   target_link_libraries(rs232_rom_mount_tests PRIVATE ${MBEDCRYPTO_STATIC_LIB})
   if(WIN32)
+    target_include_directories(rs232_rom_mount_tests PRIVATE
+      ${CMAKE_SOURCE_DIR}/components_pc/libsmb2/include/   # asprintf.h
+    )
     target_link_libraries(rs232_rom_mount_tests PRIVATE ws2_32 bcrypt)
   endif()
   add_test(NAME rs232_rom_mount_tests COMMAND rs232_rom_mount_tests)
@@ -1182,6 +1185,9 @@ if(FUJINET_TARGET STREQUAL "RS232")
   target_include_directories(rs232_disk_tests PRIVATE ${MBEDTLS_INCLUDE_DIR})
   target_link_libraries(rs232_disk_tests PRIVATE ${MBEDCRYPTO_STATIC_LIB})
   if(WIN32)
+    target_include_directories(rs232_disk_tests PRIVATE
+      ${CMAKE_SOURCE_DIR}/components_pc/libsmb2/include/   # asprintf.h
+    )
     target_link_libraries(rs232_disk_tests PRIVATE ws2_32 bcrypt)
   endif()
   add_test(NAME rs232_disk_tests COMMAND rs232_disk_tests)
