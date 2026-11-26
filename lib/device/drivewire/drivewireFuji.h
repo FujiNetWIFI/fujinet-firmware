@@ -2,6 +2,7 @@
 #define DRIVEWIREFUJI_H
 
 #include "fujiDevice.h"
+#include "CoCoROMFormats.h"
 
 #include "cassette.h"
 
@@ -18,7 +19,13 @@ protected:
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                            uint8_t maxlen) override;
     mediatype_t directoryMediaType(const char *filename) override {
-        return JoinedMediaFormats<drivewireDisk::Formats>::entryType(filename);
+        return JoinedMediaFormats<drivewireDisk::Formats, CoCoROMFormats>::entryType(filename);
+    }
+
+    std::unique_ptr<ROMMedia> openROM(const std::string &path, fnFile *fileh,
+                                      fujiHost &host) override
+    {
+        return CoCoROMFormats::open<ROMMedia>(path, fileh, &host);
     }
 
     // Passes `host` through so CoCoDSK can write high scores to a read-only image.

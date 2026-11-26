@@ -8,20 +8,17 @@
 #include "disk/DragonVDK.h"
 #include "disk/PMD85MRM.h"
 #include "disk/CoCoCAS.h"
-#include "rom/CoCoCartROM.h"
 
 #include <memory>
 
 class drivewireDisk : public FujiDiskDrive
 {
 public:
-    // Disks are tried before cartridges; within each, in this order.
     using Formats = MediaFormats<MEDIATYPE_UNKNOWN,
                                  MediaFormat<CoCoDSK, MEDIATYPE_DSK>,
                                  MediaFormat<DragonVDK, MEDIATYPE_VDK>,
                                  MediaFormat<PMD85MRM, MEDIATYPE_MRM>,
-                                 MediaFormat<CoCoCAS, MEDIATYPE_CAS>,
-                                 MediaFormat<CoCoCartROM, MEDIATYPE_ROM>>;
+                                 MediaFormat<CoCoCAS, MEDIATYPE_CAS>>;
 
 private:
     uint8_t _status = DISK_STATUS_OK;

@@ -20,6 +20,7 @@
  */
 
 #include "fujiDevice.h"
+#include "Cartridge.h"
 
 #include "fnConfig.h"
 #include "fnSystem.h"
@@ -620,7 +621,7 @@ success_is_true fujiDevice::fujicore_mount_disk_image_success(uint8_t deviceSlot
     Debug_printf("Selecting '%s' from host #%u as %s on D%u:\r\n",
                  disk.filename, disk.host_slot, mode, deviceSlot + 1);
 
-    // Handed to the drive by mount_media(); the slot keeps no copy
+    // The slot keeps no copy of the handle
     fnFile *fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), mode);
 
     if (fileh == nullptr)
@@ -634,10 +635,11 @@ success_is_true fujiDevice::fujicore_mount_disk_image_success(uint8_t deviceSlot
         RETURN_ERROR_AS_FALSE();
     }
     DISK_DEVICE *disk_dev = get_disk_dev(deviceSlot);
-    error_is_true mounted = mount_media(disk_dev, fileh, disk, host, access_mode);
+    std::unique_ptr<ROMMedia> rom = openROM(disk.filename, fileh, host);
+    error_is_true mounted = rom ? Cartridge(SYSTEM_BUS).mount(*rom)
+                                : mount_media(disk_dev, fileh, disk, host, access_mode);
     disk_dev->is_config_device = false;
 
-    // A disk is mounted, so make sure our bootable CONFIG disk is disabled
     if (mounted.is_success())
         boot_config = false;
 

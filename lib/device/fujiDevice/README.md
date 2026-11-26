@@ -17,8 +17,9 @@ browsing and image mounting, and it is the model for how device code should be s
   subclass overrides.
 - Slots: `_fnHosts` and `_fnDisks` hold the `fujiHost` and `fujiDisk` objects from
   [lib/fuji/](../../fuji/); `populate_slots_from_config()` and `populate_config_from_slots()` keep
-  them in step with `Config`. Mounting an image opens the file through the host, then calls
-  `mount_media()`, which hands the handle to `DISK_DEVICE::mount()`.
+  them in step with `Config`. Mounting an image opens the file through the host. A ROM that
+  `openROM()` accepts goes to the [Cartridge/](../Cartridge/); otherwise `mount_media()` hands the
+  handle to `DISK_DEVICE::mount()`.
 
 ## Subclass contract
 
@@ -27,6 +28,7 @@ browsing and image mounting, and it is the model for how device code should be s
 | `setup()` | yes | create and register the platform's devices on `SYSTEM_BUS` |
 | `set_additional_direntry_details()` | yes | append the platform's directory-entry fields |
 | `mount_media()`, `insert_boot_device()`, `get_disk_dev()` | no | platform disk handling |
+| `openROM()` | no | the ROM formats of a platform with a cartridge |
 | `announce_rotation()`, `fujidev_set_device_fullpath()`, `fujidev_copy_file()` | no | per-packet hooks |
 | `qr_encode()`, `appkey_read()`, `appkey_write()` | no | mixin hooks |
 

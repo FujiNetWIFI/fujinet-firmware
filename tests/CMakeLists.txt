@@ -940,8 +940,8 @@ endif()
 # FujiBus packets and scripts the replies, and serves fujiHost files from
 # memory. UNIT_TESTS as for imddisk_tests above; fnFile stays the
 # FileHandler both builds use, so the tests can count closes on their handles.
-# PINMAP_FUJIVERSAL_DRIVEWIRE turns on the drivewire ROM push, which the
-# fujinet-pc build otherwise compiles out.
+# PINMAP_FUJIVERSAL_DRIVEWIRE gives the drivewire systemBus its FujiBus link,
+# which the fujinet-pc build otherwise compiles out.
 # ------------------------------------------------------------------------------
 set(ROM_MOUNT_TEST_INCLUDES
   ${CMAKE_SOURCE_DIR}/include/
@@ -990,6 +990,7 @@ if(FUJINET_TARGET STREQUAL "COCO")
     drivewireBusStubs.cpp
     channelStubs.cpp
     ${CMAKE_SOURCE_DIR}/lib/device/drivewire/disk.cpp
+    ${CMAKE_SOURCE_DIR}/lib/device/Cartridge/Cartridge.cpp
     ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFile.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/media.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/rom/ROMMedia.cpp
@@ -1011,6 +1012,7 @@ if(FUJINET_TARGET STREQUAL "COCO")
   target_include_directories(drivewire_rom_mount_tests PRIVATE
     ${CMAKE_SOURCE_DIR}/lib/device/drivewire/
     ${CMAKE_SOURCE_DIR}/lib/bus/drivewire/
+    ${CMAKE_SOURCE_DIR}/lib/device/Cartridge/
     ${ROM_MOUNT_TEST_INCLUDES}
   )
   if(WIN32)
@@ -1028,8 +1030,6 @@ if(FUJINET_TARGET STREQUAL "COCO")
     ${CMAKE_SOURCE_DIR}/lib/device/drivewire/disk.cpp
     ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFile.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/media.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/rom/ROMMedia.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/rom/CoCoCartROM.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/disk/DiskMedia.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/disk/BlockMedia.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/disk/CoCoDSK.cpp
@@ -1081,6 +1081,7 @@ if(FUJINET_TARGET STREQUAL "RS232")
     romMountStubs.cpp
     channelStubs.cpp
     ${CMAKE_SOURCE_DIR}/lib/device/rs232/disk.cpp
+    ${CMAKE_SOURCE_DIR}/lib/device/Cartridge/Cartridge.cpp
     ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFile.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/IMDImage.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/disk/DiskMedia.cpp
@@ -1121,6 +1122,7 @@ if(FUJINET_TARGET STREQUAL "RS232")
     ${CMAKE_SOURCE_DIR}/lib/device/rs232/
     ${CMAKE_SOURCE_DIR}/lib/bus/rs232/
     ${CMAKE_SOURCE_DIR}/lib/media/rs232/
+    ${CMAKE_SOURCE_DIR}/lib/device/Cartridge/
     ${ROM_MOUNT_TEST_INCLUDES}
   )
   target_include_directories(rs232_rom_mount_tests PRIVATE ${MBEDTLS_INCLUDE_DIR})
@@ -1149,23 +1151,6 @@ if(FUJINET_TARGET STREQUAL "RS232")
     ${CMAKE_SOURCE_DIR}/lib/media/disk/JV1Disk.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/disk/AltairDSK.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/media.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/rom/ROMMedia.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/rom/Atari2600ROM.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/rom/Atari5200ROM.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/rom/Atari7800ROM.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/rom/ChannelFROM.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/rom/ColecoROM.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/rom/IntellicartROM.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/rom/IntellivisionROM.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/rom/MSXROM.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/rom/MSXROMDatabase.cpp
-    ${CMAKE_SOURCE_DIR}/lib/encoding/hash.cpp
-    ${CMAKE_SOURCE_DIR}/lib/utils/string_utils.cpp
-    ${CMAKE_SOURCE_DIR}/lib/utils/U8Char.cpp
-    ${CMAKE_SOURCE_DIR}/lib/utils/punycode.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/rom/NESROM.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/rom/SegaMasterROM.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/rom/StudioIIROM.cpp
     ${CMAKE_SOURCE_DIR}/lib/bus/FujiBusPacket.cpp
     ${CMAKE_SOURCE_DIR}/lib/bus/DaisyChain.cpp
   )
@@ -1182,13 +1167,8 @@ if(FUJINET_TARGET STREQUAL "RS232")
     ${CMAKE_SOURCE_DIR}/lib/media/rs232/
     ${ROM_MOUNT_TEST_INCLUDES}
   )
-  target_include_directories(rs232_disk_tests PRIVATE ${MBEDTLS_INCLUDE_DIR})
-  target_link_libraries(rs232_disk_tests PRIVATE ${MBEDCRYPTO_STATIC_LIB})
   if(WIN32)
-    target_include_directories(rs232_disk_tests PRIVATE
-      ${CMAKE_SOURCE_DIR}/components_pc/libsmb2/include/   # asprintf.h
-    )
-    target_link_libraries(rs232_disk_tests PRIVATE ws2_32 bcrypt)
+    target_link_libraries(rs232_disk_tests PRIVATE ws2_32)
   endif()
   add_test(NAME rs232_disk_tests COMMAND rs232_disk_tests)
 endif()

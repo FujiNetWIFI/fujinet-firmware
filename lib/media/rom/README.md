@@ -7,10 +7,10 @@ at a time like a disk.
 
 - `ROMMedia` derives `Media` from [lib/media/media.h](../media.h); a format is opened through
   `Media::open()`, which runs its `attach()`.
-- A device lists the formats it accepts, in order, in a `ROMFactory::open<>()` call and sends what
-  it gets back to the cartridge, as `drivewireDisk` in
-  [lib/device/drivewire/](../../device/drivewire/) and `rs232Disk` in
-  [lib/device/rs232/](../../device/rs232/) do.
+- A platform lists the formats it accepts, in order, in a `MediaFormats` list that its Fuji's
+  `openROM()` opens from, as in [lib/device/drivewire/](../../device/drivewire/) and
+  [lib/device/rs232/](../../device/rs232/). `Cartridge` in
+  [lib/device/Cartridge/](../../device/Cartridge/) pushes what comes back.
 
 ## Build
 

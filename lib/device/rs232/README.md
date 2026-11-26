@@ -6,7 +6,8 @@ cartridge board.
 ## How it fits
 - Every class derives the `virtualDevice` of [lib/bus/rs232/](../../bus/rs232/) and implements
   `rs232_process()`. Images come from [lib/media/rs232/](../../media/rs232/).
-- `rs232Fuji` overrides `mount_media()` to pass the host to the disk.
+- `rs232Fuji` overrides `openROM()` with the cartridge formats in `RS232ROMFormats.h`, and
+  `mount_media()` to pass the host to the disk.
 - [lib/device/device.h](../device.h) makes `PlatformFuji` an `h89Fuji` under `PINMAP_H89` and an
   `rs232Fuji` otherwise.
 - `src/main.cpp` adds the Fuji, clock, printer and modem devices.
@@ -17,4 +18,3 @@ lists every file.
 
 ## Notes
 - `h89Fuji` mounts no boot disk, since the MS-DOS one means nothing to CP/M or HDOS.
-- `rs232Disk::mount()` takes the owning `fujiHost` so a ROM format can open a mapper sibling file.

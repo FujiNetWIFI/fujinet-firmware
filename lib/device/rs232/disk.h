@@ -10,18 +10,6 @@
 #include "disk/JV1Disk.h"
 #include "disk/RawDisk.h"
 
-#include "rom/Atari2600ROM.h"
-#include "rom/Atari5200ROM.h"
-#include "rom/Atari7800ROM.h"
-#include "rom/ChannelFROM.h"
-#include "rom/ColecoROM.h"
-#include "rom/IntellicartROM.h"
-#include "rom/IntellivisionROM.h"
-#include "rom/MSXROM.h"
-#include "rom/NESROM.h"
-#include "rom/SegaMasterROM.h"
-#include "rom/StudioIIROM.h"
-
 #include <ctime>
 #include <memory>
 
@@ -30,29 +18,13 @@ class fujiHost;
 class rs232Disk : public FujiDiskDrive
 {
 public:
-    // Cartridges are tried first, strongest evidence first: a signature, a
-    // mapper file, then the extension alone. Then the disks: an IMD header, a
-    // JV1 size, an Altair size, and raw for anything else. A name alone can't
-    // tell a JV1 or Altair .dsk, so it lists as unknown.
+    // A .dsk file may be a JV1 or an Altair image, and its name doesn't show
+    // which, so it lists as unknown.
     using Formats = MediaFormats<MEDIATYPE_UNKNOWN,
-                                 MediaFormat<IntellicartROM, MEDIATYPE_ROM>,
-                                 MediaFormat<NESROM, MEDIATYPE_ROM>,
-                                 MediaFormat<MSXROM, MEDIATYPE_ROM>,
-                                 MediaFormat<IntellivisionROM, MEDIATYPE_ROM>,
-                                 MediaFormat<Atari7800ROM, MEDIATYPE_ROM>,
-                                 MediaFormat<StudioIIROM, MEDIATYPE_ROM>,
-                                 MediaFormat<Atari5200ROM, MEDIATYPE_ROM>,
-                                 MediaFormat<Atari2600ROM, MEDIATYPE_ROM>,
-                                 MediaFormat<SegaMasterROM, MEDIATYPE_ROM>,
-                                 MediaFormat<ChannelFROM, MEDIATYPE_ROM>,
-                                 MediaFormat<ColecoROM, MEDIATYPE_ROM>,
                                  MediaFormat<IMDDisk, MEDIATYPE_IMD>,
                                  MediaFormat<JV1Disk, MEDIATYPE_JV1>,
                                  MediaFormat<AltairDSK, MEDIATYPE_UNKNOWN>,
                                  MediaFormat<RawDisk, MEDIATYPE_IMG>>;
-
-    // A ROM goes to the DBC in blocks of this size.
-    static constexpr size_t ROM_BLOCK_SIZE = 512;
 
     // The DISK_STATUS bits still reported, as an Atari 810 or XF551 would.
     static constexpr uint8_t DRIVE_STATUS_WRITE_PROTECT = 0x08;
@@ -95,7 +67,6 @@ public:
     rs232Disk();
     ~rs232Disk();
 
-    // host lets a cartridge find its mapper file beside it; may be nullptr.
     error_is_true mount(fnFile *f, const char *filename, uint32_t disksize,
                         disk_access_flags_t access_mode, fujiHost *host = nullptr);
     void unmount();

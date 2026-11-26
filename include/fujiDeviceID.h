@@ -17,6 +17,7 @@ typedef enum class FUJI_DEVICEID : uint8_t {
   TAPE         = 0x08,
   NETWORK      = 0x09,
   NETWORK_LAST = 0x0E,
+  DBC          = 0xFF, // not an AdamNet node; the companion MCU
 #else
   FUJINET      = 0x70,
 
