@@ -1,31 +1,10 @@
 #!/usr/bin/env bash
-# apply.sh -- graft the FujiNet cartridge device into a MAME tree.
+# apply.sh [mame-tree] -- graft the FujiNet cartridge device into MAME (default ~/Workspace/mame).
 #
-# Usage: ./apply.sh [/path/to/mame]      default: ~/Workspace/mame
-#
-# Copies the device model (fujinet.cpp/h), pico/common's mailbox service and the
-# cartridge firmware's own sources (the bus decode, the glyph compositor and
-# their headers -- so MAME runs the code the cartridge actually ships, not a
-# lookalike) into src/devices/bus/vcs/, and makes two shared-file edits:
-#
-#   scripts/src/bus.lua              the VCS file list
-#   src/mame/atari/a2600.cpp         the slot option and its include
-#
-# Idempotent, and every edit is anchored: if MAME moves an anchor this exits
-# nonzero rather than half-patching.
-#
-# WHAT IS DELIBERATELY NOT PATCHED. vcs_cart_slot_device::call_load() rejects
-# any image whose size is not on a hard whitelist (0x800, 0x1000, 0x2000,
-# 0x28ff, 0x2900, 0x3000, 0x4000, 0x8000, 0x10000, 0x80000). A FujiNet client
-# is (N+1) * 2048 bytes -- N banks plus the fixed half -- and N in {1,3,7,15}
-# gives exactly 4K, 8K, 16K and 32K, all whitelisted. So the constraint costs
-# nothing and the whitelist stays untouched: every core file this script edits
-# is one more thing that breaks silently on a MAME upgrade, and tools/checkrom.py
-# enforces the size on our side where it belongs.
-#
-# Afterwards: make -C /path/to/mame -j$(nproc) NOWERROR=1 REGENIE=1
-# (REGENIE=1 is required the first time, because bus.lua changed. Re-run THIS
-# script after every edit to a shared source -- MAME builds the copies.)
+# Copies the device, pico/common's mailbox service and the cart's own decode and
+# renderer into src/devices/bus/vcs/, and edits bus.lua and a2600.cpp; exits
+# nonzero if an anchor moved. Re-run after any edit to a shared source, then
+# make -C <mame> -j$(nproc) NOWERROR=1 REGENIE=1.
 
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -65,9 +44,8 @@ if inc_anchor not in text:
     sys.exit("apply.sh: a2600.cpp include anchor not found")
 text = text.replace(inc_anchor, '#include "bus/vcs/fujinet.h"\n' + inc_anchor, 1)
 
-# The slot option list. Ours is added explicitly and is never auto-detected:
-# identify_cart_type() would size-match a FujiNet client to a stock ROM type,
-# so the client is always selected with -cartslot fujinet.
+# Never auto-detected: identify_cart_type() would size-match a client to a
+# stock ROM type, so it takes -cartslot fujinet.
 opt_anchor = '\tdevice.option_add("a26_2k_4k", A26_ROM_2K_4K);\n'
 if opt_anchor not in text:
     sys.exit("apply.sh: a2600.cpp slot option anchor not found")

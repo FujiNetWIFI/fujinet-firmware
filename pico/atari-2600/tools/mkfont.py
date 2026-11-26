@@ -1,14 +1,5 @@
 #!/usr/bin/env python3
-"""mkfont.py -- emit the cartridge's font table from tools/vcsfont.py.
-
-The font has to exist twice: once in Python, where the reference renderer and
-the M0 golden screen come from, and once in C, where the cartridge actually
-composes glyphs. Two hand-maintained copies of a 96-glyph table drift, and the
-drift shows up as one wrong character in a filename three milestones later.
-
-So there is one source -- vcsfont.py's _F -- and this generates the other.
-host_test/test_render.c then checks the COMPOSITION logic against the Python
-renderer's output, which is the part that can still differ.
+"""mkfont.py -- the cartridge's C font table, generated from tools/vcsfont.py.
 
 Usage: mkfont.py > vcs_font.h    (the firmware CMake, host_test/Makefile and emu/apply.sh run it)
 """

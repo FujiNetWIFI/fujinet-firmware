@@ -1,33 +1,11 @@
 #!/usr/bin/env python3
-"""checkrom.py -- validate a built Atari 2600 FujiNet client image.
+"""checkrom.py -- check a built 2600 client against firmware/include/fuji_mailbox.h.
 
-Enforces the layout contract in firmware/include/fuji_mailbox.h so a client
-that breaks it fails its build rather than a debugging session.
-
-The interesting check is the last one. The cartridge has no R/W line: it
-recovers a written byte by parking on the stable address and keeping the
-second-to-last data sample. A READ-MODIFY-WRITE instruction is three bus
-cycles at one address -- read, write the old value, write the new one -- and
-there is no defined answer to "what was on the bus" in that burst. Worse, the
-value an RMW reads back from a write-only page is the floating bus, not
-anything the programmer chose. So the opcodes are banned outright rather than
-made to work, and this is where that ban is enforced.
-
-The 6507 has NO INTERRUPTS (MAME's m6507.cpp: "no NMI, no SO, no SYNC"), so
-every access a running client makes comes from its own instruction stream.
-That is what lets a static scan be a real proof here, where on a console with
-an unmaskable vblank interrupt it could only ever be a heuristic.
-
-A client may declare DATA ranges with --data $LO-$HI (repeatable, console
-addresses), or --data B:$LO-$HI for bank B alone -- every bank is mapped at
-$1000, so an unqualified range applies to all of them. The scan skips them rather than disassembling them. That is not a
-way to silence a finding: it exists because a dispatch table is the one piece
-of data whose bytes are ADDRESSES, so sooner or later one of them is $81 or
-$91 and the linear walk reports a STA (zp,X) that no assembler ever emitted.
-Every client in this family has a jump table and the ones that build clean are
-lucky rather than correct. Code stays fully scanned; only the ranges a build
-can name are stepped over, and build.sh derives them from the assembler's own
-listing so they cannot drift from the source.
+Bans read-modify-write on the mailbox: with no R/W line the cart keeps the
+second-to-last data sample, and an RMW's burst of writes has no defined one.
+The 6507 has no interrupts, so a static scan of the code is a proof.
+--data [B:]$LO-$HI skips a jump table (bank B only, or every bank), whose
+address bytes would otherwise decode as STA (zp,X).
 
 Usage: checkrom.py [--data [B:]$LO-$HI]... image.bin [image2.bin ...]
 """
@@ -59,21 +37,13 @@ RMW = {
 # Indirect JMP, for the page-wrap bug.
 JMP_IND = 0x6C
 
-# STA (zp),Y and STA (zp,X). Banned for the same reason RMW is, and a much
-# easier mistake to make: STA (zp),Y ALWAYS performs an internal read at the
-# address it is about to write, which on a page the cartridge does not drive
-# is decoded as an access carrying whatever the floating bus held. A routine
-# that dispatched between the TX page and the text port through
-# `sta (ptr),y` would append a garbage byte before every real one.
-#
-# The scan cannot know what a zero-page pointer holds, so the addressing mode
-# is reported wherever it appears, with the fix being an indirect JMP to a
-# stub that does the store absolutely. No client here uses one.
+# STA (zp),Y reads the address it is about to write; on a write-only page that
+# read is a store of the floating bus. The pointer is unknowable, so the mode is
+# banned everywhere: jump to a stub that stores absolutely instead.
 STA_IND = {0x91: "STA (zp),Y", 0x81: "STA (zp,X)"}
 
-# Instruction lengths by opcode, for a linear scan. Undocumented opcodes are
-# treated as 1 byte, which can desynchronise the scan -- so a hit is reported
-# as an error but the scan itself is a guard, not a disassembler.
+# Opcode lengths for a linear scan. Undocumented opcodes count as 1 byte and
+# can desynchronize it: a guard, not a disassembler.
 LEN = [1] * 256
 for op in (0x69, 0x29, 0xC9, 0xE0, 0xC0, 0x49, 0xA9, 0xA2, 0xA0, 0x09, 0xE9,
            0xA5, 0xA6, 0xA4, 0x85, 0x86, 0x84, 0x65, 0x25, 0x06, 0x24, 0xC5,
@@ -108,10 +78,8 @@ def check(path, data=()):
     if img[off:off + 4] != CLAIM_SIG:
         bad.append("claim %r missing at image offset %#x" % (CLAIM_SIG, off))
 
-    # On a BANKED client the reset vector must point into the fixed half: a
-    # console RESET does not restore bank 0, so the entry point has to be at an
-    # address that is mapped whatever is banked in. A flat client has one bank
-    # and it is always mapped, so anywhere in the window is fine.
+    # A console RESET keeps the current bank, so a banked client's reset vector
+    # must point into the fixed half.
     vec = img[fixed + 0x7FC] | (img[fixed + 0x7FD] << 8)
     banked = fixed > BANK
     lo = 0x1800 if banked else BASE
@@ -119,22 +87,13 @@ def check(path, data=()):
         bad.append("reset vector $%04X is not in the %s"
                    % (vec, "fixed half" if banked else "window"))
 
-    # There is deliberately NO check that the claim appears nowhere else. The
-    # cartridge consults exactly one offset, so a "FUJI" elsewhere is inert --
-    # and any client that puts the word FujiNet on screen has one in its
-    # strings, which made this a pure false positive.
+    # A "FUJI" anywhere but the claim offset is inert (on-screen text has one).
 
-    # The scan. Every bank is entered at $1000 by the trampoline in the fixed
-    # tail, so every bank is code and every bank is scanned. A linear walk
-    # through the strings and tables at the end of each one produces noise, but
-    # noise here means a false RMW report on a write-only page, which is a
-    # thing worth looking at rather than a thing worth suppressing.
+    # Every bank is code, entered at $1000 by the fixed tail's trampoline.
     banks = [(b * BANK, "bank %d" % b) for b in range(fixed // BANK)]
     for start, label in banks + [(fixed, "fixed half")]:
         pc = 0
-        # Every bank is mapped at $1000 and the fixed half at $1800. (This
-        # used to be BASE for bank 0 only, which reported bank 1's $1234 as
-        # $1A34 and made a data range for any bank but 0 unwritable.)
+        # Every bank is mapped at $1000, the fixed half at $1800.
         base = 0x1800 if start == fixed else BASE
         bank = start // BANK if start != fixed else None
         while pc < BANK - 2:

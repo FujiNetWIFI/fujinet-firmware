@@ -1,13 +1,7 @@
 // license:BSD-3-Clause
 // copyright-holders:Thomas Cherryhomes
-/***********************************************************************************************************
-
- Atari 2600 FujiNet cartridge emulation
-
- See fujinet.h for the design; pico/atari-2600/firmware/README.md in
- fujinet-firmware for the bring-up this device serves.
-
- ***********************************************************************************************************/
+// Atari 2600 FujiNet cartridge emulation; see fujinet.h and fujinet-firmware's
+// pico/atari-2600/firmware/.
 
 #include "emu.h"
 #include "fujinet.h"
@@ -16,9 +10,8 @@
 #include <cstdlib>
 #include <cstring>
 
-// The cartridge firmware's own sources, compiled in verbatim (copied next to
-// this file by pico/atari-2600/emu/apply.sh -- as C++, to live with MAME's
-// forced C++ precompiled header, so no extern "C").
+// The firmware's own sources, grafted in as C++ by apply.sh (MAME forces a C++
+// precompiled header), so no extern "C".
 #include "fuji_mailbox.h"
 #include "fujimail.h"
 #include "vcs_render.h"
@@ -26,9 +19,7 @@
 
 DEFINE_DEVICE_TYPE(A26_ROM_FUJINET, a26_rom_fujinet_device, "a26_fujinet", "Atari 2600 FujiNet Cartridge")
 
-// fujimail's port interface is C function pointers with no context argument,
-// so the single device instance is reached through this. One cart slot, one
-// cart: the constraint is real hardware's too.
+// fujimail's callbacks take no context, so the one device is reached through this.
 static a26_rom_fujinet_device *s_fujinet = nullptr;
 
 /*-------------------------------------------------
@@ -143,10 +134,8 @@ a26_rom_fujinet_device::~a26_rom_fujinet_device()
 		s_fujinet = nullptr;
 }
 
-// Lazy, because the order of device_start() and the image's call_load() is
-// not ours to rely on and install_memory_handlers() -- which call_load calls --
-// paints the mailbox. Painting before fujimail_init() would dereference a null
-// port. Calling this from both entry points makes the order irrelevant.
+// Called from device_start() and from call_load()'s install_memory_handlers(),
+// whose order is not ours: painting before fujimail_init() has no port.
 void a26_rom_fujinet_device::ensure_init()
 {
 	if (m_init_done)
@@ -170,14 +159,12 @@ void a26_rom_fujinet_device::serve(const uint8_t *img, uint32_t len)
 {
 	m_image.assign(img, img + len);
 	vcs_set_image(&m_mem, m_image.data(), (uint32_t)m_image.size());
-	// Painting republishes ACKSEQ as 0 and resets fujimail's own sequence
-	// interlock, which is right: a fresh image is a fresh session.
+	// A fresh image is a fresh session: painting zeroes ACKSEQ and the interlock.
 	if (m_mem.mailbox)
 		fujimail_paint();
 	if (m_debug)
 	{
-		// "banks" means our layout's banks, which a booted game does not have
-		// -- it has whatever board it shipped on. Say which.
+		// A booted game has its own board, not our layout's banks.
 		if (m_mem.mailbox)
 			fprintf(stderr, "fujinet: serving %u bytes as a client, "
 					"%u banks + the fixed half, mailbox live\n",
@@ -191,24 +178,16 @@ void a26_rom_fujinet_device::serve(const uint8_t *img, uint32_t len)
 
 void a26_rom_fujinet_device::install_memory_handlers(address_space *space)
 {
-	// Both directions over the whole window. Unlike every stock VCS cart this
-	// device needs the write side: the console -> cart half of the mailbox is
-	// real stores, and page $1D/$1E are write-only by construction.
+	// Unlike a stock VCS cart this needs writes: the console stores to the mailbox.
 	space->install_read_handler(0x1000, 0x1fff,
 			read8sm_delegate(*this, FUNC(a26_rom_fujinet_device::read)));
 	space->install_write_handler(0x1000, 0x1fff,
 			write8sm_delegate(*this, FUNC(a26_rom_fujinet_device::write)));
 
-	// Two of the boards a pushed game may need switch on addresses BELOW A12,
-	// where the cartridge is not selected and is only watching the bus: UA on
-	// $0200-$027F, FE on $01FE and the access that follows it. MAME's own
-	// a26_rom_ua_device and a26_rom_fe_device install exactly these taps.
-	//
-	// They are installed unconditionally because the board is not known until
-	// a game is pushed, and they are inert for every other one -- vcs_watch
-	// tests vcsmap's own watch_low flag. FE's second half, the access after
-	// the trigger, arrives through the $1000-$1fff read handler above when it
-	// is a fetch, and through the $1ff tap when it is a stack pull.
+	// UA ($0200-$027F) and FE ($01FE) switch below A12, where the cart is not
+	// selected; these are MAME's own a26_rom_ua/fe taps. Installed always, since
+	// the board is unknown until a push; vcs_watch() ignores them otherwise.
+	// FE's following access arrives as a fetch above or a stack pull at $1FF.
 	auto watch = [this] (offs_t offset, u8 &data, u8)
 	{
 		if (!machine().side_effects_disabled())
@@ -230,14 +209,9 @@ void a26_rom_fujinet_device::install_memory_handlers(address_space *space)
 
 uint8_t a26_rom_fujinet_device::read(offs_t offset)
 {
-	// install_read_handler hands back an offset relative to its start, which
-	// for $1000-$1FFF is exactly the window offset.
-	//
-	// THE GUARD MATTERS ONCE A GAME IS BOOTED. No read in the FujiNet mailbox
-	// has a side effect, but every classic 2600 mapper switches banks from the
-	// address -- so without this, the MAME debugger (and every harness that
-	// dumps the window with readv_u8) would move the bank under the running
-	// game and read a mixture of banks.
+	// The offset is already the window offset. Mailbox reads have no side
+	// effects, but a booted game's mapper switches banks on reads, so the
+	// debugger and readv_u8 dumps must not commit.
 	return vcs_read_ex(&m_mem, (uint16_t)(FN_WINDOW_BASE + offset),
 			!machine().side_effects_disabled());
 }
@@ -250,9 +224,8 @@ void a26_rom_fujinet_device::write(offs_t offset, uint8_t data)
 	switch (ev)
 	{
 	case VCS_EV_REG:
-		// One completed arm-and-commit is one whole register write. Expand it
-		// into the REGSEL/REGDATA pair pico/common's fujimail.c decodes for
-		// every cart.
+		// One arm-and-commit is one register write: the REGSEL/REGDATA pair
+		// fujimail.c decodes.
 		fujimail_read_hotspot((uint16_t)(FN_H_REGSEL + a));
 		fujimail_read_hotspot((uint16_t)(FN_H_REGDATA + b));
 		break;
@@ -264,13 +237,9 @@ void a26_rom_fujinet_device::write(offs_t offset, uint8_t data)
 	case VCS_EV_PATHTX:
 	case VCS_EV_PATHRAW:
 	{
-		// The cartridge holds the working directory because the console has
-		// nowhere to put it, and emits it straight into the stream. On the
-		// cart this is deferred to core0 -- 256 pushes would miss bus
-		// cycles -- but here there is no bus to miss.
-		//
-		// Padded for a payload that is nothing but the path; raw when the
-		// client is going to append a filename and pad it itself.
+		// The cart holds the working directory (the console has nowhere to) and
+		// streams it out; the cart defers this to core0, here it runs inline.
+		// Padded when the path is the payload; raw when the client appends a name.
 		unsigned sel = m_mem.path_sel;
 		unsigned len = m_mem.path_len[sel];
 		unsigned n = (ev == VCS_EV_PATHTX) ? FN_PATH_MAX : len;
@@ -293,9 +262,7 @@ void a26_rom_fujinet_device::write(offs_t offset, uint8_t data)
 
 	case VCS_EV_TROW:
 	case VCS_EV_TCHR:
-		// The composed row lives in vcs_mem_t, maintained by the shared
-		// decode, so this device and the cartridge firmware cannot drift on
-		// what a half-composed row looks like.
+		// The composed row lives in vcs_mem_t, kept by the shared decode.
 		break;
 
 	case VCS_EV_TEND:
@@ -305,12 +272,8 @@ void a26_rom_fujinet_device::write(offs_t offset, uint8_t data)
 		break;
 
 	case VCS_EV_BLIT:
-		// FN_BLIT_PATH, PATHPOKE and PATHTILE take their source from the
-		// cartridge's path buffer and not the reply window, so all three are
-		// routed past vcs_blit() -- exactly as fuji_cart.c does it, because
-		// these two must not drift. They did: PATHPOKE reached the cartridge
-		// and not this device, and the only symptom was a picture that never
-		// changed -- the fallback reports it, but only under -debug.
+		// PATH, PATHPOKE and PATHTILE read the path buffer, not the reply window,
+		// so they bypass vcs_blit() as fuji_cart.c does; keep the two in step.
 		if (b == FN_BLIT_TCELL)
 			vcs_render_cell(m_mem.win,
 							(uint8_t)(m_mem.blit_dst / FN_T_COLS),
@@ -334,8 +297,7 @@ void a26_rom_fujinet_device::write(offs_t offset, uint8_t data)
 		else if (!vcs_blit(m_mem.win, m_mem.board, m_mem.blit_src, m_mem.blit_dst,
 					  m_mem.blit_cnt, b) && m_debug)
 			fprintf(stderr, "fujinet: blit transform %u not implemented\n", b);
-		// Synchronous here, deferred on the cart: the generation byte is what
-		// lets a client written against the hardware's ordering also run here.
+		// Synchronous here, deferred on the cart; the generation byte covers both.
 		m_mem.win[FN_B_BLITGEN - FN_WINDOW_BASE]++;
 		break;
 
@@ -396,8 +358,8 @@ uint8_t a26_rom_fujinet_device::stream_close(int stream, uint32_t got, bool abor
 	}
 	if (stream != FN_STREAM_ROM)
 		return 0;
-	// The .cfg names the board where size cannot: an 8K F8, E0, UA and FE are
-	// all 8192 bytes. vcs_set_image spends it once, at the swap.
+	// The .cfg names the board where size cannot (an 8K F8, E0, UA and FE);
+	// vcs_set_image() spends it once, at the swap.
 	const char *mapper = fuji_cfg_mapper(&m_cfg);
 	if (!aborted && vcs_gate(got) == 0)
 	{

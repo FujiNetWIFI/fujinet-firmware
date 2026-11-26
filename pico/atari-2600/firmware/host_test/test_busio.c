@@ -1,16 +1,6 @@
-/* test_busio.c -- the cartridge's bus decode, and the write-sampling model.
- *
- * This is the rung MAME structurally cannot cover. Its VCS cart device is
- * handed a clean data byte on a write (write8sm_delegate), so the data_prev
- * sampling the real cartridge depends on never runs there at all -- and the
- * arming gate, the arm/commit interlock and the tri-state pages are all about
- * accesses an emulator models as clean reads and writes.
- *
- * The expectations below are written from the RULES IN PROSE in
- * fuji_mailbox.h and vcs_cart.h, never by calling the decoder to find out what
- * it does. That is the discipline the ColecoVision port arrived at with five
- * mappers: an expectation derived from the code under test proves only that
- * the code agrees with itself.
+/* test_busio.c -- the bus decode and the write-sampling model, which MAME can't test: its
+ * cart device gets a clean byte on a write (write8sm_delegate). Expectations come from the
+ * rules in fuji_mailbox.h and vcs_cart.h, not from calling the decoder.
  */
 
 #include <stdio.h>
@@ -54,7 +44,7 @@ static void reset_image(int claim)
         memcpy(image + sizeof image - FN_BANK_SIZE
                      + (FN_R_CLAIM - FN_FIXED_BASE),
                FN_R_CLAIM_SIG, FN_R_CLAIM_LEN);
-    /* Something recognisable in each bank, to prove banking moves the window. */
+    /* Something recognizable in each bank, to prove banking moves the window. */
     for (unsigned b = 0; b < sizeof image / FN_BANK_SIZE; b++)
         image[b * FN_BANK_SIZE] = (uint8_t)(0xB0 + b);
     memset(&m, 0, sizeof m);
@@ -98,7 +88,7 @@ static void test_arming_gate(void)
     CHECK(m.mailbox, "a claiming image must bring the mailbox up");
     CHECK(!m.armed, "the decode gate must start closed");
 
-    /* Closed, nothing decodes -- this is the 7800-BIOS probe defence. */
+    /* Closed, nothing decodes -- this is the 7800-BIOS probe defense. */
     wr(FN_H_REGSEL + FN_REG_DEVICE, 0x70, 0, 0);
     CHECK(wr(FN_H_COMMIT, 0x70, &a8, &b8) == VCS_EV_NONE,
           "a register write decoded before the gate opened");
@@ -166,9 +156,8 @@ static void test_tx_and_ops(void)
     reset_image(1);
     arm();
 
-    /* A write ANYWHERE in the TX page appends, so `sta $1E00,x` works for any
-     * X -- and the base low byte is $00, so the index cannot carry and the
-     * dummy read STA abs,X always performs lands on the same address. */
+    /* Any write in the TX page appends. With a $00 base low byte the index can't carry,
+     * so STA abs,X's dummy read lands on the same address. */
     for (unsigned i = 0; i < 256; i += 37) {
         CHECK(wr((uint16_t)(FN_TX_BASE + i), (uint8_t)i, &reg, &val) == VCS_EV_TX
               && val == (uint8_t)i,
@@ -258,16 +247,9 @@ static void test_claim_and_banking(void)
 }
 
 /* ---- the write-sampling model -------------------------------------------
- *
- * The cart samples D0-D7 while the address is parked and keeps the
- * second-to-last sample. What it sees depends on the SHAPE of the access, and
- * the shapes below are the 6502's, from the addressing modes a client can
- * actually aim at a write port.
- *
- * `float_v` is whatever the undriven bus holds: on a write-only page the cart
- * never drives, so a read cycle there leaves the previous bus contents. The
- * exact value does not matter and the tests do not depend on it -- that it is
- * NOT the stored byte is the whole point.
+ * The cart samples D0-D7 while the address is parked and keeps the second-to-last
+ * sample; the access shapes below are the 6502's. `float_v` is the undriven bus a read
+ * cycle on a write-only page leaves, any value that is not the stored byte.
  */
 #define TURNAROUND 0xA5u        /* the bus mid-turnover, after the last cycle */
 
@@ -282,10 +264,8 @@ static unsigned shape_sta_abs(uint8_t *s, uint8_t d)
 
 static unsigned shape_sta_abs_x(uint8_t *s, uint8_t d, uint8_t floatv)
 {
-    /* STA abs,X always performs a dummy READ of the unfixed address before
-     * the write. With a page-aligned base the index cannot carry, so both
-     * cycles land on the SAME address and the cart sees one long parked
-     * access: float, then the driven data. */
+    /* STA abs,X's dummy read and the write land on one address (page-aligned base), so
+     * the cart sees one parked access: float, then the data. */
     unsigned n = 0;
     for (unsigned i = 0; i < 30; i++) s[n++] = floatv;
     for (unsigned i = 0; i < 30; i++) s[n++] = d;
@@ -310,9 +290,7 @@ static void test_sampling(void)
     uint8_t s[256];
     unsigned n;
 
-    /* The plain store, and the indexed store a TX append actually uses, must
-     * recover the same byte -- that equivalence is what makes `sta $1E00,x`
-     * legal for any X. */
+    /* The plain and indexed stores must recover the same byte. */
     for (unsigned d = 0; d < 256; d += 17) {
         n = shape_sta_abs(s, (uint8_t)d);
         CHECK(vcs_recover(s, n) == (uint8_t)d,
@@ -322,13 +300,8 @@ static void test_sampling(void)
               "STA abs,X recovered $%02X, want $%02X", vcs_recover(s, n), d);
     }
 
-    /* And the hazard, stated positively. An RMW's three cycles put the OLD
-     * value on the bus before the new one, so what the cart appends depends on
-     * where in that burst the address happens to change -- and the "old" value
-     * an RMW reads back from a write-only page is open bus, not anything the
-     * programmer chose. There is no correct answer here, which is why
-     * tools/checkrom.py rejects the opcodes outright rather than trying to
-     * make them work. */
+    /* An RMW puts the old value (open bus here) on the bus before the new one, so what
+     * the cart keeps has no right answer; tools/checkrom.py rejects those opcodes. */
     n = shape_rmw(s, 0x00, 0x01, 0xFF);
     CHECK(vcs_recover(s, n) != 0x00,
           "the RMW model happens to recover the old value; the test is wrong");
@@ -339,10 +312,7 @@ static void test_sampling(void)
     CHECK(vcs_recover(s, 0) == 0xFF, "a zero-sample access must not underflow");
 }
 
-/* A booted GAME is served by its real board, not by our window. This is the
- * seam between the two worlds and it is worth an explicit test: the claim is
- * what decides, and getting it wrong means either a game that does not bank or
- * a client whose mailbox is decoded as a bankswitch hotspot. */
+/* The claim decides: a booted game is served by its real board, a client by our window. */
 static void test_booted_game(void)
 {
     static uint8_t game[8192];
@@ -374,10 +344,8 @@ static void test_booted_game(void)
     CHECK(vcs_read(&m, 0x1E00) == 1, "a booted game was denied its own $1E00");
 }
 
-/* The working directory lives in the cartridge because the console has 128
- * bytes of RAM and a path is 256. Nothing about it is visible to MAME -- the
- * emulator sees the same stores the hardware does and gets the same answer --
- * so the pop and pad rules are checked here or nowhere. */
+/* The cart holds the working directory, since a path is 256 bytes and the console has
+ * 128 of RAM. MAME can't see its pop and pad rules, so they're checked here. */
 static void push_path(const char *s)
 {
     for (; *s; s++)
@@ -454,9 +422,7 @@ static void test_path_buffer(void)
         fails++;
     }
 
-    /* The payload is EXACTLY 256 bytes: the path, then NUL padding.
-     * OPEN_DIRECTORY and SET_DEVICE_FULLPATH both read exactly that many and
-     * a short one fails the server's read. */
+    /* Exactly 256 bytes, NUL-padded: OPEN_DIRECTORY and SET_DEVICE_FULLPATH read that many. */
     path_op(FN_PATH_RST);
     push_path("/games/");
     if (wr(FN_H_REGSEL + FN_HOT_PATH_OP, FN_PATH_TX, 0, 0)
@@ -475,26 +441,20 @@ static void test_path_buffer(void)
     }
 }
 
-/* The four ops CONFIG's text editor and its copy need. Each one exists
- * because the console cannot do the job itself: it has 128 bytes of RAM, and
- * it cannot read these pages back at all. */
+/* The ops CONFIG's text editor and copy need, since the console can't read these pages. */
 static void test_path_edit(void)
 {
     reset_image(1);
     arm();
 
-    /* FN_PATH_POPCH is a backspace, not FN_PATH_POP. Popping a COMPONENT is
-     * right for ".." and wrong for typing: one keystroke would eat the whole
-     * word. */
+    /* FN_PATH_POPCH removes a character; FN_PATH_POP, for "..", a component. */
     path_op(FN_PATH_SEL1);
     path_op(FN_PATH_RST);
     push_path("pass");
     path_op(FN_PATH_POPCH);
     expect_path("pas", "backspacing one character");
 
-    /* Bottoming out matters. A user who backspaces one key too many is
-     * ordinary, and an unsigned length that wrapped would then read 65535
-     * bytes of payload. */
+    /* Backspacing an empty buffer must not wrap the length. */
     path_op(FN_PATH_POPCH);
     path_op(FN_PATH_POPCH);
     path_op(FN_PATH_POPCH);
@@ -502,10 +462,8 @@ static void test_path_edit(void)
     path_op(FN_PATH_POPCH);
     expect_path("", "backspacing past empty");
 
-    /* The buffers are genuinely separate. This is the whole reason there are
-     * four: OPEN_DIRECTORY carries a path AND a filter in one payload, a
-     * pending copy's source has to survive browsing away to a destination,
-     * and an edit has to be cancellable. */
+    /* The four buffers are separate: OPEN_DIRECTORY carries a path and a filter, a copy's
+     * source survives browsing to its destination, and an edit can be canceled. */
     path_op(FN_PATH_SEL0);
     path_op(FN_PATH_RST);
     push_path("/games/atari/");
@@ -521,10 +479,7 @@ static void test_path_edit(void)
     path_op(FN_PATH_SEL0);
     expect_path("/games/atari/", "buffer 0 survived writing buffers 1 and 2");
 
-    /* SEED then COMMIT is the edit cycle, and NOT committing is cancel. This
-     * is the pair that makes a cancellable text field possible with no
-     * console RAM at all -- the Intellivision needs a 256-byte scratch copy
-     * of its own to get the same guarantee. */
+    /* SEED then COMMIT is an edit; not committing cancels it. */
     path_op(FN_PATH_SEL1);
     path_op(FN_PATH_SEED);
     path_op(FN_PATH_SEL3);
@@ -539,9 +494,7 @@ static void test_path_edit(void)
     path_op(FN_PATH_COMMIT);
     expect_path("*.rom", "COMMIT accepted the edit");
 
-    /* COMMIT onto the scratch itself would be a self-copy; it must be inert
-     * rather than clever, because a client that selected slot 3 and committed
-     * has made a mistake and should not lose the buffer to it. */
+    /* COMMIT with the scratch selected does nothing, so the mistake loses no buffer. */
     path_op(FN_PATH_SEL3);
     path_op(FN_PATH_COMMIT);
     path_op(FN_PATH_SEED);
@@ -560,10 +513,7 @@ static void test_path_edit(void)
     path_op(FN_PATH_RST);
     push_path("/games/atari/");
 
-    /* The published length follows the selection, or a client reading
-     * FN_B_PATHLEN after a select would size its payload from the wrong
-     * string. A select is not a mutation, so it would be easy to skip the
-     * republish and never notice until a payload came out the wrong length. */
+    /* FN_B_PATHLEN follows the selection, though a select changes no buffer. */
     path_op(FN_PATH_SEL0);
     if (m.win[FN_B_PATHLEN - FN_WINDOW_BASE] != 13u) {
         fprintf(stderr, "FAIL: FN_B_PATHLEN is %u after SEL0, want 13\n",

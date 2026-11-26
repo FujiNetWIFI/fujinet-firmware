@@ -1,22 +1,9 @@
-; fujiboot.asm -- M2: mount a cartridge image over the network and boot it.
+; fujiboot.asm -- mount an image over the network and boot it.
 ;
-; MOUNT_HOST -> SET_DEVICE_FULLPATH -> MOUNT_IMAGE. The last one makes the
-; ESP32 side stream the image back to the cartridge on the same link, addressed
-; to the DBC device, while MOUNT_IMAGE's own reply is still outstanding; the
-; cart stages it and reports BOOT_STATE.
-;
-; The boot itself: arm the swap (BOOTLOCK), then FNSWAP copies a stub into
-; zero-page RAM and jumps to it. The stub stores to the swap hotspot -- the
-; cart flips the window to the staged image between that store and the next
-; fetch, which is safe because the next fetch is in RAM with A12 low -- and
-; then JMPs through ($1FFC), the new image's own reset vector, exactly what the
-; 6507 fetches at power-on.
-;
-; Target host slot and path come from bootcfg.inc, written by build.sh:
-;   BOOT_HOST=0 BOOT_PATH=/vcsgame.bin ./build.sh fujiboot
-;
-; Exit test: emu/boottest.lua dumps the whole served 4K window after the swap
-; and requires it to be byte-identical to the file on disk.
+; MOUNT_HOST, SET_DEVICE_FULLPATH, MOUNT_IMAGE; the cart stages the pushed image.
+; FNSWAP runs a stub from zero-page RAM that stores to the swap hotspot (the next
+; fetch is from RAM, A12 low) and jumps through the new image's ($1FFC).
+; Target from bootcfg.inc: BOOT_HOST=0 BOOT_PATH=/vcsgame.bin ./build.sh fujiboot
 
         CPU     6502
         INCLUDE "vcs.inc"
@@ -115,9 +102,8 @@ ERR2:   lda     #2
         jmp     SHOW
 
 ; ---- MOUNT_IMAGE(dev, mode) ------------------------------------------------
-; This is the one that takes real time: the ESP32 fetches the file and streams
-; it back to the cartridge as DBC push frames while this reply is still
-; outstanding. FNBEG's default timeout is deliberately generous.
+; Slow: the image arrives as DBC push frames before this reply does, hence
+; FNBEG's generous timeout.
 MIMG:   lda     #FNDEVF
         sta     FNDEV
         lda     #FNCMIMG
@@ -169,8 +155,7 @@ BOOT:   jsr     FNBLK           ; arm the swap
         jmp     FNSWAP          ; does not return
 
 ; ---- the failure screen ----------------------------------------------------
-; As useful as the success one: it says WHICH step failed and with what, which
-; is the difference between a bug report and a shrug.
+; Names the step that failed and its error.
 SHOW:   lda     #(TTITLE)&$FF
         sta     FNPTRL
         lda     #(TTITLE)>>8

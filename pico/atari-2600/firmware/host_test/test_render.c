@@ -1,9 +1,5 @@
-/* test_render.c -- the cartridge's glyph compositor against the reference.
- *
- * Plain gcc, no SDK, no hardware. The expectation in render_gold.h comes from
- * tools/vcsfont.py, which was written first and independently; this checks
- * that the C the cartridge actually runs agrees with it byte for byte, and
- * that the planes it writes into are the ones the kernel reads.
+/* test_render.c -- the glyph compositor against render_gold.h, from tools/vcsfont.py,
+ * byte for byte, and the planes it writes against the ones the kernel reads.
  */
 
 #include <stdio.h>
@@ -30,9 +26,8 @@ int main(void)
     static uint8_t board[FN_BOARD_CELLS];
     int i;
 
-    /* Geometry the kernel depends on. A plane that is not 128-byte aligned,
-     * or a row index that can push Y past 127, makes `lda plane,y` cross a
-     * page and cost a fifth cycle -- which does not draw, it tears. */
+    /* An unaligned plane, or Y past 127, makes `lda plane,y` cross a page and take a
+     * fifth cycle, which breaks the kernel's timing. */
     if (FN_T_ROWS * FN_T_CELL_H > FN_T_PLANE_LEN)
         fail("text rows overflow a plane");
     for (i = 0; i < FN_T_PLANES; i++) {
@@ -91,12 +86,8 @@ int main(void)
         fail("vcs_render_clear ran past the planes into the reply window");
 
     /* ---- the blit port ------------------------------------------------
-     *
-     * Six stores move a screenful of bytes the console has neither the RAM
-     * nor the raster time to move itself. Source is an offset into the reply
-     * window, destination an offset into the text planes -- so the bytes go
-     * from the cartridge back to the cartridge, never through the console's
-     * 128 bytes.
+     * Source is an offset into the reply window, destination into the text planes, so
+     * the bytes never pass through the console.
      */
     memset(win, 0, sizeof win);
     {
@@ -132,15 +123,9 @@ int main(void)
         fail("FN_BLIT_RAW did not copy the byte");
     vcs_blit(win, board, 0xFFF0, 0xFFF0, 255, FN_BLIT_RAW);   /* must not crash or escape */
 
-    /* FN_BLIT_FIELD and FN_BLIT_HULLS: a Battleship board, composed by the
-     * cartridge because the console cannot afford to.
-     *
-     * The expectation is built HERE from the rules in prose -- gamefield byte
-     * 1 is a hit, 2 a miss, anything else open sea; the cursor cell replaces
-     * whatever is under it; a hull goes on only where the sea still shows --
-     * and rendered through vcs_render_row, which test_render has already
-     * byte-compared against tools/vcsfont.py. Calling vcs_blit to work out
-     * what vcs_blit should produce would check nothing at all. */
+    /* FN_BLIT_FIELD and FN_BLIT_HULLS: a Battleship board, expected from the rules (1 a
+     * hit, 2 a miss, else sea; the cursor replaces its cell; hulls only on sea) and
+     * rendered through the already-checked vcs_render_row. */
     {
         static uint8_t expect[FN_WINDOW_SIZE];
         uint8_t field[FN_BOARD_CELLS];
@@ -192,9 +177,8 @@ int main(void)
             }
         }
 
-        /* Now the hulls, over the same board. Cells 0..4 less the hit at 2;
-         * 12,22,32,42 less the miss at 22; 55..57; the size-3 vertical at 97
-         * gets 97 only, because 107 and 117 are off the board; and 88,89. */
+        /* Hulls: 0..4 less the hit at 2; 12,22,32,42 less the miss at 22; 55..57; 97
+         * only (107 and 117 are off the board); 88,89. */
         {
             static const uint8_t len[5] = { 5, 4, 3, 3, 2 };
             for (k = 0; k < 5; k++) {
@@ -232,9 +216,7 @@ int main(void)
             fail("the test's own expectation let a hull cover damage");
     }
 
-    /* SEA, CELL and PAINT are FIELD and HULLS taken apart, and a board built
-     * with them must come out identical to one built with them together --
-     * that is the only reason to have both. */
+    /* SEA, CELL and PAINT, FIELD and HULLS taken apart, must build the same board. */
     {
         static uint8_t split[FN_WINDOW_SIZE];
         uint8_t saved[FN_BOARD_CELLS];
@@ -263,15 +245,9 @@ int main(void)
         vcs_blit(split, board, 'Z', 0, 255, FN_BLIT_CELL);
     }
 
-    /* The PLAYFIELD board: FN_BLIT_PFCLR / PFIELD / PFHULL / PFCELL.
-     *
-     * The expectation is a PICTURE, as it is for the cards: for one slot,
-     * each of the three kinds is drawn here as ten rows of ten cells from the
-     * rules in prose, packed into PF0/PF1/PF2 bytes by this test's own copy
-     * of the bit map the header states, and compared as whole plane bytes.
-     * Everything else in the plane region is poisoned and required
-     * untouched -- which is what proves a slot's writes stay inside its own
-     * sixty bytes and never reach a text row or another slot. */
+    /* The playfield board (FN_BLIT_PFCLR / PFIELD / PFHULL / PFCELL): each kind drawn
+     * as a 10x10 picture, packed with this test's own copy of the header's bit map. The
+     * rest of the plane region is poisoned and must stay untouched. */
     {
         /* the bit map, independently of vcs_render.c */
         static const uint8_t reg_of[FN_BOARD_DIM] =
@@ -300,9 +276,8 @@ int main(void)
         field[99] = 2;                  /* a miss in the far corner         */
         field[45] = 7;                  /* nonsense: open sea               */
 
-        /* What the tables must say, per kind: HIT where the wire says 1;
-         * MID where it says 1 or 2; AUX every in-bounds hull cell, plus the
-         * cursor, minus cell 0 which is cleared again below. */
+        /* HIT where the wire says 1; MID where 1 or 2; AUX every in-bounds hull cell and
+         * the cursor, less cell 0, cleared again below. */
         memset(pic, 0, sizeof pic);
         for (i = 0; i < FN_BOARD_CELLS; i++) {
             if (field[i] == 1)
@@ -416,9 +391,8 @@ int main(void)
                     }
         }
 
-        /* The geometry the kernel depends on: no table may cross a page for
-         * y in 0..19, and the region must stay clear of the text rows the
-         * client keeps (0-4 and 15-20) and of the reply window. */
+        /* No table may cross a page for y in 0..19 or reach the client's text rows
+         * (0-4, 15-20) or the reply window. */
         for (r = 0; r < 6; r++)
             for (k = 0; k < FN_PF_KINDS; k++) {
                 unsigned base = FN_PF_TAB(r, k);
@@ -434,14 +408,8 @@ int main(void)
     if (vcs_blit(win, board, 0, 0, 1, 99))
         fail("an unknown blit transform claimed success");
 
-    /* FN_BLIT_POKE: one raw byte into a plane, and the bound that keeps a
-     * client from writing past the planes into its own mailbox.
-     *
-     * This is the transform that lets a console with no RAM left keep a
-     * variable in the cartridge -- see the block comment in fuji_mailbox.h --
-     * so what matters is that it writes EXACTLY one byte, that the byte comes
-     * back unchanged, and that an out-of-range destination writes nothing at
-     * all rather than something one page further on. */
+    /* FN_BLIT_POKE: exactly one byte, read back unchanged, and nothing at all for an
+     * out-of-range destination. */
     {
         static uint8_t poke[FN_WINDOW_SIZE];
         unsigned i;
@@ -465,10 +433,7 @@ int main(void)
             if (poke[(FN_T_BASE - FN_WINDOW_BASE) + i] != (uint8_t)(i & 0xFFu))
                 fail("FN_BLIT_POKE lost a plane byte");
 
-        /* Past the planes is the reply window, then the status page. A client
-         * that could reach either would corrupt the mailbox it is talking
-         * through, and the symptom would be a failed transaction rather than
-         * a wrong picture -- so this is checked, not assumed. */
+        /* Past the planes lie the reply window and the status page. */
         memcpy(poke + PLANES + (FN_T_BASE - FN_WINDOW_BASE), "\xA5\xA5\xA5\xA5", 4);
         vcs_blit(poke, board, 0xFF, (uint16_t)PLANES, 0, FN_BLIT_POKE);
         vcs_blit(poke, board, 0xFF, (uint16_t)(FN_R_DATA - FN_T_BASE), 0,
@@ -479,17 +444,9 @@ int main(void)
                 fail("FN_BLIT_POKE wrote past the text planes");
     }
 
-    /* FN_BLIT_PATHPOKE: a BLOCK of raw bytes, out of a path buffer.
-     *
-     * The transform fujinet-2600-warlords needed, because seventeen
-     * FN_BLIT_POKEs is seventeen FN_B_BLITGEN polls and a four-player
-     * netcode does not have the cycles. The expectations below are written
-     * from the rules in fuji_mailbox.h -- copy cnt bytes, stop at path_len,
-     * stop at the end of the planes -- and not by asking the function what it
-     * does, which would prove only that it agrees with itself.
-     *
-     * The two bounds are exercised SEPARATELY. A test that trips both at once
-     * passes on an implementation that has only one of them. */
+    /* FN_BLIT_PATHPOKE: a block of raw bytes from a path buffer, expected from the rules
+     * (cnt bytes, stopping at path_len and at the end of the planes). The two bounds
+     * are tested separately, so an implementation with only one fails. */
     {
         static uint8_t pp[FN_WINDOW_SIZE];
         static uint8_t path[FN_PATH_MAX];
@@ -510,20 +467,14 @@ int main(void)
             if ((i < PBASE + 0x80 || i >= PBASE + 0x80 + 17) && pp[i] != 0xA5u)
                 fail("FN_BLIT_PATHPOKE touched a byte outside its block");
 
-        /* cnt = 0 writes nothing. A block transform that treats 0 as 256 is a
-         * transform that clears a plane the first time a client has nothing
-         * to say. */
+        /* cnt = 0 writes nothing, rather than meaning 256. */
         memset(pp, 0xA5, sizeof pp);
         vcs_render_path_poke(pp, path, FN_PATH_MAX, 0, 0, 0);
         for (i = 0; i < sizeof pp; i++)
             if (pp[i] != 0xA5u)
                 fail("FN_BLIT_PATHPOKE wrote something for cnt = 0");
 
-        /* BOUND 1 -- path_len, alone. The destination is nowhere near the end
-         * of the planes, so only the source bound can stop this. Past
-         * path_len the buffer still holds whatever the last string left, and
-         * handing that back would give the client stale bytes that look
-         * exactly like its own. */
+        /* path_len alone: past it the buffer holds a previous string's bytes. */
         memset(pp, 0xA5, sizeof pp);
         vcs_render_path_poke(pp, path, 5, 0, 0x100, 20);
         for (i = 0; i < 5; i++)
@@ -533,10 +484,7 @@ int main(void)
             if (pp[PBASE + 0x100 + i] != 0xA5u)
                 fail("FN_BLIT_PATHPOKE copied past path_len");
 
-        /* BOUND 2 -- the planes, alone. path_len is the whole buffer, so only
-         * the destination bound can stop this. Past the planes is the reply
-         * window and then the status page: a client that reached either would
-         * corrupt the mailbox it is talking through. */
+        /* The planes alone: path_len covers the whole buffer here. */
         memset(pp, 0xA5, sizeof pp);
         vcs_render_path_poke(pp, path, FN_PATH_MAX, 0,
                              (uint16_t)(PLANES - 4), 32);
@@ -558,10 +506,8 @@ int main(void)
             if (pp[i] != 0xA5u)
                 fail("FN_BLIT_PATHPOKE wrote from an out-of-range request");
 
-        /* And the round trip the client actually performs: stream a block in
-         * with FN_HOT_PATH_CH, poke it out, read it back as BYTES. This is
-         * the whole point -- the planes are the only cartridge memory a 2600
-         * client can both write and read. */
+        /* The client's round trip: stream a block in with FN_HOT_PATH_CH, poke it out,
+         * read it back. The planes are the only cart memory it can both write and read. */
         {
             static const uint8_t state[17] = {
                 0x00, 0x2B, 0xFF, 0xFE, 0x80, 0x7F, 0x01, 0x10, 0xEF,
@@ -575,12 +521,7 @@ int main(void)
         }
     }
 
-    /* FN_BLIT_PATH: the only way a client sees what it has typed, because the
-     * page it types through is write-only.
-     *
-     * The expectation is built here through vcs_render_row, which has already
-     * been byte-compared against tools/vcsfont.py -- not by calling the thing
-     * under test to work out what the thing under test should produce. */
+    /* FN_BLIT_PATH, expected through the already-checked vcs_render_row. */
     {
         static const uint8_t path[] = "/games/atari/rom.bin";
         const uint16_t plen = (uint16_t)(sizeof path - 1u);
@@ -650,11 +591,8 @@ int main(void)
         vcs_render_path_row(win, path, plen, 0xFFF0u, 3, FN_T_COLS);
     }
 
-    /* FN_BLIT_TCELL: replacing one character must leave its neighbour alone.
-     *
-     * Two columns share a plane byte, so this is the test that a masked
-     * read-modify-write really is masked. Without it, moving a list cursor
-     * would cost two round trips a step -- with it, two stores. */
+    /* FN_BLIT_TCELL: one character changes; its neighbor, sharing the plane byte, does
+     * not. */
     {
         static const uint8_t before[] = "ABCDEFGHIJKL";
         static const uint8_t after0[] = ">BCDEFGHIJKL";
@@ -684,7 +622,7 @@ int main(void)
         for (i = 0; i < FN_T_PLANES * (int)FN_T_PLANE_LEN; i++) {
             unsigned o = (FN_T_BASE - FN_WINDOW_BASE) + i;
             if (win[o] != expect[o]) {
-                fail("poking an odd column disturbed its neighbour, at %d", i);
+                fail("poking an odd column disturbed its neighbor, at %d", i);
                 break;
             }
         }
@@ -722,22 +660,10 @@ int main(void)
     }
 
     /* ---------------------------------------------------------- cards ---
-     * FN_BLIT_CARD is the one transform whose output no other test can
-     * describe, because a card ignores the cell grid: five of them on a
-     * six-pixel pitch across planes 0-3. So the expectation here is a
-     * PICTURE of the bed, 32 pixels wide, read left to right and packed by
-     * this test's own loop -- if the renderer's pitch, its plane split, its
-     * left margin or its two-row split were wrong, the picture would not
-     * match.
-     *
-     * The pictures start two pixels in, and the loop below asserts that
-     * PIXEL 7 IS NEVER INKED: it is bit 0 of plane 0, the one pixel of the
-     * 48 that no console kernel can draw, and a bed flush to pixel 0 puts
-     * slot 1's left edge on it. See the FN_BLIT_CARD block in fuji_mailbox.h.
-     *
-     * The hand exercises every path: a font-derived rank (A), the ten (the
-     * one rank 3x5 cannot spell), a digit (2), a second letter (K), all four
-     * pips, and a hole card.
+     * Cards ignore the cell grid, so the expectation is a 32-pixel picture of the bed,
+     * packed by this test's own loop. It starts two pixels in, and pixel 7 (bit 0 of
+     * plane 0, which no kernel can draw) must never be inked. The hand covers a font
+     * rank, the ten, a digit, a second letter, all four pips and a hole card.
      */
     {
         /* "ah td 2s kc ??" */
@@ -775,9 +701,8 @@ int main(void)
             uint8_t want_p[FN_CARD_PLANES] = { 0, 0, 0, 0 };
             unsigned px;
 
-            /* The sixth line of each cell stays blank: it is what separates
-             * rank from pip, and the console's kernel reprograms colour
-             * there. Both want[] arrays are already zero for it. */
+            /* Each cell's sixth line stays blank (the kernel reprograms color
+             * there); want[] is already zero for it. */
             if (line < VCS_FONT_INK_H) {
                 if (rank_pic[line][7] != '.' || pip_pic[line][7] != '.')
                     fail("the card bed's own picture inks pixel 7, which no "
@@ -808,11 +733,7 @@ int main(void)
             }
         }
 
-        /* Pixel 7 -- bit 0 of plane 0 -- against EVERY card there is, not
-         * just the five in the picture above. It is the one pixel of the 48
-         * that no console kernel can reach (fuji_mailbox.h has the cycle
-         * count), so any card that inks it loses that column on a real
-         * screen and nothing in a host test would otherwise say so. */
+        /* Pixel 7, which no kernel can draw, stays clear for every card there is. */
         {
             static const char ranks[] = "23456789tjqka?";
             static const char suits[] = "hdsc?";
@@ -850,10 +771,8 @@ int main(void)
             }
         }
 
-        /* A short hand. hand[] is a C string, so the first NUL rank ends it
-         * and every later slot must go blank -- and because whole plane
-         * bytes are written, the five-card bed above must not show through.
-         * Both halves of slots 1-4 are therefore zero. */
+        /* A short hand: the first NUL rank ends it, and slots 1-4 must come out blank
+         * over the five-card bed above. */
         {
             static const uint8_t one[] = "as";
 
@@ -865,9 +784,7 @@ int main(void)
                 for (pl = 1; pl < FN_CARD_PLANES; pl++) {
                     unsigned base = (FN_T_PLANE(pl) - FN_WINDOW_BASE);
 
-                    /* With the bed starting at pixel 2, slots 1-4 live in
-                     * planes 1-3 entirely and plane 0 carries nothing but
-                     * slot 0. */
+                    /* Slots 1-4 live in planes 1-3; plane 0 holds only slot 0. */
                     if (win[base + ROW * FN_T_CELL_H + line] != 0 ||
                         win[base + (ROW + 1) * FN_T_CELL_H + line] != 0) {
                         fail("a shorter hand left the previous hand's cards "
@@ -875,9 +792,7 @@ int main(void)
                         break;
                     }
                 }
-                /* Slot 0 is pixels 2-6, so plane 0's top two bits are the
-                 * left margin and its bottom bit is the undrawable pixel 7.
-                 * All three stay clear whatever the hand. */
+                /* Plane 0's top two bits (the margin) and bit 0 (pixel 7) stay clear. */
                 if (win[(FN_T_PLANE(0) - FN_WINDOW_BASE) +
                         ROW * FN_T_CELL_H + line] & 0xC1u) {
                     fail("a card wrote outside slot 0 in plane 0 -- the left "
@@ -926,19 +841,9 @@ int main(void)
     }
 
     /* ---------------- the maze grid, FN_BLIT_PFTILE ----------------
-     *
-     * The layout is fujinet-maze-war's server/brick_layout.txt, which is
-     * byte-identical to the MAZEDAT table in the 1985 ANALOG listing. It is
-     * embedded rather than read, because a host test that needs another
-     * repository checked out beside it is a test that gets deleted.
-     *
-     * The expectation is built the OTHER way round on purpose. vcs_render.c
-     * composes through pf_reg[]/pf_bits[], so recomputing with those would
-     * only prove the loop; instead this lays the 40 playfield pixels of a row
-     * out left to right and packs them using the TIA's own documented bit
-     * order -- PF0 from bit 4 upward, PF1 from bit 7 downward, PF2 from bit 0
-     * upward, twice across the line with reflection off. If the masks in
-     * vcs_render.c are wrong, these two disagree. */
+     * The layout is fujinet-maze-war's server/brick_layout.txt, embedded so the test
+     * needs no other repository. The expectation packs each row's 40 pixels in the TIA's
+     * documented order, not through vcs_render.c's pf_reg[]/pf_bits[]. */
     {
         static const char *const maze[FN_TILE_H] = {
             "####################",
@@ -961,9 +866,7 @@ int main(void)
             "#............#.....#",
             "####################",
         };
-        /* Where each of the 20 playfield pixels of a half comes from: the
-         * register within the half, and the bit. Written from the TIA, not
-         * copied from vcs_render.c. */
+        /* Each of a half's 20 pixels: its register and bit, from the TIA's order. */
         static const uint8_t px_reg[20] = {
             0, 0, 0, 0,                     /* PF0: pixels 0-3   */
             1, 1, 1, 1, 1, 1, 1, 1,         /* PF1: pixels 4-11  */
@@ -1025,9 +928,7 @@ int main(void)
                 if (win[FN_PF_TAB(r, FN_PF_MID) - FN_WINDOW_BASE + y] != 0xAA)
                     fail("PFTILE wrote a kind its mask did not name");
 
-        /* FN_BLIT_PATHTILE composes the same grid from a path buffer
-         * instead of the reply window -- a different source, and it must
-         * produce the same picture to the byte. */
+        /* FN_BLIT_PATHTILE must compose the same grid from a path buffer. */
         {
             static uint8_t saved[FN_WINDOW_SIZE];
             int differs = 0;

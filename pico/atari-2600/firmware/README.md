@@ -28,7 +28,8 @@ untouched.
 
 ## Build
 `../build-cart.sh` builds `../build/fw-fujivcs_rp2354a/fujivcs.uf2`; it bakes
-`../build/config.bin` if present, else `../build/fujidir.bin`; `--baked` builds from `baked/` alone.
+`../build/config.bin` if present, else `../build/fujidir.bin`; `--baked` builds from `baked/` alone,
+and `--bake` refreshes `baked/`, recording the client's repo and commit from `FUJI_CLIENT_ORIGIN`.
 `make -C host_test` runs the host tests, including the write-sampling model MAME cannot run.
 `../build.sh` assembles the 6502 test clients in `../testrom/` (Macro Assembler AS). The pico
 cartridges workflow does all three. Not part of the ESP32 or FujiNet-PC builds.

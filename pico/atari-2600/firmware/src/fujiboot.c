@@ -1,8 +1,5 @@
-/* fujiboot.c -- bring the cartridge up as FujiNet.
- *
- * The console client is baked into this firmware, because at power-up there is
- * no network and nothing to load it from. There is no menu and no fallback;
- * the client is the only boot ROM (the O2/Intellivision rule).
+/* fujiboot.c -- bring the cartridge up as FujiNet, serving the client baked into this
+ * firmware: at power-up there is no network to load one from.
  */
 
 #include "fujiboot.h"

@@ -1,15 +1,7 @@
--- maptest.lua -- M5 end to end: a booted GAME is served by its real board.
---
--- Boots an 8K F8 image over the network and then drives the bankswitch
--- hotspots from the emulator side, requiring the served window to follow --
--- and requiring it to follow with MAME's ordering, where the hotspot access
--- returns the byte from the bank that was live BEFORE it.
---
--- host_test/test_vcsmap.c is the real conformance check (nine schemes against
--- verbatim transcriptions of MAME's handlers, fuzzed). This is the seam that
--- test cannot reach: that a pushed image actually arrives at the mapper, that
--- the claim is what routes it there, and that the debugger's own reads do not
--- move the bank while a harness is dumping the window.
+-- maptest.lua -- a booted 8K F8 game is served by its real board, following
+-- hotspots driven from the emulator with MAME's ordering (a hotspot read returns
+-- the old bank's byte). test_vcsmap.c is the conformance check; this covers the
+-- push reaching the mapper and debugger reads not moving the bank.
 
 local FN_CLAIM = 0x1F10
 local WIN, BASE = 0x1000, 0x1000
@@ -69,10 +61,8 @@ _G._maptest = emu.add_machine_frame_notifier(function()
         return
     end
 
-    -- The whole dump above used readv_u8, which MAME runs with side effects
-    -- disabled. If the device were missing that guard, those 4096 reads would
-    -- have walked straight over the bank hotspots at $1FF8/$1FF9 and this
-    -- comparison would be against a mixture of banks.
+    -- readv_u8 is not side-effect free (see soaktest.lua), and this image's two
+    -- banks are nearly identical, so this alone does not prove the read guard.
     local bad, first = match_bank(img, 0)
     if bad > 0 then
         print(string.format("FAIL: bank 0 mismatch, %d bytes. First at %s",
@@ -82,8 +72,7 @@ _G._maptest = emu.add_machine_frame_notifier(function()
     end
     print("bank 0 served correctly, and 4096 debugger reads did not move it")
 
-    -- Now switch, with side effects: a write to the hotspot, which real
-    -- hardware cannot tell from a read.
+    -- A write to the hotspot, which the hardware cannot tell from a read.
     sp:write_u8(0x1FF9, 0)
     bad, first = match_bank(img, 1)
     if bad > 0 then

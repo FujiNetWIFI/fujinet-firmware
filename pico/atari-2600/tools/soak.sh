@@ -1,22 +1,16 @@
 #!/usr/bin/env bash
-# soak.sh -- push, boot and byte-compare the whole cartridge corpus.
+# soak.sh -- push, boot and byte-compare every bank of the cartridge corpus.
 #
 #   tools/soak.sh [outdir]     default: the fujinet-pc SD host
 #
-# For every image: build a boot client aimed at it, push it over the network,
-# swap it in, and compare EVERY served bank against the file. Resumable --
-# results land in build/soak/ one file per image, and an image already marked
-# PASS is skipped, so an interrupted run picks up where it stopped.
-#
-# fujinet-pc's BoIP listener takes one client, so this is strictly serial.
+# Resumable: results go to build/soak/, and an image marked PASS is skipped.
+# Serial, because fujinet-pc's BoIP listener takes one client.
 
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
-# A subdirectory, not the SD root. Thirteen images plus thirteen .cfg siblings
-# is thirty files, and fujidir shows fourteen at a time with no paging -- so
-# dropping them in the root pushes every other test's target off the first
-# page and turns an unrelated harness red.
+# Not the SD root: 26 files there would push other tests' targets off fujidir's
+# one unpaged page of 14.
 SD=${1:-$HOME/Workspace/fujinet-pc-rs232/build/dist/SD}
 CORPUS=$SD/SOAK
 RES=build/soak
@@ -46,12 +40,8 @@ for name in soak2k soak4k soakf8 soakf8sc soakfa soakf6 soakf6sc \
     out=$(printf '%s\n' "$log" | grep -E "^(PASS|FAIL)" | head -1)
     [ -z "$out" ] && out="FAIL $name: no verdict (timeout?)"
 
-    # Which board the cartridge actually chose, not which one the harness
-    # drove. Without this an 8K E0 image served as F8 could still be scored by
-    # F8 rules and "pass" -- the whole reason the .cfg sibling exists.
-    # Anchored on the SERVING line. There is a second "mapper" line -- the one
-    # that echoes the .cfg -- and it names the scheme without the SC suffix,
-    # so an unanchored grep scores every Super Chip image as a miss.
+    # The board the cart chose, from the serving line; the .cfg echo line names
+    # the scheme without its SC suffix.
     got=$(printf '%s\n' "$log" | sed -n 's/.*as a game, mapper \([A-Z0-9]*\),.*/\1/p' | head -1)
     if [ -z "$got" ]; then
         out="FAIL $name: the image never became a game"

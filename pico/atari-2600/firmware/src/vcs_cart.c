@@ -1,32 +1,7 @@
-/* vcs_cart.c -- core1: serve the 6507 bus.
- *
- * The whole loop, and every function it calls, is SRAM-resident
- * (__not_in_flash_func) and runs with interrupts disabled. That is not
- * caution. The budget is roughly 500 ns from the address settling to the data
- * being required at the connector, and a single XIP cache miss is most of it
- * -- the ColecoVision port dropped its flash tier for exactly this reason and
- * had 373 ns to work with.
- *
- * THE SHAPE OF THE LOOP, and why it is this shape:
- *
- *   - There is no chip select but A12 and no clock at all, so an access is
- *     detected by the ADDRESS CHANGING. The address is double-sampled until it
- *     settles, because the thirteen lines do not arrive together.
- *
- *   - On a page the cart drives, it drives and then waits for the address to
- *     move on. Ordinary ROM service.
- *
- *   - On a write-only page the cart drives NOTHING and instead samples D0-D7
- *     until the address moves, keeping the second-to-last sample. Not driving
- *     is precisely what makes the sampling possible, and the second-to-last
- *     sample is the one taken before the bus began turning over. This is
- *     PlusROM's idiom verbatim (../src/cartridge_emulation.cpp) and it is the
- *     one part of the port MAME cannot exercise, because MAME hands a cart
- *     device a clean data byte. host_test/test_busio.c is the substitute.
- *
- * Not yet run on hardware. Everything above the bus is exercised against a live
- * fujinet-pc through the MAME model, which is why fujimail.c and vcs_cart.h are
- * shared rather than reimplemented here.
+/* vcs_cart.c -- core1: serve the 6507 bus. SRAM-resident with interrupts off: about 500 ns
+ * pass between the address settling and the data being needed, and one XIP cache miss is most
+ * of that. With no clock, an access is the address changing; a driven page is held until the
+ * address moves on, and a write-only page is never driven but sampled (vcs_recover()).
  */
 
 #include "pico/stdlib.h"
@@ -52,19 +27,15 @@ void __not_in_flash_func(vcs_core1_main)(void)
         ;
 
     for (;;) {
-        /* Wait for the address to settle. Thirteen lines do not change
-         * together, so a single sample can catch a mixture of the old address
-         * and the new one -- which on this bus means serving a byte from the
-         * wrong place entirely. */
+        /* Wait for the address to settle: the thirteen lines do not change together, and a
+         * mixed sample serves the wrong byte. */
         while ((addr = ADDR_IN) != prev)
             prev = addr;
 
         if (!(addr & 0x1000u)) {
-            /* A12 low: something else is answering. Two boards still care --
-             * UA switches on $0200-$027F and FE takes its bank from the byte
-             * on the bus after $01FE -- so when one of those is mapped, sample
-             * the cycle the same way a write port is sampled. Every other
-             * time this is one predicted branch and we are gone. */
+            /* A12 low: something else answers, but UA switches on $0200-$027F and FE takes
+             * its bank from the bus after $01FE, so sample the cycle when one of those is
+             * mapped. */
             if (fuji_mem.map.watch_low) {
                 data = 0;
                 dprev = 0;
@@ -89,9 +60,8 @@ void __not_in_flash_func(vcs_core1_main)(void)
 
             switch (vcs_write(&fuji_mem, (uint16_t)addr, dprev, &ev_a, &ev_b)) {
             case VCS_EV_REG:
-                /* One completed arm-and-commit is one whole register write.
-                 * Expand it into the REGSEL/REGDATA pair pico/common's
-                 * fujimail.c decodes for every cart. */
+                /* A completed arm-and-commit, as the REGSEL/REGDATA pair fujimail.c
+                 * decodes. */
                 fuji_cart_note((uint16_t)(FN_H_REGSEL + ev_a));
                 fuji_cart_note((uint16_t)(FN_H_REGDATA + ev_b));
                 break;

@@ -1,15 +1,8 @@
 #!/usr/bin/env python3
-"""mkfontlua.py -- a Lua table for reading the rendered screen back.
+"""mkfontlua.py -- the font inverted (glyph to character) for the Lua harnesses.
 
-The harnesses need to know what is ON the screen, not just what was sent to
-it: "walk the cursor to the row whose name is X" is a much stronger test than
-"press down three times", because it fails if the list is drawn in the wrong
-order, truncated, or off by a row.
-
-So the font is inverted here -- glyph bitmap to character -- and emitted for
-Lua. Some glyphs are genuinely identical at 3x5 ('0' and 'O', 'C' and '['), so
-the map prefers digits, then uppercase, then the rest; a decoder cannot tell
-them apart and neither can a person reading the screen.
+The harnesses read the screen back to navigate by name. Lowercase is drawn as
+uppercase, so decoding is lossy; harnesses compare names as rendered.
 
 Usage: mkfontlua.py > emu/vcsfont.lua
 """
@@ -56,11 +49,8 @@ def main():
         print("  [%d] = %s," % (key, lit))
     print("}")
     print()
-    print("-- Character -> glyph key, so a harness can ask what a NAME would")
-    print("-- look like on screen rather than what the screen decodes to. At")
-    print("-- 3x5 some glyphs are genuinely identical -- 'S' and '5', 'O' and")
-    print("-- '0' -- so decoding is lossy and comparing decoded text to a")
-    print("-- wanted name is not a real test. Comparing rendered forms is.")
+    print("-- Character -> glyph key: what a name looks like on screen.")
+    print("-- Lowercase draws as uppercase, so names are compared as rendered.")
     print("M.key = {")
     for c in range(0x20, 0x80):
         ch = chr(c)

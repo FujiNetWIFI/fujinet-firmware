@@ -1,20 +1,7 @@
--- cfgtest.lua -- M7: drive CONFIG all the way from power-on to a booted game.
---
--- Host screen -> mount host 0 -> browse the root -> DESCEND into a subfolder
--- -> boot a file inside it -> the served window is byte-identical to that
--- file. Every step is found by reading the rendered text planes back, so the
--- test navigates by NAME and never by a hardcoded row count: a listing drawn
--- in the wrong order, truncated, off by a row, or not drawn at all all fail.
---
--- The descent is the part worth having. It is the only thing that exercises
--- the cartridge-held working directory end to end -- FN_HOT_PATH_CH building
--- it, FN_PATH_TX emitting it for OPEN_DIRECTORY, FN_PATH_TXRAW plus the
--- published length emitting it again for SET_DEVICE_FULLPATH -- and the
--- console has 128 bytes of RAM, so if any of that were wrong there is nowhere
--- the path could have come from instead.
---
--- Env: BOOT_IMAGE (the file on disk), CFG_DIR (the folder), CFG_NAME (the
--- file), and it drives whatever host slot 0 is.
+-- cfgtest.lua -- CONFIG from power-on: mount host 0, descend into CFG_DIR, boot
+-- CFG_NAME, and require the served window to match BOOT_IMAGE byte for byte.
+-- Navigates by name read back from the text planes. The descent exercises the
+-- cart-held working directory: the console's 128 bytes have no room for it.
 
 package.path = (os.getenv("A2600_EMU") or ".") .. "/?.lua;" .. package.path
 local font = require("vcsfont")
@@ -52,10 +39,8 @@ local function read_row(row)
     return s
 end
 
--- What `name` would look like on screen, as glyph keys. Comparing RENDERED
--- FORMS rather than decoded text matters: at 3x5 'S' and '5' are the same
--- glyph and so are 'O' and '0', so decoding is lossy and a decoded comparison
--- would fail on most real filenames.
+-- `name` as glyph keys. Lowercase draws as uppercase, so names are compared as
+-- rendered, not decoded.
 local function name_keys(name)
     local out = {}
     for i = 1, #name do
@@ -154,8 +139,7 @@ _G._cfgtest = emu.add_machine_frame_notifier(function()
         local here, hit = find(want_dir)
         if not here then return end            -- not drawn yet
         if not hit then
-            -- The listing is up but the folder is not on this page. That is a
-            -- real failure, not a wait: nothing is going to add it.
+            -- The listing is up without the folder: a failure, not a wait.
             if waited > 240 then
                 dump(want_dir .. " is not in the root listing")
                 manager.machine:exit()

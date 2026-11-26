@@ -1,37 +1,9 @@
-/* vcs_cart.h -- the 6507 bus as seen from inside an Atari 2600 cartridge.
+/* vcs_cart.h -- the 6507 bus as seen from inside an Atari 2600 cartridge, static inline so
+ * core1, the MAME device and the host tests compile one implementation.
  *
- * This lives in the header as static inline so core1, the MAME cart device and
- * the host tests all compile ONE implementation -- the ColecoVision pattern.
- * The device and the cartridge then cannot disagree about which store is a
- * register write, which is the class of bug that costs days.
- *
- * WHAT THE CART CAN AND CANNOT SEE
- *
- * The connector carries A0-A12, D0-D7, +5V and GND. That is all. There is no
- * R/W line, no clock, no chip select beyond A12, and no reset. Two
- * consequences run through everything below:
- *
- *   1. A READ OF A WRITE PORT IS INDISTINGUISHABLE FROM A WRITE TO IT. The
- *      cart sees an address and a settled data bus, nothing more. So the
- *      REGSEL/REGDATA arm-then-commit pair is kept and is a real defence here,
- *      not the formality it is on the Channel F (which can tell ROMC 05 from
- *      ROMC 02). A single stray access mutates nothing: an arm with no commit
- *      is discarded by the next arm, and a commit with nothing armed is a
- *      no-op in fujimail.c.
- *
- *   2. The cart recovers a written byte by parking on the stable address and
- *      keeping the second-to-last data sample. That is PlusROM's and the
- *      Superchip's technique, shipping on real hardware for years; see
- *      ../src/cartridge_emulation.cpp. It means the write pages must NEVER be
- *      driven -- not driving them is precisely what lets the cart sample them.
- *
- * The one structural gift: THE 6507 HAS NO INTERRUPTS. MAME's own m6507.cpp
- * says it -- "28-pin package, address bus is 13 bits, no NMI, no SO, no SYNC"
- * -- and nothing on the 2600 is wired to /IRQ. Only BRK reaches $1FFE. Every
- * stray access therefore originates in the client's own instruction stream and
- * is statically analysable, unlike the ColecoVision where the vblank NMI lands
- * mid-transaction by construction. tools/checkrom.py can be a proof rather
- * than a heuristic.
+ * The edge carries A0-A12, D0-D7, +5V and GND: no R/W, clock or reset. A read of a write port
+ * looks exactly like a write, so registers are armed then committed, and a written byte is
+ * recovered from the data bus (vcs_recover()), which is why the write pages are never driven.
  */
 #ifndef VCS_CART_H
 #define VCS_CART_H
@@ -42,18 +14,8 @@
 
 #include "fuji_mailbox.h"
 
-/* VCS_CART_HOST_MAPPER: the HOST emulator owns a booted game's mapper.
- *
- * A cartridge has to be every board it might ever serve, so it carries
- * vcsmap. An emulator already is: Stella has sixty-odd schemes where vcsmap
- * has nine, and hands a pushed image to its own CartDetector/CartCreator.
- * Under this define the decode below keeps only the FujiNet layout -- once
- * the claim is absent the host has re-pointed its own bus at the real
- * cartridge class and nothing here is consulted again.
- *
- * The struct members and the five call sites are the whole difference; the
- * mailbox, the bus decode and the write sampling stay shared, which is the
- * point of this header. */
+/* VCS_CART_HOST_MAPPER: the host emulator (Stella) serves a booted game with its own cartridge
+ * classes, so the decode below keeps only the FujiNet layout. */
 #ifdef VCS_CART_HOST_MAPPER
 /* Longest scheme name a .cfg sibling can carry, NUL included. */
 #define VCS_CART_CFG_MAX 16
@@ -78,35 +40,24 @@ typedef enum {
 } vcs_ev_t;
 
 typedef struct {
-    /* The 4K the console sees, $1000-$1FFF. The cart paints the reply, the
-     * status page and the text planes straight into it.
-     *
-     * Only the FIXED half is authoritative here. The banked low half is served
-     * through `lowbank` instead, because a bank switch has to be complete
-     * before the console's very next fetch -- 838 ns away, with no wait state
-     * on this bus -- and copying 2K takes microseconds. Every real 2600 mapper
-     * swaps a pointer for the same reason. */
+    /* The 4K the console sees, $1000-$1FFF; the cart paints the reply, status page and text
+     * planes into it. Only the fixed half is served from here: the low half goes through
+     * `lowbank`, because a bank switch must finish before the next fetch, 838 ns away. */
     uint8_t win[FN_WINDOW_SIZE];
 
     /* The 2K currently mapped at $1000. Points into the image. */
     const uint8_t *lowbank;
 
-    /* A BOOTED GAME is not served from the window at all: it is served by
-     * whichever real cartridge board it shipped on. The mailbox is dead by
-     * then -- the image did not claim it -- so the two paths never overlap. */
+    /* A booted game is served by its own board's mapper; its mailbox is dead by then. */
 #ifndef VCS_CART_HOST_MAPPER
     vcsmap_t map;
 #endif
 
-    /* The Battleship board being composed. FN_BLIT_HULLS overlays onto what
-     * FN_BLIT_FIELD left here, and the text planes are packed glyph pairs
-     * that cannot be read back as characters. */
+    /* The Battleship board being composed: FN_BLIT_HULLS overlays what FN_BLIT_FIELD left,
+     * and the planes cannot be read back as characters. */
     uint8_t board[FN_BOARD_CELLS];
 
-    /* Four 256-byte strings, held here because the console has nowhere to put
-     * them: the working directory, the filter, a pending copy's source, and
-     * the edit scratch. Selected by FN_PATH_SEL0..SEL3; see FN_HOT_PATH_CH in
-     * fuji_mailbox.h for why each one has to exist. */
+    /* The four path buffers, selected by FN_PATH_SEL0..SEL3; see fuji_mailbox.h. */
     uint8_t path[FN_PATH_BUFS][FN_PATH_MAX];
     uint16_t path_len[FN_PATH_BUFS];
     uint8_t path_sel;
@@ -130,10 +81,8 @@ typedef struct {
     uint8_t arm_step;         /* how far through the two-store arming sequence  */
     bool swap_armed;          /* FN_REG_BOOTLOCK was written                    */
 
-    /* The armed register. Arm-then-commit is the defence on this console: a
-     * lone stray access carries no value (an arm ignores its data) and a lone
-     * commit has nothing armed, so ONE stray mutates nothing. Disarmed after
-     * a single use, exactly as fujimail.c's own regsel is. */
+    /* The armed register: a lone stray arm carries no value and a lone commit has nothing
+     * armed, so one stray mutates nothing. Spent after one use, as in fujimail.c. */
     uint8_t regsel;
     bool regsel_armed;
 
@@ -141,10 +90,8 @@ typedef struct {
     uint16_t blit_src, blit_dst;
     uint8_t blit_cnt;
 
-    /* The text row being composed, between FN_HOT_TROW and FN_HOT_TEND.
-     * This lives here rather than in each caller so the cartridge and the
-     * MAME device cannot drift on it -- the compositor itself is
-     * vcs_render_row(), which both call with exactly these three fields. */
+    /* The text row being composed between FN_HOT_TROW and FN_HOT_TEND, here so the cart and
+     * the MAME device hand vcs_render_row() the same three fields. */
     uint8_t trow;
     uint8_t tbuf[FN_T_COLS];
     uint8_t tlen;
@@ -154,12 +101,9 @@ typedef struct {
  * (N+1)*2048 client layout meet at 32K. */
 #define VCS_IMAGE_MAX 32768u
 
-/* What can be pushed. A CLIENT is (N+1) * 2048 -- N banks then the fixed half
- * -- but a GAME is whatever its board was, and the smallest real 2600
- * cartridge is 2K. The two are told apart by the claim, which cannot be seen
- * until the bytes have arrived, so the gate accepts any whole number of 2K
- * blocks up to the buffer and lets vcs_set_image decide afterwards. Called at
- * OPEN, so a refusal comes before the ESP32 reads the file. */
+/* A client is (N+1) * 2048 bytes, but a game can be any whole number of 2K blocks and only the
+ * claim tells them apart, once the bytes are in; so accept those and let vcs_set_image()
+ * decide. Called at OPEN, before the ESP32 reads the file. */
 static inline uint8_t vcs_gate(uint32_t size)
 {
     if (size < FN_BANK_SIZE || (size % FN_BANK_SIZE) != 0u)
@@ -169,21 +113,9 @@ static inline uint8_t vcs_gate(uint32_t size)
     return 0;
 }
 
-/* Recover the byte a store put on the data bus.
- *
- * With no R/W line and no clock, the cart parks on the stable address and
- * samples D0-D7 in a tight loop until the address changes, keeping the
- * SECOND-TO-LAST sample -- the last is taken as the bus is already turning
- * over. Verbatim shape from ../src/cartridge_emulation.cpp:
- *
- *     while (ADDR_IN == addr) { data_prev = data; data = DATA_IN; }
- *     append(data_prev);
- *
- * This is the one part of the port MAME cannot exercise: its cart device is
- * handed a clean data byte on a write, so the sampling never runs there.
- * test_busio.c is the substitute, and the backstop is that this exact idiom
- * ships in every PlusROM game and every Superchip cartridge.
- */
+/* Recover the byte a store put on the bus: the cart samples D0-D7 while the address is stable
+ * and keeps the second-to-last sample, the last being taken as the bus turns over (PlusROM's
+ * and Superchip's idiom). MAME hands its device a clean byte, so test_busio.c covers this. */
 static inline uint8_t vcs_recover(const uint8_t *samples, unsigned n)
 {
     if (n >= 2)
@@ -244,9 +176,8 @@ static inline uint8_t vcs_read(const vcs_mem_t *m, uint16_t a)
     return vcs_read_ex(m, a, true);
 }
 
-/* Republish the path length where the console can read it. Two stores in the
- * bus loop, and they buy the client the one thing it cannot work out for
- * itself: how much of a 256-byte payload the cartridge just filled. */
+/* Republish the path length, so a client knows how much of a 256-byte payload the cart
+ * filled. */
 static inline void vcs_publish_pathlen(vcs_mem_t *m)
 {
     uint16_t n = m->path_len[m->path_sel];
@@ -255,23 +186,15 @@ static inline void vcs_publish_pathlen(vcs_mem_t *m)
     m->win[FN_B_PATHLEN + 1 - FN_WINDOW_BASE] = (uint8_t)(n >> 8);
 }
 
-/* Byte i of the path payload: the buffer, then NUL padding to exactly 256.
- *
- * The padding is not a rounding. OPEN_DIRECTORY and SET_DEVICE_FULLPATH both
- * read exactly 256 bytes and a short payload fails the server's read; every
- * port in this family has paid for that once. It lives here so core0 and the
- * MAME model cannot disagree about it. */
+/* Byte i of the path payload: the buffer, then NUL padding to exactly 256, because
+ * OPEN_DIRECTORY and SET_DEVICE_FULLPATH fail a short payload. */
 static inline uint8_t vcs_path_byte(const vcs_mem_t *m, unsigned i)
 {
     return (i < m->path_len[m->path_sel]) ? m->path[m->path_sel][i] : 0u;
 }
 
-/* An access the cartridge does NOT answer -- A12 is low, so something else on
- * the bus is driving -- but which its board may still be watching.
- *
- * Only UA and FE need this, and vcsmap_init flags them. It costs the bus loop
- * one boolean test per low cycle, which is most cycles; anything more than
- * that here is paid on every zero-page access the game makes. */
+/* An access with A12 low: the cart does not answer it, but UA and FE boards watch it. One test
+ * per low cycle, since this runs on every zero-page access a game makes. */
 static inline void vcs_watch(vcs_mem_t *m, uint16_t a, uint8_t data)
 {
 #ifdef VCS_CART_HOST_MAPPER
@@ -293,9 +216,7 @@ static inline vcs_ev_t vcs_write(vcs_mem_t *m, uint16_t a, uint8_t v,
 {
 #ifndef VCS_CART_HOST_MAPPER
     if (m->map.kind != VCSMAP_FUJI) {
-        /* A booted game. Its mapper decodes the store -- real hardware cannot
-         * tell a store from a fetch, which is exactly why every classic scheme
-         * keys on the address. */
+        /* A booted game: its mapper decodes the store by address, as real boards do. */
         vcsmap_write(&m->map, a, v, true);
         return VCS_EV_NONE;
     }
@@ -310,10 +231,8 @@ static inline vcs_ev_t vcs_write(vcs_mem_t *m, uint16_t a, uint8_t v,
     if (page == (FN_TX_BASE & 0x0FFFu)) {
         if (!m->armed)
             return VCS_EV_NONE;
-        /* Anywhere in the page appends, so `sta $1E00,x` works for any X --
-         * and because the base low byte is $00 the index can never carry, so
-         * the dummy read STA abs,X always performs lands on the same address
-         * and is inert. */
+        /* Anywhere in the page appends, and `sta $1E00,x` cannot carry, so its dummy read
+         * lands on this same inert page. */
         *ev_b = v;
         return VCS_EV_TX;
     }
@@ -323,11 +242,7 @@ static inline vcs_ev_t vcs_write(vcs_mem_t *m, uint16_t a, uint8_t v,
 
     uint8_t low = (uint8_t)(off & 0xFFu);
 
-    /* The arming gate. A 7800's BIOS probes cartridge space on startup, and
-     * PlusCart carries a gate at $1FF4 for exactly that reason. Ours is
-     * stronger: the pages are always tri-stated, so a probe reads the floating
-     * bus and moves on, and the decode stays dead until an ORDERED PAIR of
-     * stores carrying two specific values arrives -- which no probe produces. */
+    /* The arming gate; see FN_ARM_MAGIC1 in fuji_mailbox.h. */
     if (low == FN_HOT_ARM1) {
         m->arm_step = (v == FN_ARM_MAGIC1) ? 1 : 0;
         return VCS_EV_NONE;
@@ -356,9 +271,8 @@ static inline vcs_ev_t vcs_write(vcs_mem_t *m, uint16_t a, uint8_t v,
         return VCS_EV_NONE;
     }
 
-    /* The bit7-set half is one-shot operations, and none of them disturbs an
-     * armed register -- so a stray in this page cannot break up a legitimate
-     * pair in the other half. fujimail.c states the same rule for its own. */
+    /* One-shot operations never disturb an armed register, so a stray here cannot break up a
+     * pair (fujimail.c's rule too). */
     if (low >= FN_HOT_BANK && low <= FN_HOT_BANK_LAST) {
         *ev_b = (uint8_t)(low - FN_HOT_BANK);
         return VCS_EV_BANK;
@@ -402,9 +316,7 @@ static inline vcs_ev_t vcs_write(vcs_mem_t *m, uint16_t a, uint8_t v,
             while (*n > 1u && b[*n - 1u] != (uint8_t)'/')
                 (*n)--;
         } else if (v == FN_PATH_POPCH) {
-            /* The editor's backspace. Bottoms out at empty rather than
-             * wrapping to 65535 -- a client that backspaces one key too many
-             * is ordinary, not an error. */
+            /* The editor's backspace; stops at empty. */
             if (m->path_len[m->path_sel] > 0u)
                 m->path_len[m->path_sel]--;
         } else if (v >= FN_PATH_SEL0 && v <= FN_PATH_SEL3) {
@@ -420,10 +332,8 @@ static inline vcs_ev_t vcs_write(vcs_mem_t *m, uint16_t a, uint8_t v,
                 m->path_len[m->path_sel] = (uint16_t)n;
             }
         } else if (v == FN_PATH_SEED) {
-            /* Begin editing the selected buffer's current value. Cancel is
-             * then simply never issuing COMMIT -- the original is untouched
-             * the whole time, which is what the Intellivision needed a
-             * separate 256-byte scratch copy in console RAM to achieve. */
+            /* Begin an edit. Cancel is never issuing COMMIT, which leaves the original
+             * untouched. */
             if (m->path_sel != FN_PATH_SCRATCH) {
                 unsigned n = m->path_len[m->path_sel];
                 unsigned i;
@@ -460,18 +370,10 @@ static inline vcs_ev_t vcs_write(vcs_mem_t *m, uint16_t a, uint8_t v,
     }
 }
 
-/* Map bank b of the image into $1000-$17FF. The high 2K is never banked: it
- * carries the mailbox and the vectors, so $1FFC stays reachable from every
- * bank and a console RESET is survivable whatever is mapped low.
- *
- * ONE POINTER ASSIGNMENT, deliberately. This runs inline in core1's bus loop
- * because the switch must be complete before the next fetch; anything that
- * touches 2K of memory here would miss bus cycles, and a missed cycle on this
- * bus does not slow the console down, it serves it the wrong byte.
- *
- * The fixed half's last bank -- the one carrying the mailbox -- is never a
- * legal selection, so an out-of-range bank serves open bus rather than
- * folding back onto something that looks like code. */
+/* Map bank b of the image into $1000-$17FF. The high 2K is never banked, so $1FFC is reachable
+ * from every bank and RESET is survivable. One pointer assignment, because core1 runs this
+ * inline and must finish before the next fetch. An out-of-range bank serves open bus rather
+ * than folding onto something that looks like code. */
 static inline void vcs_set_bank(vcs_mem_t *m, uint8_t b)
 {
     uint32_t base = (uint32_t)b * FN_BANK_SIZE;
@@ -497,9 +399,8 @@ static inline void vcs_set_image(vcs_mem_t *m, const uint8_t *img, uint32_t len)
     if (img && len >= FN_BANK_SIZE)
         memcpy(m->win + FN_BANK_SIZE, img + (len - FN_BANK_SIZE), FN_BANK_SIZE);
 
-    /* An image claiming "FUJI" promises the mailbox pages are not its own
-     * code, so decode may stay live after it boots. A game carries no such
-     * promise and the mailbox goes dead for the session. */
+    /* "FUJI" promises the mailbox pages are not the image's own code, so the mailbox stays
+     * live after it boots. */
     m->mailbox = img && len >= FN_BANK_SIZE &&
                  memcmp(m->win + (FN_R_CLAIM - FN_WINDOW_BASE),
                         FN_R_CLAIM_SIG, FN_R_CLAIM_LEN) == 0;
@@ -510,16 +411,13 @@ static inline void vcs_set_image(vcs_mem_t *m, const uint8_t *img, uint32_t len)
     vcs_set_bank(m, 0);
     m->win[FN_B_FLAGS - FN_WINDOW_BASE] = m->mailbox ? 0x02 : 0x00;
 
-    /* The claim decides which world this image lives in. A client gets our
-     * banked-low/fixed-high layout and a live mailbox; anything else is a
-     * GAME and gets the real board it shipped on. */
+    /* A client gets the FujiNet layout; anything else is a game on the board it shipped on. */
 #ifndef VCS_CART_HOST_MAPPER
     if (m->mailbox) {
         vcsmap_init(&m->map, VCSMAP_FUJI, img, len, false);
     } else {
-        /* The .cfg hint wins where it exists, because size alone cannot tell
-         * an 8K F8 from an 8K E0, UA or FE. Where it does not, fall back to
-         * size -- which is how MAME's identify_cart_type() starts too. */
+        /* The .cfg hint wins, because size alone cannot tell an 8K F8 from E0, UA or FE;
+         * otherwise size, as MAME's identify_cart_type() starts. */
         vcsmap_kind_t k = m->hint;
         bool sc = m->hint_sc;
         if (k == VCSMAP_NONE) {
@@ -529,10 +427,8 @@ static inline void vcs_set_image(vcs_mem_t *m, const uint8_t *img, uint32_t len)
         vcsmap_init(&m->map, k, img, len, sc);
     }
 #endif
-    /* Spend the hint. The ESP32 sends a .cfg only when the file exists, so a
-     * mount with no sibling sends nothing at all -- and a hint left standing
-     * would be applied to the NEXT image, serving an E0 board for a plain F8
-     * game. Coleco learned this one the same way. */
+    /* Spend the hint: a mount with no .cfg sibling sends none, and a stale hint would apply to
+     * the next image. */
 #ifdef VCS_CART_HOST_MAPPER
     m->cfg_name[0] = '\0';
 #else

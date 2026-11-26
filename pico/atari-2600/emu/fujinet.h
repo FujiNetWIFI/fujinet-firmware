@@ -13,33 +13,11 @@
 
 // ======================> a26_rom_fujinet_device
 //
-// Model of the FujiNet cartridge for the Atari 2600: a 4K window at
-// $1000-$1FFF that is part banked client image, part painted mailbox, part
-// cart-composed text planes. The protocol (fujimail.c), the wire codec
-// (fujibus.c) and the glyph compositor (vcs_render.c) are the cartridge
-// firmware's own sources, compiled in verbatim by pico/atari-2600/emu/apply.sh;
-// this device is only the port -- bytes go into the window, frames go over a
-// TCP socket to fujinet-pc ($FUJINET_TCP, default 127.0.0.1:9995).
-//
-// The address decode is shared: read() and write() below go through
-// vcs_read() and vcs_write() in vcs_cart.h, the same static inlines core1
-// compiles and the same ones test_busio.c checks. So this device and the
-// cartridge cannot disagree about which store is a register write.
-//
-// WHAT THIS DEVICE DOES NOT MODEL, and it is the important one. MAME hands a
-// cart device a clean data byte on a write. Real hardware has no R/W line: the
-// cartridge parks on the stable address and recovers the byte from the
-// second-to-last data sample. That sampling -- the single riskiest thing in
-// the port -- therefore never runs here. It is covered instead by
-// firmware/host_test/test_busio.c, and backstopped by the fact that the exact
-// idiom ships in every PlusROM game and every Superchip cartridge.
-//
-// One pleasant consequence of the console having a real store cycle: no read
-// in the mailbox window has a side effect. Nothing here needs a
-// side_effects_disabled() guard on the read path, and the MAME debugger can
-// browse the whole cartridge window without disturbing a transaction. (A
-// BOOTED GAME is a different matter -- every classic 2600 mapper switches
-// banks on reads -- and that guard arrives with vcsmap at M2.)
+// The FujiNet 2600 cartridge's 4K window. fujimail.c, fujibus.c, vcs_render.c
+// and the vcs_cart.h decode are the firmware's own sources, grafted in by
+// apply.sh; frames go to fujinet-pc over TCP ($FUJINET_TCP, default
+// 127.0.0.1:9995). MAME hands a cart a clean byte on a write, so the firmware's
+// write sampling (no R/W line) never runs here: test_busio.c covers it.
 
 class a26_rom_fujinet_device : public device_t, public device_vcs_cart_interface
 {
@@ -61,11 +39,8 @@ public:
 
 protected:
 	virtual void device_start() override ATTR_COLD;
-	// Deliberately no device_reset(): there is no reset line on the cartridge
-	// connector, and the 2600's RESET switch is a bit in a RIOT register the
-	// cart never sees. A console reset must NOT reset the cart -- keeping
-	// ACKSEQ across it is exactly what the client's "next sequence is the
-	// cart's persisted ACKSEQ + 1" rule tests.
+	// No device_reset(): the edge has no reset line, so a console RESET leaves
+	// the cart, and its ACKSEQ, alone.
 
 private:
 	void ensure_init();

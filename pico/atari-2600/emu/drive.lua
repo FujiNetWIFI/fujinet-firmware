@@ -1,18 +1,7 @@
--- drive.lua -- M1: prove one real transaction reached the screen.
---
--- Reads the LIVE reply out of the cartridge's reply window, builds the screen
--- that reply should have produced, and writes it where emu/dispcheck.py can
--- compare it against the raster. So the check runs end to end -- socket,
--- fujimail.c, the reply window, the cartridge's glyph compositor, the text
--- planes, the kernel, the beam -- rather than asserting on any one layer.
---
--- The expectation is built from the reply, never from the planes: reading the
--- planes to decide what the planes should contain would prove only that they
--- agree with themselves.
---
--- Waits on the program's own state (the magic bytes and the published
--- sequence), never on a frame number, so a slow socket round trip cannot turn
--- into a flake.
+-- drive.lua -- one real transaction, end to end to the raster.
+-- Builds the screen the live reply should produce and writes it for
+-- emu/dispcheck.py to compare with the snapshot. The expectation comes from the
+-- reply, never from the planes; every wait is on program state, not frames.
 
 local FN_RPLY   = 0x1B00
 local FN_ACKSEQ = 0x1F00
@@ -45,9 +34,7 @@ _G._drive = emu.add_machine_frame_notifier(function()
     if done then return end
     sp = sp or manager.machine.devices[":maincpu"].spaces["program"]
 
-    -- readv_u8, not read_u8: the debug read must not fire any handler. On this
-    -- cartridge no read has a side effect, but a booted game's mapper does,
-    -- and the habit is what keeps a harness honest.
+    -- Mailbox reads have no side effects; readv_u8 still runs MAME's handlers.
     if sp:readv_u8(FN_MAG0) ~= 0x46 or sp:readv_u8(FN_MAG1) ~= 0x4E then
         waited = waited + 1
         if waited > 600 then

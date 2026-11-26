@@ -1,16 +1,35 @@
-/* test_vcsmap.c -- the cartridge mappers against MAME's own handlers.
+/* test_vcsmap.c -- vcsmap.h against a reference transcribed from MAME's
+ * src/devices/bus/vcs/rom.cpp, kept in MAME's shape so it can disagree with vcsmap.h. Its
+ * taps run after the read, as MAME's do (emumem_het.cpp). That code carries this notice:
  *
- * The reference below is a VERBATIM TRANSCRIPTION of
- * src/devices/bus/vcs/rom.cpp: the same ranges, the same bank entries, the
- * same order of read-then-tap. It is deliberately written in MAME's shape
- * rather than tidied into ours, because the point is to disagree with
- * vcsmap.h wherever vcsmap.h is wrong -- and a reference refactored to look
- * like the code under test stops being able to.
+ * Copyright (c) Fabio Priuli
  *
- * MAME's read taps run AFTER the read they are attached to
- * (emumem_het.cpp: `data = m_next->read(...); m_tap(offset, data, mem_mask);`)
- * so a bankswitch hotspot returns the byte from the bank that was live BEFORE
- * it. The reference models that literally.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include <stdio.h>
@@ -194,9 +213,7 @@ static void run(vcsmap_kind_t k, uint32_t size, int superchip, unsigned steps)
         uint16_t a;
         int is_write = (x & 0x30000u) == 0;      /* a minority of accesses */
 
-        /* Bias hard toward the hotspot pages: uniform random over 8K would
-         * hit a four-address window about once in a thousand, which is not a
-         * test of anything. */
+        /* Bias toward the hotspot pages, which uniform addresses would rarely hit. */
         switch ((x >> 20) & 3u) {
         case 0:  a = (uint16_t)(0x1FE0u + (x & 0x1Fu)); break;
         case 1:  a = (uint16_t)(0x01E0u + (x & 0x3Fu)); break;
@@ -241,9 +258,7 @@ static void run(vcsmap_kind_t k, uint32_t size, int superchip, unsigned steps)
     }
 }
 
-/* The one thing the fuzz cannot state for itself: that a hotspot read returns
- * the OLD bank's byte. Written out longhand because it is the bug this whole
- * file exists to catch. */
+/* A hotspot read returns the old bank's byte, stated outright. */
 static void test_hotspot_ordering(void)
 {
     static uint8_t rom[8192];
@@ -278,11 +293,8 @@ static void test_hotspot_ordering(void)
     }
 }
 
-/* The .cfg sibling. Size cannot tell an 8K F8 from an 8K E0, UA or FE -- they
- * are all 8192 bytes -- so a one-line file names the board. What matters here
- * is that it is read tolerantly (case, blanks, trailing junk), that "F8SC" is
- * not eaten by the "F8" entry, and that an unrecognised name yields NONE so
- * the caller falls back to size rather than refusing to boot. */
+/* The .cfg sibling: read tolerantly (case, blanks, trailing junk), "F8SC" not taken as
+ * "F8", and an unknown name yields NONE so the caller falls back to size. */
 static void test_cfg_hint(void)
 {
     static const struct { const char *s; vcsmap_kind_t k; bool sc; } cases[] = {
@@ -321,9 +333,8 @@ static void test_cfg_hint(void)
     }
 }
 
-/* The hint is spent by the image it names, and by no other. MediaTypeROM
- * pushes a .cfg only when the file exists, so a mount with no sibling sends
- * nothing at all -- a hint left standing would be applied to the NEXT game. */
+/* A hint applies only to the image it came with: MediaTypeROM sends no .cfg when there is
+ * none, so a leftover hint would reach the next game. */
 static void test_hint_is_spent(void)
 {
     static uint8_t e0img[8192], f8img[8192];
@@ -354,12 +365,8 @@ static void test_hint_is_spent(void)
     }
 }
 
-/* Two boards switch on addresses BELOW A12, where the cartridge is not
- * selected at all and can only watch: UA on $0200-$027F, FE on $01FE. Both the
- * cart's bus loop and the MAME model skip A12-low cycles by default -- that is
- * the right default, it is most of them -- so vcsmap flags the two boards that
- * need looking at, and everything else must stay unflagged or the cartridge
- * pays for a data sample on every zero-page access a game makes. */
+/* Only UA and FE, which switch below A12, may be flagged to watch the low bus; any other
+ * board would pay for a data sample on every zero-page access. */
 static void test_watch_low(void)
 {
     static const struct { vcsmap_kind_t k; uint32_t len; bool watch; } cases[] = {

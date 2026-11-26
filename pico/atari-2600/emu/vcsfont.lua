@@ -74,11 +74,8 @@ M.glyph = {
   [31727] = '8',
 }
 
--- Character -> glyph key, so a harness can ask what a NAME would
--- look like on screen rather than what the screen decodes to. At
--- 3x5 some glyphs are genuinely identical -- 'S' and '5', 'O' and
--- '0' -- so decoding is lossy and comparing decoded text to a
--- wanted name is not a real test. Comparing rendered forms is.
+-- Character -> glyph key: what a name looks like on screen.
+-- Lowercase draws as uppercase, so names are compared as rendered.
 M.key = {
   [' '] = 0,
   ['!'] = 9346,

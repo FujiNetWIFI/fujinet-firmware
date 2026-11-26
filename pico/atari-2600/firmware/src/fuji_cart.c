@@ -94,13 +94,9 @@ void fuji_cart_stage(uint32_t len)
     fuji_have_staged = true;
 }
 
-/* core1: the client armed the swap and stored to the hotspot.
- *
- * This runs INSIDE the bus loop because it has to be complete before the
- * console's next fetch -- there is no wait state on this bus. vcs_set_image
- * copies one 2K bank and the fixed half, which is a few microseconds; the
- * console is executing the swap stub out of its own RAM at that moment, with
- * A12 low, so it is not asking the cartridge for anything.
+/* core1: the client armed the swap and stored to the hotspot. Runs inside the bus loop, since
+ * the swap must finish before the next fetch; copying the fixed half takes microseconds, while
+ * the console runs the swap stub from RAM with A12 low.
  */
 void __not_in_flash_func(fuji_cart_serve_staged)(void)
 {
@@ -122,9 +118,8 @@ void fuji_cart_service_deferred(void)
         fuji_render_req = false;
         vcs_render_row(fuji_mem.win, fuji_mem.trow, fuji_mem.tbuf,
                        fuji_mem.tlen);
-        /* Published AFTER the row is actually on the planes: a client that
-         * cares whether its text has landed polls this, and polling it before
-         * the render would race. */
+        /* Published after the row is on the planes, so a client polling it cannot race
+         * the render. */
         fuji_mem.win[FN_B_TEXTGEN - FN_WINDOW_BASE] =
             (uint8_t)((fuji_mem.win[FN_B_TEXTGEN - FN_WINDOW_BASE] ^ 0x80)
                       | (fuji_mem.trow & 0x1F));
@@ -161,9 +156,8 @@ void fuji_cart_service_deferred(void)
         else
             vcs_blit(fuji_mem.win, fuji_mem.board, fuji_mem.blit_src,
                      fuji_mem.blit_dst, fuji_mem.blit_cnt, fuji_blit_xform);
-        /* Published AFTER the blit has landed, for the same reason as
-         * FN_B_TEXTGEN above: the request slot is single and a client that
-         * fires the next blit before this one ran has lost this one. */
+        /* Published after the blit has landed: there is one request slot, so a client
+         * waits for this before the next blit. */
         fuji_mem.win[FN_B_BLITGEN - FN_WINDOW_BASE]++;
     }
 }

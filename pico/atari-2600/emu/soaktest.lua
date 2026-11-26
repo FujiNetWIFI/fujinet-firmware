@@ -1,14 +1,5 @@
--- soaktest.lua -- M6: push one cartridge, boot it, and check EVERY bank.
---
--- Generalises maptest.lua across the schemes. For each one it boots the image
--- over the network, then walks the scheme's own hotspots and requires the
--- served window to match the corresponding slice of the file byte for byte.
---
--- Not a checksum and not a spot check. A DBC push that truncates, an
--- off-by-one in the staging buffer, or a mapper that indexes one slice wrong
--- all produce an image that boots and then misbehaves somewhere else entirely;
--- comparing every served byte against the file is what catches them where they
--- happen.
+-- soaktest.lua -- push one cartridge, boot it, and compare every byte of every
+-- bank, selected through the scheme's own hotspots, against the file.
 --
 -- Env: BOOT_IMAGE (the file), SOAK_SCHEME (FLAT/F8/F6/F4/FA/E0/UA/FE/CV).
 
@@ -23,10 +14,7 @@ local function claimed()
     return sp:readv_u8(FN_CLAIM) == 0x46 and sp:readv_u8(FN_CLAIM + 1) == 0x55
 end
 
--- Where a scheme's cartridge RAM is READ. Those addresses hold RAM, not file
--- bytes, so comparing them against the image would fail for a cartridge that
--- is behaving perfectly. Getting this wrong is how a soak "finds" a bug that
--- is really in the soak.
+-- Where a scheme's cartridge RAM is read: RAM, not file bytes, so not compared.
 local function is_ram(a)
     if scheme == "FA" then return a >= 0x1100 and a <= 0x11FF end
     if scheme:sub(-2) == "SC" then return a >= 0x1080 and a <= 0x10FF end
@@ -34,28 +22,10 @@ local function is_ram(a)
     return false
 end
 
--- The LOWEST bankswitch hotspot of the scheme under test, and a function that
--- re-selects the bank we are comparing against.
---
--- Everything at or above that address is re-selected before being read, not
--- just the hotspots themselves: reading hotspot $1FF9 returns the right byte
--- (the switch lands after the read) but leaves bank 1 selected, so the six
--- bytes after it -- $1FFA to $1FFF, the 6502 vectors -- come from the wrong
--- bank. That is exactly the failure this harness reported for F8, F6, F4 and
--- FA, and it was the harness both times.
---
--- THIS IS NOT PARANOIA. MAME's Lua memory reads are NOT side-effect free:
--- readv_u8 is log_mem_read(), which after address translation does a plain
--- tspace->read_byte(), and read_u8 is the same without the translation.
--- Neither sets side_effects_disabled. So a harness that sweeps a banked
--- cartridge's window walks straight over its hotspots and switches the bank
--- underneath itself -- every byte after the last hotspot then comes from the
--- wrong bank.
---
--- maptest.lua did exactly that and passed anyway, because both banks of its
--- image were nearly identical. The soak corpus makes every byte a function of
--- its offset, which is what turned six wrong bytes into a failure instead of
--- a coincidence.
+-- The scheme's lowest hotspot, and a function re-selecting the bank under test.
+-- MAME's readv_u8 and read_u8 are plain read_byte()s with side effects, so a
+-- sweep trips the hotspots it reads, and a read tap switches AFTER the read:
+-- every address from the lowest hotspot up is re-selected before it is read.
 local hotspot_lo, reselect
 
 -- Compare the served window against `len` bytes of `img` starting at `off`,
@@ -65,8 +35,7 @@ local function compare(img, off, len, label, quiet)
     for i = 0, WIN - 1 do
         if is_ram(BASE + i) then goto continue end
         local a = BASE + i
-        -- Re-select first and the byte returned is still the one being
-        -- compared, because the switch happens AFTER the read.
+        -- The switch lands after the read, so this byte is still the right one.
         if hotspot_lo and a >= hotspot_lo then reselect() end
         local got = sp:readv_u8(a)
         local exp = img:byte(off + (i % len) + 1)
@@ -116,10 +85,8 @@ _G._soak = emu.add_machine_frame_notifier(function()
     local ok = true
 
     if scheme == "FLAT" or scheme == "CV" then
-        -- 2K mirrors into the 4K window; 4K fills it. For CV the RAM read
-        -- window at $1000-$13FF is skipped by is_ram, so what is left is the
-        -- ROM either side of it -- including the mirror at $1800-$1BFF, which
-        -- MAME's install_rom covers and its RAM handler does not.
+        -- 2K mirrors into the window. CV's RAM read window is skipped, leaving
+        -- the ROM around it, including MAME's mirror at $1800-$1BFF.
         ok = compare(img, 0, math.min(#img, WIN), "flat")
 
     elseif scheme == "F8" or scheme == "F6" or scheme == "F4"
@@ -152,8 +119,7 @@ _G._soak = emu.add_machine_frame_notifier(function()
             local bad = 0
             for i = 0, WIN - 1 do
                 local a = BASE + i
-                -- E0's hotspots are $1FE0-$1FF7, inside the window and inside
-                -- the fixed top slice, so the same re-select rule applies.
+                -- E0's hotspots sit in the fixed top slice: same re-select rule.
                 if a >= 0x1FE0 then sel() end
                 local slice = (i < 0xC00) and s or 7
                 local exp = img:byte(slice * 0x400 + (i % 0x400) + 1)
@@ -176,13 +142,9 @@ _G._soak = emu.add_machine_frame_notifier(function()
         end
 
     elseif scheme == "FE" then
-        -- FE takes its bank from bit 5 of whatever the NEXT access puts on the
-        -- bus after an access to $01FE, which is not something a harness can
-        -- drive cleanly from outside -- the debugger's own reads are part of
-        -- the sequence. So this checks the part that IS well defined: the
-        -- window always matches one whole bank of the file, never a mixture.
-        -- FE's actual switching rule is covered exhaustively by
-        -- host_test/test_vcsmap.c against MAME's own handler.
+        -- FE switches on the access after $01FE, which the debugger's own reads
+        -- disturb; check only that the window is one whole bank. test_vcsmap.c
+        -- covers the rule against MAME's handler.
         for _ = 1, 4 do
             sp:read_u8(0x01FE)
             sp:read_u8(0x1000)

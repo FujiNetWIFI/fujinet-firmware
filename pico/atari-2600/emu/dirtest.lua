@@ -1,16 +1,5 @@
--- dirtest.lua -- M3: browse to a NAMED file and boot it.
---
--- Reads the rendered text planes back into characters, finds the row whose
--- name matches BOOT_NAME, walks the cursor there with the joystick, presses
--- fire, and requires the served window to be byte-identical to that file.
---
--- Navigating by NAME rather than by a hardcoded row count is the point. A test
--- that pressed down three times would pass with the list drawn in the wrong
--- order, truncated, off by a row, or not drawn at all -- every failure mode
--- the browser actually has.
---
--- Every wait is on the program's own rendered state, never on a frame number,
--- so a slow socket round trip cannot turn into a flake.
+-- dirtest.lua -- browse to BOOT_NAME by name, read back from the text planes,
+-- boot it, and require the served window to match BOOT_IMAGE byte for byte.
 
 package.path = (os.getenv("A2600_EMU") or ".") .. "/?.lua;" .. package.path
 local font = require("vcsfont")
@@ -89,10 +78,7 @@ _G._dirtest = emu.add_machine_frame_notifier(function()
         end
         if not here then return end            -- not drawn yet
 
-        -- Compare RENDERED FORMS, not decoded text. At 3x5 'S' and '5' are the
-        -- same glyph and so are 'O' and '0', so decoding is lossy and a
-        -- decoded-text comparison would fail on any name containing them --
-        -- which is most of them.
+        -- Compare as rendered: lowercase draws as uppercase.
         local wk = name_keys(want_name)
         local n = math.min(#want_name, T_COLS - 1)
         for r = 0, NROWS - 1 do
@@ -107,11 +93,8 @@ _G._dirtest = emu.add_machine_frame_notifier(function()
             if ok then target = r end
         end
         if not target then
-            -- The dump used a `rows` table that was never built, so this path
-            -- threw inside the notifier instead of reporting -- and a throw in
-            -- a frame notifier is swallowed, so it simply fired again next
-            -- frame, forever. Read the rows here, and latch so the exit that
-            -- follows is not raced by another frame.
+            -- A throw in a frame notifier is swallowed and refires every frame,
+            -- so read the rows here and latch before exiting.
             print("FAIL: " .. want_name .. " is not in the listing:")
             for r = 0, NROWS - 1 do
                 local line = ""
@@ -139,8 +122,7 @@ _G._dirtest = emu.add_machine_frame_notifier(function()
     end
 
     if phase == "walk" then
-        -- One step per two frames: the client edge-detects, so the stick has
-        -- to be released between steps.
+        -- One step per two frames: the client edge-detects the stick.
         if presses <= 0 then phase = "fire"; waited = 0; return end
         if waited % 4 == 1 then
             press("P1 Down", true)

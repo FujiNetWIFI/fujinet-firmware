@@ -1,19 +1,7 @@
--- resettest.lua -- M1's real evidence: the cartridge survives a console reset.
---
--- There is no reset line on the 2600 cartridge connector, and the console's
--- RESET switch is a bit in a RIOT register the cart never sees. So a reset
--- restarts the CLIENT -- clearing its RAM and its variables -- while the
--- CARTRIDGE keeps everything, including the last acknowledged sequence number.
---
--- That is why every port in this family derives its next sequence from the
--- cart's own persisted ACKSEQ + 1 rather than from a counter in RAM. A client
--- that restarted its counter would ask for sequence 1 again, fujimail.c would
--- see a sequence it has already answered, and the transaction would be dropped
--- in silence -- the client would simply hang, with nothing on screen to say
--- why.
---
--- PASS requires the post-reset sequence to be exactly one more than the
--- pre-reset one. Seeing 01 twice is the bug this test exists to catch.
+-- resettest.lua -- the cartridge keeps its state across a console reset.
+-- The edge has no reset line, so RESET restarts only the client, which must
+-- take its next sequence from the cart's ACKSEQ + 1: a restarted counter would
+-- repeat a sequence fujimail.c has answered and hang. PASS: ACKSEQ up by one.
 
 local FN_ACKSEQ = 0x1F00
 local FN_MAG0   = 0x1F09
@@ -55,9 +43,7 @@ _G._resettest = emu.add_machine_frame_notifier(function()
     end
 
     if st.phase == "reset" then
-        -- Wait for the restarted client to complete its own transaction. The
-        -- cart's ACKSEQ does not go back to zero across the reset, so the tell
-        -- is that it CHANGED, not that it became non-zero.
+        -- ACKSEQ survives the reset, so wait for it to change, not to be non-zero.
         if magic and seq ~= st.before then
             local want = st.before + 1
             if want > 255 then want = 1 end

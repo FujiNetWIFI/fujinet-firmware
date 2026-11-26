@@ -1,21 +1,8 @@
-/* fuji_cart.h -- the cartridge-side half of the FujiNet mailbox.
- *
- * Split so core1's bus loop does as little as possible. core1 serves the bus
- * and records mailbox writes into a ring; core0 drains the ring and runs the
- * protocol. Replies need no bus-loop change at all: the mailbox is painted
- * into the window core1 already serves.
- *
- * WHAT CORE1 MUST DO ITSELF, and why. A bank select and a ROM swap have to be
- * complete before the console's very next fetch -- there is no handshake and
- * no wait state on this bus -- so they are handled inline in the loop and
- * never queued. Everything else can wait for core0.
- *
- * WHAT CORE1 MUST NOT DO. Composing a text row writes 36 bytes through a font
- * lookup, which is far longer than the 838 ns until the console's next access.
- * Missing a bus cycle here does not slow anything down, it serves the wrong
- * byte -- so rendering is core0's, requested through a flag. The cartridge
- * publishes FN_B_TEXTGEN when the row is actually on the planes, which is what
- * a client polls if it cares.
+/* fuji_cart.h -- the cart side of the FujiNet mailbox. core1 serves the bus and records
+ * mailbox writes into a ring that core0 drains; replies are painted into the window core1
+ * serves. A bank select and a swap must land before the next fetch, so core1 does them inline;
+ * rendering a row takes far longer than the 838 ns to the next access, so core0 does it and
+ * publishes FN_B_TEXTGEN when the row is on the planes.
  */
 
 #ifndef FUJI_CART_H
@@ -32,10 +19,8 @@
  * entries, since it expands to the REGSEL/REGDATA pair fujimail.c decodes. */
 #define FUJI_RING_LEN 1024
 
-/* Two image buffers, ping-ponged, because a client that has itself been
- * booted is RUNNING out of the live one -- staging into the same buffer would
- * rewrite the code currently executing. That is the ColecoVision's lesson and
- * it applies here unchanged. */
+/* Two image buffers, ping-ponged: a booted client runs out of the live one, so staging into it
+ * would overwrite running code. */
 #define FUJI_IMAGE_MAX VCS_IMAGE_MAX
 
 typedef struct {

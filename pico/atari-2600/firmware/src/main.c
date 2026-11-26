@@ -1,13 +1,8 @@
 /* main.c -- FujiNet Atari 2600 cartridge firmware, RP2354A (Fujiversal-Atari2600 Rev1).
  *
- * core1 serves the 6507 bus (vcs_cart.c); core0 runs the USB CDC link to the ESP32-S3,
- * the mailbox service, the work core1 cannot afford to do in the loop, and the console's
- * power. Booting a cartridge is core1's doing -- it switches the served image on the
- * client's armed swap store -- so nothing here waits on it.
- *
- * The edge carries +5V, GND, A0-A12 and D0-D7 and nothing else: no reset line, and the
- * console's RESET switch is a RIOT bit the cartridge never sees. The way back to CONFIG
- * is the console's power switch, which the cart sees on VSENSE.
+ * core1 serves the 6507 bus (vcs_cart.c) and performs the swap; core0 runs the USB CDC link,
+ * the mailbox service, the work core1 defers, and the console's power. The edge has no reset
+ * line, so the way back to CONFIG is the console's power switch, seen on VSENSE.
  */
 
 #include "pico/stdlib.h"

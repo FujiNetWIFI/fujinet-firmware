@@ -1,12 +1,8 @@
-; fujinet.inc -- equates for the FujiNet cartridge mailbox.
+; fujinet.inc -- equates for the FujiNet cartridge mailbox, mirrored by hand from
+; firmware/include/fuji_mailbox.h (tools/checkdefs.py compares them).
 ;
-; Hand-mirrored from firmware/include/fuji_mailbox.h; keep the two in step.
-;
-; Split from fujilib.inc because that file contains CODE, and code has to be
-; assembled inside the ORG'd program. The equates have to come first, so they
-; live here. (Including the code half early instead assembles the whole
-; transport at address $0000 and every JSR to it becomes `20 00 00` -- which
-; assembles cleanly and fails at run time.)
+; Include it before the ORG and fujilib.inc inside it: code included early
+; assembles at $0000, and every JSR to it becomes `20 00 00`.
 
 ; ---------------- cart -> console, painted ----------------
 FNTEXT  EQU     $1800           ; six 128-byte text planes
@@ -26,7 +22,7 @@ FNPVER  EQU     $1F0B
 FNSECH  EQU     $1F0C           ; slice echo, published last after a repaint
 FNBTXG  EQU     $1F0D           ; last text row rendered, plus a toggle
 FNBBNK  EQU     $1F0E           ; the live bank
-FNBFLG  EQU     $1F0F           ; bit0 armed, bit1 claim honoured
+FNBFLG  EQU     $1F0F           ; bit0 armed, bit1 claim honored
 FNPLNL  EQU     $1F17           ; path buffer length, little-endian
 FNPLNH  EQU     $1F18
 

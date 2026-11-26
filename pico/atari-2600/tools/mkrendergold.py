@@ -1,16 +1,8 @@
 #!/usr/bin/env python3
-"""mkrendergold.py -- the expectation for host_test/test_render.c.
+"""mkrendergold.py -- the expectation for host_test/test_render.c, from tools/vcsfont.py.
 
-The golden comes from tools/vcsfont.py, which was written first and knows
-nothing about the C. That is the discipline the ColecoVision port arrived at
-with five mappers: an expectation that calls the code under test proves only
-that the code agrees with itself.
-
-The corpus deliberately includes the cases a filename browser will actually
-hit -- lowercase (which folds to uppercase), a string longer than the twelve
-columns (truncated, never wrapped), a short one (space-filled), and characters
-outside the font (rendered as '?' rather than reading off the end of the
-table).
+The corpus covers lowercase, overlong (truncated) and short (space-filled)
+names, and characters outside the font (drawn as '?').
 
 Usage: mkrendergold.py > firmware/host_test/render_gold.h
 """
@@ -41,13 +33,9 @@ CORPUS = [
 
 
 def cstr(s):
-    """Escape `s` as a C string literal, using OCTAL for non-printables.
+    """Escape `s` as a C string literal, octal for non-printables.
 
-    Not hex: a C hex escape has no length limit, so "\\x01CTRL" is the single
-    character 0x1C followed by "TRL" -- one character shorter than the Python
-    string it is supposed to mirror, and the golden then disagrees with the
-    code for a reason that has nothing to do with the renderer. Octal escapes
-    stop after three digits and cannot swallow the next character.
+    A C hex escape has no length limit: "\\x01CTRL" would be 0x1C then "TRL".
     """
     out = []
     for ch in s:

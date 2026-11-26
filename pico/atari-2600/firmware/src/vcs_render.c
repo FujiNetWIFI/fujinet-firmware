@@ -6,11 +6,8 @@
 #include "vcs_font.h"
 #include "vcs_render.h"
 
-/* The five ink rows of one character, as 3-bit values, MSB leftmost.
- * Lowercase folds to uppercase for now; the Channel F port derives real
- * lowercase by squashing to four rows and that is the follow-up when a
- * password field needs it. Anything outside the table renders as '?' rather
- * than reading off the end. */
+/* The five ink rows of one character, 3 bits each, MSB leftmost. Lowercase folds to
+ * uppercase; anything outside the table renders as '?'. */
 static const uint8_t *glyph(uint8_t c)
 {
     if (c >= 'a' && c <= 'z')
@@ -35,9 +32,8 @@ void vcs_render_row(uint8_t *win, uint8_t row, const uint8_t *text, uint8_t len)
         uint8_t *p = win + (FN_T_PLANE(g) - FN_WINDOW_BASE) + row * FN_T_CELL_H;
 
         for (s = 0; s < FN_T_CELL_H; s++) {
-            /* Left column in bits 7-5 with bit 4 as its inter-character gap,
-             * right column in bits 3-1 with bit 0 as its gap. The last row of
-             * the cell is blank leading. */
+            /* Left column in bits 7-5, right in 3-1, bits 4 and 0 the gaps; the
+             * cell's last row is blank leading. */
             p[s] = (s < VCS_FONT_INK_H)
                      ? (uint8_t)((l[s] << 5) | (r[s] << 1))
                      : 0u;
@@ -57,10 +53,8 @@ void vcs_render_clear(uint8_t *win)
 static const uint8_t ship_len[5] = { 5, 4, 3, 3, 2 };
 
 /* ---------------- the playfield board ----------------
- *
- * Where cell x of a half lands: which of PF0/PF1/PF2, and its two bits. PF0
- * is drawn from bit 4 upward, PF1 from bit 7 downward, PF2 from bit 0
- * upward -- the TIA's own order, which is why the masks are not monotonic. */
+ * Which of PF0/PF1/PF2 cell x of a half lands in, and its two bits. The masks follow the
+ * TIA's draw order (PF0 from bit 4 up, PF1 from bit 7 down, PF2 from bit 0 up). */
 static const uint8_t pf_reg[FN_BOARD_DIM]  = { 0, 0, 1, 1, 1, 1, 2, 2, 2, 2 };
 static const uint8_t pf_bits[FN_BOARD_DIM] = { 0x30, 0xC0,
                                                0xC0, 0x30, 0x0C, 0x03,
@@ -109,18 +103,9 @@ static void pf_clear(uint8_t *win, unsigned slot, uint8_t mask)
     }
 }
 
-/* Zero both halves' tables, whole, for the kinds the mask names.
- *
- * pf_clear() is the board version: one slot, and it stops at FN_BOARD_DIM
- * because a board is ten rows. A tile grid is taller than that and spans both
- * halves, so neither bound carries over.
- *
- * This clears all FN_PF_KIND_LEN entries and not just the `rows` the caller
- * is about to compose, so that naming a kind in a PFTILE mask means OWNING
- * it. A 19-row grid otherwise leaves the twentieth entry holding whatever was
- * there -- a Battleship board's bottom pair, or power-on noise -- and the row
- * that inherits it draws it. Six bytes of clearing against a class of bug
- * that only shows up in the client that comes after this one. */
+/* Zero both halves' tables for the kinds the mask names. Unlike pf_clear() this spans
+ * both halves and all FN_PF_KIND_LEN entries, not just the rows about to be composed, so
+ * a shorter grid can't inherit an earlier client's bottom rows. */
 static void pf_tile_clear(uint8_t *win, uint8_t mask)
 {
     unsigned k, half, r, y;
@@ -135,18 +120,10 @@ static void pf_tile_clear(uint8_t *win, uint8_t mask)
     }
 }
 
-/* Compose a packed tile bitset into the playfield tables.
- *
- * Shared by FN_BLIT_PFTILE and FN_BLIT_PATHTILE, which differ only in where
- * the bits come from. `bits_len` is how many bytes are actually readable at
- * `bits`; running off the end stops rather than composing a row out of
- * whatever follows the source.
- *
- * Column x lives in half x / FN_BOARD_DIM, and pf_cell()'s cell number
- * carries the rest -- it divides by FN_BOARD_DIM to recover (column within
- * half, row), which is what y * FN_BOARD_DIM + x % FN_BOARD_DIM encodes.
- * Rows above nine are fine there and only there: pf_byte() reads (slot >> 1),
- * which is zero for both halves, so the entry index is the row itself. */
+/* A packed tile bitset into the playfield tables, for FN_BLIT_PFTILE and
+ * FN_BLIT_PATHTILE; it stops at `bits_len` readable bytes. Column x is in half
+ * x / FN_BOARD_DIM. Rows past nine work in pf_cell() only because pf_byte()'s
+ * (slot >> 1) is zero for both halves, so the entry index is the row itself. */
 static void pf_tile(uint8_t *win, const uint8_t *bits, unsigned bits_len,
                     unsigned rows, uint8_t mask)
 {
@@ -169,10 +146,8 @@ static void pf_tile(uint8_t *win, const uint8_t *bits, unsigned bits_len,
 }
 
 /* ---------------- the M.U.L.E. map ----------------
- *
- * fuji_mailbox.h has the picture; clients/atari-2600/tools/mulemap.py in
- * fujinet-multiplayer-mule is the model this must agree with, byte for byte.
- * Patterns are four playfield pixels, bit 3 the plot's leftmost. */
+ * Must agree byte for byte with clients/atari-2600/tools/mulemap.py in
+ * fujinet-multiplayer-mule. Patterns are four playfield pixels, bit 3 leftmost. */
 #define MM_ROWS     5u
 #define MM_COLS     9u
 #define MM_PLOTS    45u
@@ -319,19 +294,14 @@ void vcs_render_cell(uint8_t *win, uint8_t row, uint8_t col, uint8_t c)
     for (s = 0; s < FN_T_CELL_H; s++) {
         uint8_t ink = (s < VCS_FONT_INK_H) ? g[s] : 0u;
 
-        /* Keep the neighbour's three ink bits and both gap bits; replace only
-         * this column's. The gap bits are always zero, so masking them into
-         * the kept half rather than the written one costs nothing and keeps
-         * the two cases symmetrical. */
+        /* Keep the neighbor's ink and both (always zero) gap bits. */
         p[s] = (col & 1) ? (uint8_t)((p[s] & 0xF0u) | (ink << 1))
                          : (uint8_t)((p[s] & 0x0Fu) | (ink << 5));
     }
 }
 
-/* The console cannot read the path buffer back -- the page it is written
- * through is write-only -- so this is the only way a client sees what it has
- * typed, or which directory it is standing in. A caller showing the tail of a
- * long string passes src = len - FN_T_COLS. */
+/* The path buffer's page is write-only, so this is how a client shows what it typed or
+ * where it is. To show a long string's tail, pass src = len - FN_T_COLS. */
 void vcs_render_path_row(uint8_t *win, const uint8_t *path, uint16_t path_len,
                          uint16_t src, uint8_t row, uint8_t cnt)
 {
@@ -345,14 +315,8 @@ void vcs_render_path_row(uint8_t *win, const uint8_t *path, uint16_t path_len,
     vcs_render_row(win, row, line, (uint8_t)n);
 }
 
-/* The block escalation. See FN_BLIT_PATHPOKE in fuji_mailbox.h for why one
- * byte per blit was not enough for a four-player game.
- *
- * Two bounds, and they answer different questions. `path_len` is how much the
- * client has actually written: past it the buffer still holds whatever the
- * last string left, and copying that would hand the client stale bytes that
- * look exactly like its own. The plane bound is the safety one: past
- * FN_T_BASE + 768 is the reply window and then the status page. */
+/* Stops at `path_len`, since past it the buffer holds a previous string's bytes, and at
+ * the end of the planes, past which lie the reply window and the status page. */
 void vcs_render_path_poke(uint8_t *win, const uint8_t *path, uint16_t path_len,
                           uint16_t src, uint16_t dst, uint8_t cnt)
 {
@@ -367,8 +331,7 @@ void vcs_render_path_poke(uint8_t *win, const uint8_t *path, uint16_t path_len,
     }
 }
 
-/* The same grid out of a path buffer. See FN_BLIT_PATHTILE in
- * fuji_mailbox.h: a reply is transient and a path buffer is not. */
+/* The tile grid out of a path buffer, which outlives a reply. */
 void vcs_render_path_tile(uint8_t *win, const uint8_t *path, uint16_t path_len,
                           uint16_t src, uint8_t mask, uint8_t cnt)
 {
@@ -379,7 +342,6 @@ void vcs_render_path_tile(uint8_t *win, const uint8_t *path, uint16_t path_len,
 }
 
 /* ------------------------------------------------------------------ cards --
- * See the FN_BLIT_CARD block in fuji_mailbox.h for why a card is not a glyph.
  * Every table below is five rows of five ink bits, bit 4 leftmost.
  */
 
@@ -392,9 +354,8 @@ static const uint8_t card_ten[VCS_FONT_INK_H] = {
     0x17        /* #.### */
 };
 
-/* The pips: hearts, diamonds, spades, clubs -- and card_suits[] below MUST
- * spell that same order. Five wide is the width at
- * which all four are actually distinguishable; three is not. */
+/* Hearts, diamonds, spades, clubs, in card_suits[] order. Five wide, the narrowest at
+ * which all four are distinguishable. */
 static const uint8_t card_pip[4][VCS_FONT_INK_H] = {
     { 0x0A,     /* .#.#. */
       0x1F,     /* ##### */
@@ -420,11 +381,8 @@ static const uint8_t card_pip[4][VCS_FONT_INK_H] = {
 
 static const char card_suits[] = "hdsc";   /* the order of card_pip[] */
 
-/* A face-down card: a hatch capped top and bottom so it reads as a card back
- * rather than as ink that failed to become a glyph. A 50% hatch is used
- * rather than a sparser lattice because five pixels of width cannot carry a
- * period-3 weave -- it comes out as one or two lit pixels a row, which reads
- * as damage. [0] is the upper text row, [1] the lower. */
+/* A face-down card: a 50% hatch capped top and bottom (five pixels can't carry a sparser
+ * weave). [0] is the upper text row, [1] the lower. */
 static const uint8_t card_back[2][VCS_FONT_INK_H] = {
     { 0x1F,     /* ##### */
       0x15,     /* #.#.# */
@@ -438,11 +396,9 @@ static const uint8_t card_back[2][VCS_FONT_INK_H] = {
       0x1F }    /* ##### */
 };
 
-/* One scanline of the card bed: `ink` is one five-bit row per slot. Whole
- * plane bytes are written, never merged, so the bed clears itself.
- *
- * The bed starts at FN_CARD_X0, not at zero: pixel 7 is bit 0 of plane 0 and
- * no client can draw it -- see the FN_BLIT_CARD block in fuji_mailbox.h. */
+/* One scanline of the card bed, `ink` a five-bit row per slot. Whole plane bytes are
+ * written, so the bed clears itself. It starts at FN_CARD_X0: no client can draw pixel 7,
+ * bit 0 of plane 0. */
 static void card_line(uint8_t *win, unsigned row, unsigned line,
                       const uint8_t *ink)
 {
@@ -479,8 +435,7 @@ void vcs_render_cards(uint8_t *win, uint8_t row, const uint8_t *hand,
         return;
 
     for (line = 0; line < FN_T_CELL_H; line++) {
-        /* The sixth line of both cells is blank leading: it separates rank
-         * from pip, and the console's kernel reprograms colour there. */
+        /* Each cell's sixth line stays blank: the kernel reprograms color there. */
         if (line >= VCS_FONT_INK_H) {
             card_line(win, row, line, NULL);
             card_line(win, (unsigned)row + 1u, line, NULL);
@@ -512,8 +467,7 @@ void vcs_render_cards(uint8_t *win, uint8_t row, const uint8_t *hand,
             if (r == 't' || r == 'T') {
                 top[k] = card_ten[line];
             } else {
-                /* Re-centre the font's own 3x5 glyph in the five-wide field,
-                 * so a rank and a letter can never disagree. */
+                /* The font's own 3x5 glyph, centered in the five-wide field. */
                 top[k] = (uint8_t)(glyph(r)[line] << 1);
             }
 
@@ -578,9 +532,7 @@ bool vcs_blit(uint8_t *win, uint8_t *board, uint16_t src, uint16_t dst,
     }
 
     if (transform == FN_BLIT_CELL) {
-        /* One cell, no repaint. The placement screen sets seventeen of these
-         * between two paints; repainting ten rows after each would be
-         * seventeen times the work for the same picture. */
+        /* One cell, no repaint: placement sets seventeen between two paints. */
         if (cnt < FN_BOARD_CELLS)
             board[cnt] = (uint8_t)(src & 0xFFu);
         return true;
@@ -592,12 +544,9 @@ bool vcs_blit(uint8_t *win, uint8_t *board, uint16_t src, uint16_t dst,
     }
 
     if (transform == FN_BLIT_HULLS) {
-        /* Five placement bytes: pos + 100 * dir, pos = y*10 + x, dir 0
-         * horizontal and 1 vertical -- the server's encoding, unchanged.
-         *
-         * Hulls go on ONLY where the sea still shows. A hit or a miss on your
-         * own hull is the thing you most need to see, and painting the hull
-         * over it would hide exactly that. */
+        /* Five placement bytes in the server's encoding: pos + 100 * dir, pos = y*10 + x,
+         * dir 1 vertical. Hulls go only where sea still shows, so hits and misses on
+         * them stay visible. */
         for (i = 0; i < cnt && i < 5u; i++) {
             unsigned s = (FN_R_DATA - FN_WINDOW_BASE) + src + i;
             unsigned pos, dir, x, y, seg;
@@ -626,9 +575,7 @@ bool vcs_blit(uint8_t *win, uint8_t *board, uint16_t src, uint16_t dst,
     }
 
     if (transform == FN_BLIT_CARD) {
-        /* hand[11] out of the reply window, bounds-checked, then rendered.
-         * The NUL is carried too: vcs_render_cards() needs it to know where
-         * the hand stops. */
+        /* hand[11] from the reply window, NUL included, which ends the hand. */
         uint8_t hand[FN_CARD_SLOTS * 2 + 1];
 
         for (i = 0; i < sizeof hand; i++) {
@@ -648,9 +595,8 @@ bool vcs_blit(uint8_t *win, uint8_t *board, uint16_t src, uint16_t dst,
     }
 
     if (transform == FN_BLIT_PFIELD) {
-        /* HIT and MID are rewritten for the slot from the 100 wire cells;
-         * AUX is left alone, because the cursor and the hulls it carries are
-         * the client's business, not the wire's. */
+        /* HIT and MID from the 100 wire cells; AUX, the client's cursor and hulls, is
+         * left alone. */
         pf_clear(win, dst & 3u, FN_PFM_HIT | FN_PFM_MID);
         for (i = 0; i < FN_BOARD_CELLS; i++) {
             unsigned s = (FN_R_DATA - FN_WINDOW_BASE) + src + i;
@@ -665,10 +611,8 @@ bool vcs_blit(uint8_t *win, uint8_t *board, uint16_t src, uint16_t dst,
     }
 
     if (transform == FN_BLIT_PFHULL) {
-        /* The same placement bytes FN_BLIT_HULLS decodes, ORed into AUX.
-         * Never clears: a caller that wants a clean slate says PFCLR first,
-         * and one that is adding a cursor to a board with hulls on it does
-         * not. */
+        /* FN_BLIT_HULLS's placement bytes, ORed into AUX. Never clears; a caller
+         * that wants a clean slate sends PFCLR first. */
         for (i = 0; i < cnt && i < 5u; i++) {
             unsigned s = (FN_R_DATA - FN_WINDOW_BASE) + src + i;
             unsigned pos, dir, x, y, seg;
@@ -694,11 +638,8 @@ bool vcs_blit(uint8_t *win, uint8_t *board, uint16_t src, uint16_t dst,
     }
 
     if (transform == FN_BLIT_POKE) {
-        /* No composition: one byte, straight in. Bounded to the PLANES and
-         * not to the window, because past FN_T_BASE + 768 lies the reply
-         * window and then the client's own status page -- a stray dst there
-         * would let a client quietly corrupt the mailbox it is talking
-         * through, and the symptom would be a transaction, not a picture. */
+        /* One byte, straight in. Bounded to the planes, not the window: past them lie
+         * the reply window and the status page the client talks through. */
         if (dst < (unsigned)(FN_T_PLANES * FN_T_PLANE_LEN))
             win[(FN_T_BASE - FN_WINDOW_BASE) + dst] = (uint8_t)(src & 0xFFu);
         return true;
@@ -711,13 +652,8 @@ bool vcs_blit(uint8_t *win, uint8_t *board, uint16_t src, uint16_t dst,
         return true;
     }
 
-    /* The maze grid. dst is a KIND MASK and not a slot: a tile row is the
-     * whole 40-bit playfield, so both halves are written.
-     *
-     * A source offset past the window leaves the tables alone rather than
-     * clearing them. Nothing composed and nothing destroyed is the kinder of
-     * the two failures: the client keeps the picture it had while whoever
-     * wrote the six setup stores finds the one that is wrong. */
+    /* The maze grid. dst is a kind mask, not a slot: a tile row spans the whole
+     * 40-bit playfield. A source past the window leaves the tables as they were. */
     if (transform == FN_BLIT_PFTILE) {
         unsigned off = (FN_R_DATA - FN_WINDOW_BASE) + src;
 

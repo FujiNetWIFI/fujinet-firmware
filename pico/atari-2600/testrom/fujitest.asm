@@ -1,25 +1,8 @@
-; fujitest.asm -- M1: one real transaction, and proof the cart survives a reset.
+; fujitest.asm -- one real transaction: GET_ADAPTERCONFIG_EXTENDED on screen.
 ;
-; Asks the FujiNet for GET_ADAPTERCONFIG_EXTENDED and puts the live SSID, IP
-; address and firmware version on screen. Nothing is faked: the bytes come off
-; a socket to fujinet-pc, through the cartridge's own fujimail.c, and are
-; rendered by the cartridge's own compositor.
-;
-; The reply is 240 bytes and the window is 512, so it lands in slice 0 whole
-; and no slice paging is needed -- which is why the reply window is 512 and not
-; 256 (see fuji_mailbox.h).
-;
-; THE TRANSACTION RUNS BEFORE THE DISPLAY STARTS, with the screen blanked.
-; Under emulation the socket round trip is synchronous so this is invisible;
-; on real hardware it is a brief blank frame before the picture appears. A
-; client that wants to stay in sync while it talks has to do its transactions
-; from inside the frame loop, which fujicfg will.
-;
-; Exit test: emu/drive.lua reads the rendered planes back and requires the SSID
-; to be on screen; emu/resettest.lua then toggles the RESET switch and requires
-; the NEXT sequence number to be ACKSEQ+1, not 1 -- the cart has no reset line,
-; so it keeps its state across a console reset and a client that restarted its
-; own counter would collide with a sequence already answered.
+; The 240-byte reply fits reply slice 0. The transaction runs with the screen
+; blanked, before the display starts. emu/resettest.lua uses this client to
+; check the next sequence after a console RESET is ACKSEQ+1.
 
         CPU     6502
         INCLUDE "vcs.inc"
@@ -90,8 +73,7 @@ SHOW:   lda     #(TTITLE)&$FF
         lda     APERR
         beq     SHOWOK
 
-; The failure screen is as useful as the success one: it is what a burned
-; EPROM shows when there is no cartridge behind it.
+; What the client shows with no FujiNet cartridge answering.
         lda     #(TFAIL)&$FF
         sta     FNPTRL
         lda     #(TFAIL)>>8
@@ -138,8 +120,7 @@ SHOWOK: lda     #(TSSID)&$FF
         ldy     #FNTCOL
         jsr     FNRRPL
 
-; The sequence number, in hex. This is the rung's real evidence: after a
-; console RESET it must read 02, not 01.
+; The sequence number, in hex: after a console RESET it must read 02, not 01.
         lda     #(TSEQ)&$FF
         sta     FNPTRL
         lda     #(TSEQ)>>8

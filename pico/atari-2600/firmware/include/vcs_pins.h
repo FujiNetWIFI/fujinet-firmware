@@ -1,12 +1,9 @@
-/* vcs_pins.h -- how the cartridge connector reaches the RP2354A (Fujiversal-Atari2600 Rev1).
+/* vcs_pins.h -- the cartridge connector on the RP2354A (Fujiversal-Atari2600 Rev1); not in
+ * vcs_cart.h, which the MAME device and the host tests compile without the pico-sdk.
  *
- * Kept out of vcs_cart.h because that header is compiled by the MAME device and the host
- * tests, which have no pico-sdk.
- *
- * The edge goes straight to the RP: its GPIO0-25 are 5 V-tolerant while IOVDD is up, and a
- * 3.3 V high clears the 6507's TTL VIH. No buffers and no direction pin: the per-access
- * output enable is the only direction control. The address wiring is gtortone's
- * PlusCart-Pico (../include/board.h); D0-D7 sit on GP15-GP22, still one shift.
+ * The edge goes straight to GPIO0-25, 5 V-tolerant while IOVDD is up; a 3.3 V high clears the
+ * 6507's TTL VIH, and the output enable is the only direction control. The address wiring is
+ * gtortone's PlusCart-Pico (../include/board.h).
  */
 
 #ifndef VCS_PINS_H
@@ -32,7 +29,7 @@
 
 /* Drive the data byte with a single store: XOR against the current output and
  * write gpio_togl, so only the eight data pins change and nothing else on the
- * port is disturbed. PlusCart's idiom, and it is the right one. */
+ * port is disturbed (PlusCart's idiom). */
 #define DATA_OUT(v) (sio_hw->gpio_togl = \
         (sio_hw->gpio_out ^ ((uint32_t)(v) << D0_PIN)) & DATA_MASK)
 #define DATA_DRIVE  (sio_hw->gpio_oe_set = DATA_MASK)

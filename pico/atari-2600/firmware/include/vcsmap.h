@@ -1,32 +1,8 @@
-/* vcsmap.h -- the real Atari 2600 cartridge mappers.
- *
- * When a client boots a GAME, the cartridge has to behave like whatever board
- * that game shipped on. This is that behaviour, and like vcs_cart.h it lives
- * in the header as static inline so core1, the MAME device and the host tests
- * compile ONE implementation.
- *
- * VERIFIED AGAINST MAME'S OWN HANDLERS. host_test/test_vcsmap.c carries
- * verbatim transcriptions of src/devices/bus/vcs/rom.cpp and requires a fuzzed
- * access walk to agree byte for byte, bank state included. That is the
- * ColecoVision port's discipline: an expectation written by calling the code
- * under test proves only that the code agrees with itself.
- *
- * SCOPE, and why it stops where it does. Only schemes MAME implements are
- * here, because a scheme with no reference cannot be verified against
- * anything -- transcribing PlusCart's version and then testing it against
- * itself would be theatre. That rules out F0, EF, DF, BF and SB. Also out:
- * ACE and ELF, which are ARM-code cartridges (PlusCart relocates and RUNS
- * Thumb on the cartridge MCU); DPC and the Supercharger, which carry their own
- * coprocessor or BIOS; and 3E/3F, which need the cart to sample the data bus
- * on an access BELOW $1000 -- doable with the same technique the mailbox uses,
- * but it puts the timing-critical sampling in the serve path of every booted
- * game rather than only in the mailbox.
- *
- * THE `commit` PARAMETER is the same idea as the ColecoVision's speculative
- * serve. Every classic 2600 mapper switches banks on a READ -- there is no R/W
- * line, so the hotspot is the address -- which means a debugger peek would
- * move the bank under the running game. MAME's device passes
- * !side_effects_disabled() and core1 passes true.
+/* vcsmap.h -- the 2600 cartridge boards a booted game can need. Static inline so core1,
+ * the MAME device and the host tests compile one implementation; test_vcsmap.c checks it
+ * against MAME's own handlers. Only schemes MAME implements are here, since nothing else
+ * could be verified; 3E/3F are out because they would put data-bus sampling below $1000
+ * in every game's serve path.
  */
 
 #ifndef VCSMAP_H
@@ -63,9 +39,7 @@ typedef struct {
     bool superchip;             /* the 128-byte Super Chip is fitted */
     bool watch_low;             /* the board switches on addresses below $1000 */
 
-    /* FE watches for an access to $01FE and then takes the bank from bit 5 of
-     * whatever the NEXT access puts on the bus. The first read after reset is
-     * ignored, exactly as MAME does it. */
+    /* FE: an access to $01FE arms it; bit 5 of the next access picks the bank. */
     bool fe_trigger;
     bool fe_ignore_first;
 
@@ -102,10 +76,8 @@ static inline void vcsmap_init(vcsmap_t *m, vcsmap_kind_t k,
     m->rom = rom;
     m->rom_size = len;
     m->superchip = superchip;
-    /* UA switches on $0200-$027F and FE on $01FE/$01FF -- below A12, so those
-     * cycles never select the cartridge and the board is watching the bus
-     * rather than answering it. Both the cart's bus loop and the MAME model skip
-     * A12-low addresses by default, so each has to be told to look. */
+    /* UA and FE switch on addresses below A12, which never select the cart; the bus
+     * loop and the MAME model skip those unless told to watch. */
     m->watch_low = (k == VCSMAP_UA || k == VCSMAP_FE);
     vcsmap_reset(m);
 }
@@ -118,26 +90,11 @@ static inline uint8_t vcsmap_rom(const vcsmap_t *m, uint32_t off)
     return m->rom[off % m->rom_size];
 }
 
-/* One access. Returns the byte the cartridge drives, or -1 if it drives
- * nothing (below $1000). `data` is what is on the bus, which only FE needs.
- * Side effects happen only when `commit`.
- *
- * THE ORDER IS THE WHOLE POINT, and it is easy to get backwards. MAME
- * installs a read BANK and a read TAP over the same range, and a tap runs
- * AFTER the read it is attached to -- emumem_het.cpp is unambiguous:
- *
- *     uX data = this->m_next->read(offset, mem_mask);
- *     m_tap(offset, data, mem_mask);
- *
- * So an access to a bankswitch hotspot returns the byte from the bank that
- * was live BEFORE it, and the switch applies to the next access. Getting this
- * inverted is the classic mapper bug -- it is the same distinction the
- * ColecoVision port found between MegaCart and X-in-1 -- and it is invisible
- * until a game reads its hotspot for data as well as for the side effect,
- * which several do.
- *
- * Everything below therefore computes the returned byte from the CURRENT
- * state first, and only then applies side effects.
+/* One access: the byte the cart drives, or -1 below $1000. `data` is the bus, for FE.
+ * Every classic mapper switches on a read, so `commit` keeps a debugger peek from moving
+ * the bank: MAME passes !side_effects_disabled(), core1 true. A hotspot returns the byte
+ * from the bank live before it, as MAME's taps run after the read (emumem_het.cpp);
+ * several games read their hotspot for data.
  */
 static inline int vcsmap_serve(vcsmap_t *m, uint16_t addr, uint8_t data,
                                bool commit)
@@ -156,11 +113,8 @@ static inline int vcsmap_serve(vcsmap_t *m, uint16_t addr, uint8_t data,
             break;
 
         case VCSMAP_CV:
-            /* 2K mirrored across the window with 1K of RAM read at
-             * $1000-$13FF. The RAM read handler covers only that range, NOT
-             * its mirror at $1800-$1BFF, which still reads ROM. Transcribed
-             * rather than tidied: install_rom(..., 0x800 mirror) followed by
-             * install_read_handler over part of it is exactly what MAME does. */
+            /* RAM reads at $1000-$13FF only; its mirror at $1800 still reads ROM,
+             * as MAME installs it. */
             if (a <= 0x13FFu)
                 out = m->ram[a - 0x1000u];
             else
@@ -171,8 +125,7 @@ static inline int vcsmap_serve(vcsmap_t *m, uint16_t addr, uint8_t data,
         case VCSMAP_F6:
         case VCSMAP_F4:
         case VCSMAP_FA:
-            /* The Super Chip, when fitted: 128 bytes read at $1080-$10FF and
-             * written at $1000-$107F. FA's is 256 bytes at $1100 / $1000. */
+            /* Super Chip: read $1080-$10FF, write $1000-$107F. FA's 256 bytes: $1100/$1000. */
             if (m->kind == VCSMAP_FA && a >= 0x1100u && a <= 0x11FFu)
                 out = m->ram[a - 0x1100u];
             else if (m->kind != VCSMAP_FA && m->superchip
@@ -183,9 +136,7 @@ static inline int vcsmap_serve(vcsmap_t *m, uint16_t addr, uint8_t data,
             break;
 
         case VCSMAP_E0:
-            /* Three 1K slots plus a fixed one. The top slice is hardwired to
-             * slice 7, which is what makes a console RESET survivable: $1FFC
-             * is always in it. */
+            /* The top slot is always slice 7, so a console RESET finds $1FFC. */
             if (a < 0x1400u)
                 out = vcsmap_rom(m, (uint32_t)m->slot[0] * 0x400u + (a & 0x3FFu));
             else if (a < 0x1800u)
@@ -209,7 +160,7 @@ static inline int vcsmap_serve(vcsmap_t *m, uint16_t addr, uint8_t data,
     if (!commit)
         return out;
 
-    /* ---- 2. side effects, after the read, exactly as MAME's taps run ---- */
+    /* ---- 2. side effects, after the read, as MAME's taps run ---- */
     switch (m->kind) {
     case VCSMAP_F8:
         if (a >= 0x1FF8u && a <= 0x1FF9u) m->bank = (uint8_t)(a - 0x1FF8u);
@@ -233,10 +184,8 @@ static inline int vcsmap_serve(vcsmap_t *m, uint16_t addr, uint8_t data,
             m->bank = (uint8_t)((a >> 6) & 1u);
         break;
     case VCSMAP_FE:
-        /* An access to $01FE arms it; the bank then comes from bit 5 of
-         * whatever the NEXT access put on the bus -- which for a cartridge
-         * read is the byte just returned. The first read after reset is
-         * ignored, as MAME does. */
+        /* For a cart read the next access's byte is the one just returned. The
+         * first $01FE after reset is ignored, as MAME does. */
         if (m->fe_trigger && (a == 0x01FFu || (a & 0x1000u))) {
             uint8_t d = (out >= 0) ? (uint8_t)out : data;
             m->bank = (uint8_t)((d & 0x20u) ? 0u : 1u);
@@ -255,9 +204,7 @@ static inline int vcsmap_serve(vcsmap_t *m, uint16_t addr, uint8_t data,
     return out;
 }
 
-/* A store into cartridge space. Real hardware cannot tell this from a read --
- * which is why every classic mapper decodes the ADDRESS -- so the hotspots
- * fire either way. What this adds is the RAM write halves. */
+/* A store: the hotspots fire as for a read (there is no R/W line), plus the RAM writes. */
 static inline void vcsmap_write(vcsmap_t *m, uint16_t addr, uint8_t data,
                                 bool commit)
 {
@@ -288,15 +235,8 @@ static inline void vcsmap_write(vcsmap_t *m, uint16_t addr, uint8_t data,
     }
 }
 
-/* Which board an image shipped on, from its size.
- *
- * Size alone is how MAME's own identify_cart_type() starts, and for the sizes
- * that have one dominant scheme it is all you need. The ambiguous ones -- 8K
- * is F8 far more often than E0, UA or FE -- are where the .cfg sibling of the
- * DBC push comes in: the ColecoVision port reads its .cfg for exactly this,
- * and this is where that hook goes when M6's corpus turns up a cartridge the
- * default gets wrong.
- */
+/* The board from size alone, as MAME's identify_cart_type() starts. 8K is usually F8;
+ * the .cfg sibling names E0, UA or FE. */
 static inline vcsmap_kind_t vcsmap_detect(const uint8_t *rom, uint32_t len)
 {
     (void)rom;
@@ -311,9 +251,8 @@ static inline vcsmap_kind_t vcsmap_detect(const uint8_t *rom, uint32_t len)
     }
 }
 
-/* MAME's detect_super_chip() heuristic, in the shape it uses: a Super Chip
- * cartridge leaves its first 256 bytes -- the RAM window -- as a repeated
- * pattern rather than code. */
+/* MAME's detect_super_chip(): a Super Chip image fills its RAM window, the first 256
+ * bytes, with one repeated byte. */
 static inline bool vcsmap_has_superchip(const uint8_t *rom, uint32_t len)
 {
     unsigned i;
@@ -326,17 +265,9 @@ static inline bool vcsmap_has_superchip(const uint8_t *rom, uint32_t len)
     return true;
 }
 
-/* Parse a scheme name out of the .cfg sibling of a pushed image.
- *
- * Size alone cannot tell an 8K F8 from an 8K E0, UA or FE -- they are all
- * 8192 bytes and only the board differs -- so something has to say which, and
- * the DBC push already carries a second stream for exactly this. The
- * ColecoVision port reads its .cfg the same way; every other port in the
- * family accepts it and throws it away.
- *
- * Tolerant on purpose: leading blanks, any case, and anything after the name
- * (a comment, a newline, a whole ini file) is ignored. An unrecognised name
- * falls back to size detection rather than refusing to boot. */
+/* The scheme a pushed image's .cfg sibling names. Leading blanks, any case, and anything
+ * after the name are accepted; an unknown name falls back to size detection rather than
+ * refusing to boot. */
 static inline vcsmap_kind_t vcsmap_from_name(const char *s, unsigned len)
 {
     static const struct { const char *n; unsigned l; vcsmap_kind_t k; } tab[] = {

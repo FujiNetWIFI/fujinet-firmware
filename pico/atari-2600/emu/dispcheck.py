@@ -1,15 +1,7 @@
 #!/usr/bin/env python3
-"""dispcheck.py -- the M0 exit test.
-
-Decodes a MAME snapshot of the running client back into the six text planes
-and byte-compares them against tools/vcsfont.py's render of the same text.
-
-This is deliberately not "does the screenshot look right". It recovers the
-actual GRP0/GRP1 bytes the TIA drew, pixel by pixel, and requires them to be
-bit-identical to what the cartridge's renderer would have published -- so a
-timing bug that displays the right glyphs in the wrong column group, or a
-stale VDELP buffer that repeats a column pair, fails rather than passing a
-squint test. (Both of those were real, and both were found this way.)
+"""dispcheck.py -- decode a MAME snapshot back into the six text planes and
+byte-compare them with tools/vcsfont.py's render of the same text, so a glyph
+drawn in the wrong column group fails rather than looking right.
 
 Usage: dispcheck.py <snapshot.png> <screen.txt>
 """
@@ -29,7 +21,7 @@ def load_ink(path):
     im = Image.open(path).convert("RGB")
     w, h = im.size
     px = im.load()
-    # Background is the darkest colour present; ink is anything brighter.
+    # Background is the darkest color present; ink is anything brighter.
     lum = [[sum(px[x, y]) for x in range(w)] for y in range(h)]
     flat = sorted(v for row in lum for v in row)
     bg = flat[len(flat) // 2]          # the median pixel is background
@@ -64,11 +56,8 @@ def main():
                 got[g * PLANE_LEN + i] = b
         return got
 
-    # Find the block origin by searching, not by assuming the leftmost ink is
-    # text column 0 pixel 0. That assumption only holds once the display is
-    # ALREADY correct -- a blank first column, or a kernel drawing the wrong
-    # group in slot 0, silently shifts it and turns the byte count into noise
-    # exactly when the count is being used to find the right timing.
+    # Search for the block origin: the leftmost ink is column 0 only once the
+    # display is already right.
     best, best_bad, got = None, None, None
     for x0 in range(min(cols) - 8, min(cols) + 9):
         for y0 in range(min(rows) - 2, min(rows) + 3):

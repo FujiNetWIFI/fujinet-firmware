@@ -1,15 +1,8 @@
-; vcs.inc -- TIA and RIOT equates for Macroassembler AS.
+; vcs.inc -- TIA and RIOT equates for Macroassembler AS, written from the
+; register map (dasm's vcs.h is not redistributable).
 ;
-; The 2600 world's standard vcs.h is a dasm companion file and is explicitly
-; "please do not redistribute", so this is written from the hardware register
-; map rather than copied. AS is the assembler the rest of this family already
-; uses -- the o2 (8048), arcadia (2650) and channelf (F8) ports all build with
-; it and CI already caches its build -- so the 2600 client joins them rather
-; than adding dasm as a seventh toolchain.
-;
-; The 6507 has thirteen address lines, so everything mirrors. These are the
-; canonical low addresses; TIA writes are $00-$2C, TIA reads $00-$0D, and the
-; RIOT sits at $0280 with its RAM at $0080.
+; The 6507 has 13 address lines, so everything mirrors; these are the canonical
+; low addresses.
 
 ; ---------------- TIA, write ----------------
 VSYNC   EQU     $00             ; bit 1: vertical sync

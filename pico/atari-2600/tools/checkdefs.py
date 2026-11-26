@@ -1,27 +1,9 @@
 #!/usr/bin/env python3
-"""checkdefs.py -- keep testrom/fujinet.inc honest against fuji_mailbox.h.
+"""checkdefs.py -- check a client's hand-mirrored equates against fuji_mailbox.h.
 
-The console client's equates are hand-mirrored from the firmware header, which
-is the family's convention and is worth keeping: the .inc is readable 6502
-source with its own comments, not a generated blob. But hand-mirroring drifts,
-and this is what drift looks like on this port:
-
-  the spec put the control page at $1D00, the .inc said $1C00, and every
-  register write the client made went to a page that decodes nothing. It
-  assembled, it ran, the display came up -- and the mailbox was simply never
-  armed. Reads of $1C00 fell through to the served window and returned 0, so
-  even the symptom pointed somewhere else.
-
-Nothing catches that except comparing the two files, so the build does.
-
-PAIRS below is the set every client mirrors. A client that uses more of the
-window than the testroms do -- the blit port, say, which none of them touch --
-names the extra equates itself:
-
-  checkdefs.py header client.inc --extra FB_CARD=FN_BLIT_CARD,FH_BGO=FN_HOT_BLIT_GO
-
-Keeping those out of PAIRS is deliberate: a name listed there and absent from
-the .inc is a failure, so a shared table can only hold what EVERY client has.
+A drifted address assembles and runs, and talks to a page that decodes nothing.
+PAIRS is what every client mirrors; a client using more of the window names its
+extras: --extra FB_CARD=FN_BLIT_CARD,FH_BGO=FN_HOT_BLIT_GO
 
 Usage: checkdefs.py firmware/include/fuji_mailbox.h testrom/fujinet.inc
                     [--extra ASMNAME=FN_NAME,...]
@@ -31,8 +13,7 @@ import os
 import re
 import sys
 
-# asm name -> C name. Only the values a client can get WRONG are listed:
-# addresses it stores to or reads from, register numbers, and magic values.
+# asm name -> C name: the addresses, register numbers and magics a client uses.
 PAIRS = {
     "FNTEXT":  "FN_T_BASE",
     "FNRPLY":  "FN_R_DATA",

@@ -1,30 +1,10 @@
 #!/usr/bin/env python3
-"""mkcorpus.py -- synthesise a cartridge corpus for the soak.
+"""mkcorpus.py -- synthesize a cartridge corpus for the soak.
 
-There is no Atari 2600 ROM set on this machine -- MAME ships none and the
-`a2600` software list is names, not bytes. The Channel F port hit the same wall
-and did the same thing: generate a corpus that covers what the soak is actually
-testing, which is the PUSH and SERVE path, not anyone's game logic.
-
-Each image is built so a wrong byte cannot hide:
-
-  - every byte is a function of its absolute offset, so a bank served from the
-    wrong place, an off-by-one in the staging buffer, or a truncated push all
-    show up as a mismatch rather than as plausible-looking data;
-  - the first bytes of each bank carry the bank number, so a bank mix-up is
-    visible at a glance in a failure message;
-  - the reset vector points into the window, so the image is a legal cartridge
-    and MAME will run it rather than refusing;
-  - NO "FUJI" claim, so every one of them is a GAME: the cartridge must route
-    it to its real board and the mailbox must go dead.
-
-Each image gets a `.cfg` sibling naming its board (`mapper=F8`, as every
-cartridge in the family reads it). This is not decoration: an
-8K F8, E0, UA and FE are all 8192 bytes and nothing inside the file tells them
-apart, so without it the cartridge would serve three of the four as F8 and the
-soak would be checking a scheme the hardware never selected. MediaTypeROM
-pushes the sibling ahead of the ROM on every platform already -- the
-ColecoVision port added it for exactly this reason.
+Every byte is a function of its offset, so a misplaced or truncated bank shows
+as a mismatch. No image claims "FUJI": each is a GAME the cart must serve on
+its own board. Each gets a .cfg sibling (`mapper=F8`), since an 8K F8, E0, UA
+and FE are the same size and nothing in the file tells them apart.
 
 Usage: mkcorpus.py <outdir>
 """
@@ -32,8 +12,7 @@ Usage: mkcorpus.py <outdir>
 import os
 import sys
 
-# (name, scheme, size). The schemes are the ones vcsmap implements, which are
-# the ones MAME implements, which are the ones that can be verified at all.
+# (name, scheme, size): every scheme vcsmap.h implements.
 CORPUS = [
     ("soak2k",   "FLAT", 2048),
     ("soak4k",   "FLAT", 4096),
@@ -66,16 +45,12 @@ def build(scheme, size):
             img[base] = 0xB0 | (b & 0x0F)      # this bank, at a glance
             img[base + 1] = 0xA5
 
-    # A Super Chip cartridge leaves its first 256 bytes -- the RAM window --
-    # as a repeated pattern rather than code, which is how MAME's
-    # detect_super_chip() recognises one. Match it, so the detector fires.
+    # MAME's detect_super_chip() looks for a repeated first 256 bytes.
     if scheme.endswith("SC"):
         for i in range(256):
             img[i] = 0x00
 
-    # A legal reset vector, in the bank the console powers up in. For the
-    # banked schemes that is the last 4K the hardware maps; for FLAT and CV it
-    # is the only one there is.
+    # A legal reset vector in the bank the console powers up in.
     if size >= BANK:
         img[size - 4] = 0x00
         img[size - 3] = 0x10                    # $1000

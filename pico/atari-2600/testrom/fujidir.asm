@@ -1,24 +1,8 @@
-; fujidir.asm -- M3: browse a host's directory and boot what you pick.
+; fujidir.asm -- browse a host's directory and boot the pick.
 ;
-; MOUNT_HOST -> OPEN_DIRECTORY -> READ_DIR_ENTRY x N, one entry rendered
-; straight from the reply window into a text row. Joystick up/down moves the
-; cursor, FIRE mounts the selection and boots it.
-;
-; NO FILENAME IS EVER HELD IN CONSOLE RAM. There is nowhere to put one: 128
-; bytes total, the stack owns the top and the swap stub the bottom. So a name
-; goes cartridge -> text plane to be drawn, and cartridge -> TX page to be
-; mounted, and the console only ever holds an index. That is the ColecoVision
-; port's lesson, and this console needs it more.
-;
-; The cost of that is what moving the cursor does: with no names in RAM there
-; is nothing to redraw from, so the list is re-read from the host. Under
-; emulation that is instant; on real hardware it is about a second per step.
-; The fix, when CONFIG needs it, is a cartridge-side page cache -- the blit
-; port already exists for exactly this shape of problem.
-;
-; Exit test: emu/dirtest.lua walks the cursor to a NAMED file by reading the
-; rendered planes back, presses FIRE, and requires the served window to be
-; byte-identical to that file.
+; No filename is held in console RAM (128 bytes, stack and swap stub): names go
+; cart to text plane and cart to TX page, and the console keeps an index. So a
+; cursor move re-reads the list, about a second a step on hardware.
 
         CPU     6502
         INCLUDE "vcs.inc"
