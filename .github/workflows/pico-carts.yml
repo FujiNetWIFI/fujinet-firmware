@@ -327,6 +327,54 @@ jobs:
           ASL=$HOME/asl/asl P2BIN=$HOME/asl/p2bin \
             ./build.sh hello romctest fujitest fujiboot fujicfg fujibank
 
+  a2600-console-client:
+    name: "Atari 2600 6502 clients"
+    runs-on: [self-hosted, Linux, X64, fujinet-builder]
+    container:
+      image: ubuntu:24.04
+      options: --add-host=host.docker.internal:host-gateway
+    steps:
+      - name: Install base tools
+        shell: bash
+        run: |
+          MIRROR=http://mirrors.edge.kernel.org/ubuntu
+          (echo > /dev/tcp/host.docker.internal/3142) 2>/dev/null \
+            && MIRROR=http://host.docker.internal:3142/mirrors.edge.kernel.org/ubuntu
+          sed -i "s|http://[a-z.]*ubuntu.com/ubuntu|$MIRROR|" /etc/apt/sources.list.d/ubuntu.sources
+          apt-get update && apt-get install -y --no-install-recommends git curl wget ca-certificates build-essential make python3 python3-pip python3-venv gh jq zip unzip
+      - uses: actions/checkout@v4
+
+      - name: Trust the workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      # Macro Assembler AS, 6502 target. Same cache and build recipe as the o2 job.
+      - name: Cache Macro Assembler AS
+        id: cache-asl
+        uses: actions/cache@v4
+        with:
+          path: ~/asl
+          key: asl-upstream-${{ runner.os }}-v1
+
+      - name: Build Macro Assembler AS
+        if: steps.cache-asl.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch upstream \
+            https://github.com/Macroassembler-AS/asl-releases.git /tmp/asl-src
+          cd /tmp/asl-src
+          cp Makefile.def-samples/Makefile.def-i386-unknown-linux2.x.x Makefile.def
+          sed -i 's|^CFLAGS.*|CFLAGS = -O2 -w|' Makefile.def
+          make -j"$(nproc)"
+          mkdir -p ~/asl
+          cp asl p2bin ~/asl/
+
+      - name: Put AS on PATH
+        run: echo "$HOME/asl" >> "$GITHUB_PATH"
+
+      # build.sh checks the equates against fuji_mailbox.h first, and tools/checkrom.py
+      # fails any client that reaches a write-only page with anything but a store.
+      - name: Assemble the 6502 clients
+        working-directory: pico/atari-2600
+        run: ./build.sh
+
   studio2-console-client:
     name: "Studio II 1802 clients"
     runs-on: [self-hosted, Linux, X64, fujinet-builder]
@@ -579,6 +627,13 @@ jobs:
       # CONFIG comes from firmware/baked/.
       - name: Atari 5200 cartridge (fuji5200_rp2354b)
         working-directory: pico/atari-5200
+        run: ./build-cart.sh --baked
+
+      # CONFIG comes from firmware/baked/.
+      - name: Atari 2600 cartridge (fujivcs_rp2354a)
+        working-directory: pico/atari-2600
+        env:
+          PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
         run: ./build-cart.sh --baked
 
       # The boot page, CONFIG and the loader come from firmware/baked/ (z88dk

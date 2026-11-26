@@ -1,2 +1,8 @@
 .vscode/*
-build/*
+build/
+firmware/build-*/
+testrom/*.p
+testrom/*.lst
+testrom/screen.inc
+testrom/bootcfg.inc
+__pycache__/

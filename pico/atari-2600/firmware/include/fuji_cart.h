@@ -1,0 +1,87 @@
+/* fuji_cart.h -- the cart side of the FujiNet mailbox. core1 serves the bus and records
+ * mailbox writes into a ring that core0 drains; replies are painted into the window core1
+ * serves. A bank select and a swap must land before the next fetch, so core1 does them inline;
+ * rendering a row takes far longer than the 838 ns to the next access, so core0 does it and
+ * publishes FN_B_TEXTGEN when the row is on the planes.
+ */
+
+#ifndef FUJI_CART_H
+#define FUJI_CART_H
+
+#include <stdbool.h>
+#include <stdint.h>
+
+#include "vcs_cart.h"
+
+/* One transaction is a dozen register writes plus at most a 320-byte stream,
+ * and the console cannot start another until it sees ACKSEQ, so the ring only
+ * ever has to hold one transaction's worth. A register write costs two
+ * entries, since it expands to the REGSEL/REGDATA pair fujimail.c decodes. */
+#define FUJI_RING_LEN 1024
+
+/* Two image buffers, ping-ponged: a booted client runs out of the live one, so staging into it
+ * would overwrite running code. */
+#define FUJI_IMAGE_MAX VCS_IMAGE_MAX
+
+typedef struct {
+    volatile uint16_t buf[FUJI_RING_LEN];
+    volatile uint16_t head;                /* written by core1 only */
+    volatile uint16_t tail;                /* written by core0 only */
+    volatile bool overflow;
+} fuji_ring_t;
+
+extern fuji_ring_t fuji_ring;
+extern vcs_mem_t fuji_mem;                 /* the served window and its decode */
+
+extern uint8_t fuji_image[2][FUJI_IMAGE_MAX];
+extern uint32_t fuji_image_len[2];
+extern volatile uint8_t fuji_live_image;   /* core1 owns this */
+uint8_t *fuji_cart_stage_buffer(void);     /* core0: the one that is NOT live */
+
+extern volatile bool fuji_have_staged;
+extern volatile uint32_t fuji_staged_len;
+
+/* core0 work requested by core1, which cannot afford to do it in the loop. */
+extern volatile bool fuji_render_req;
+extern volatile bool fuji_blit_req;
+extern volatile uint8_t fuji_blit_xform;
+
+/* Serve `config` (the baked client) and watch the console's power. */
+void fuji_cart_init(const uint8_t *config, uint32_t config_len);
+/* core0: the console went off -> stop core1 and serve the client again. */
+void fuji_cart_service(void);
+void fuji_cart_poke(unsigned offset, uint8_t value);
+void fuji_cart_stage(uint32_t len);        /* core0: a push is complete */
+void fuji_cart_serve_staged(void);         /* core1: the swap */
+
+/* core1: record one mailbox event. Inlined into the bus loop, so it stays a
+ * compare and two stores. A full ring drops the event and latches `overflow`
+ * rather than blocking: the bus will not wait. */
+static inline void fuji_cart_note(uint16_t offset)
+{
+    uint16_t head = fuji_ring.head;
+    uint16_t next = (uint16_t)((head + 1u) % FUJI_RING_LEN);
+
+    if (next == fuji_ring.tail) {
+        fuji_ring.overflow = true;
+        return;
+    }
+    fuji_ring.buf[head] = offset;
+    fuji_ring.head = next;
+}
+
+/* core0: take the next event, if any. */
+static inline bool fuji_cart_next_event(uint16_t *offset)
+{
+    uint16_t tail = fuji_ring.tail;
+
+    if (tail == fuji_ring.head)
+        return false;
+    *offset = fuji_ring.buf[tail];
+    fuji_ring.tail = (uint16_t)((tail + 1u) % FUJI_RING_LEN);
+    return true;
+}
+
+void vcs_core1_main(void);
+
+#endif /* FUJI_CART_H */

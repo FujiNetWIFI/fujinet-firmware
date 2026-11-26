@@ -13,7 +13,8 @@ carts' CMake builds.
   have their own.
 - [arcadia/](../arcadia/), [astrocade/](../astrocade/), [channelf/](../channelf/),
   [coleco/](../coleco/), [nes/](../nes/), [sms/](../sms/), [studio2/](../studio2/),
-  [atari-5200/](../atari-5200/), [atari-7800/](../atari-7800/) and [template/](../template/) list all of it among their `fujicart_firmware()` sources, through
+  [atari-5200/](../atari-5200/), [atari-7800/](../atari-7800/), [atari-2600/](../atari-2600/firmware/) and
+  [template/](../template/) list all of it among their `fujicart_firmware()` sources, through
   `FUJI_COMMON`, and each names its `USB_PRODUCT` there.
 - The I/O cards, [s100/](../s100/) and [trs80m1/](../trs80m1/), take the codec and the USB device,
   and in place of `fujibus_usb.c` build `src/fuji_iolink.c` (one link shared by the host's frames
@@ -27,23 +28,24 @@ carts' CMake builds.
 - Every cart but nes and o2 starts fujimail through `src/fuji_port.c`, and so builds
   `src/fuji_cfg.c` too. nes fills in a `fujimail_port_t` itself, as the MAME devices do with
   `emu/fujitcp.c` as the link.
-- arcadia, astrocade, channelf, coleco, nes, studio2, atari-5200, sms, atari-7800 and template set
-  their clock in the board header and start with `fuji_clock_init()`. None defines TinyUSB's mount or CDC
+- arcadia, astrocade, channelf, coleco, nes, studio2, atari-5200, sms, atari-7800, atari-2600 and
+  template set their clock in the board header and start with `fuji_clock_init()`. None defines TinyUSB's mount or CDC
   callbacks; the stack's weak defaults do.
 - sms, studio2, atari-5200 and atari-7800 take an image's CRC with `src/fuji_crc.c`, and all but
   studio2 look it up in their `*map_db.c`; their `emu/apply.sh` copy it into MAME too. sms
   and atari-7800 generate that table with a `tools/mkmapdb.py` built on `tools/softlist.py`.
 - arcadia and channelf build `src/fuji_tick.c` and each define `fuji_tick_target()`; both list
   `test_tick`, which comes from here.
-- studio2, atari-5200, coleco, sms and atari-7800 build `src/fuji_watchdog.c`: the first three
-  watch power alone, sms and atari-7800 the console's clock too.
+- studio2, atari-5200, coleco, atari-2600, sms and atari-7800 build `src/fuji_watchdog.c`: the
+  first four watch power alone, sms and atari-7800 the console's clock too.
 - sms and atari-7800 build `src/fuji_store.c`, each with a `fuji_store_cfg.h` of its own.
   astrocade (three tiers), coleco (SRAM only) and nes keep their own store; their
   `include/fuji_store.h` comes first on the include path.
-- sms, atari-5200, atari-7800 and coleco also copy `src/fuji_cfg.c` into MAME through `emu/apply.sh`, so
+- sms, atari-5200, atari-7800, coleco and atari-2600 also copy `src/fuji_cfg.c` into MAME through `emu/apply.sh`, so
   the device reads a .cfg as the cart does.
 - Each cart's `fuji_mailbox.h` but o2's holds its address map and its own registers, and
-  includes `fuji_mailbox_proto.h` first and `fuji_mailbox_check.h` last.
+  includes `fuji_mailbox_proto.h` first and `fuji_mailbox_check.h` last; atari-2600's 4K window
+  lays the pages out differently, so it skips the check.
 - Every MAME cart's `emu/apply.sh` grafts this code into MAME through `emu/graft.lib.sh`, so the
   emulators run the same code; it keeps only its own driver and slot edits. A function added to a
   module goes in `emu/fujins.syms` too. o2's (o2em) and s100's (SIMH) copy what they need by hand.
