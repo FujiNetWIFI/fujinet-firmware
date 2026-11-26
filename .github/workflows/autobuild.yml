@@ -53,6 +53,7 @@ jobs:
           - FUJIVERSAL-DRIVEWIRE
           - FUJIVERSAL-MSX
           - FUJIVERSAL-ATARI2600
+          - FUJIVERSAL-ATARI5200
         # Fujiversal boards also build a companion RP2040/RP2350 cartridge
         # firmware, which needs an ARM toolchain the other boards do not.
         include:
@@ -65,6 +66,8 @@ jobs:
           - target-platform: FUJIVERSAL-MSX
             pico: true
           - target-platform: FUJIVERSAL-ATARI2600
+            pico: true
+          - target-platform: FUJIVERSAL-ATARI5200
             pico: true
 
     steps:
