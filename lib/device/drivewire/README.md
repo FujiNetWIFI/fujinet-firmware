@@ -8,7 +8,8 @@ The CoCo and Dragon device set for `BUILD_COCO`.
   devices derive `virtualDevice` and answer `processCommand()`. Disk images are the CoCo, Dragon
   and PMD 85 formats in [lib/media/disk/](../../media/disk/); cartridges are `CoCoCartROM` in
   [lib/media/rom/](../../media/rom/).
-- `drivewireFuji` overrides `mount_media()` to pass the host to the disk.
+- `drivewireFuji` overrides `openROM()` with the cartridge formats in `CoCoROMFormats.h`, and
+  `mount_media()` to pass the host to the disk.
 - `src/main.cpp` hands the printer to the bus with `setPrinter()`; the bus keeps no daisy chain.
 
 ## Build

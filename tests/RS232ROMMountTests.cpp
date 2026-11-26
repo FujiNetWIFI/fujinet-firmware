@@ -6,7 +6,9 @@
 #include <string>
 #include <vector>
 
+#include "Cartridge.h"
 #include "disk.h"
+#include "RS232ROMFormats.h"
 #include "romMountStubs.h"
 #include "fujiHost.h"
 #include "hash.h"
@@ -95,6 +97,16 @@ std::vector<fujiCommandID_t> commands()
     for (const auto &packet : bus.sent)
         sent.push_back(packet.command);
     return sent;
+}
+
+// These tests don't link fujiDevice, so this copies its choice of cartridge or drive.
+error_is_true mount_file(rs232Disk &disk, fnFile *file, const char *filename, uint32_t size,
+                         disk_access_flags_t mode, fujiHost *host = nullptr)
+{
+    auto rom = RS232ROMFormats::open<ROMMedia>(filename, file, host);
+    if (rom)
+        return Cartridge(SYSTEM_BUS).mount(*rom);
+    return disk.mount(file, filename, size, mode, host);
 }
 
 // Whatever the outcome, every handle opened for the mount is closed exactly
@@ -214,7 +226,7 @@ void check_msx_mount(const char *filename, const std::vector<uint8_t> &image,
         set_db(image, dbType);
     MemFile file(image);
     rs232Disk disk;
-    CHECK(disk.mount(&file, filename, image.size(), DISK_ACCESS_MODE_READ).is_success());
+    CHECK(mount_file(disk, &file, filename, image.size(), DISK_ACCESS_MODE_READ).is_success());
     check_closed_once(disk, file);
 
     REQUIRE(bus.sent.size() >= 4);
@@ -223,7 +235,7 @@ void check_msx_mount(const char *filename, const std::vector<uint8_t> &image,
     CHECK(bus.sent.back().command == CMD::DBC_SEGMENT_CLOSE);
     CHECK(bus.sent.back().payload.empty());
 
-    size_t blocks = (image.size() + rs232Disk::ROM_BLOCK_SIZE - 1) / rs232Disk::ROM_BLOCK_SIZE;
+    size_t blocks = (image.size() + Cartridge::BLOCK_SIZE - 1) / Cartridge::BLOCK_SIZE;
     std::vector<fujiCommandID_t> expected{CMD::DBC_SEGMENT_OPEN};
     expected.insert(expected.end(), blocks, CMD::DBC_SEGMENT_WRITE);
     expected.push_back(CMD::DBC_MAPPER_SET_INFO);
@@ -250,11 +262,11 @@ void systemBus::addDevice(virtualDevice *, fujiDeviceID_t) {}
 TEST_CASE("a ROM image goes to DBC stream 0 in 512-byte blocks between OPEN and CLOSE")
 {
     reset();
-    auto image = make_image(rs232Disk::ROM_BLOCK_SIZE * 2 + 88);
+    auto image = make_image(Cartridge::BLOCK_SIZE * 2 + 88);
     MemFile file(image);
 
     rs232Disk disk;
-    CHECK(disk.mount(&file, ROM_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
+    CHECK(mount_file(disk, &file, ROM_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
           .is_success());
     check_closed_once(disk, file);
 
@@ -264,8 +276,8 @@ TEST_CASE("a ROM image goes to DBC stream 0 in 512-byte blocks between OPEN and 
     CHECK(bus.sent[0].command == CMD::NET_OPEN);
     CHECK(bus.sent[0].params == std::vector<uint32_t>{0});
     CHECK(bus.sent[0].payload == open_header(0, image.size()));
-    CHECK(bus.sent[1].payload.size() == rs232Disk::ROM_BLOCK_SIZE);
-    CHECK(bus.sent[2].payload.size() == rs232Disk::ROM_BLOCK_SIZE);
+    CHECK(bus.sent[1].payload.size() == Cartridge::BLOCK_SIZE);
+    CHECK(bus.sent[2].payload.size() == Cartridge::BLOCK_SIZE);
     CHECK(bus.sent[3].payload.size() == 88);
     CHECK(bus.sent[4].command == CMD::NET_CLOSE);
     CHECK(bus.sent[4].payload.empty());
@@ -319,7 +331,7 @@ TEST_CASE("each console's image mounts and goes over unchanged")
         MemFile file(entry.image);
 
         rs232Disk disk;
-        CHECK(disk.mount(&file, entry.filename, entry.image.size(), DISK_ACCESS_MODE_READ)
+        CHECK(mount_file(disk, &file, entry.filename, entry.image.size(), DISK_ACCESS_MODE_READ)
               .is_success());
         CHECK(stream_bytes(0) == std::string(entry.image.begin(), entry.image.end()));
         check_closed_once(disk, file);
@@ -334,7 +346,7 @@ TEST_CASE("an Intellivision .int without a .cfg boots with the default map")
     fujiHost host;
 
     rs232Disk disk;
-    CHECK(disk.mount(&file, "cart.int", image.size(), DISK_ACCESS_MODE_READ, &host)
+    CHECK(mount_file(disk, &file, "cart.int", image.size(), DISK_ACCESS_MODE_READ, &host)
           .is_success());
     CHECK(stream_bytes(1).empty());
     CHECK(stream_bytes(0) == std::string(image.begin(), image.end()));
@@ -345,7 +357,7 @@ TEST_CASE("an Intellivision .int without a .cfg boots with the default map")
 TEST_CASE("a .cfg sibling goes to stream 1 before the image")
 {
     const std::string map = "[mapping]\n$0000 - $1FFF = $5000\n";
-    auto image = make_image(rs232Disk::ROM_BLOCK_SIZE + 2);
+    auto image = make_image(Cartridge::BLOCK_SIZE + 2);
 
     for (const char *map_file : {MAP_TEST_FILE, MAP_TEST_FILE_UPPER})
     {
@@ -356,7 +368,7 @@ TEST_CASE("a .cfg sibling goes to stream 1 before the image")
         fujiHost host;
 
         rs232Disk disk;
-        CHECK(disk.mount(&file, ROM_BIN_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ, &host)
+        CHECK(mount_file(disk, &file, ROM_BIN_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ, &host)
               .is_success());
         CHECK(host_files.opened.size() == 1);
         check_closed_once(disk, file);
@@ -386,7 +398,7 @@ TEST_CASE("an Intellivision image with a .cfg may be any even size")
 
         rs232Disk disk;
         bool even = size % 2 == 0;
-        CHECK((disk.mount(&file, ROM_BIN_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ, &host)
+        CHECK((mount_file(disk, &file, ROM_BIN_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ, &host)
                .is_success() || !even));
         CHECK(stream_bytes(0) == (even ? std::string(image.begin(), image.end()) : ""));
         check_closed_once(disk, file);
@@ -401,7 +413,7 @@ TEST_CASE("without a host the .cfg sibling is not looked for")
     MemFile file(image);
 
     rs232Disk disk;
-    CHECK(disk.mount(&file, ROM_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
+    CHECK(mount_file(disk, &file, ROM_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
           .is_success());
     CHECK(commands() == std::vector<fujiCommandID_t>{
               CMD::NET_OPEN, CMD::NET_WRITE, CMD::NET_CLOSE});
@@ -416,7 +428,7 @@ TEST_CASE("an empty ROM image mounts raw without touching the bus")
     MemFile file({});
 
     rs232Disk disk;
-    CHECK(disk.mount(&file, ROM_TEST_FILE, 0, DISK_ACCESS_MODE_READ).is_success());
+    CHECK(mount_file(disk, &file, ROM_TEST_FILE, 0, DISK_ACCESS_MODE_READ).is_success());
     CHECK(bus.sent.empty());
     CHECK(disk.device_active);
     check_closed_once(disk, file);
@@ -424,7 +436,7 @@ TEST_CASE("an empty ROM image mounts raw without touching the bus")
 
 TEST_CASE("a refused or unanswered OPEN fails the mount and sends nothing more")
 {
-    auto image = make_image(rs232Disk::ROM_BLOCK_SIZE);
+    auto image = make_image(Cartridge::BLOCK_SIZE);
     for (Reply reply : {Reply::Nak, Reply::None})
     {
         CAPTURE((int)reply);
@@ -433,7 +445,7 @@ TEST_CASE("a refused or unanswered OPEN fails the mount and sends nothing more")
         MemFile file(image);
 
         rs232Disk disk;
-        CHECK(disk.mount(&file, ROM_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
+        CHECK(mount_file(disk, &file, ROM_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
               .is_error());
         CHECK(commands() == std::vector<fujiCommandID_t>{CMD::NET_OPEN});
         check_nothing_mounted(disk, file);
@@ -443,7 +455,7 @@ TEST_CASE("a refused or unanswered OPEN fails the mount and sends nothing more")
 
 TEST_CASE("a refused or unanswered block sends an aborting CLOSE")
 {
-    auto image = make_image(rs232Disk::ROM_BLOCK_SIZE * 3);
+    auto image = make_image(Cartridge::BLOCK_SIZE * 3);
     for (Reply reply : {Reply::Nak, Reply::None})
     {
         CAPTURE((int)reply);
@@ -452,7 +464,7 @@ TEST_CASE("a refused or unanswered block sends an aborting CLOSE")
         MemFile file(image);
 
         rs232Disk disk;
-        CHECK(disk.mount(&file, ROM_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
+        CHECK(mount_file(disk, &file, ROM_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
               .is_error());
         REQUIRE(bus.sent.size() == 4);
         CHECK(bus.sent[3].command == CMD::NET_CLOSE);
@@ -470,7 +482,7 @@ TEST_CASE("a refused CLOSE fails the mount")
     MemFile file(image);
 
     rs232Disk disk;
-    CHECK(disk.mount(&file, ROM_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
+    CHECK(mount_file(disk, &file, ROM_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
           .is_error());
     check_nothing_mounted(disk, file);
     check_closed_once(disk, file);
@@ -486,7 +498,7 @@ TEST_CASE("a failed memory map push leaves the image unsent")
     fujiHost host;
 
     rs232Disk disk;
-    CHECK(disk.mount(&file, ROM_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ, &host)
+    CHECK(mount_file(disk, &file, ROM_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ, &host)
           .is_error());
     CHECK(commands() == std::vector<fujiCommandID_t>{CMD::NET_OPEN});
     CHECK(bus.sent[0].payload == open_header(1, 10));
@@ -503,11 +515,11 @@ TEST_CASE("a second ROM mount sends the new image and closes each handle once")
 
     rs232Disk disk;
     reset();
-    REQUIRE(disk.mount(&first_file, ROM_TEST_FILE, first.size(), DISK_ACCESS_MODE_READ)
+    REQUIRE(mount_file(disk, &first_file, ROM_TEST_FILE, first.size(), DISK_ACCESS_MODE_READ)
             .is_success());
 
     reset();
-    CHECK(disk.mount(&second_file, ROM_TEST_FILE, second.size(), DISK_ACCESS_MODE_READ)
+    CHECK(mount_file(disk, &second_file, ROM_TEST_FILE, second.size(), DISK_ACCESS_MODE_READ)
           .is_success());
     CHECK(stream_bytes(0) == std::string(second.begin(), second.end()));
     check_closed_once(disk, second_file);
@@ -556,7 +568,7 @@ TEST_CASE("an image its extension's format doesn't recognize mounts raw")
         MemFile file(entry.image);
 
         rs232Disk disk;
-        CHECK(disk.mount(&file, entry.filename, entry.image.size(), DISK_ACCESS_MODE_READ)
+        CHECK(mount_file(disk, &file, entry.filename, entry.image.size(), DISK_ACCESS_MODE_READ)
               .is_success());
         CHECK(bus.sent.empty());
         CHECK(disk.device_active);
@@ -582,7 +594,7 @@ TEST_CASE("a 5200, 7800, SMS, or ColecoVision image sends the .cfg beside it")
         fujiHost host;
 
         rs232Disk disk;
-        CHECK(disk.mount(&file, entry.filename, entry.image.size(), DISK_ACCESS_MODE_READ,
+        CHECK(mount_file(disk, &file, entry.filename, entry.image.size(), DISK_ACCESS_MODE_READ,
                          &host).is_success());
         REQUIRE(!bus.sent.empty());
         CHECK(bus.sent[0].payload == open_header(1, map.size()));
@@ -610,7 +622,7 @@ TEST_CASE("other consoles' images don't send the .cfg beside them")
         fujiHost host;
 
         rs232Disk disk;
-        CHECK(disk.mount(&file, entry.filename, entry.image.size(), DISK_ACCESS_MODE_READ,
+        CHECK(mount_file(disk, &file, entry.filename, entry.image.size(), DISK_ACCESS_MODE_READ,
                          &host).is_success());
         CHECK(stream_bytes(1).empty());
         CHECK(stream_bytes(0) == std::string(entry.image.begin(), entry.image.end()));
@@ -721,7 +733,8 @@ TEST_CASE("no database, or an image it doesn't list, keeps the plain layout")
     set_db(other, "Page2");
     MemFile file(image);
     rs232Disk disk;
-    CHECK(disk.mount(&file, "a.rom", image.size(), DISK_ACCESS_MODE_READ).is_success());
+    CHECK(mount_file(disk, &file, "a.rom", image.size(), DISK_ACCESS_MODE_READ)
+          .is_success());
     CHECK(params_of(CMD::DBC_MAPPER_ADD_WINDOW) == std::vector<Window>{{0, 0, 0x4000, 0x8000}});
 }
 
@@ -775,7 +788,7 @@ TEST_CASE("a .rom without the MSX cartridge ID is not taken as MSX")
     auto image = make_image(16_kB);
     MemFile file(image);
     rs232Disk disk;
-    CHECK(disk.mount(&file, "game [KonamiSCC].rom", image.size(), DISK_ACCESS_MODE_READ)
+    CHECK(mount_file(disk, &file, "game [KonamiSCC].rom", image.size(), DISK_ACCESS_MODE_READ)
           .is_success());
     CHECK(params_of(CMD::DBC_MAPPER_ADD_WINDOW).empty());
     CHECK(params_of(CMD::DBC_MAPPER_SET_INFO).empty());
@@ -786,14 +799,14 @@ TEST_CASE("a refused mapper window sends an aborting CLOSE and fails the mount")
 {
     auto image = msx_image(16_kB);
     reset();
-    size_t blocks = 16_kB / rs232Disk::ROM_BLOCK_SIZE;
+    size_t blocks = 16_kB / Cartridge::BLOCK_SIZE;
     // OPEN, the blocks, SET_INFO, then the window
     bus.replies.assign(1 + blocks + 1, Reply::Ack);
     bus.replies.push_back(Reply::Nak);
     MemFile file(image);
 
     rs232Disk disk;
-    CHECK(disk.mount(&file, "game.rom", image.size(), DISK_ACCESS_MODE_READ).is_error());
+    CHECK(mount_file(disk, &file, "game.rom", image.size(), DISK_ACCESS_MODE_READ).is_error());
     REQUIRE(bus.sent.size() == blocks + 4);
     CHECK(bus.sent.back().command == CMD::DBC_SEGMENT_CLOSE);
     CHECK(bus.sent.back().payload == std::string(1, '\x01'));

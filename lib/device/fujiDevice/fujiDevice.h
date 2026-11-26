@@ -9,6 +9,7 @@
 
 #include "../fuji/fujiHost.h"
 #include "../fuji/fujiDisk.h"
+#include "rom/ROMMedia.h"
 
 #include <string>
 #include <optional>
@@ -189,6 +190,10 @@ protected:
     {
         return disk_dev->mount(fileh, disk.filename, disk.disk_size, mode);
     }
+
+    // Return nullptr for a file that isn't a ROM, so it goes to mount_media()
+    virtual std::unique_ptr<ROMMedia> openROM(const std::string & /*path*/, fnFile * /*fileh*/,
+                                              fujiHost & /*host*/) { return nullptr; }
 
     // Platform hook for every unmount: the mirror of mount_media()
     virtual void unmount_media(uint8_t deviceSlot) { get_disk_dev(deviceSlot)->unmount(); }

@@ -13,6 +13,8 @@ public:
 
     CoCoCartROM(const std::string &path, fnFile *handle, fujiHost *host)
         : ROMMedia(path, handle, host) {}
+
+    std::optional<MapperLayout> mapperLayout() override;
 };
 
 #endif /* COCOCARTROM_H */

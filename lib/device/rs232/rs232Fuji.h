@@ -3,6 +3,7 @@
 #define RS232FUJI_H
 
 #include "fujiDevice.h"
+#include "RS232ROMFormats.h"
 
 #include <cassert>
 
@@ -15,11 +16,16 @@ protected:
                                            uint8_t maxlen) override;
     mediatype_t directoryMediaType(const char *filename) override
     {
-        return JoinedMediaFormats<rs232Disk::Formats>::entryType(filename);
+        return JoinedMediaFormats<RS232ROMFormats, rs232Disk::Formats>::entryType(filename);
     }
 
-    // Passes `host` through so a ROM format can open the ROM's mapper
-    // sibling through it -- see fujiDevice::mount_media().
+    // ROM formats need the host to open a .cfg mapper file beside the ROM
+    std::unique_ptr<ROMMedia> openROM(const std::string &path, fnFile *fileh,
+                                      fujiHost &host) override
+    {
+        return RS232ROMFormats::open<ROMMedia>(path, fileh, &host);
+    }
+
     error_is_true mount_media(DISK_DEVICE *disk_dev, fnFile *fileh, fujiDisk &disk,
                               fujiHost &host, disk_access_flags_t mode) override
     {

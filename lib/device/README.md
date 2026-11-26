@@ -26,11 +26,12 @@ subclass, never by branching here.
 | [NDevice/](NDevice/) | `NDevice` | the N: network device: `NET_*` commands dispatched through a table, a `NetworkProtocol` chosen from the URL scheme by `NetworkProtocolFactory`, and an `NParser` strategy (`JSONParser`, `XMLParser`, `HTMLParser`) for queries |
 | [fujiClock/](fujiClock/) | `fujiClock` | the APETime-compatible clock: `APETIME_*` commands and the time formatters |
 | [FujiDiskDrive/](FujiDiskDrive/) | `FujiDiskDrive` | the disk drive contract: the drive's `_media` and `isMounted()`, shared by each bus's `DISK_DEVICE` |
+| [Cartridge/](Cartridge/) | `Cartridge` | not a bus device: a mounted ROM pushed to the companion MCU |
 
-`FujiDiskDrive` inherits the bus's `DiskDriveBase`. Each of the others inherits `virtualDevice`
-virtually, so a subclass such as `sioFuji` is one object that is both the bus's `virtualDevice`
-and the shared base. The subclass implements the bus entry point
-(`sio_process`, `iwm_ctrl`, `processCommand`, ...) and normally calls the base's
+`FujiDiskDrive` inherits the bus's `DiskDriveBase`. `Cartridge` serves every platform without a
+subclass. Each of the others inherits `virtualDevice` virtually, so a subclass such as `sioFuji` is
+one object that is both the bus's `virtualDevice` and the shared base. The subclass implements the
+bus entry point (`sio_process`, `iwm_ctrl`, `processCommand`, ...) and normally calls the base's
 `processCommand()` first, then handles anything platform-specific.
 
 ## Naming

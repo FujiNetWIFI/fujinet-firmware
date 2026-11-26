@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16.0)
 
-set(INCLUDES 
+set(INCLUDES
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/include/pinmap
 
@@ -45,6 +45,7 @@ set(INCLUDES
     ${CMAKE_SOURCE_DIR}/lib/device/NDevice
     ${CMAKE_SOURCE_DIR}/lib/device/fujiClock
     ${CMAKE_SOURCE_DIR}/lib/device/FujiDiskDrive
+    ${CMAKE_SOURCE_DIR}/lib/device/Cartridge
 
     ${CMAKE_SOURCE_DIR}/lib/devrelay
     ${CMAKE_SOURCE_DIR}/lib/devrelay/commands
