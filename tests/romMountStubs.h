@@ -166,4 +166,19 @@ struct HostFiles
 
 extern HostFiles host_files;
 
+// What msx_rom_db_open() serves; no database at all when hasDb is false.
+struct MsxRomDb
+{
+    bool hasDb = false;
+    std::string text;
+
+    void reset()
+    {
+        hasDb = false;
+        text.clear();
+    }
+};
+
+extern MsxRomDb msx_rom_db;
+
 #endif // ROMMOUNTSTUBS_H
