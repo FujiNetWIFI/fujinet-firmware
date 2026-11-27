@@ -317,36 +317,14 @@ TEST_CASE("a VDK write to a read-only mount is refused")
     check_closed_once(disk, file);
 }
 
-TEST_CASE("an MRM reads in 32K blocks, padding the last with $FF")
-{
-    auto image = make_image(MRM_BLOCK + 300);
-    MemFile file(image);
-    drivewireDisk disk;
-    REQUIRE(disk.mount(&file, MRM_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ)
-           .is_success());
-
-    CHECK(read_block(disk, 0) == slice(image, 0, MRM_BLOCK));
-
-    std::vector<uint8_t> last(MRM_BLOCK, 0xFF);
-    std::copy(image.begin() + MRM_BLOCK, image.end(), last.begin());
-    CHECK(read_block(disk, 1) == last);
-
-    CHECK_FALSE(read_block(disk, 2).has_value());
-    CHECK(disk.get_media_status() == EOF_STATUS);
-    check_closed_once(disk, file);
-}
-
-TEST_CASE("an MRM refuses writes")
+TEST_CASE("a PMD 85 ROM module is not a disk")
 {
     auto image = make_image(MRM_BLOCK);
     MemFile file(image);
     drivewireDisk disk;
-    REQUIRE(disk.mount(&file, MRM_TEST_FILE, image.size(), DISK_ACCESS_MODE_WRITE)
-           .is_success());
-
-    CHECK(write_filled(disk, 0, 0x77).is_error());
-    CHECK(file.contents() == image);
-    check_closed_once(disk, file);
+    CHECK(disk.mount(&file, MRM_TEST_FILE, image.size(), DISK_ACCESS_MODE_READ).is_error());
+    CHECK_FALSE(disk.isMounted());
+    CHECK(file.closes == 1);
 }
 
 TEST_CASE("a .cas mounts as a Disk BASIC disk holding the tape's file")

@@ -102,7 +102,7 @@ size_t drivewireFuji::set_additional_direntry_details(fsdir_entry_t *f, uint8_t 
 void drivewireFuji::shutdown()
 {
     for (int i = 0; i < MAX_DWDISK_DEVICES; i++)
-        _fnDisks[i].disk_dev.unmount();
+        unmount_media(i);
 }
 
 // Initializes base settings and adds our devices to the DRIVEWIRE bus
@@ -132,6 +132,25 @@ void drivewireFuji::insert_boot_device(uint8_t image_id, DISK_DEVICE *disk_dev)
     }
 
     fujiDevice::insert_boot_device(image_id, disk_dev);
+}
+
+error_is_true drivewireFuji::mount_media(DISK_DEVICE *disk_dev, fnFile *fileh, fujiDisk &disk,
+                                         fujiHost &host, disk_access_flags_t mode)
+{
+    auto rom = drivewireROMModule::Formats::open<ROMMedia>(disk.filename, fileh, &host);
+    if (!rom)
+        return disk_dev->mount(fileh, disk.filename, disk.disk_size, mode, &host);
+
+    auto &module = _romModules[&disk - _fnDisks];
+    module = drivewireROMModule::create(std::move(rom), host, disk.filename);
+    RETURN_ERROR_IF(!module);
+}
+
+void drivewireFuji::unmount_media(uint8_t deviceSlot)
+{
+    if (deviceSlot < _romModules.size())
+        _romModules[deviceSlot] = nullptr;
+    fujiDevice::unmount_media(deviceSlot);
 }
 
 std::string drivewireFuji::config_image()

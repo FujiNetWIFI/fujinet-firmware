@@ -116,6 +116,8 @@ void systemBus::op_readex()
     drivewireDisk *d = nullptr;
     uint16_t c1 = 0, c2 = 0;
     ByteBuffer blkbuf;
+    // A ROM module's page, sent from its own buffer in place of blkbuf
+    uint8_t *page = nullptr;
 
     uint8_t rc = DRIVEWIRE_RESULT_OK;
 
@@ -183,13 +185,30 @@ void systemBus::op_readex()
             rc = 0xF6;
         }
 
-        if (rc == DRIVEWIRE_RESULT_OK && !d->device_active && !bDragon)
+        // A ROM module is served from its own page buffer, never through the disk
+        drivewireROMModule *module = platformFuji->rom_module(drive_num);
+        if (module != nullptr)
+        {
+            switch (module->load(lsn))
+            {
+            case drivewireROMModule::PageStatus::OK:
+                page = module->page();
+                break;
+            case drivewireROMModule::PageStatus::PAST_END:
+                rc = 211;
+                break;
+            case drivewireROMModule::PageStatus::READ_ERROR:
+                rc = 0xF4;
+                break;
+            }
+        }
+        else if (rc == DRIVEWIRE_RESULT_OK && !d->device_active && !bDragon)
         {
             Debug_printv("Device not active.");
             rc = 0xF6;
         }
 
-        if (rc == DRIVEWIRE_RESULT_OK)
+        if (rc == DRIVEWIRE_RESULT_OK && module == nullptr)
         {
             if (bDragon)
             {
@@ -225,7 +244,9 @@ void systemBus::op_readex()
             blkbuf.assign(DRIVEWIRE_SECTOR_SIZE, 0);
     }
     // send sector data
-    _port->write(blkbuf.data(), blkbuf.size());
+    uint8_t *data = page != nullptr ? page : blkbuf.data();
+    size_t size = page != nullptr ? drivewireROMModule::pageSize() : blkbuf.size();
+    _port->write(data, size);
 
     // receive checksum
     c1 = (_port->read()) << 8;
@@ -234,7 +255,7 @@ void systemBus::op_readex()
     // test checksum
     if (rc == DRIVEWIRE_RESULT_OK)
     {
-        c2 = drivewire_checksum(blkbuf.data(), blkbuf.size());
+        c2 = drivewire_checksum(data, size);
 
         if (c1 != c2)
         {
