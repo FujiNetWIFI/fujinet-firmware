@@ -7,6 +7,7 @@
 #include "samlib.h"
 
 std::string fake_datagram;
+uint16_t fake_bound_port;
 FakePeer fake_peer; // TCP.cpp, which Protocol.cpp casts to, needs one
 
 // Neither is called here; the stubs keep DNS and SAM out of the link.
@@ -43,6 +44,12 @@ TEST_CASE("a datagram a status poll moved to the buffer is still available (#227
     CHECK(chan.rx == "HELLO");
     CHECK(fake_datagram.empty());
     CHECK(chan.udp.available() == 5);
+}
+
+TEST_CASE("a channel sending to a port binds that port, as on the ESP32 (#2537)")
+{
+    Channel chan;
+    CHECK(fake_bound_port == 6502);
 }
 
 TEST_CASE("nothing waiting is not available")
