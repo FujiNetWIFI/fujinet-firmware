@@ -58,15 +58,9 @@ fujiError_t NetworkProtocolUDP::open(PeoplesUrlParser *urlParser,
         port = atoi(urlParser->port.c_str());
     }
 
-    // Attempt to bind port.
-#ifdef ESP_PLATFORM
-    unsigned short bind_port = port;
-#else
-    // set listening port (empty target host) or use any src port (target host is not empty)
-    unsigned short bind_port = dest.empty() ? port : 0;
-#endif
-    Debug_printf("Binding port %u\r\n", bind_port);
-    if (udp.begin(bind_port) == false)
+    // A sending channel binds its destination port too: a peer may send to that port
+    Debug_printf("Binding port %u\r\n", port);
+    if (udp.begin(port) == false)
     {
         errno_to_error();
         return FUJI_ERROR::UNSPECIFIED;

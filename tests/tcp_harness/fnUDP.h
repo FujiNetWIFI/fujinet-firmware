@@ -11,11 +11,16 @@
 #include "compat_inet.h"
 
 extern std::string fake_datagram;
+extern uint16_t fake_bound_port;
 
 class fnUDP
 {
 public:
-    bool begin(uint16_t) { return true; }
+    bool begin(uint16_t port)
+    {
+        fake_bound_port = port;
+        return true;
+    }
     void stop() {}
 
     int available() { return fake_datagram.size(); }
