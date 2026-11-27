@@ -55,7 +55,7 @@ jobs:
         - ${{ github.event_name == 'pull_request' && 'fujinet-ci-cache:/ci-cache:ro' || 'fujinet-ci-cache:/ci-cache' }}
     strategy:
       matrix:
-        target-platform: [ATARI, ATARI-8mb, ADAM, APPLE, IEC-LOLIN-D32, IEC-NUGGET, COCO, MASTERIES-REVAB, MASTERIES-REVA-SPIFIX, RS232, FUJIVERSAL-INTV, FUJIVERSAL-INTV-PIRTO-II-DUO, FUJIVERSAL-DRIVEWIRE, FUJIVERSAL-MSX, FUJIVERSAL-ATARI2600, FUJIVERSAL-ATARI5200]
+        target-platform: [ATARI, ATARI-8mb, ADAM, APPLE, IEC-LOLIN-D32, IEC-NUGGET, COCO, MASTERIES-REVAB, MASTERIES-REVA-SPIFIX, RS232, FUJIVERSAL-INTV, FUJIVERSAL-INTV-PIRTO-II-DUO, FUJIVERSAL-DRIVEWIRE, FUJIVERSAL-MSX, FUJIVERSAL-ATARI2600, FUJIVERSAL-ATARI5200, FUJIVERSAL-TRS80M1]
         # Fujiversal boards also build a companion RP2040/RP2350 cartridge
         # firmware, which needs an ARM toolchain the other boards do not.
         include:
@@ -70,6 +70,8 @@ jobs:
           - target-platform: FUJIVERSAL-ATARI2600
             pico: true
           - target-platform: FUJIVERSAL-ATARI5200
+            pico: true
+          - target-platform: FUJIVERSAL-TRS80M1
             pico: true
 
     steps:
