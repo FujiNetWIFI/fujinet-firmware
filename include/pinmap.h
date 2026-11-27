@@ -45,6 +45,7 @@
 #include "pinmap/fujiversal-atari5200.h"
 #include "pinmap/fujiversal-studio2.h"
 #include "pinmap/fujiversal-s100.h"
+#include "pinmap/fujiversal-trs80m1.h"
 #include "pinmap/fujiversal-atari2600.h"
 
 

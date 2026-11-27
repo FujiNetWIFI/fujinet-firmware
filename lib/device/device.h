@@ -47,6 +47,9 @@
 # ifdef PINMAP_H89
 #  include "rs232/h89Fuji.h"
     using PlatformFuji = h89Fuji;
+# elif defined(PINMAP_FUJIVERSAL_TRS80M1)
+#  include "rs232/trs80m1Fuji.h"
+    using PlatformFuji = trs80m1Fuji;
 # else
     using PlatformFuji = rs232Fuji;
 # endif

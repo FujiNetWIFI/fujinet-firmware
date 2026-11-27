@@ -3,12 +3,14 @@
 FujiNet for the TRS-80 Model I: an RP2354B card on the keyboard unit's 40-pin expansion edge,
 in place of the Expansion Interface, that serves 32K of RAM, an FD1771 whose drives are FujiNet
 slots, the EI's interrupt latch and heartbeat, its printer port, the RS-232 board and a FujiBus
-pipe, and relays them over USB CDC to an ESP32-S3 on the same card.
+pipe, and relays them over USB CDC to an ESP32-S3 on the same card, the `fujiversal-trs80m1`
+board.
 
 ## How it fits
 
-The ESP32-S3 side is plain `BUILD_RS232` with USB host transport, and Model I disks mount as
-`JV1Disk` ([lib/media/disk/](../../lib/media/disk/)). The card answers:
+The ESP32-S3 side is `BUILD_RS232` with USB host transport, and Model I disks mount as
+`JV1Disk` ([lib/media/disk/](../../lib/media/disk/)). `trs80m1Fuji` puts CONFIG in slot 1 from
+the S3's flash as `/autorun.jv1`. The card answers:
 
 - 8000h-FFFFh, 32K of RAM in the RP's SRAM;
 - 37E0h-37EFh, the EI: the interrupt latch (40 Hz heartbeat, FD1771 INTRQ) and drive select,
@@ -26,7 +28,7 @@ the ESP32 for CONFIG in slot 1 again; RESET reboots whatever slot 1 holds.
 
 ```sh
 ./build.sh                          # Z80 clients, test disks, /CMDs -> build/client
-                                    # (needs ~/Workspace/z88dk; FUJI_CONFIG=CONFIG.BIN adds autorun.jv1)
+                                    # (needs ~/Workspace/z88dk; FUJI_CONFIG=config.cmd adds autorun.jv1)
 ./build-cart.sh [--baked]           # RP2354B firmware -> build/fw-*/fujitrs80m1.uf2
 make -C firmware/host_test          # host tests
 tools/fetch-disks.sh                # LDOS 5.3.1, NEWDOS/80 2.0, TRSDOS 2.3 JV1 images -> build/disks
@@ -41,7 +43,8 @@ emu/apply.sh ~/Workspace/mame-trs80 # graft the card into MAME as trs80fn, then:
 `run.sh` talks to a fujinet-pc on `$FUJINET_TCP` (default `127.0.0.1:1980`), whose BoIP port
 takes one client at a time, and drives `emu/scenarios/<name>.steps` with `emu/m1text.lua`.
 `client:` names come from `build/client`, `disk:` from `build/disks`; `client:autorun.jv1` is
-CONFIG. Not built by `build_pico.py` or the ESP32 build yet.
+CONFIG. The `fujiversal-trs80m1` zip carries the card firmware, which the S3 flashes over
+PICOBOOT.
 
 ## Notes
 
