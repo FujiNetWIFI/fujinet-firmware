@@ -17,7 +17,6 @@
 #include <sys/time.h>
 #include <errno.h>
 #include <signal.h>
-#include <iconv.h>
 
 #include "utils.h"
 #include "dsi.h"
@@ -27,6 +26,8 @@
 #include "libafpclient.h"
 #include "afp_internal.h"
 #include "afp_replies.h"
+#include "macroman.h"
+#include "afp_socket.h"
 
 /* define this in order to get reams of DSI debugging information */
 #undef DEBUG_DSI
@@ -246,7 +247,7 @@ int dsi_send(struct afp_server *server, char * msg, int size,int wait,unsigned c
 	printf("*** Sending %d, %s\n",ntohs(header->requestid),
 		afp_get_command_name(new_request->subcommand));
 	#endif
-	if (write(server->fd,msg,size)<0) {
+	if (afp_sock_write(server->fd,msg,size)<0) {
 		if ((errno==EPIPE) || (errno==EBADF)) {
 			/* The server has closed the connection.  Fall through
 			 * to the shared exit: returning here left send_mutex
@@ -367,7 +368,7 @@ int dsi_command_reply(struct afp_server* server,unsigned short subcommand, void 
 		#ifdef DEBUG_DSI
 		printf("=== read() for afpRead, %d bytes\n",buf->maxsize-buf->size);
 		#endif
-		if ((ret=read(server->fd,buf->data+buf->size,
+		if ((ret=afp_sock_read(server->fd,buf->data+buf->size,
 			buf->maxsize-buf->size))<0) {
 			return -1;
 		}
@@ -501,7 +502,7 @@ void dsi_getstatus_reply(struct afp_server * server)
 	}
 	server->flags=ntohs(reply1->flags);
 
-	p=(void *)((unsigned long) server->incoming_buffer + sizeof(*reply1));
+	p=(void *)((char *) server->incoming_buffer + sizeof(*reply1));
 	p+=copy_from_pascal(server->server_name,p,AFP_SERVER_NAME_LEN)+1;
 
 	/* Now work our way through the variable bits */
@@ -556,19 +557,9 @@ void dsi_getstatus_reply(struct afp_server * server)
 			server->server_name_printable, AFP_SERVER_NAME_UTF8_LEN);
 	} else {
 		/* We don't have a UTF8 servername, so let's make one */
-
-		iconv_t cd;
-		size_t inbytesleft = strlen(server->server_name);
-		size_t outbytesleft = AFP_SERVER_NAME_UTF8_LEN;
-		char * inbuf = server->server_name;
-		char * outbuf = server->server_name_printable;
-
-		if ((cd  = iconv_open("MACINTOSH","UTF-8")) == (iconv_t) -1)
-			return;
-
-		iconv(cd,&inbuf,&inbytesleft,
-			&outbuf, &outbytesleft);
-		iconv_close(cd);
+		afp_macroman_to_utf8(server->server_name,
+			server->server_name_printable,
+			AFP_SERVER_NAME_UTF8_LEN);
 
 	}
 }
@@ -576,7 +567,7 @@ void dsi_getstatus_reply(struct afp_server * server)
 
 void dsi_incoming_closesession(struct afp_server *server)
 {
-	afp_unmount_all_volumes(server);
+	afp_server_closed_by_peer(server);
 	loop_disconnect(server);
 }
 
@@ -680,7 +671,7 @@ int dsi_recv(struct afp_server * server)
 		#ifdef DEBUG_DSI
 		printf("<<< read() for dsi, %d bytes\n",amount_to_read);
 		#endif
-		ret = read(server->fd,server->incoming_buffer+server->data_read,
+		ret = afp_sock_read(server->fd,server->incoming_buffer+server->data_read,
 			amount_to_read);
 		if (ret<0) {
 			perror("dsi_recv");
@@ -735,7 +726,7 @@ gotenough:
 		#ifdef DEBUG_DSI
 		printf("<<< read() in response to a request, %d bytes\n",newmax);
 		#endif
-		ret = read(server->fd,buf->data+buf->size,
+		ret = afp_sock_read(server->fd,buf->data+buf->size,
 			newmax);
 		if (ret<0) {
 			return -1;
@@ -784,8 +775,8 @@ gotenough:
 		#ifdef DEBUG_DSI
 		printf("<<< read() of rest of AFP, %d bytes\n",amount_to_read);
 		#endif
-		ret = read(server->fd, (void *)
-		(((unsigned long) server->incoming_buffer)+server->data_read),
+		ret = afp_sock_read(server->fd, (void *)
+		(((char *) server->incoming_buffer)+server->data_read),
 			amount_to_read);
 		if (ret<0) return -1;
 		if (ret==0) {

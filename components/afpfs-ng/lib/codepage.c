@@ -6,8 +6,7 @@
  *
  *  These routines handle code page conversions.
  *
- *  Currenly, only UTF8 is supported, but the structure should allow
- *  for classic code pages to be added.
+ *  UTF-8 names, and MacRoman long names for servers without them.
  *
  */
 
@@ -17,6 +16,7 @@
 #include "afp_protocol.h"
 #include "utils.h"
 #include "unicode.h"
+#include "macroman.h"
 
 int convert_utf8dec_to_utf8pre(const char *src, int src_len,
 	char * dest, int dest_len);
@@ -41,8 +41,7 @@ int convert_path_to_unix(char encoding, char * dest,
 		convert_utf8dec_to_utf8pre(src, strlen(src), dest, dest_len);
 		break;
 	case kFPLongName:
-		memcpy(dest,src,dest_len);
-		break;
+		return afp_macroman_to_utf8(src,dest,dest_len);
 	/* This is where you would put support for other codepages. */
 	default:
 		return -1;
@@ -67,8 +66,8 @@ int convert_path_to_afp(char encoding, char * dest,
 		convert_utf8pre_to_utf8dec(src, strlen(src), dest,dest_len);
 		break;
 	case kFPLongName:
-		memcpy(dest,src,dest_len);
-		break;
+		/* Refused rather than guessed, so a path never names another file. */
+		return afp_utf8_to_macroman(src,dest,dest_len);
 	/* This is where you would put support for other codepages. */
 	default:
 		return -1;

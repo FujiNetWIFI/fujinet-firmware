@@ -4,7 +4,8 @@
  * Maps the gcrypt subset used by afpfs-ng/uams.c onto:
  *   mbedTLS bignum  (MPI ops, MD5)
  *   cast5.h         (CAST5-CBC cipher)
- *   esp_random()    (random / nonce)
+ *   des.h           (DES-ECB cipher)
+ *   afp_random.h    (random / nonce)
  */
 
 #include "gcrypt.h"
@@ -15,7 +16,8 @@
 
 #include "mbedtls/bignum.h"
 #include "mbedtls/md5.h"
-#include "esp_random.h"   /* esp_fill_random() */
+#include "mbedtls/version.h"
+#include "afp_random.h"
 
 /* ------------------------------------------------------------------ *
  *  MPI (big-number) operations
@@ -77,20 +79,24 @@ void gcry_mpi_add_ui(gcry_mpi_t x, gcry_mpi_t a, unsigned long b)
 }
 
 /* ------------------------------------------------------------------ *
- *  CAST5-CBC cipher
+ *  Ciphers: CAST5-CBC and DES-ECB
  * ------------------------------------------------------------------ */
 
 gcry_error_t gcry_cipher_open(gcry_cipher_hd_t *handle, int algo,
                                int mode, unsigned int flags)
 {
-    (void)algo;  /* always CAST5 */
-    (void)mode;  /* always CBC   */
     (void)flags;
+
+    /* Fail here rather than run a cipher the caller did not ask for. */
+    *handle = NULL;
+    if (!((algo == GCRY_CIPHER_CAST5 && mode == GCRY_CIPHER_MODE_CBC) ||
+          (algo == GCRY_CIPHER_DES && mode == GCRY_CIPHER_MODE_ECB)))
+        return GPG_ERR_GENERAL;
 
     struct gcry_cipher_context *ctx =
         (struct gcry_cipher_context *)calloc(1, sizeof(*ctx));
     if (!ctx) return GPG_ERR_ENOMEM;
-    ctx->mode = GCRY_CIPHER_MODE_CBC;
+    ctx->algo = algo;
     *handle = ctx;
     return GPG_ERR_NO_ERROR;
 }
@@ -108,6 +114,11 @@ gcry_error_t gcry_cipher_setkey(gcry_cipher_hd_t h,
                                  const void *key, size_t keylen)
 {
     if (!h || !key) return GPG_ERR_GENERAL;
+    if (h->algo == GCRY_CIPHER_DES) {
+        if (keylen != 8) return GPG_ERR_GENERAL;
+        afp_des_key_setup((const uint8_t *)key, h->des_ek, h->des_dk);
+        return GPG_ERR_NO_ERROR;
+    }
     cast5_set_key(&h->ks, (const uint8_t *)key, (int)keylen);
     return GPG_ERR_NO_ERROR;
 }
@@ -136,6 +147,12 @@ gcry_error_t gcry_cipher_encrypt(gcry_cipher_hd_t h,
 
     if (len % CAST5_BLOCK_SIZE != 0) return GPG_ERR_GENERAL;
 
+    if (h->algo == GCRY_CIPHER_DES) {
+        for (size_t i = 0; i < len; i += AFP_DES_BLOCK_SIZE)
+            afp_des_encrypt_block(src + i, h->des_ek, dst + i);
+        return GPG_ERR_NO_ERROR;
+    }
+
     uint8_t tmp[CAST5_BLOCK_SIZE];
 
     for (size_t i = 0; i < len; i += CAST5_BLOCK_SIZE) {
@@ -162,6 +179,12 @@ gcry_error_t gcry_cipher_decrypt(gcry_cipher_hd_t h,
     size_t         len = in ? insize : outsize;
 
     if (len % CAST5_BLOCK_SIZE != 0) return GPG_ERR_GENERAL;
+
+    if (h->algo == GCRY_CIPHER_DES) {
+        for (size_t i = 0; i < len; i += AFP_DES_BLOCK_SIZE)
+            afp_des_decrypt_block(src + i, h->des_dk, dst + i);
+        return GPG_ERR_NO_ERROR;
+    }
 
     uint8_t next_iv[CAST5_BLOCK_SIZE];
     uint8_t tmp[CAST5_BLOCK_SIZE];
@@ -195,8 +218,14 @@ void gcry_md_hash_buffer(int algo, void *digest,
                           const void *buffer, size_t length)
 {
     (void)algo;
+    /* 2.x deprecates mbedtls_md5 in favour of _ret; 3.x drops _ret. */
+#if MBEDTLS_VERSION_MAJOR < 3
+    mbedtls_md5_ret((const unsigned char *)buffer, length,
+                    (unsigned char *)digest);
+#else
     mbedtls_md5((const unsigned char *)buffer, length,
                 (unsigned char *)digest);
+#endif
 }
 
 /* ------------------------------------------------------------------ *
@@ -206,10 +235,10 @@ void gcry_md_hash_buffer(int algo, void *digest,
 void gcry_randomize(void *buffer, size_t length, int level)
 {
     (void)level;
-    esp_fill_random(buffer, length);
+    afp_fill_random(buffer, length);
 }
 
 void gcry_create_nonce(void *buffer, size_t length)
 {
-    esp_fill_random(buffer, length);
+    afp_fill_random(buffer, length);
 }

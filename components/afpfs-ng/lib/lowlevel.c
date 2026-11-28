@@ -323,8 +323,12 @@ try_again:
 
 		/* This is the case where we want to truncate the 
 		   the file and it already exists. */
-		if ((ret=ll_zero_file(volume,fp->forkid,fp->resource)))
+		if ((ret=ll_zero_file(volume,fp->forkid,fp->resource))) {
+			/* The caller frees fp, so it cannot stay open or listed. */
+			afp_closefork(volume,fp->forkid);
+			remove_opened_fork(volume, fp);
 			goto error;
+		}
 	}
 
 	return 0;
@@ -500,10 +504,12 @@ int ll_readdir(struct afp_volume * volume, const char *path,
 	}
 
 	for (p=filebase; p; p=p->next) {
-		/* Convert all the names back to precomposed */
-		convert_path_to_unix(
+		/* Convert all the names back to precomposed UTF-8; a name that
+		 * will not convert is left as the server sent it. */
+		if (convert_path_to_unix(
 			volume->server->path_encoding, 
-			converted_name,p->name, AFP_MAX_PATH);
+			converted_name,p->name, AFP_MAX_PATH)==0)
+			memcpy(p->name,converted_name,AFP_MAX_PATH);
 		startindex++;
 	}
 
@@ -616,8 +622,10 @@ int ll_getattr(struct afp_volume * volume, const char *path, struct stat *stbuf,
 	} else {
 		stbuf->st_nlink = 1;
 		stbuf->st_size = (resource ? fp.resourcesize : fp.size);
+#ifndef _WIN32
 		stbuf->st_blksize = 4096;
 		stbuf->st_blocks = (stbuf->st_size) / 4096;
+#endif
 	}
 
         if ((volume->server->using_version->av_number<30) && 
@@ -660,8 +668,7 @@ int ll_write(struct afp_volume * volume,
 	/* Get a lock */
 	if (ll_handle_locking(volume, fp->forkid,offset,size)) {
 		/* There was an irrecoverable error when locking */
-		ret=EBUSY;
-		goto error;
+		return -EBUSY;
 	}
 
 	ret=0;
@@ -678,9 +685,9 @@ int ll_write(struct afp_volume * volume,
 			ret=afp_writeext(volume, fp->forkid,
 				offset+o,sizetowrite,
 				(char *) data+o,&ignored);
-		ret=0;
-		*totalwritten+=sizetowrite;
 		switch(ret) {
+		case kFPNoErr:
+			break;
 		case kFPAccessDenied:
 			err=EACCES;
 			goto error;
@@ -692,17 +699,21 @@ int ll_write(struct afp_volume * volume,
 		case kFPParamErr:
 			err=EINVAL;
 			goto error;
+		default:
+			err=EIO;
+			goto error;
 		}
+		*totalwritten+=sizetowrite;
 		o+=sizetowrite;
 	}
-	if (ll_handle_unlocking(volume, fp->forkid,offset,size)) {
-		/* Somehow, we couldn't unlock the range. */
-		ret=EIO;
-		goto error;
-	}
+	/* The data is written whether or not the range unlocks. */
+	ll_handle_unlocking(volume, fp->forkid,offset,size);
 	return 0;
 
 error:
+	ll_handle_unlocking(volume, fp->forkid,offset,size);
+	/* A short count now; the caller's next write meets the error. */
+	if (*totalwritten>0) return 0;
 	return -err;
 
 

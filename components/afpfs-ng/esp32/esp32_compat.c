@@ -19,56 +19,10 @@
 #include <sys/time.h>
 #include <time.h>
 #include <signal.h>
-#include <pthread.h>
 #include <pwd.h>
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
-
-/* ------------------------------------------------------------------ *
- * signal() — loop.c installs handlers for SIGUSR2, SIGTERM, SIGINT.  *
- * On ESP32/FreeRTOS there are no POSIX signals, so this is a no-op.  *
- * Return SIG_DFL so callers don't treat the result as SIG_ERR.       *
- * ------------------------------------------------------------------ */
-typedef void (*_afp_sig_t)(int);
-
-__attribute__((weak))
-_afp_sig_t signal(int signum, _afp_sig_t handler)
-{
-    (void)signum;
-    (void)handler;
-    return SIG_DFL;
-}
-
-/* ------------------------------------------------------------------ *
- * sigprocmask() — loop.c blocks SIGUSR2 before calling pselect.      *
- * No-op: FreeRTOS has no per-thread signal masks.                    *
- * ------------------------------------------------------------------ */
-__attribute__((weak))
-int sigprocmask(int how, const sigset_t *set, sigset_t *oldset)
-{
-    (void)how;
-    (void)set;
-    if (oldset) sigemptyset(oldset);
-    return 0;
-}
-
-/* ------------------------------------------------------------------ *
- * pthread_kill() — signal_main_thread() sends SIGUSR2 to wake up the *
- * main loop from pselect.  On ESP32 we can't send signals, so this  *
- * is a no-op.  The consequence is that pselect() is not interrupted  *
- * early, so afp_main_loop() cannot use upstream's 30 s wait: it      *
- * polls on a short timeout instead (see the ESP_PLATFORM branch in   *
- * loop.c).  Leaving the 30 s wait in place made every AFP connect    *
- * stall for exactly that long, twice.                                *
- * ------------------------------------------------------------------ */
-__attribute__((weak))
-int pthread_kill(pthread_t thread, int sig)
-{
-    (void)thread;
-    (void)sig;
-    return 0;
-}
 
 /* ------------------------------------------------------------------ *
  * pselect() — the AFP main event loop in loop.c relies on pselect to *

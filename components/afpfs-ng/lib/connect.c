@@ -49,6 +49,9 @@ struct addrinfo * afp_get_address(void * priv, const char * hostname, unsigned i
 struct afp_server * afp_server_full_connect (void * priv, struct afp_connection_request *req)
 {
 	int ret;
+	/* Why this fails, put in errno on the way out: nothing else tells the
+	 * caller a refused login from a server that cannot be reached. */
+	int failure=EACCES;
 	struct addrinfo * address;
 	struct afp_server  * s=NULL;
 	struct afp_server  * tmpserver;
@@ -62,12 +65,23 @@ struct afp_server * afp_server_full_connect (void * priv, struct afp_connection_
 	unsigned int rx_quantum;
 	char icon[AFP_SERVER_ICON_LEN];
 
-	if ((address = afp_get_address(priv,req->url.servername, req->url.port)) == NULL)
+	afp_server_reap_closed();
+
+	if ((address = afp_get_address(priv,req->url.servername, req->url.port)) == NULL) {
+		failure=EHOSTUNREACH;
 		goto error;
+	}
 
-	if ((s=find_server_by_address(address))) goto have_server;
+	if ((s=find_server_by_address(address,req->url.username))) {
+		/* s keeps its own list; this one was only for the lookup. */
+		freeaddrinfo(address);
+		goto have_server;
+	}
 
-	if ((tmpserver=afp_server_init(address))==NULL) goto error;
+	if ((tmpserver=afp_server_init(address))==NULL) {
+		failure=ENOMEM;
+		goto error;
+	}
 
 	if ((ret=afp_server_connect(tmpserver,1))<0) {
 		if (ret==-ETIMEDOUT) {
@@ -77,6 +91,7 @@ struct afp_server * afp_server_full_connect (void * priv, struct afp_connection_
 			log_for_client(priv,AFPFSD,LOG_ERR,
 				"Could not connect, %s\n",strerror(-ret));
 		}
+		failure=-ret;
 		afp_server_remove(tmpserver);
 		goto error;
 	}
@@ -109,15 +124,16 @@ struct afp_server * afp_server_full_connect (void * priv, struct afp_connection_
 
 	afp_server_remove(tmpserver);
 
-	s=find_server_by_signature(signature);
+	s=find_server_by_signature(signature,req->url.username);
 
 	if (!s) {
 		s = afp_server_init(address);
 
-		if (afp_server_connect(s,0) !=0) {
+		if ((ret=afp_server_connect(s,0)) !=0) {
 			log_for_client(priv,AFPFSD,LOG_ERR,
 				"Could not connect to server error: %s\n",
-				strerror(errno));
+				strerror(-ret));
+			failure=(ret<0) ? -ret : EIO;
 			goto error;
 		}
 
@@ -146,7 +162,11 @@ struct afp_server * afp_server_full_connect (void * priv, struct afp_connection_
 		memcpy(s->machine_type,machine_type,AFP_MACHINETYPE_LEN);
 		memcpy(s->icon,icon,AFP_SERVER_ICON_LEN);
 		s->rx_quantum=rx_quantum;
-	} 
+		s->logged_in=1;
+	} else {
+		/* The probe is gone and s keeps its own list. */
+		freeaddrinfo(address);
+	}
 have_server:
 
 	/* Figure out if we're using netatalk */
@@ -164,6 +184,7 @@ error:
 	if ((s) && (!something_is_mounted(s))) { /* FIXME */
 		afp_server_remove(s);
 	}
+	errno=failure;
 	return NULL;
 }
 

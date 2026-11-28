@@ -3,9 +3,6 @@
  * Provides weak-linked stubs for POSIX APIs that are declared in newlib
  * headers but not implemented in ESP-IDF/FreeRTOS:
  *
- *   signal()        - loop.c (termination_handler, afp_main_loop)
- *   sigprocmask()   - loop.c
- *   pthread_kill()  - loop.c (signal_main_thread)
  *   pselect()       - loop.c (main event loop)
  *   geteuid()       - afp.c (afp_server_init)
  *   getpwuid()      - afp.c (afp_server_init, memcpy'd without NULL check)
@@ -30,7 +27,7 @@
 #include <sys/types.h>
 #include <sys/select.h>
 #include <time.h>
-#include <signal.h>   /* sigset_t, sigemptyset/sigaddset macros, SIG_DFL */
+#include <signal.h>   /* sigset_t */
 
 #ifdef __cplusplus
 extern "C" {

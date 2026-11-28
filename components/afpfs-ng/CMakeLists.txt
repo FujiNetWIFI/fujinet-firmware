@@ -4,6 +4,9 @@ idf_component_register(SRCS ${SRCS}
                        INCLUDE_DIRS . include esp32
                        REQUIRES mbedtls esp_system)
 
+# No signals on ESP32: the loop polls.
+target_compile_definitions(${COMPONENT_LIB} PRIVATE AFPFS_POLL_LOOP)
+
 # Force-include the ESP32 compat header into every afpfs-ng source file.
 # This gives loop.c the pselect() prototype without modifying library sources.
 if(IDF_TARGET)

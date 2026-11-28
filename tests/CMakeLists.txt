@@ -1357,6 +1357,363 @@ target_include_directories(mac_gcr_tests PRIVATE ${CMAKE_SOURCE_DIR}/lib/)
 add_test(NAME mac_gcr_tests COMMAND mac_gcr_tests)
 
 # ------------------------------------------------------------------------------
+# afpfs-ng server-reuse matching. server_match.c has no dependency on the rest
+# of the library.
+# ------------------------------------------------------------------------------
+add_executable(afp_server_match_tests
+    AfpServerMatchTests.cpp
+    ${CMAKE_SOURCE_DIR}/components/afpfs-ng/lib/server_match.c
+)
+target_include_directories(afp_server_match_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/components/afpfs-ng/lib/
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+add_test(NAME afp_server_match_tests COMMAND afp_server_match_tests)
+
+# ------------------------------------------------------------------------------
+# afpfs-ng's gcrypt shim (MbedTLS bignum and MD5, CAST5, random) against
+# published vectors.
+# ------------------------------------------------------------------------------
+add_executable(afp_gcrypt_tests
+    AfpGcryptTests.cpp
+    ${CMAKE_SOURCE_DIR}/components/afpfs-ng/esp32/gcrypt.c
+    ${CMAKE_SOURCE_DIR}/components/afpfs-ng/esp32/cast5.c
+    ${CMAKE_SOURCE_DIR}/components/afpfs-ng/esp32/des.c
+    ${CMAKE_SOURCE_DIR}/components/afpfs-ng/esp32/afp_random.c
+)
+target_include_directories(afp_gcrypt_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/components/afpfs-ng/esp32/
+    ${MBEDTLS_INCLUDE_DIR}
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+target_link_libraries(afp_gcrypt_tests PRIVATE ${MBEDCRYPTO_STATIC_LIB} pthread)
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    target_link_libraries(afp_gcrypt_tests PRIVATE bcrypt)
+endif()
+add_test(NAME afp_gcrypt_tests COMMAND afp_gcrypt_tests)
+
+# ------------------------------------------------------------------------------
+# afpfs-ng MacRoman to UTF-8. macroman.c stands alone.
+# ------------------------------------------------------------------------------
+add_executable(afp_macroman_tests
+    AfpMacRomanTests.cpp
+    ${CMAKE_SOURCE_DIR}/components/afpfs-ng/lib/macroman.c
+)
+target_include_directories(afp_macroman_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/components/afpfs-ng/lib/
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+add_test(NAME afp_macroman_tests COMMAND afp_macroman_tests)
+
+# afpfs-ng path conversion for UTF-8 and long-name (MacRoman) volumes.
+add_executable(afp_codepage_tests AfpCodepageTests.cpp)
+target_include_directories(afp_codepage_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/components/afpfs-ng/include/
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+target_link_libraries(afp_codepage_tests PRIVATE afpfs_fn)
+add_test(NAME afp_codepage_tests COMMAND afp_codepage_tests)
+
+# ------------------------------------------------------------------------------
+# afpfs-ng linked as a whole on the host.
+# ------------------------------------------------------------------------------
+add_executable(afp_uam_tests AfpUamTests.cpp)
+target_include_directories(afp_uam_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+target_link_libraries(afp_uam_tests PRIVATE afpfs_fn)
+add_test(NAME afp_uam_tests COMMAND afp_uam_tests)
+
+add_executable(afp_loop_tests AfpLoopTests.cpp)
+target_include_directories(afp_loop_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+target_link_libraries(afp_loop_tests PRIVATE afpfs_fn)
+add_test(NAME afp_loop_tests COMMAND afp_loop_tests)
+
+# afpfs-ng socket wrappers: errors through errno, no SIGPIPE.
+add_executable(afp_socket_tests AfpSocketTests.cpp)
+target_include_directories(afp_socket_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/components/afpfs-ng/lib/
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    target_link_libraries(afp_socket_tests PRIVATE ws2_32)
+endif()
+add_test(NAME afp_socket_tests COMMAND afp_socket_tests)
+
+# lib/afp path splitting. afpPath.cpp stands alone.
+add_executable(afp_path_tests
+    AfpPathTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/afp/afpPath.cpp
+)
+target_include_directories(afp_path_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/lib/afp/
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+add_test(NAME afp_path_tests COMMAND afp_path_tests)
+
+# lib/afp errno-to-status mapping. afpStatus.cpp needs only the status codes.
+add_executable(afp_status_tests
+    AfpStatusTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/afp/afpStatus.cpp
+)
+target_include_directories(afp_status_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/lib/afp/
+    ${CMAKE_SOURCE_DIR}/lib/network-protocol/   # status_error_codes.h
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+add_test(NAME afp_status_tests COMMAND afp_status_tests)
+
+# AfpSession's use counting, against a fake bridge defined in the test.
+# UNIT_TESTS keeps debug.h from pulling in utils.h, which is not linked here.
+add_executable(afp_session_tests
+    AfpSessionTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/afp/afpSession.cpp
+)
+target_compile_definitions(afp_session_tests PRIVATE UNIT_TESTS)
+target_include_directories(afp_session_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/lib/afp/
+    ${CMAKE_SOURCE_DIR}/include/
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+target_link_libraries(afp_session_tests PRIVATE pthread)
+add_test(NAME afp_session_tests COMMAND afp_session_tests)
+
+# AfpFile and the directory functions, against the same fake bridge.
+add_executable(afp_file_tests
+    AfpFileTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/afp/afpSession.cpp
+    ${CMAKE_SOURCE_DIR}/lib/afp/afpFile.cpp
+)
+target_compile_definitions(afp_file_tests PRIVATE UNIT_TESTS)
+target_include_directories(afp_file_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/lib/afp/
+    ${CMAKE_SOURCE_DIR}/include/
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+target_link_libraries(afp_file_tests PRIVATE pthread)
+add_test(NAME afp_file_tests COMMAND afp_file_tests)
+
+# FileHandlerAFP and FileSystemAFP against the fake bridge. ATARI-only, for
+# the sio_network_stubs include list. Not built on Windows, where the
+# utilities they link need more of the host build than this target carries.
+if(FUJINET_TARGET STREQUAL "ATARI" AND NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+  add_executable(afp_fs_tests
+    AfpFsTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFileAFP.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFsAFP.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFile.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFS.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnDirCache.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/peoples_url_parser.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/utils.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/string_utils.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/punycode.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/U8Char.cpp
+    ${CMAKE_SOURCE_DIR}/lib/compat/compat_gettimeofday.c
+    ${CMAKE_SOURCE_DIR}/lib/compat/compat_inet.c
+    ${CMAKE_SOURCE_DIR}/lib/afp/afpSession.cpp
+    ${CMAKE_SOURCE_DIR}/lib/afp/afpFile.cpp
+    ${CMAKE_SOURCE_DIR}/lib/afp/afpPath.cpp
+    )
+  target_compile_definitions(afp_fs_tests PRIVATE UNIT_TESTS)
+  # utils.cpp reaches into most of lib/; borrow the include list that
+  # sio_network_stubs already keeps for it.
+  target_include_directories(afp_fs_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/lib/afp/
+    $<TARGET_PROPERTY:sio_network_stubs,INTERFACE_INCLUDE_DIRECTORIES>
+    )
+  # glibc before 2.38 has no strlcpy; the host build adds these the same way.
+  if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    target_sources(afp_fs_tests PRIVATE
+      ${CMAKE_SOURCE_DIR}/lib/compat/strlcpy.c ${CMAKE_SOURCE_DIR}/lib/compat/strlcat.c)
+  endif()
+  target_link_libraries(afp_fs_tests PRIVATE ${MBEDCRYPTO_STATIC_LIB} pthread)
+  add_test(NAME afp_fs_tests COMMAND afp_fs_tests)
+endif()
+
+# The same two classes over the real bridge and a real server. Skips unless
+# AFP_TEST_HOST is set. POSIX only.
+if(FUJINET_TARGET STREQUAL "ATARI" AND NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+  add_executable(afp_fs_live_tests
+    AfpFsLiveTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFileAFP.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFsAFP.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFile.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFS.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnDirCache.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/peoples_url_parser.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/utils.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/string_utils.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/punycode.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/U8Char.cpp
+    ${CMAKE_SOURCE_DIR}/lib/compat/compat_gettimeofday.c
+    ${CMAKE_SOURCE_DIR}/lib/compat/compat_inet.c
+    ${CMAKE_SOURCE_DIR}/lib/afp/afpSession.cpp
+    ${CMAKE_SOURCE_DIR}/lib/afp/afpFile.cpp
+    ${CMAKE_SOURCE_DIR}/lib/afp/afpPath.cpp
+    )
+  target_compile_definitions(afp_fs_live_tests PRIVATE UNIT_TESTS)
+  # utils.cpp reaches into most of lib/; borrow the include list that
+  # sio_network_stubs already keeps for it.
+  target_include_directories(afp_fs_live_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/lib/afp/
+    $<TARGET_PROPERTY:sio_network_stubs,INTERFACE_INCLUDE_DIRECTORIES>
+    )
+  if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    target_sources(afp_fs_live_tests PRIVATE
+      ${CMAKE_SOURCE_DIR}/lib/compat/strlcpy.c ${CMAKE_SOURCE_DIR}/lib/compat/strlcat.c)
+  endif()
+  target_link_libraries(afp_fs_live_tests PRIVATE afp_bridge pthread)
+  add_test(NAME afp_fs_live_tests COMMAND afp_fs_live_tests)
+  set_tests_properties(afp_fs_live_tests PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 180)
+endif()
+
+# AfpSession over the real bridge and a real server. Skips unless AFP_TEST_HOST
+# is set in the environment.
+add_executable(afp_session_live_tests
+    AfpSessionLiveTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/afp/afpSession.cpp
+    ${CMAKE_SOURCE_DIR}/lib/afp/afpFile.cpp
+)
+target_compile_definitions(afp_session_live_tests PRIVATE UNIT_TESTS)
+target_include_directories(afp_session_live_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/include/
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+target_link_libraries(afp_session_live_tests PRIVATE afp_bridge pthread)
+add_test(NAME afp_session_live_tests COMMAND afp_session_live_tests)
+set_tests_properties(afp_session_live_tests PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
+
+# NetworkProtocolAFP through its public interface, against a real server.
+# Skips unless AFP_TEST_HOST is set. ATARI-only: Protocol.h needs a concrete
+# systemBus, as sio_dstats_tests does. POSIX only.
+if(FUJINET_TARGET STREQUAL "ATARI" AND NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+  add_executable(afp_protocol_live_tests
+    AfpProtocolLiveTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/network-protocol/NetworkProtocolAFP.cpp
+    ${CMAKE_SOURCE_DIR}/lib/network-protocol/FS.cpp
+    ${CMAKE_SOURCE_DIR}/lib/network-protocol/Protocol.cpp
+    ${CMAKE_SOURCE_DIR}/lib/network-protocol/TCP.cpp
+    ${CMAKE_SOURCE_DIR}/lib/afp/afpSession.cpp
+    ${CMAKE_SOURCE_DIR}/lib/afp/afpFile.cpp
+    ${CMAKE_SOURCE_DIR}/lib/afp/afpPath.cpp
+    ${CMAKE_SOURCE_DIR}/lib/afp/afpStatus.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/utils.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/string_utils.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/peoples_url_parser.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/punycode.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/U8Char.cpp
+    ${CMAKE_SOURCE_DIR}/lib/tcpip/fnTcpClient.cpp
+    ${CMAKE_SOURCE_DIR}/lib/tcpip/fnTcpServer.cpp
+    ${CMAKE_SOURCE_DIR}/lib/tcpip/fnDNS.cpp
+    ${CMAKE_SOURCE_DIR}/lib/compat/compat_gettimeofday.c
+    ${CMAKE_SOURCE_DIR}/lib/compat/compat_inet.c
+    )
+  target_include_directories(afp_protocol_live_tests PRIVATE
+    $<TARGET_PROPERTY:sio_network_stubs,INTERFACE_INCLUDE_DIRECTORIES>)
+  target_compile_definitions(afp_protocol_live_tests PRIVATE
+    $<TARGET_PROPERTY:sio_network_stubs,INTERFACE_COMPILE_DEFINITIONS>)
+  target_link_libraries(afp_protocol_live_tests PRIVATE afp_bridge pthread)
+  add_test(NAME afp_protocol_live_tests COMMAND afp_protocol_live_tests)
+  set_tests_properties(afp_protocol_live_tests PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 180)
+endif()
+
+# The server list itself, over loopback sockets. POSIX only.
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+  add_executable(afp_server_list_tests
+      AfpServerListTests.cpp
+      AfpServerListHelper.c
+  )
+  target_include_directories(afp_server_list_tests PRIVATE
+      ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+  )
+  target_link_libraries(afp_server_list_tests PRIVATE afpfs_fn)
+  add_test(NAME afp_server_list_tests COMMAND afp_server_list_tests)
+  set_tests_properties(afp_server_list_tests PROPERTIES TIMEOUT 60)
+endif()
+
+# A server ending the session while a volume is mounted. POSIX only.
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+  add_executable(afp_close_session_tests
+      AfpCloseSessionTests.cpp
+      AfpCloseSessionHelper.c
+  )
+  target_include_directories(afp_close_session_tests PRIVATE
+      ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+  )
+  target_link_libraries(afp_close_session_tests PRIVATE afpfs_fn)
+  add_test(NAME afp_close_session_tests COMMAND afp_close_session_tests)
+  set_tests_properties(afp_close_session_tests PROPERTIES TIMEOUT 90)
+endif()
+
+# Opens against a loopback server that refuses the truncate or the directory.
+# POSIX only.
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+  add_executable(afp_open_tests
+      AfpOpenTests.cpp
+      AfpOpenHelper.c
+      AfpCloseSessionHelper.c
+  )
+  target_include_directories(afp_open_tests PRIVATE
+      ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+  )
+  target_link_libraries(afp_open_tests PRIVATE afpfs_fn)
+  add_test(NAME afp_open_tests COMMAND afp_open_tests)
+  set_tests_properties(afp_open_tests PROPERTIES TIMEOUT 90)
+endif()
+
+# Why a login failed, as afp_server_full_connect() reports it. POSIX only.
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+  add_executable(afp_login_cause_tests
+      AfpLoginCauseTests.cpp
+      AfpLoginCauseHelper.c
+  )
+  target_include_directories(afp_login_cause_tests PRIVATE
+      ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+  )
+  target_link_libraries(afp_login_cause_tests PRIVATE afpfs_fn)
+  add_test(NAME afp_login_cause_tests COMMAND afp_login_cause_tests)
+  set_tests_properties(afp_login_cause_tests PROPERTIES TIMEOUT 90)
+endif()
+
+# Operations whose parent directory does not exist, against a loopback server
+# on which nothing exists. POSIX only.
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+  add_executable(afp_dir_lookup_tests
+      AfpDirLookupTests.cpp
+      AfpDirLookupHelper.c
+      AfpCloseSessionHelper.c
+  )
+  target_include_directories(afp_dir_lookup_tests PRIVATE
+      ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+  )
+  target_link_libraries(afp_dir_lookup_tests PRIVATE afpfs_fn)
+  add_test(NAME afp_dir_lookup_tests COMMAND afp_dir_lookup_tests)
+  set_tests_properties(afp_dir_lookup_tests PROPERTIES TIMEOUT 120)
+endif()
+
+# Writes against a loopback server that accepts, refuses or half-accepts them.
+# POSIX only.
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+  add_executable(afp_write_tests
+      AfpWriteTests.cpp
+      AfpWriteHelper.c
+      AfpCloseSessionHelper.c
+  )
+  target_include_directories(afp_write_tests PRIVATE
+      ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+  )
+  target_link_libraries(afp_write_tests PRIVATE afpfs_fn)
+  add_test(NAME afp_write_tests COMMAND afp_write_tests)
+  set_tests_properties(afp_write_tests PROPERTIES TIMEOUT 120)
+endif()
+
+# ------------------------------------------------------------------------------
 # Atari cassette rewind: record durations (lib/media/atari/casTape.h), and the
 # request and the trail of played boundaries (lib/device/sio/cassette*.h). None
 # of them touches the bus, a file or the RTOS, so they are driven here directly.

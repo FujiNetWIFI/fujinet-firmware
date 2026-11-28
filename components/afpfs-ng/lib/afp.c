@@ -31,6 +31,8 @@
 #include "did.h"
 #include "forklist.h"
 #include "codepage.h"
+#include "server_match.h"
+#include "afp_socket.h"
 
 struct afp_versions      afp_versions[] = {
             { "AFPVersion 1.1", 11 },
@@ -45,7 +47,8 @@ struct afp_versions      afp_versions[] = {
 
 static int afp_blank_reply(struct afp_server *server, char * buf, unsigned int size, void * ignored);
 
-int (*afp_replies[])(struct afp_server * server,char * buf, unsigned int len, void * other) = {
+/* const, so the table is kept in flash and not in RAM. */
+int (* const afp_replies[])(struct afp_server * server,char * buf, unsigned int len, void * other) = {
 	NULL, afp_byterangelock_reply, afp_blank_reply, NULL,
 	afp_blank_reply, NULL, afp_createdir_reply, afp_blank_reply, /* 0 - 7 */
 	afp_blank_reply, afp_enumerate_reply, afp_blank_reply, afp_blank_reply, 
@@ -253,9 +256,16 @@ int server_still_valid(struct afp_server * server)
 
 static void add_server(struct afp_server *newserver)
 {
+	struct afp_server * s;
+
 	afp_server_list_lock();
+	/* A reconnect comes through here with a server that is already listed. */
+	for (s=server_base;s;s=s->next)
+		if (s==newserver) break;
+	if (s==NULL) {
         newserver->next=server_base;
         server_base=newserver;
+	}
 	afp_server_list_unlock();
 }
 
@@ -264,13 +274,22 @@ struct afp_server * get_server_base(void)
 	return server_base;
 }
 
-struct afp_server * find_server_by_signature(char * signature)
+/* The status probe in afp_server_full_connect() never logs in, so it is
+ * never handed out. */
+static int server_reusable(struct afp_server * s, const char * username)
+{
+	return afp_login_reusable(s->logged_in,s->username,username);
+}
+
+struct afp_server * find_server_by_signature(char * signature,
+	const char * username)
 {
 	struct afp_server * s, * found=NULL;
 
 	afp_server_list_lock();
 	for (s=server_base;s;s=s->next) {
-		if (memcmp(s->signature,signature,AFP_SIGNATURE_LEN)==0) {
+		if ((memcmp(s->signature,signature,AFP_SIGNATURE_LEN)==0) &&
+			server_reusable(s,username)) {
 			found=s;
 			break;
 		}
@@ -292,16 +311,16 @@ struct afp_server * find_server_by_name(char * name)
 	return found;
 }
 
-struct afp_server * find_server_by_address(struct addrinfo *address)
+struct afp_server * find_server_by_address(struct addrinfo * address,
+	const char * username)
 {
     struct afp_server *s, *found=NULL;
 
 	afp_server_list_lock();
 	for (s=server_base;s;s=s->next) {
-        if (s->used_address != NULL && s->used_address->ai_addr != NULL &&
-			address != NULL && address->ai_addr != NULL &&
-			bcmp(&s->used_address->ai_addr, &address->ai_addr,
-				sizeof(struct sockaddr))==0) {
+		if ((s->used_address!=NULL) &&
+			afp_addrinfo_has(address,s->used_address->ai_addr) &&
+			server_reusable(s,username)) {
 			found=s;
 			break;
 		}
@@ -378,6 +397,56 @@ int afp_unmount_volume(struct afp_volume * volume)
 
 }
 
+
+/* The server ended the session.  This runs on the event-loop thread, which
+ * afp_server_remove() waits for and which nothing can reply to, so volumes
+ * are dropped without talking to the server and the server itself is left
+ * for afp_server_reap_closed(). */
+void afp_server_closed_by_peer(struct afp_server * server)
+{
+	struct afp_volume * volume;
+	struct afp_file_info * fork, * next;
+	int i;
+
+	for (i=0;i<server->num_volumes;i++) {
+		volume=&server->volumes[i];
+		if (volume->mounted!=AFP_VOLUME_MOUNTED) continue;
+		volume->mounted=AFP_VOLUME_UNMOUNTING;
+
+		free_entire_did_cache(volume);
+		pthread_mutex_lock(&volume->open_forks_mutex);
+		for (fork=volume->open_forks;fork;fork=next) {
+			next=fork->largelist_next;
+			free(fork);
+		}
+		volume->open_forks=NULL;
+		pthread_mutex_unlock(&volume->open_forks_mutex);
+		volume->dtrefnum=0;
+
+		if (libafpclient->unmount_volume)
+			libafpclient->unmount_volume(volume);
+		volume->mounted=AFP_VOLUME_UNMOUNTED;
+	}
+	server->logged_in=0;
+	server->closed_by_peer=1;
+}
+
+/* Frees servers whose session the server ended, once nothing is waiting on
+ * them.  Must not be called from the event-loop thread. */
+void afp_server_reap_closed(void)
+{
+	struct afp_server * s;
+
+	for (;;) {
+		afp_server_list_lock();
+		for (s=server_base;s;s=s->next)
+			if (s->closed_by_peer && (s->command_requests==NULL))
+				break;
+		afp_server_list_unlock();
+		if (s==NULL) return;
+		if (afp_server_remove(s)!=0) return;
+	}
+}
 
 void afp_free_server(struct afp_server ** sp)
 {
@@ -793,9 +862,11 @@ int afp_server_connect(struct afp_server *server, int full)
 
         if (server->fd >= 0) 
 		{
+        	    afp_sock_prepare(server->fd);
         	    if (connect(server->fd, address->ai_addr, address->ai_addrlen) == 0)
         	        break;
-        	    close(server->fd);
+        	    error = afp_sock_errno();
+        	    afp_sock_close(server->fd);
         	    server->fd	= -1;
        	}
         address	= address->ai_next;
@@ -803,7 +874,7 @@ int afp_server_connect(struct afp_server *server, int full)
 
 	if(server->fd < 0)
 	{
-		error = errno;
+		if (!error) error = afp_sock_errno();
 		goto error;
 	}
 

@@ -218,6 +218,7 @@ set(SOURCES src/main.cpp
     lib/FileSystem/fnFsTNFS.h lib/FileSystem/fnFsTNFS.cpp
     lib/FileSystem/fnFsSMB.h lib/FileSystem/fnFsSMB.cpp
     lib/FileSystem/fnFsNFS.h lib/FileSystem/fnFsNFS.cpp
+    lib/FileSystem/fnFsAFP.h lib/FileSystem/fnFsAFP.cpp
     lib/FileSystem/fnFsFTP.h lib/FileSystem/fnFsFTP.cpp
     lib/FileSystem/fnFsHTTP.h lib/FileSystem/fnFsHTTP.cpp
     lib/FileSystem/fnFile.h lib/FileSystem/fnFile.cpp
@@ -225,6 +226,7 @@ set(SOURCES src/main.cpp
     lib/FileSystem/fnFileTNFS.h lib/FileSystem/fnFileTNFS.cpp
     lib/FileSystem/fnFileSMB.h lib/FileSystem/fnFileSMB.cpp
     lib/FileSystem/fnFileNFS.h lib/FileSystem/fnFileNFS.cpp
+    lib/FileSystem/fnFileAFP.h lib/FileSystem/fnFileAFP.cpp
     lib/FileSystem/fnFileMem.h lib/FileSystem/fnFileMem.cpp
     lib/FileSystem/fnFileHTTP.h lib/FileSystem/fnFileHTTP.cpp
     lib/FileSystem/fnio.h lib/FileSystem/fnio.cpp
@@ -310,6 +312,11 @@ set(SOURCES src/main.cpp
     lib/network-protocol/mgWebSocketClient.h lib/network-protocol/mgWebSocketClient.cpp
     lib/network-protocol/SMB.h lib/network-protocol/SMB.cpp
     lib/network-protocol/NFS.h lib/network-protocol/NFS.cpp
+    lib/network-protocol/NetworkProtocolAFP.h lib/network-protocol/NetworkProtocolAFP.cpp
+    lib/afp/afpSession.h lib/afp/afpSession.cpp
+    lib/afp/afpFile.h lib/afp/afpFile.cpp
+    lib/afp/afpPath.h lib/afp/afpPath.cpp
+    lib/afp/afpStatus.h lib/afp/afpStatus.cpp
     lib/network-protocol/S3.h lib/network-protocol/S3.cpp
     lib/network-protocol/SSH.h lib/network-protocol/SSH.cpp
     lib/network-protocol/SFTP.h lib/network-protocol/SFTP.cpp
@@ -869,7 +876,51 @@ add_library(gumbo_fn STATIC ${GUMBO_SOURCES})
 target_include_directories(gumbo_fn PUBLIC ${CMAKE_SOURCE_DIR}/components/gumbo)
 target_compile_options(gumbo_fn PRIVATE -w) # vendored third-party; suppress its warnings
 
-target_link_libraries(fujinet pthread expat cjson cjson_utils smb2 ssh nfs gumbo_fn)
+# afpfs-ng (AFP client), built from the ESP component's sources. The gcrypt
+# shim under esp32/ is portable and stands in for libgcrypt here too.
+file(GLOB AFPFS_SOURCES ${CMAKE_SOURCE_DIR}/components/afpfs-ng/lib/*.c)
+add_library(afpfs_fn STATIC
+    ${AFPFS_SOURCES}
+    ${CMAKE_SOURCE_DIR}/components/afpfs-ng/esp32/gcrypt.c
+    ${CMAKE_SOURCE_DIR}/components/afpfs-ng/esp32/cast5.c
+    ${CMAKE_SOURCE_DIR}/components/afpfs-ng/esp32/des.c
+    ${CMAKE_SOURCE_DIR}/components/afpfs-ng/esp32/afp_random.c
+)
+target_include_directories(afpfs_fn
+    PUBLIC
+        ${CMAKE_SOURCE_DIR}/components/afpfs-ng
+        ${CMAKE_SOURCE_DIR}/components/afpfs-ng/include
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/components/afpfs-ng/esp32
+        ${MBEDTLS_INCLUDE_DIR}
+)
+target_compile_options(afpfs_fn PRIVATE -w) # vendored third-party; suppress its warnings
+target_compile_definitions(afpfs_fn PRIVATE AFPFS_POLL_LOOP) # the host owns its signal handlers
+target_link_libraries(afpfs_fn PUBLIC ${MBEDCRYPTO_STATIC_LIB} pthread)
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    target_sources(afpfs_fn PRIVATE ${CMAKE_SOURCE_DIR}/components/afpfs-ng/win32/win32_compat.c)
+    target_include_directories(afpfs_fn BEFORE PRIVATE
+        ${CMAKE_SOURCE_DIR}/components/afpfs-ng/win32
+        ${CMAKE_SOURCE_DIR}/components/afpfs-ng/win32/include)
+    target_compile_options(afpfs_fn PRIVATE
+        -include ${CMAKE_SOURCE_DIR}/components/afpfs-ng/win32/win32_compat.h)
+    target_link_libraries(afpfs_fn PUBLIC ws2_32 bcrypt)
+endif()
+
+# lib/afp's C bridge: the only file that sees afpfs-ng's headers. afpfs_fn is
+# linked PRIVATE so those headers stay off everyone else's include path.
+add_library(afp_bridge STATIC ${CMAKE_SOURCE_DIR}/lib/afp/afpBridge.c)
+target_include_directories(afp_bridge PUBLIC ${CMAKE_SOURCE_DIR}/lib/afp)
+target_link_libraries(afp_bridge PRIVATE afpfs_fn)
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    target_include_directories(afp_bridge BEFORE PRIVATE
+        ${CMAKE_SOURCE_DIR}/components/afpfs-ng/win32
+        ${CMAKE_SOURCE_DIR}/components/afpfs-ng/win32/include)
+    target_compile_options(afp_bridge PRIVATE
+        -include ${CMAKE_SOURCE_DIR}/components/afpfs-ng/win32/win32_compat.h)
+endif()
+
+target_link_libraries(fujinet pthread expat cjson cjson_utils smb2 ssh nfs gumbo_fn afp_bridge)
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     target_link_libraries(fujinet ws2_32 bcrypt)

@@ -19,8 +19,11 @@
 #include "afp.h"
 #include "dsi.h"
 #include "utils.h"
+#include "afp_socket.h"
 
+#ifndef AFPFS_POLL_LOOP
 #define SIGNAL_TO_USE SIGUSR2
+#endif
 
 static unsigned char exit_program=0;
 
@@ -37,6 +40,7 @@ void trigger_exit(void)
 	exit_program=1;
 }
 
+#ifndef AFPFS_POLL_LOOP
 void termination_handler(int signum)
 {
 	switch (signum) {
@@ -52,6 +56,7 @@ void termination_handler(int signum)
 	signal(SIGNAL_TO_USE, termination_handler);
 		
 }
+#endif
 
 #define max(a,b) (((a)>(b)) ? (a) : (b))
 
@@ -80,8 +85,10 @@ static void rm_fd(int fd)
 
 void signal_main_thread(void)
 {
+#ifndef AFPFS_POLL_LOOP
 	if (main_thread) 
 		pthread_kill(main_thread,SIGNAL_TO_USE);
+#endif
 }
 
 static int ending=0;
@@ -124,7 +131,7 @@ void loop_disconnect(struct afp_server *s)
         rm_fd_and_signal(s->fd);
 
 	/* Handle disconnect */
-        close(s->fd);
+        afp_sock_close(s->fd);
 
 	s->connect_state=SERVER_STATE_DISCONNECTED;
 	s->need_resume=1;
@@ -223,7 +230,9 @@ int afp_main_loop(int command_fd) {
 	struct timespec tv;
 	int ret;
 	int fderrors=0;
+#ifndef AFPFS_POLL_LOOP
 	sigset_t sigmask, orig_sigmask;
+#endif
 
 	main_thread=pthread_self();
 
@@ -233,6 +242,7 @@ int afp_main_loop(int command_fd) {
 
 
 
+#ifndef AFPFS_POLL_LOOP
 	sigemptyset(&sigmask);
 	sigaddset(&sigmask,SIGNAL_TO_USE);
 	sigprocmask(SIG_BLOCK,&sigmask,&orig_sigmask);
@@ -240,27 +250,17 @@ int afp_main_loop(int command_fd) {
 	signal(SIGNAL_TO_USE,termination_handler);
 	signal(SIGTERM,termination_handler);
 	signal(SIGINT,termination_handler);
+#endif
 	while(1) {
 
 		ords=rds;
 		oeds=rds;
 		if (loop_started) {
-#ifdef ESP_PLATFORM
-			/* Upstream waits 30 s here and relies on
-			 * signal_main_thread() -> pthread_kill() to cut the wait
-			 * short when a new fd is added.  ESP32 has no POSIX
-			 * signals, so that call is a no-op stub and the wait runs
-			 * to completion: a connect adds its socket AFTER this
-			 * copy of rds was taken, so the reply to DSIOpenSession
-			 * could not be read for a full 30 s.  Two of those -- the
-			 * first attempt and the retry -- is what made an AFP
-			 * connect take about a minute.
-			 *
-			 * Poll instead.  This only affects fds added while the
-			 * select is already running; traffic on an fd already in
-			 * the set still wakes it immediately.  So the cost is one
-			 * cheap select per interval and the benefit is bounded
-			 * connect latency. */
+#ifdef AFPFS_POLL_LOOP
+			/* signal_main_thread() does nothing in this mode, so a
+			 * 30 s wait would miss an fd added after rds was
+			 * copied.  Poll; traffic on an fd already in the set
+			 * still wakes the select at once. */
 			tv.tv_sec=0;
 			tv.tv_nsec=100L*1000L*1000L;	/* 100 ms */
 #else
@@ -272,7 +272,11 @@ int afp_main_loop(int command_fd) {
 			tv.tv_nsec=0;
 		}
 
+#ifdef AFPFS_POLL_LOOP
+		ret=pselect(max_fd,&ords,NULL,&oeds,&tv,NULL);
+#else
 		ret=pselect(max_fd,&ords,NULL,&oeds,&tv,&orig_sigmask);
+#endif
 			if (exit_program==2) break;
 			if (exit_program==1) {
 				pthread_create(&ending_thread,NULL,just_end_it_now,NULL);

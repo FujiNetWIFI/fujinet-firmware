@@ -182,6 +182,8 @@ int WiFiManager::connect(const char *ssid, const char *password)
         // Debug_printf("WiFi config double-check: \"%s\", \"%s\"\r\n", (char *)wifi_config.sta.ssid, (char *)wifi_config.sta.password );
 
         wifi_config.sta.pmf_cfg.capable = true;
+        wifi_config.sta.scan_method = WIFI_ALL_CHANNEL_SCAN;
+        wifi_config.sta.sort_method = WIFI_CONNECT_AP_BY_SIGNAL;
 
         // Optional multi-AP mode ([WiFi] multi_ap=1): in a meshed/multi-AP environment
         // (several APs sharing one SSID) scan all channels and associate to the AP with
@@ -314,6 +316,8 @@ int WiFiManager::test_connect(const char *ssid, const char *password)
     // Debug_printf("wifi_config.sta.pass: >%s<\r\n", wifi_config.sta.password);
 
     wifi_config.sta.pmf_cfg.capable = true;
+    wifi_config.sta.scan_method = WIFI_ALL_CHANNEL_SCAN;
+    wifi_config.sta.sort_method = WIFI_CONNECT_AP_BY_SIGNAL;
 
     // Match connect(): in multi-AP mode prefer the strongest AP for the SSID.
     if (Config.get_wifi_multi_ap())

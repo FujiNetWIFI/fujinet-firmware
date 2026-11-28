@@ -88,7 +88,7 @@ struct afp_server * afp_server_complete_connection(
 
 	return server;
 error:
-	afp_server_remove(server);
+	/* The caller still owns the server and removes it. */
 	return NULL;
 
 }

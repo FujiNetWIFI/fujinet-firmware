@@ -4,6 +4,7 @@ set(INCLUDES
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/include/pinmap
 
+    ${CMAKE_SOURCE_DIR}/lib/afp
     ${CMAKE_SOURCE_DIR}/lib/bus
     ${CMAKE_SOURCE_DIR}/lib/bus/adamnet
     ${CMAKE_SOURCE_DIR}/lib/bus/comlynx
@@ -87,6 +88,8 @@ set(INCLUDES
 FILE(GLOB_RECURSE SOURCES
     ${CMAKE_SOURCE_DIR}/src/*.cpp
 
+    ${CMAKE_SOURCE_DIR}/lib/afp/*.c
+    ${CMAKE_SOURCE_DIR}/lib/afp/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/bus/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/bus/adamnet/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/bus/comlynx/*.cpp

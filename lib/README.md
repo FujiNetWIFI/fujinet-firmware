@@ -27,6 +27,7 @@ lib/printer-emulator     printer, modem, CP/M and speech emulation used by the d
 lib/modem-sniffer, lib/runcpm, lib/sam
         |
 lib/FileSystem           FileSystem backends (SD, flash, TNFS, SMB, NFS, FTP, HTTP), FileHandler
+lib/afp                  AFP logins and attached volumes over afpfs-ng (AfpSession)
 lib/network-protocol     NetworkProtocol adapters created by NetworkProtocolFactory from a URL
 lib/http                 configuration web UI, REST API and HTTP clients (one ESP and one PC server)
         |
