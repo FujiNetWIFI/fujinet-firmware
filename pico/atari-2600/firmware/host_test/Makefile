@@ -4,10 +4,12 @@
 TOOLS = ../../tools
 GEN = $(OUT)/gen
 
-TESTS = test_render test_busio test_vcsmap test_fujimail
+TESTS = test_render test_busio test_vcsmap test_fujimail test_pathjob
 test_render_SRCS = $(SRC)/vcs_render.c
 test_render_DEPS = $(GEN)/vcs_font.h $(GEN)/render_gold.h
 test_fujimail_SRCS = $(COMMON)/src/fujimail.c
+# The path ops as core1 runs them, a step at a time.
+test_pathjob_CFLAGS = -DVCS_CART_DEFER_PATH
 EXTRA_CFLAGS = -I$(GEN)
 
 include ../../../common/host_test/cart.mk
