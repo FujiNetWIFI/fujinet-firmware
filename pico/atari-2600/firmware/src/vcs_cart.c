@@ -110,8 +110,11 @@ void __not_in_flash_func(vcs_core1_main)(void)
         /* A page the cart drives. */
         DATA_OUT(vcs_read(&fuji_mem, (uint16_t)addr));
         DATA_DRIVE;
-        while (ADDR_IN == addr)
-            ;
+        /* The rest of a read is idle, so a pending path job runs here, a step at a time. */
+        while (ADDR_IN == addr) {
+            if (fuji_mem.path_job != VCS_JOB_NONE)
+                vcs_path_step(&fuji_mem);
+        }
         DATA_RELEASE;
         prev = 0xFFFFFFFFu;
     }

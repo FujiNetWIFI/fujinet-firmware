@@ -39,6 +39,17 @@ typedef enum {
     VCS_EV_PATHRAW,  /* emit just the path buffer's own bytes                      */
 } vcs_ev_t;
 
+/* A path op too long to run between a store and the next fetch; see path_job. */
+typedef enum {
+    VCS_JOB_NONE = 0,
+    VCS_JOB_COPY,    /* job_src over job_dst, job_len bytes */
+    VCS_JOB_POP,     /* walk job_dst back to its last '/'   */
+} vcs_job_t;
+
+/* Work per step, small enough that core1 still sees the address move on in time. */
+#define VCS_JOB_COPY_STEP 8u    /* bytes; FN_PATH_MAX is a multiple of it */
+#define VCS_JOB_POP_STEP  2u    /* characters examined                    */
+
 typedef struct {
     /* The 4K the console sees, $1000-$1FFF; the cart paints the reply, status page and text
      * planes into it. Only the fixed half is served from here: the low half goes through
@@ -61,6 +72,14 @@ typedef struct {
     uint8_t path[FN_PATH_BUFS][FN_PATH_MAX];
     uint16_t path_len[FN_PATH_BUFS];
     uint8_t path_sel;
+
+    /* COMMIT, SEED and POP walk a buffer, which takes longer than core1 has before the next
+     * fetch. With VCS_CART_DEFER_PATH the walk waits here and vcs_path_step() runs it a piece
+     * at a time while core1 holds a read; any later path op but a select, and any blit,
+     * finishes it first. */
+    uint8_t path_job;         /* vcs_job_t                                      */
+    uint8_t job_src, job_dst; /* buffers; a pop has only a destination          */
+    uint16_t job_pos, job_len;
 
     /* A scheme named by the pushed image's .cfg sibling, if it had one. */
 #ifdef VCS_CART_HOST_MAPPER
@@ -193,6 +212,49 @@ static inline uint8_t vcs_path_byte(const vcs_mem_t *m, unsigned i)
     return (i < m->path_len[m->path_sel]) ? m->path[m->path_sel][i] : 0u;
 }
 
+/* One piece of the pending path job. */
+static inline void vcs_path_step(vcs_mem_t *m)
+{
+    if (m->path_job == VCS_JOB_COPY) {
+        /* Whole steps even past the end: nothing reads a buffer beyond its length. */
+        memcpy(&m->path[m->job_dst][m->job_pos], &m->path[m->job_src][m->job_pos],
+               VCS_JOB_COPY_STEP);
+        m->job_pos = (uint16_t)(m->job_pos + VCS_JOB_COPY_STEP);
+        if (m->job_pos >= m->job_len)
+            m->path_job = VCS_JOB_NONE;
+    } else if (m->path_job == VCS_JOB_POP) {
+        const uint8_t *buf = m->path[m->job_dst];
+        unsigned left = VCS_JOB_POP_STEP;
+
+        while (left > 0u && m->job_pos > 1u && buf[m->job_pos - 1u] != (uint8_t)'/') {
+            m->job_pos--;
+            left--;
+        }
+        if (m->job_pos <= 1u || buf[m->job_pos - 1u] == (uint8_t)'/') {
+            m->path_len[m->job_dst] = m->job_pos;
+            m->path_job = VCS_JOB_NONE;
+            vcs_publish_pathlen(m);
+        }
+    }
+}
+
+static inline void vcs_path_finish(vcs_mem_t *m)
+{
+    while (m->path_job != VCS_JOB_NONE)
+        vcs_path_step(m);
+}
+
+/* Start copying buffer `src` over `dst`. The new length is published at once. */
+static inline void vcs_path_copy(vcs_mem_t *m, uint8_t src, uint8_t dst)
+{
+    m->job_src = src;
+    m->job_dst = dst;
+    m->job_pos = 0;
+    m->job_len = m->path_len[src];
+    m->path_len[dst] = m->job_len;
+    m->path_job = m->job_len ? VCS_JOB_COPY : VCS_JOB_NONE;
+}
+
 /* An access with A12 low: the cart does not answer it, but UA and FE boards watch it. One test
  * per low cycle, since this runs on every zero-page access a game makes. */
 static inline void vcs_watch(vcs_mem_t *m, uint16_t a, uint8_t data)
@@ -296,25 +358,30 @@ static inline vcs_ev_t vcs_write(vcs_mem_t *m, uint16_t a, uint8_t v,
     case FN_HOT_PATH_CH:
         /* Saturates rather than wrapping, for the same reason FN_HOT_TCHR
          * does: an over-long path is truncated, never a buffer corrupted. */
+        if (m->path_job != VCS_JOB_NONE)
+            vcs_path_finish(m);
         if (m->path_len[m->path_sel] < FN_PATH_MAX)
             m->path[m->path_sel][m->path_len[m->path_sel]++] = v;
         vcs_publish_pathlen(m);
         return VCS_EV_NONE;
 
     case FN_HOT_PATH_OP:
+        /* A pending job lands first, so ops apply in order; a select changes no buffer. */
+        if (m->path_job != VCS_JOB_NONE && (v < FN_PATH_SEL0 || v > FN_PATH_SEL3))
+            vcs_path_finish(m);
         if (v == FN_PATH_RST) {
             m->path_len[m->path_sel] = 0;
         } else if (v == FN_PATH_POP) {
             /* "/a/b/c/" -> "/a/b/", "/a/" -> "/", "/" -> "/". A directory is
              * held WITH its trailing separator, so appending a name to it is
              * one store and needs no separator logic on the console. */
-            uint16_t *n = &m->path_len[m->path_sel];
-            const uint8_t *b = m->path[m->path_sel];
+            uint16_t len = m->path_len[m->path_sel];
 
-            if (*n > 1u && b[*n - 1u] == (uint8_t)'/')
-                (*n)--;
-            while (*n > 1u && b[*n - 1u] != (uint8_t)'/')
-                (*n)--;
+            if (len > 1u && m->path[m->path_sel][len - 1u] == (uint8_t)'/')
+                len--;
+            m->job_dst = m->path_sel;
+            m->job_pos = len;
+            m->path_job = VCS_JOB_POP;
         } else if (v == FN_PATH_POPCH) {
             /* The editor's backspace; stops at empty. */
             if (m->path_len[m->path_sel] > 0u)
@@ -323,30 +390,21 @@ static inline vcs_ev_t vcs_write(vcs_mem_t *m, uint16_t a, uint8_t v,
             m->path_sel = (uint8_t)(v - FN_PATH_SEL0);
         } else if (v == FN_PATH_COMMIT) {
             /* Accept an edit: the selected buffer becomes what was typed. */
-            if (m->path_sel != FN_PATH_SCRATCH) {
-                unsigned n = m->path_len[FN_PATH_SCRATCH];
-                unsigned i;
-
-                for (i = 0; i < n; i++)
-                    m->path[m->path_sel][i] = m->path[FN_PATH_SCRATCH][i];
-                m->path_len[m->path_sel] = (uint16_t)n;
-            }
+            if (m->path_sel != FN_PATH_SCRATCH)
+                vcs_path_copy(m, FN_PATH_SCRATCH, m->path_sel);
         } else if (v == FN_PATH_SEED) {
             /* Begin an edit. Cancel is never issuing COMMIT, which leaves the original
              * untouched. */
-            if (m->path_sel != FN_PATH_SCRATCH) {
-                unsigned n = m->path_len[m->path_sel];
-                unsigned i;
-
-                for (i = 0; i < n; i++)
-                    m->path[FN_PATH_SCRATCH][i] = m->path[m->path_sel][i];
-                m->path_len[FN_PATH_SCRATCH] = (uint16_t)n;
-            }
+            if (m->path_sel != FN_PATH_SCRATCH)
+                vcs_path_copy(m, m->path_sel, FN_PATH_SCRATCH);
         } else if (v == FN_PATH_TX) {
             return VCS_EV_PATHTX;
         } else if (v == FN_PATH_TXRAW) {
             return VCS_EV_PATHRAW;
         }
+#ifndef VCS_CART_DEFER_PATH
+        vcs_path_finish(m);     /* MAME, Stella and the host tests have no bus cycle to miss */
+#endif
         /* A select changes which length is published, so this has to run for
          * every op, not just the mutating ones. */
         vcs_publish_pathlen(m);
@@ -356,7 +414,11 @@ static inline vcs_ev_t vcs_write(vcs_mem_t *m, uint16_t a, uint8_t v,
     case FN_HOT_BLIT_DL: m->blit_dst = (uint16_t)((m->blit_dst & 0xFF00u) | v); return VCS_EV_NONE;
     case FN_HOT_BLIT_DH: m->blit_dst = (uint16_t)((m->blit_dst & 0x00FFu) | ((uint16_t)v << 8)); return VCS_EV_NONE;
     case FN_HOT_BLIT_CNT: m->blit_cnt = v; return VCS_EV_NONE;
-    case FN_HOT_BLIT_GO: *ev_b = v; return VCS_EV_BLIT;
+    case FN_HOT_BLIT_GO:
+        if (m->path_job != VCS_JOB_NONE)
+            vcs_path_finish(m); /* core0 may be about to render a path buffer */
+        *ev_b = v;
+        return VCS_EV_BLIT;
     case FN_HOT_SWAP:  return m->swap_armed ? VCS_EV_SWAP : VCS_EV_NONE;
     case FN_HOT_COMMIT:
         /* A commit with nothing armed is a no-op, and the arm is spent. */

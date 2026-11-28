@@ -88,7 +88,8 @@
 #define FN_R_HDR         0x1F14   /* bank count, cell height, layout rev     */
 
 /* The path buffer's length: SET_DEVICE_FULLPATH takes the directory and the filename in one
- * 256-byte payload, so once the cart has emitted the directory the client pads the rest. */
+ * 256-byte payload, so once the cart has emitted the directory the client pads the rest.
+ * After FN_PATH_POP it changes only when the cart has walked the buffer, a few cycles on. */
 #define FN_B_PATHLEN     0x1F17   /* 2 bytes, little-endian                  */
 
 /* Bumped once a blit has landed. There is one blit slot and no queue, so poll this for a

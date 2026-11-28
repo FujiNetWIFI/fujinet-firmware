@@ -47,4 +47,5 @@ fujicart_firmware(${PROJECT_NAME}
     CORE1 vcs_core1_main fuji_cart_serve_staged fuji_mem fuji_ring fuji_image
 )
 target_include_directories(${PROJECT_NAME} PRIVATE ${VCS_FONT_DIR})
-target_compile_definitions(${PROJECT_NAME} PRIVATE PICO_ENABLE_USB_RESET_VIA_BAUD_RATE=1)
+target_compile_definitions(${PROJECT_NAME} PRIVATE PICO_ENABLE_USB_RESET_VIA_BAUD_RATE=1
+    VCS_CART_DEFER_PATH=1)
