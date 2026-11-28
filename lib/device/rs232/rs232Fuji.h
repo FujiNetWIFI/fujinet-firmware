@@ -32,6 +32,9 @@ protected:
         return disk_dev->mount(fileh, disk.filename, disk.disk_size, mode, &host);
     }
 
+    // Takes either rs232Disk::NewDiskRequest or NewDiskTypedRequest, told apart by length.
+    void fujicmd_new_disk() override;
+
     void rs232_net_set_ssid(bool save);    // 0xFB
     void rs232_test();                     // 0x00
 

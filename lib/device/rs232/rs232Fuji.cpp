@@ -26,6 +26,42 @@ rs232Network rs232NetDevs[MAX_NETWORK_DEVICES];
 rs232Fuji::rs232Fuji() : fujiDevice(MAX_DISK_DEVICES, IMAGE_EXTENSION, LOBBY_URL)
 {}
 
+// The request is told apart by its length.
+static_assert(sizeof(rs232Disk::NewDiskRequest) == 6 + MAX_FILENAME_LEN);
+static_assert(sizeof(rs232Disk::NewDiskTypedRequest) == 7 + MAX_FILENAME_LEN);
+
+void rs232Fuji::fujicmd_new_disk()
+{
+    union
+    {
+        rs232Disk::NewDiskRequest plain;
+        rs232Disk::NewDiskTypedRequest typed;
+    } req = {};
+
+    Debug_println("Fuji cmd: NEW DISK");
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
+    auto len = SYSTEM_BUS.transaction_get(&req, sizeof(req));
+
+    success_is_true created = success_is_true(false);
+    if (len.is_success() && len == sizeof(req.plain))
+    {
+        req.plain.filename[sizeof(req.plain.filename) - 1] = '\0';
+        created = fujicore_new_disk_success(req.plain);
+    }
+    else if (len.is_success() && len == sizeof(req.typed))
+    {
+        req.typed.filename[sizeof(req.typed.filename) - 1] = '\0';
+        created = fujicore_new_disk_success(
+            req.typed.hostSlot, req.typed.deviceSlot, req.typed.filename,
+            [&](fnFile *f) { return get_disk_dev(req.typed.deviceSlot)->write_blank(f, req.typed); });
+    }
+
+    if (created.is_error())
+        SYSTEM_BUS.transaction_error();
+    else
+        SYSTEM_BUS.transaction_success();
+}
+
 // Initializes base settings and adds our devices to the RS232 bus
 void rs232Fuji::setup()
 {

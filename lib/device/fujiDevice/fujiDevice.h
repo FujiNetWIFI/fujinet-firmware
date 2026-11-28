@@ -314,6 +314,10 @@ public:
     success_is_true fujicore_mount_all_success();
     success_is_true fujicore_mount_all_at_startup();
     success_is_true fujicore_new_disk_success(const DISK_DEVICE::NewDiskRequest &req);
+    // For a request that isn't a DISK_DEVICE::NewDiskRequest; write fills the new file.
+    success_is_true fujicore_new_disk_success(uint8_t hostSlot, uint8_t deviceSlot,
+                                              const char *filename,
+                                              const std::function<success_is_true(fnFile *)> &write);
     void fujicore_net_scan_networks();
     success_is_true fujicore_net_set_ssid_success(const char *ssid, const char *password, bool save);
 
