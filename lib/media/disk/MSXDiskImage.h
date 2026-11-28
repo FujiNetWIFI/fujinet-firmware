@@ -7,7 +7,7 @@
 #include "media.h"
 
 // One file to place in the root directory of a new image.
-struct MsxDiskFile
+struct MSXDiskFile
 {
     const char *name; // 11 characters, space padded: "MSXDOS  SYS"
     std::vector<uint8_t> data;
@@ -18,7 +18,7 @@ struct MsxDiskFile
 // system file the boot sector loads. The boot sector's BPB is always written
 // because the rs232 bus can't format a disk, and RawDisk::geometryFromBootSector
 // needs it to see 1DD as 80x1x9 rather than a 40x2 PC floppy.
-class MsxDiskImage
+class MSXDiskImage
 {
 public:
     static constexpr uint16_t SECTOR_SIZE = 512;
@@ -28,7 +28,7 @@ public:
     // Writes numBlocks sectors to f, starting from a copy of bootSector.
     static success_is_true create(fnFile *f, uint32_t numBlocks,
                                   const uint8_t (&bootSector)[SECTOR_SIZE],
-                                  const std::vector<MsxDiskFile> &files, uint32_t volumeSerial,
+                                  const std::vector<MSXDiskFile> &files, uint32_t volumeSerial,
                                   uint16_t dosDate, uint16_t dosTime);
 };
 

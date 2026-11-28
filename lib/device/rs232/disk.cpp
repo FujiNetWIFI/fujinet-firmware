@@ -207,7 +207,7 @@ namespace
 {
 
 constexpr const char *MSX_TEMPLATE_DIR = "/msx/";
-constexpr size_t MSX_FILE_LIMIT = MsxDiskImage::BLOCKS_720K * MsxDiskImage::SECTOR_SIZE;
+constexpr size_t MSX_FILE_LIMIT = MSXDiskImage::BLOCKS_720K * MSXDiskImage::SECTOR_SIZE;
 
 success_is_true load_msx_template(const char *name, std::vector<uint8_t> &data)
 {
@@ -234,9 +234,9 @@ success_is_true load_msx_template(const char *name, std::vector<uint8_t> &data)
 }
 
 success_is_true load_msx_file(const char *templateName, const char *dirName,
-                              std::vector<MsxDiskFile> &files)
+                              std::vector<MSXDiskFile> &files)
 {
-    MsxDiskFile file{dirName, {}};
+    MSXDiskFile file{dirName, {}};
     if (load_msx_template(templateName, file.data).is_error())
         RETURN_ERROR_AS_FALSE();
     files.push_back(std::move(file));
@@ -244,21 +244,21 @@ success_is_true load_msx_file(const char *templateName, const char *dirName,
 }
 
 // The files that make the disk boot, in the order they go on it.
-success_is_true load_msx_system_files(rs232Disk::NewDiskType type, std::vector<MsxDiskFile> &files)
+success_is_true load_msx_system_files(rs232Disk::NewDiskType type, std::vector<MSXDiskFile> &files)
 {
     switch (type)
     {
     case rs232Disk::NewDiskType::MSX_BLANK:
         RETURN_SUCCESS_AS_TRUE();
     case rs232Disk::NewDiskType::MSX_DOS1:
-        RETURN_SUCCESS_IF(load_msx_file("MSXDOS.SYS", "MSXDOS  SYS", files).is_success()
-                          && load_msx_file("COMMAND.COM", "COMMAND COM", files).is_success());
+        RETURN_SUCCESS_IF(load_msx_file("msxdos/MSXDOS.SYS", "MSXDOS  SYS", files).is_success()
+                          && load_msx_file("msxdos/COMMAND.COM", "COMMAND COM", files).is_success());
     // Nextor falls back to MSX-DOS 1 mode without a memory mapper, and then boots MSXDOS.SYS.
     case rs232Disk::NewDiskType::MSX_NEXTOR:
-        RETURN_SUCCESS_IF(load_msx_file("NEXTOR.SYS", "NEXTOR  SYS", files).is_success()
-                          && load_msx_file("COMMAND3.COM", "COMMAND3COM", files).is_success()
-                          && load_msx_file("MSXDOS.SYS", "MSXDOS  SYS", files).is_success()
-                          && load_msx_file("COMMAND.COM", "COMMAND COM", files).is_success());
+        RETURN_SUCCESS_IF(load_msx_file("nextor/NEXTOR.SYS", "NEXTOR  SYS", files).is_success()
+                          && load_msx_file("nextor/COMMAND3.COM", "COMMAND3COM", files).is_success()
+                          && load_msx_file("msxdos/MSXDOS.SYS", "MSXDOS  SYS", files).is_success()
+                          && load_msx_file("msxdos/COMMAND.COM", "COMMAND COM", files).is_success());
     }
     Debug_print("Unknown MSX disk type\n");
     RETURN_ERROR_AS_FALSE();
@@ -287,21 +287,21 @@ success_is_true rs232Disk::write_blank(fnFile *f, const NewDiskTypedRequest &req
 
     std::vector<uint8_t> boot;
     if (load_msx_template("bootsect.bin", boot).is_error()
-        || boot.size() != MsxDiskImage::SECTOR_SIZE)
+        || boot.size() != MSXDiskImage::SECTOR_SIZE)
     {
         Debug_print("Bad MSX boot sector\n");
         RETURN_ERROR_AS_FALSE();
     }
 
-    std::vector<MsxDiskFile> files;
+    std::vector<MSXDiskFile> files;
     if (load_msx_system_files(static_cast<NewDiskType>(req.createType), files).is_error())
         RETURN_ERROR_AS_FALSE();
 
     uint16_t date, time;
     dos_timestamp(date, time);
-    uint8_t bootSector[MsxDiskImage::SECTOR_SIZE];
+    uint8_t bootSector[MSXDiskImage::SECTOR_SIZE];
     memcpy(bootSector, boot.data(), sizeof(bootSector));
-    return MsxDiskImage::create(f, req.numBlocks, bootSector, files, fnSystem.random(), date,
+    return MSXDiskImage::create(f, req.numBlocks, bootSector, files, fnSystem.random(), date,
                                 time);
 }
 

@@ -8,7 +8,7 @@
 #include "disk/AltairDSK.h"
 #include "disk/IMDDisk.h"
 #include "disk/JV1Disk.h"
-#include "disk/MsxDiskImage.h"
+#include "disk/MSXDiskImage.h"
 #include "disk/RawDisk.h"
 
 #include <ctime>

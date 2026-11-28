@@ -7,6 +7,7 @@ The files that NEW DISK puts on a formatted MSX disk image. They are copied unch
   The firmware rewrites its BPB and volume serial for each image. Its boot code loads
   `MSXDOS.SYS` on an MSX-DOS 1 disk ROM. Nextor and MSX-DOS 2 kernels load their own system
   file.
-- `MSXDOS.SYS`, `COMMAND.COM`: release `msxdossys-v1.03-commandcom-v1.11`.
-- `NEXTOR.SYS`, `COMMAND3.COM`: release `commandcom-nextorsys-v3.0`. A Nextor disk also gets
-  `MSXDOS.SYS` and `COMMAND.COM`, which Nextor boots in MSX-DOS 1 mode on a machine without a memory mapper.
+- `msxdos/`: `MSXDOS.SYS` and `COMMAND.COM`, release `msxdossys-v1.03-commandcom-v1.11`.
+- `nextor/`: `NEXTOR.SYS` and `COMMAND3.COM`, release `commandcom-nextorsys-v3.0`. A Nextor
+  disk also gets the MSX-DOS 1 files, which Nextor boots in MSX-DOS 1 mode on a machine
+  without a memory mapper.

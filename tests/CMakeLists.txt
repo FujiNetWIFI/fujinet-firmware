@@ -269,11 +269,11 @@ add_test(NAME rawdisk_tests COMMAND rawdisk_tests)
 
 # The MSX-DOS floppy image writer, read back through RawDisk.
 add_executable(msxdiskimage_tests
-    MsxDiskImageTests.cpp
+    MSXDiskImageTests.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/disk/DiskMedia.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/disk/BlockMedia.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/disk/RawDisk.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/disk/MsxDiskImage.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/disk/MSXDiskImage.cpp
 )
 
 target_compile_definitions(msxdiskimage_tests PRIVATE UNIT_TESTS FNIO_IS_STDIO)
@@ -1104,7 +1104,7 @@ if(FUJINET_TARGET STREQUAL "RS232")
     channelStubs.cpp
     ${CMAKE_SOURCE_DIR}/lib/device/rs232/disk.cpp
     msxDiskStubs.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/disk/MsxDiskImage.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/disk/MSXDiskImage.cpp
     ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFS.cpp
     ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnDirCache.cpp
     ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFsSPIFFS.cpp
@@ -1171,7 +1171,7 @@ if(FUJINET_TARGET STREQUAL "RS232")
     channelStubs.cpp
     ${CMAKE_SOURCE_DIR}/lib/device/rs232/disk.cpp
     msxDiskStubs.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/disk/MsxDiskImage.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/disk/MSXDiskImage.cpp
     ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFS.cpp
     ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnDirCache.cpp
     ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFsSPIFFS.cpp

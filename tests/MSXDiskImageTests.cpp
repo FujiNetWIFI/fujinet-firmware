@@ -5,7 +5,7 @@
 #include <cstring>
 #include <vector>
 
-#include "MsxDiskImage.h"
+#include "MSXDiskImage.h"
 #include "RawDisk.h"
 
 namespace
@@ -52,12 +52,12 @@ std::vector<uint8_t> pattern(size_t length, uint8_t seed)
 }
 
 // Makes an image into the test file and returns its bytes; the file is left for the caller.
-success_is_true make_image(uint32_t blocks, const std::vector<MsxDiskFile> &files,
+success_is_true make_image(uint32_t blocks, const std::vector<MSXDiskFile> &files,
                            const BootTemplate &boot = BootTemplate())
 {
     FILE *file = std::fopen(MSX_DISK_TEST_FILE, "wb");
     REQUIRE(file != nullptr);
-    auto result = MsxDiskImage::create(file, blocks, boot.sector, files, SERIAL, DATE, TIME);
+    auto result = MSXDiskImage::create(file, blocks, boot.sector, files, SERIAL, DATE, TIME);
     std::fclose(file);
     return result;
 }
@@ -81,7 +81,7 @@ uint16_t fat_entry(const std::vector<uint8_t> &image, size_t fatOffset, uint16_t
     return cluster % 2 == 0 ? pair & 0xFFF : pair >> 4;
 }
 
-std::vector<MsxDiskFile> two_files()
+std::vector<MSXDiskFile> two_files()
 {
     return {{"MSXDOS  SYS", pattern(2432, 1)}, {"COMMAND COM", pattern(6400, 9)}};
 }
@@ -226,7 +226,7 @@ TEST_CASE("an image with no files is formatted and empty")
 
 TEST_CASE("a zero-length file takes no clusters")
 {
-    std::vector<MsxDiskFile> files = {{"EMPTY   TXT", {}}, {"MSXDOS  SYS", pattern(100, 5)}};
+    std::vector<MSXDiskFile> files = {{"EMPTY   TXT", {}}, {"MSXDOS  SYS", pattern(100, 5)}};
     REQUIRE(make_image(720, files).is_success());
     auto image = read_image();
 

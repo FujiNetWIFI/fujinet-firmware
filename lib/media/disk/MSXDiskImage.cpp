@@ -1,4 +1,4 @@
-#include "MsxDiskImage.h"
+#include "MSXDiskImage.h"
 
 #include <algorithm>
 #include <cstring>
@@ -7,11 +7,11 @@ namespace
 {
 
 constexpr uint8_t SECTORS_PER_CLUSTER = 2;
-constexpr uint16_t CLUSTER_SIZE = MsxDiskImage::SECTOR_SIZE * SECTORS_PER_CLUSTER;
+constexpr uint16_t CLUSTER_SIZE = MSXDiskImage::SECTOR_SIZE * SECTORS_PER_CLUSTER;
 constexpr uint8_t FAT_COUNT = 2;
 constexpr uint16_t ROOT_ENTRIES = 112;
 constexpr uint8_t DIR_ENTRY_SIZE = 32;
-constexpr uint16_t ROOT_SECTORS = ROOT_ENTRIES * DIR_ENTRY_SIZE / MsxDiskImage::SECTOR_SIZE;
+constexpr uint16_t ROOT_SECTORS = ROOT_ENTRIES * DIR_ENTRY_SIZE / MSXDiskImage::SECTOR_SIZE;
 constexpr uint8_t SECTORS_PER_TRACK = 9;
 constexpr uint16_t FIRST_DATA_CLUSTER = 2;
 constexpr uint16_t FAT_END_OF_CHAIN = 0xFFF;
@@ -66,10 +66,10 @@ success_is_true geometryFor(uint32_t numBlocks, Geometry &geometry)
 {
     switch (numBlocks)
     {
-    case MsxDiskImage::BLOCKS_360K:
+    case MSXDiskImage::BLOCKS_360K:
         geometry = {0xF8, 1, 2};
         RETURN_SUCCESS_AS_TRUE();
-    case MsxDiskImage::BLOCKS_720K:
+    case MSXDiskImage::BLOCKS_720K:
         geometry = {0xF9, 2, 3};
         RETURN_SUCCESS_AS_TRUE();
     default:
@@ -104,7 +104,7 @@ success_is_true write_all(fnFile *f, const void *data, size_t length)
 
 success_is_true write_zeros(fnFile *f, size_t length)
 {
-    const uint8_t zeros[MsxDiskImage::SECTOR_SIZE] = {0};
+    const uint8_t zeros[MSXDiskImage::SECTOR_SIZE] = {0};
     while (length > 0)
     {
         size_t chunk = std::min(length, sizeof(zeros));
@@ -115,7 +115,7 @@ success_is_true write_zeros(fnFile *f, size_t length)
     RETURN_SUCCESS_AS_TRUE();
 }
 
-success_is_true bootSectorUsable(const uint8_t (&bootSector)[MsxDiskImage::SECTOR_SIZE])
+success_is_true bootSectorUsable(const uint8_t (&bootSector)[MSXDiskImage::SECTOR_SIZE])
 {
     RETURN_SUCCESS_IF((bootSector[0] == BOOT_JUMP_SHORT || bootSector[0] == BOOT_JUMP_NEAR)
                       && memcmp(bootSector + BOOT_VOLUME_ID_OFFSET, BOOT_VOLUME_ID,
@@ -125,9 +125,9 @@ success_is_true bootSectorUsable(const uint8_t (&bootSector)[MsxDiskImage::SECTO
 
 } // namespace
 
-success_is_true MsxDiskImage::create(fnFile *f, uint32_t numBlocks,
+success_is_true MSXDiskImage::create(fnFile *f, uint32_t numBlocks,
                                      const uint8_t (&bootSector)[SECTOR_SIZE],
-                                     const std::vector<MsxDiskFile> &files,
+                                     const std::vector<MSXDiskFile> &files,
                                      uint32_t volumeSerial, uint16_t dosDate, uint16_t dosTime)
 {
     Geometry geometry;
@@ -147,7 +147,7 @@ success_is_true MsxDiskImage::create(fnFile *f, uint32_t numBlocks,
 
     uint16_t nextCluster = FIRST_DATA_CLUSTER;
     size_t dirIndex = 0;
-    for (const MsxDiskFile &file : files)
+    for (const MSXDiskFile &file : files)
     {
         size_t used = clusters_for(file.data.size());
         if (nextCluster - FIRST_DATA_CLUSTER + used > clusterCount)
@@ -196,7 +196,7 @@ success_is_true MsxDiskImage::create(fnFile *f, uint32_t numBlocks,
         RETURN_ERROR_AS_FALSE();
 
     uint64_t written = static_cast<uint64_t>(dataStart) * SECTOR_SIZE;
-    for (const MsxDiskFile &file : files)
+    for (const MSXDiskFile &file : files)
     {
         size_t padding = clusters_for(file.data.size()) * CLUSTER_SIZE - file.data.size();
         if (write_all(f, file.data.data(), file.data.size()).is_error()
