@@ -6,10 +6,13 @@
 #include <algorithm>
 #include <cstring>
 #include <string>
+#include <vector>
 
 #include "../../include/debug.h"
 
 #include "compat_string.h"
+#include "fnSystem.h"
+#include "fsFlash.h"
 #include "fujiDevice.h"
 #include "utils.h"
 
@@ -198,6 +201,108 @@ success_is_true rs232Disk::write_blank(fnFile *f, const NewDiskRequest &req)
     if (Media::matchExtension(req.filename, IMDDisk::extensions).has_value())
         return IMDDisk::create(f, req.sectorSize, req.numSectors);
     return RawDisk::create(f, req.sectorSize, req.numSectors);
+}
+
+namespace
+{
+
+constexpr const char *MSX_TEMPLATE_DIR = "/msx/";
+constexpr size_t MSX_FILE_LIMIT = MSXDiskImage::BLOCKS_720K * MSXDiskImage::SECTOR_SIZE;
+
+success_is_true load_msx_template(const char *name, std::vector<uint8_t> &data)
+{
+    std::string path = std::string(MSX_TEMPLATE_DIR) + name;
+    FILE *file = fsFlash.file_open(path.c_str(), "rb");
+    if (file == nullptr)
+    {
+        Debug_printf("Could not open %s\n", path.c_str());
+        RETURN_ERROR_AS_FALSE();
+    }
+
+    uint8_t chunk[256];
+    size_t got;
+    while ((got = fread(chunk, 1, sizeof(chunk), file)) > 0 && data.size() <= MSX_FILE_LIMIT)
+        data.insert(data.end(), chunk, chunk + got);
+    fclose(file);
+
+    if (data.size() > MSX_FILE_LIMIT)
+    {
+        Debug_printf("%s is too big\n", path.c_str());
+        RETURN_ERROR_AS_FALSE();
+    }
+    RETURN_SUCCESS_AS_TRUE();
+}
+
+success_is_true load_msx_file(const char *templateName, const char *dirName,
+                              std::vector<MSXDiskFile> &files)
+{
+    MSXDiskFile file{dirName, {}};
+    if (load_msx_template(templateName, file.data).is_error())
+        RETURN_ERROR_AS_FALSE();
+    files.push_back(std::move(file));
+    RETURN_SUCCESS_AS_TRUE();
+}
+
+// The files that make the disk boot, in the order they go on it.
+success_is_true load_msx_system_files(rs232Disk::NewDiskType type, std::vector<MSXDiskFile> &files)
+{
+    switch (type)
+    {
+    case rs232Disk::NewDiskType::MSX_BLANK:
+        RETURN_SUCCESS_AS_TRUE();
+    case rs232Disk::NewDiskType::MSX_DOS1:
+        RETURN_SUCCESS_IF(load_msx_file("msxdos/MSXDOS.SYS", "MSXDOS  SYS", files).is_success()
+                          && load_msx_file("msxdos/COMMAND.COM", "COMMAND COM", files).is_success());
+    // Nextor falls back to MSX-DOS 1 mode without a memory mapper, and then boots MSXDOS.SYS.
+    case rs232Disk::NewDiskType::MSX_NEXTOR:
+        RETURN_SUCCESS_IF(load_msx_file("nextor/NEXTOR.SYS", "NEXTOR  SYS", files).is_success()
+                          && load_msx_file("nextor/COMMAND3.COM", "COMMAND3COM", files).is_success()
+                          && load_msx_file("msxdos/MSXDOS.SYS", "MSXDOS  SYS", files).is_success()
+                          && load_msx_file("msxdos/COMMAND.COM", "COMMAND COM", files).is_success());
+    }
+    Debug_print("Unknown MSX disk type\n");
+    RETURN_ERROR_AS_FALSE();
+}
+
+// DOS date and time are 0 until the clock is set.
+void dos_timestamp(uint16_t &date, uint16_t &time)
+{
+    date = 0;
+    time = 0;
+
+    time_t now = ::time(nullptr);
+    struct tm local;
+    if (localtime_r(&now, &local) == nullptr || local.tm_year + 1900 < 2000)
+        return;
+    date = ((local.tm_year + 1900 - 1980) << 9) | ((local.tm_mon + 1) << 5) | local.tm_mday;
+    time = (local.tm_hour << 11) | (local.tm_min << 5) | (local.tm_sec / 2);
+}
+
+} // namespace
+
+// Boots on an MSX when the type includes a system file.
+success_is_true rs232Disk::write_blank(fnFile *f, const NewDiskTypedRequest &req)
+{
+    Debug_print("disk CREATE NEW MSX IMAGE\n");
+
+    std::vector<uint8_t> boot;
+    if (load_msx_template("bootsect.bin", boot).is_error()
+        || boot.size() != MSXDiskImage::SECTOR_SIZE)
+    {
+        Debug_print("Bad MSX boot sector\n");
+        RETURN_ERROR_AS_FALSE();
+    }
+
+    std::vector<MSXDiskFile> files;
+    if (load_msx_system_files(static_cast<NewDiskType>(req.createType), files).is_error())
+        RETURN_ERROR_AS_FALSE();
+
+    uint16_t date, time;
+    dos_timestamp(date, time);
+    uint8_t bootSector[MSXDiskImage::SECTOR_SIZE];
+    memcpy(bootSector, boot.data(), sizeof(bootSector));
+    return MSXDiskImage::create(f, req.numBlocks, bootSector, files, fnSystem.random(), date,
+                                time);
 }
 
 // Process command

@@ -267,6 +267,28 @@ target_include_directories(rawdisk_tests PRIVATE
 
 add_test(NAME rawdisk_tests COMMAND rawdisk_tests)
 
+# The MSX-DOS floppy image writer, read back through RawDisk.
+add_executable(msxdiskimage_tests
+    MSXDiskImageTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/disk/DiskMedia.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/disk/BlockMedia.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/disk/RawDisk.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/disk/MSXDiskImage.cpp
+)
+
+target_compile_definitions(msxdiskimage_tests PRIVATE UNIT_TESTS FNIO_IS_STDIO)
+target_compile_options(msxdiskimage_tests PRIVATE -U${FUJINET_BUILD_PLATFORM})
+
+target_include_directories(msxdiskimage_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/include/
+    ${CMAKE_SOURCE_DIR}/lib/media/
+    ${CMAKE_SOURCE_DIR}/lib/media/disk/
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+
+add_test(NAME msxdiskimage_tests COMMAND msxdiskimage_tests)
+
 # The ImageDisk format through IMDImage.
 add_executable(imddisk_tests
     IMDDiskTests.cpp
@@ -1081,6 +1103,12 @@ if(FUJINET_TARGET STREQUAL "RS232")
     romMountStubs.cpp
     channelStubs.cpp
     ${CMAKE_SOURCE_DIR}/lib/device/rs232/disk.cpp
+    msxDiskStubs.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/disk/MSXDiskImage.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFS.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnDirCache.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFsSPIFFS.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFileLocal.cpp
     ${CMAKE_SOURCE_DIR}/lib/device/Cartridge/Cartridge.cpp
     ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFile.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/IMDImage.cpp
@@ -1117,7 +1145,7 @@ if(FUJINET_TARGET STREQUAL "RS232")
         ${CMAKE_SOURCE_DIR}/lib/compat/strlcat.c
     )
   endif()
-  target_compile_definitions(rs232_rom_mount_tests PRIVATE UNIT_TESTS)
+  target_compile_definitions(rs232_rom_mount_tests PRIVATE UNIT_TESTS FLASH_SPIFFS)
   target_include_directories(rs232_rom_mount_tests PRIVATE
     ${CMAKE_SOURCE_DIR}/lib/device/rs232/
     ${CMAKE_SOURCE_DIR}/lib/bus/rs232/
@@ -1142,6 +1170,12 @@ if(FUJINET_TARGET STREQUAL "RS232")
     romMountStubs.cpp
     channelStubs.cpp
     ${CMAKE_SOURCE_DIR}/lib/device/rs232/disk.cpp
+    msxDiskStubs.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/disk/MSXDiskImage.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFS.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnDirCache.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFsSPIFFS.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFileLocal.cpp
     ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFile.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/IMDImage.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/disk/DiskMedia.cpp
@@ -1160,7 +1194,7 @@ if(FUJINET_TARGET STREQUAL "RS232")
         ${CMAKE_SOURCE_DIR}/lib/compat/strlcat.c
     )
   endif()
-  target_compile_definitions(rs232_disk_tests PRIVATE UNIT_TESTS)
+  target_compile_definitions(rs232_disk_tests PRIVATE UNIT_TESTS FLASH_SPIFFS)
   target_include_directories(rs232_disk_tests PRIVATE
     ${CMAKE_SOURCE_DIR}/lib/device/rs232/
     ${CMAKE_SOURCE_DIR}/lib/bus/rs232/

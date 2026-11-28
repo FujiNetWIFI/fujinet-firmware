@@ -1159,21 +1159,31 @@ void fujiDevice::fujidev_copy_file(const FUJI_COMMAND_PACKET &packet)
 
 success_is_true fujiDevice::fujicore_new_disk_success(const DISK_DEVICE::NewDiskRequest &req)
 {
-    if (validate_host_slot(req.hostSlot, "new disk").is_error()
-        || validate_device_slot(req.deviceSlot, "new disk").is_error())
+    return fujicore_new_disk_success(req.hostSlot, req.deviceSlot, req.filename,
+                                     [&](fnFile *f) {
+                                         return get_disk_dev(req.deviceSlot)->write_blank(f, req);
+                                     });
+}
+
+success_is_true fujiDevice::fujicore_new_disk_success(
+    uint8_t hostSlot, uint8_t deviceSlot, const char *filename,
+    const std::function<success_is_true(fnFile *)> &write)
+{
+    if (validate_host_slot(hostSlot, "new disk").is_error()
+        || validate_device_slot(deviceSlot, "new disk").is_error())
         RETURN_ERROR_AS_FALSE();
 
-    if (req.filename[0] == '\0')
+    if (filename[0] == '\0')
     {
         Debug_print("fujicore_new_disk No filename\n");
         RETURN_ERROR_AS_FALSE();
     }
 
-    fujiDisk &disk = _fnDisks[req.deviceSlot];
-    fujiHost &host = _fnHosts[req.hostSlot];
+    fujiDisk &disk = _fnDisks[deviceSlot];
+    fujiHost &host = _fnHosts[hostSlot];
     char path[sizeof(disk.filename)];
 
-    strlcpy(path, req.filename, sizeof(path));
+    strlcpy(path, filename, sizeof(path));
 
     if (host.file_exists(path))
     {
@@ -1189,8 +1199,8 @@ success_is_true fujiDevice::fujicore_new_disk_success(const DISK_DEVICE::NewDisk
     }
 
     Debug_printf("Creating file %s on host slot %u for disk slot %u\n", path,
-                 req.hostSlot, req.deviceSlot);
-    auto written = get_disk_dev(req.deviceSlot)->write_blank(f, req);
+                 hostSlot, deviceSlot);
+    auto written = write(f);
     fnio::fclose(f);
 
     if (written.is_error())
@@ -1200,7 +1210,7 @@ success_is_true fujiDevice::fujicore_new_disk_success(const DISK_DEVICE::NewDisk
         RETURN_ERROR_AS_FALSE();
     }
 
-    disk.host_slot = req.hostSlot;
+    disk.host_slot = hostSlot;
     disk.access_mode = DISK_ACCESS_MODE_WRITE;
     strlcpy(disk.filename, path, sizeof(disk.filename));
 

@@ -8,6 +8,7 @@
 #include "disk/AltairDSK.h"
 #include "disk/IMDDisk.h"
 #include "disk/JV1Disk.h"
+#include "disk/MSXDiskImage.h"
 #include "disk/RawDisk.h"
 
 #include <ctime>
@@ -79,6 +80,24 @@ public:
         char filename[MAX_FILENAME_LEN];
     } __attribute__((packed));
     success_is_true write_blank(fnFile *f, const NewDiskRequest &req);
+
+    // The values match fujinet-lib's NEW_DISK_TYPE_MSX_*.
+    enum class NewDiskType : uint8_t
+    {
+        MSX_BLANK = 0,
+        MSX_DOS1 = 1,
+        MSX_NEXTOR = 2,
+    };
+
+    // A formatted MSX disk; numBlocks is in 512-byte sectors.
+    struct NewDiskTypedRequest {
+        uint8_t hostSlot;
+        uint8_t deviceSlot;
+        uint8_t createType;
+        u32le_t numBlocks;
+        char filename[MAX_FILENAME_LEN];
+    } __attribute__((packed));
+    success_is_true write_blank(fnFile *f, const NewDiskTypedRequest &req);
 
     time_t mount_time() { return _mount_time; }
 };
